@@ -131,6 +131,7 @@ type DegradedReviewInput = ReviewRunInput & {
   readonly alternateModel?: string;
   readonly independentFallback?: ReviewAgent;
   readonly independentFallbackFailure?: ReviewFailure;
+  readonly independentFallbackRequests?: readonly Effect[];
 };
 
 /**
@@ -166,6 +167,23 @@ function verifyProvenance(
   return { kind: 'verified', output: output as ReviewerOutput };
 }
 
+/** Every request behind an independent result, in the order the routes ran. */
+function independentNetworkEffects(input: {
+  readonly reviewer: ReviewAgent;
+  readonly preferredReviewer?: ReviewAgent;
+  readonly preferredFailure?: ReviewFailure;
+  readonly alternateReviewer?: ReviewAgent;
+  readonly alternateFailure?: ReviewFailure;
+  readonly fallbackRequests?: readonly Effect[];
+}): readonly Effect[] {
+  return [
+    ...networkEffectsForFailure(input.preferredReviewer ?? input.reviewer, input.preferredFailure),
+    ...networkEffectsForFailure(input.alternateReviewer, input.alternateFailure),
+    ...(input.fallbackRequests ?? []),
+    reviewRequest(input.reviewer),
+  ];
+}
+
 function independentReviewResult(input: {
   readonly cwd: string;
   readonly author: ReviewAuthor;
@@ -185,6 +203,8 @@ function independentReviewResult(input: {
   readonly alternateReviewer?: ReviewAgent;
   readonly alternateModel?: string;
   readonly alternateFailure?: ReviewFailure;
+  /** Requests the completing reviewer made on earlier models in its chain. */
+  readonly fallbackRequests?: readonly Effect[];
 }): CliResult {
   return createResult({
     state: input.output.verdict === 'approve' ? 'healthy' : 'action_required',
@@ -196,16 +216,7 @@ function independentReviewResult(input: {
       },
       ...reviewerFeedback(input.output),
     ],
-    effects: {
-      network: [
-        ...networkEffectsForFailure(
-          input.preferredReviewer ?? input.reviewer,
-          input.preferredFailure,
-        ),
-        ...networkEffectsForFailure(input.alternateReviewer, input.alternateFailure),
-        reviewRequest(input.reviewer),
-      ],
-    },
+    effects: { network: independentNetworkEffects(input) },
     recovery: planExecutionRecovery(input),
     data: {
       command: 'review run',
@@ -868,7 +879,7 @@ async function runConfiguredRankedRoutes({
   const unavailable = new Set<ReviewAgent>();
   let degraded: { readonly output: ReviewerOutput; readonly route: ReviewRoute } | undefined;
   const runDeadline = Date.now() + runBoundMs();
-  const orderedRoutes = [...orderedReviewRoutes(planning, routes)];
+  const orderedRoutes = [...orderedReviewRoutes(routes)];
   const prepared = preparedRankedPacket(input, existingPrepared);
 
   try {
@@ -1054,11 +1065,8 @@ function queueRuntimeDefaultRetry(
   routes.splice(index + 1, 0, { reviewer: route.reviewer, independence: route.independence });
 }
 
-function orderedReviewRoutes(
-  planning: boolean,
-  routes: readonly ReviewRoute[],
-): readonly ReviewRoute[] {
-  if (!planning) return routes;
+/** A different agent is always tried before any same-agent route, for every review kind. */
+function orderedReviewRoutes(routes: readonly ReviewRoute[]): readonly ReviewRoute[] {
   return [
     ...routes.filter(route => route.independence === 'cross-agent'),
     ...routes.filter(route => route.independence === 'degraded'),
@@ -1204,15 +1212,19 @@ function degradedNetworkEffects(input: {
   readonly alternateFailure: ReviewFailure | undefined;
   readonly independentFallback?: ReviewAgent;
   readonly independentFallbackFailure?: ReviewFailure;
+  readonly independentFallbackRequests?: readonly Effect[];
+  readonly authorRequests?: readonly Effect[];
   readonly fallback:
     { readonly kind: 'completed' } | { readonly kind: 'failed'; failure: ReviewFailure };
 }): readonly Effect[] {
   return [
     ...networkEffectsForFailure(input.assignedReviewer, input.preferredFailure),
     ...networkEffectsForFailure(input.assignedReviewer, input.alternateFailure),
+    ...(input.independentFallbackRequests ?? []),
     ...(input.independentFallback === undefined
       ? []
       : networkEffectsForFailure(input.independentFallback, input.independentFallbackFailure)),
+    ...(input.authorRequests ?? []),
     ...(input.fallback.kind === 'completed'
       ? [reviewRequest(input.author)]
       : networkEffectsForFailure(input.author, input.fallback.failure)),
@@ -1307,6 +1319,8 @@ async function executeOnModelChain(
 ): Promise<{
   readonly execution: Awaited<ReturnType<typeof executeReview>>;
   readonly prepared: ReturnType<typeof prepareReviewPacket>;
+  /** Requests made by earlier attempts in the chain, before the reported one. */
+  readonly priorRequests: readonly Effect[];
 }> {
   const freshPacket = (): ReturnType<typeof prepareReviewPacket> =>
     prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
@@ -1323,15 +1337,21 @@ async function executeOnModelChain(
   )
     ? [undefined]
     : chain.slice(1);
+  const priorRequests: Effect[] = [];
   for (const model of attempts) {
-    const failed = execution.outcome.kind === 'failed' && !execution.outcome.terminal;
-    if (!failed || !canFundRoute(runDeadline)) break;
+    const { outcome } = execution;
+    if (outcome.kind !== 'failed' || outcome.terminal || !canFundRoute(runDeadline)) break;
+    priorRequests.push(...networkEffectsForFailure(reviewer, outcome.failure));
     prepared = freshPacket();
     execution = await executeReview(reviewer, prepared, model, runDeadline);
     sourceChanged ||= execution.sourceChanged;
     snapshotChanged ||= execution.snapshotChanged;
   }
-  return { execution: { ...execution, sourceChanged, snapshotChanged }, prepared };
+  return {
+    execution: { ...execution, sourceChanged, snapshotChanged },
+    prepared,
+    priorRequests,
+  };
 }
 
 function prepareFallbackReview(
@@ -1377,8 +1397,11 @@ function degradedFailureRoutes(
 function degradedFallbackNetworkEffects(
   input: DegradedReviewInput,
   fallback: Parameters<typeof degradedNetworkEffects>[0]['fallback'],
+  authorRequests: readonly Effect[] = [],
 ): readonly Effect[] {
   return degradedNetworkEffects({
+    independentFallbackRequests: input.independentFallbackRequests,
+    authorRequests,
     assignedReviewer: input.assignedReviewer,
     author: input.author,
     preferredFailure: input.preferredFailure,
@@ -1411,7 +1434,7 @@ function fallbackAssurance(kind: ReviewKind, reviewer: ReviewAgent, input: Degra
 }
 
 async function runDegradedFallback(input: DegradedReviewInput): Promise<CliResult> {
-  const { execution, prepared } = await executeOnModelChain(
+  const { execution, prepared, priorRequests } = await executeOnModelChain(
     input,
     input.author,
     prepareFallbackReview(input, input.assignedReviewer, input.author),
@@ -1431,7 +1454,7 @@ async function runDegradedFallback(input: DegradedReviewInput): Promise<CliResul
     context: input.context,
     sourceChanged,
     snapshotChanged,
-    network: degradedFallbackNetworkEffects(input, fallback),
+    network: degradedFallbackNetworkEffects(input, fallback, priorRequests),
   });
   if (changedResult !== undefined) return changedResult;
   const assessment = assessReviewOutcome(outcome, input.author, prepared.packet.dispatch_id);
@@ -1446,10 +1469,11 @@ async function runDegradedFallback(input: DegradedReviewInput): Promise<CliResul
         },
       ],
       effects: {
-        network: degradedFallbackNetworkEffects(input, {
-          kind: 'failed',
-          failure: assessment.failure,
-        }),
+        network: degradedFallbackNetworkEffects(
+          input,
+          { kind: 'failed', failure: assessment.failure },
+          priorRequests,
+        ),
       },
       recovery: [
         {
@@ -1480,7 +1504,7 @@ async function runDegradedFallback(input: DegradedReviewInput): Promise<CliResul
     state: completedOutput.verdict === 'approve' ? 'healthy' : 'action_required',
     findings: [assurance.finding, ...reviewerFeedback(completedOutput)],
     effects: {
-      network: degradedFallbackNetworkEffects(input, { kind: 'completed' }),
+      network: degradedFallbackNetworkEffects(input, { kind: 'completed' }, priorRequests),
     },
     data: {
       command: 'review run',
@@ -1595,7 +1619,12 @@ async function runIndependentFallback(
   },
 ): Promise<
   | { readonly kind: 'completed'; readonly result: CliResult }
-  | { readonly kind: 'failed'; readonly failure: ReviewFailure; readonly terminal: boolean }
+  | {
+      readonly kind: 'failed';
+      readonly failure: ReviewFailure;
+      readonly terminal: boolean;
+      readonly requests: readonly Effect[];
+    }
   | { readonly kind: 'skipped' }
 > {
   if (!canFundRoute(input.runDeadline)) return { kind: 'skipped' };
@@ -1603,7 +1632,7 @@ async function runIndependentFallback(
     `${agentName(input.preferredReviewer)} did not complete; trying an independent ${agentName(input.reviewer)} review…`,
   );
   input.progress?.heartbeat?.(`Still waiting for a response from ${agentName(input.reviewer)}…`);
-  const { execution, prepared } = await executeOnModelChain(
+  const { execution, prepared, priorRequests } = await executeOnModelChain(
     input,
     input.reviewer,
     prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
@@ -1626,20 +1655,23 @@ async function runIndependentFallback(
         ? [
             ...networkEffectsForFailure(input.preferredReviewer, input.preferredFailure),
             ...networkEffectsForFailure(input.preferredReviewer, input.alternateFailure),
+            ...priorRequests,
             ...networkEffectsForFailure(input.reviewer, outcome.failure),
           ]
         : [
             ...networkEffectsForFailure(input.preferredReviewer, input.preferredFailure),
             ...networkEffectsForFailure(input.preferredReviewer, input.alternateFailure),
+            ...priorRequests,
             reviewRequest(input.reviewer),
           ],
   });
   if (changedResult !== undefined) return { kind: 'completed', result: changedResult };
   const assessment = assessReviewOutcome(outcome, input.reviewer, prepared.packet.dispatch_id);
-  if (assessment.kind === 'failed') return assessment;
+  if (assessment.kind === 'failed') return { ...assessment, requests: priorRequests };
   return {
     kind: 'completed',
     result: independentReviewResult({
+      fallbackRequests: priorRequests,
       cwd: input.cwd,
       author: input.author,
       policy: input.policy,
@@ -1733,12 +1765,14 @@ async function runRemainingRoutes(
   if (independent.kind === 'completed') return independent.result;
   const independentFallbackFailure =
     independent.kind === 'failed' ? independent.failure : undefined;
+  const independentFallbackRequests = independent.kind === 'failed' ? independent.requests : [];
   if (endsHeadlessLaunches(independent, input.runDeadline)) {
     return exhaustedRunResult({
       ...input,
       alternateFailure,
       alternateModel,
       independentFallbackFailure,
+      independentFallbackRequests,
     });
   }
   return runDegradedFallback({
@@ -1746,6 +1780,7 @@ async function runRemainingRoutes(
     alternateFailure,
     alternateModel,
     independentFallbackFailure,
+    independentFallbackRequests,
   });
 }
 
@@ -1772,6 +1807,7 @@ function exhaustedRunResult(input: {
   readonly alternateModel?: string;
   readonly independentFallback: ReviewAgent;
   readonly independentFallbackFailure?: ReviewFailure;
+  readonly independentFallbackRequests?: readonly Effect[];
 }): CliResult {
   return createResult({
     state: 'action_required',
@@ -1807,6 +1843,7 @@ function exhaustedRunResult(input: {
       network: [
         ...networkEffectsForFailure(input.assignedReviewer, input.preferredFailure),
         ...networkEffectsForFailure(input.assignedReviewer, input.alternateFailure),
+        ...(input.independentFallbackRequests ?? []),
         ...networkEffectsForFailure(input.independentFallback, input.independentFallbackFailure),
       ],
     },

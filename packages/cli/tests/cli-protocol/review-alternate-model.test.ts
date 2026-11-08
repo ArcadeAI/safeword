@@ -551,11 +551,16 @@ describe('alternate-model review route', () => {
       },
     );
 
-    const payload = JSON.parse(result.stdout) as { data: Record<string, unknown> };
+    const payload = JSON.parse(result.stdout) as {
+      data: Record<string, unknown>;
+      effects: { network: { target: string }[] };
+    };
     expect(payload.data).toMatchObject({ actual_reviewer: 'codex', independence: 'cross-agent' });
     expect(readFileSync(modelLog, 'utf8').trim().split('\n')).toEqual([
       'gpt-6.1-sol',
       'gpt-6.1-terra',
     ]);
+    // Both Codex requests, the failed Sol one and the completed Terra one, are recorded.
+    expect(payload.effects.network.filter(effect => effect.target === 'codex')).toHaveLength(2);
   });
 });

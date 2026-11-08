@@ -4553,7 +4553,7 @@ describe('cross-agent review public-command wiring', () => {
     });
   });
 
-  it('continues past a same-author success to the next independent route', async () => {
+  it('tries the independent route before a same-author route listed first', async () => {
     const directory = createTemporaryDirectory();
     const log = nodePath.join(directory, 'review.log');
     mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
@@ -4591,16 +4591,14 @@ describe('cross-agent review public-command wiring', () => {
       },
     );
 
+    // A different agent always goes first, even when the user listed the author first.
     expect(result.exitCode, result.stdout).toBe(0);
-    expect(readFileSync(log, 'utf8')).toBe('claude\ncodex\n');
+    expect(readFileSync(log, 'utf8')).toBe('codex\n');
     expect(JSON.parse(result.stdout)).toMatchObject({
       data: {
         assigned_reviewer: 'codex',
         independence: 'cross-agent',
-        review_routes: [
-          { reviewer: 'claude', independence: 'degraded', status: 'attempted' },
-          { reviewer: 'codex', independence: 'cross-agent', status: 'attempted' },
-        ],
+        review_routes: [{ reviewer: 'codex', independence: 'cross-agent', status: 'attempted' }],
       },
     });
   });
