@@ -71,8 +71,30 @@ export function readConfiguredReviewRoutes(
   return effectiveConfiguredRoutes(cwd, author)?.routes;
 }
 
-function modelFor(model: string | undefined): { readonly model?: string } {
-  return model === undefined ? {} : { model };
+/**
+ * The models Safeword asks one reviewer agent for, in order: its primary model,
+ * then its alternate when different. An agent with neither runs its default.
+ * Every route, preferred or fallback, uses this one chain.
+ */
+export function reviewerModelChain(
+  cwd: string,
+  reviewer: ReviewAgent,
+): readonly (string | undefined)[] {
+  const primary = readPrimaryReviewerModel(cwd, reviewer);
+  const alternate = readAlternateReviewerModel(cwd, reviewer);
+  return alternate !== undefined && alternate !== primary ? [primary, alternate] : [primary];
+}
+
+function agentRoutes(
+  cwd: string,
+  reviewer: ReviewAgent,
+  independence: ReviewRoute['independence'],
+): readonly ReviewRoute[] {
+  return reviewerModelChain(cwd, reviewer).map(model => ({
+    reviewer,
+    ...(model !== undefined && { model }),
+    independence,
+  }));
 }
 
 export function builtInReviewRoutes(
@@ -81,27 +103,12 @@ export function builtInReviewRoutes(
 ): readonly ReviewRoute[] {
   const plan = reviewRoutePlan(author);
   if (plan === undefined) return [];
-  const primaryModel = readPrimaryReviewerModel(cwd, plan.preferred);
-  const alternateModel = readAlternateReviewerModel(cwd, plan.preferred);
   return [
-    { reviewer: plan.preferred, ...modelFor(primaryModel), independence: 'cross-agent' },
-    ...(alternateModel !== undefined && alternateModel !== primaryModel
-      ? [{ reviewer: plan.preferred, model: alternateModel, independence: 'cross-agent' as const }]
-      : []),
-    {
-      reviewer: plan.independentFallback,
-      ...modelFor(readPrimaryReviewerModel(cwd, plan.independentFallback)),
-      independence: 'cross-agent',
-    },
+    ...agentRoutes(cwd, plan.preferred, 'cross-agent'),
+    ...agentRoutes(cwd, plan.independentFallback, 'cross-agent'),
     ...(plan.degradedFallback === undefined
       ? []
-      : [
-          {
-            reviewer: plan.degradedFallback,
-            ...modelFor(readPrimaryReviewerModel(cwd, plan.degradedFallback)),
-            independence: 'degraded' as const,
-          },
-        ]),
+      : agentRoutes(cwd, plan.degradedFallback, 'degraded')),
   ];
 }
 

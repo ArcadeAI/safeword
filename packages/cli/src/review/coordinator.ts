@@ -25,6 +25,7 @@ import {
   readConfiguredReviewRoutes,
   readPrimaryReviewerModel,
   readReviewPolicy,
+  reviewerModelChain,
   reviewRoutePlan,
 } from './policy.js';
 import { reviewerPromptInstructions } from './review-rubric.js';
@@ -1281,39 +1282,56 @@ async function executePrimaryReview(
   };
 }
 
+function modelSelectionUnsupported(
+  model: string | undefined,
+  outcome: Awaited<ReturnType<typeof executeReview>>['outcome'],
+): boolean {
+  return (
+    model !== undefined &&
+    outcome.kind === 'failed' &&
+    outcome.failure === 'unsupported' &&
+    !outcome.terminal
+  );
+}
+
 /**
- * Runs a fallback reviewer on its built-in primary model. As on the primary
+ * Runs a fallback reviewer through its model chain (primary, then alternate),
+ * stopping at the first completion or terminal failure. As on the primary
  * route, a CLI that cannot select a model still reviews on its default.
  */
-async function executeOnPrimaryModel(
+async function executeOnModelChain(
   input: ReviewRunInput,
   reviewer: ReviewAgent,
-  prepared: ReturnType<typeof prepareReviewPacket>,
+  firstPrepared: ReturnType<typeof prepareReviewPacket>,
   runDeadline: number,
 ): Promise<{
   readonly execution: Awaited<ReturnType<typeof executeReview>>;
   readonly prepared: ReturnType<typeof prepareReviewPacket>;
 }> {
-  const model = readPrimaryReviewerModel(input.cwd, reviewer);
-  const execution = await executeReview(reviewer, prepared, model, runDeadline);
-  const modelUnsupported =
-    model !== undefined &&
-    execution.outcome.kind === 'failed' &&
-    execution.outcome.failure === 'unsupported' &&
-    !execution.outcome.terminal;
-  if (!modelUnsupported || !canFundRoute(runDeadline)) return { execution, prepared };
-  const retryPrepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
-    attestation: input.executionAttestation,
-  });
-  const retried = await executeReview(reviewer, retryPrepared, undefined, runDeadline);
-  return {
-    execution: {
-      outcome: retried.outcome,
-      sourceChanged: execution.sourceChanged || retried.sourceChanged,
-      snapshotChanged: execution.snapshotChanged || retried.snapshotChanged,
-    },
-    prepared: retryPrepared,
-  };
+  const freshPacket = (): ReturnType<typeof prepareReviewPacket> =>
+    prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
+      attestation: input.executionAttestation,
+    });
+  const chain = reviewerModelChain(input.cwd, reviewer);
+  let prepared = firstPrepared;
+  let execution = await executeReview(reviewer, prepared, chain[0], runDeadline);
+  let sourceChanged = execution.sourceChanged;
+  let snapshotChanged = execution.snapshotChanged;
+  const attempts: readonly (string | undefined)[] = modelSelectionUnsupported(
+    chain[0],
+    execution.outcome,
+  )
+    ? [undefined]
+    : chain.slice(1);
+  for (const model of attempts) {
+    const failed = execution.outcome.kind === 'failed' && !execution.outcome.terminal;
+    if (!failed || !canFundRoute(runDeadline)) break;
+    prepared = freshPacket();
+    execution = await executeReview(reviewer, prepared, model, runDeadline);
+    sourceChanged ||= execution.sourceChanged;
+    snapshotChanged ||= execution.snapshotChanged;
+  }
+  return { execution: { ...execution, sourceChanged, snapshotChanged }, prepared };
 }
 
 function prepareFallbackReview(
@@ -1393,7 +1411,7 @@ function fallbackAssurance(kind: ReviewKind, reviewer: ReviewAgent, input: Degra
 }
 
 async function runDegradedFallback(input: DegradedReviewInput): Promise<CliResult> {
-  const { execution, prepared } = await executeOnPrimaryModel(
+  const { execution, prepared } = await executeOnModelChain(
     input,
     input.author,
     prepareFallbackReview(input, input.assignedReviewer, input.author),
@@ -1585,7 +1603,7 @@ async function runIndependentFallback(
     `${agentName(input.preferredReviewer)} did not complete; trying an independent ${agentName(input.reviewer)} review…`,
   );
   input.progress?.heartbeat?.(`Still waiting for a response from ${agentName(input.reviewer)}…`);
-  const { execution, prepared } = await executeOnPrimaryModel(
+  const { execution, prepared } = await executeOnModelChain(
     input,
     input.reviewer,
     prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {

@@ -968,10 +968,12 @@ Then('the result names Opus as the timed-out primary model', function (this: Saf
 
 Then('the routes were attempted in their fixed order', function (this: SafewordWorld) {
   const launches = reviewerLaunches(this);
-  assert.equal(launches.length, 3);
+  // The author's own runtime gets its full model chain: Opus, then Sonnet.
+  assert.equal(launches.length, 4);
   assert.match(launches[0] ?? '', /^codex\t.*--model gpt-6.1-sol(?:\s|$)/u);
   assert.match(launches[1] ?? '', /^codex\t.*--model vendor-model-2(?:\s|$)/u);
-  assert.match(launches[2] ?? '', /^claude\t/u);
+  assert.match(launches[2] ?? '', /^claude\t.*--model opus(?:\s|$)/u);
+  assert.match(launches[3] ?? '', /^claude\t.*--model sonnet(?:\s|$)/u);
 });
 
 Then("the author's own runtime is never attempted", function (this: SafewordWorld) {

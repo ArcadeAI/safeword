@@ -519,4 +519,43 @@ describe('alternate-model review route', () => {
     expect(payload.data).toMatchObject({ actual_reviewer: 'claude' });
     expect(readFileSync(modelLog, 'utf8').trim().split('\n')).toEqual(['opus']);
   });
+
+  it('retries the independent fallback on Terra when Sol fails', async () => {
+    const directory = createTemporaryDirectory();
+    const modelLog = nodePath.join(directory, 'model.log');
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    writeConfig(directory, { crossAgentReview: 'prefer' });
+    // Claude is absent, so Codex is the independent fallback for an OpenCode author.
+    const bin = installModelDependentReviewer(directory, 'codex');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'opencode',
+          SAFEWORD_REVIEW_MODEL_LOG: modelLog,
+          SAFEWORD_REVIEW_ACCEPTED_MODEL: 'gpt-6.1-terra',
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    const payload = JSON.parse(result.stdout) as { data: Record<string, unknown> };
+    expect(payload.data).toMatchObject({ actual_reviewer: 'codex', independence: 'cross-agent' });
+    expect(readFileSync(modelLog, 'utf8').trim().split('\n')).toEqual([
+      'gpt-6.1-sol',
+      'gpt-6.1-terra',
+    ]);
+  });
 });

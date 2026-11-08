@@ -115,6 +115,7 @@ describe('review routes CLI wiring', () => {
           { reviewer: 'codex', model: 'gpt-6.1-terra', independence: 'cross-agent' },
           { reviewer: 'opencode', independence: 'cross-agent' },
           { reviewer: 'claude', model: 'opus', independence: 'degraded' },
+          { reviewer: 'claude', model: 'sonnet', independence: 'degraded' },
         ],
       },
     });

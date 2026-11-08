@@ -30,6 +30,7 @@ it.each(['quality-review', 'scenario-gate', 'plan-implementation', 'plan-executi
       { reviewer: 'claude', model: 'sonnet', independence: 'cross-agent' },
       { reviewer: 'opencode', independence: 'cross-agent' },
       { reviewer: 'codex', model: 'gpt-6.1-sol', independence: 'degraded' },
+      { reviewer: 'codex', model: 'gpt-6.1-terra', independence: 'degraded' },
     ]);
   },
 );
@@ -40,14 +41,16 @@ it('uses the latest Sol then Terra for Claude-authored reviews', () => {
     { reviewer: 'codex', model: 'gpt-6.1-terra', independence: 'cross-agent' },
     { reviewer: 'opencode', independence: 'cross-agent' },
     { reviewer: 'claude', model: 'opus', independence: 'degraded' },
+    { reviewer: 'claude', model: 'sonnet', independence: 'degraded' },
   ]);
 });
 
-it('names the latest Sol on the Codex fallback for Cursor-authored reviews', () => {
+it('gives the Codex fallback its Sol then Terra chain for Cursor-authored reviews', () => {
   expect(builtInReviewRoutes(project(), 'cursor')).toEqual([
     { reviewer: 'claude', model: 'opus', independence: 'cross-agent' },
     { reviewer: 'claude', model: 'sonnet', independence: 'cross-agent' },
     { reviewer: 'codex', model: 'gpt-6.1-sol', independence: 'cross-agent' },
+    { reviewer: 'codex', model: 'gpt-6.1-terra', independence: 'cross-agent' },
   ]);
 });
 
@@ -61,6 +64,7 @@ it('preserves configured primary and alternate models', () => {
     { reviewer: 'claude', model: 'custom-alternate', independence: 'cross-agent' },
     { reviewer: 'opencode', independence: 'cross-agent' },
     { reviewer: 'codex', model: 'custom-fallback', independence: 'degraded' },
+    { reviewer: 'codex', model: 'gpt-6.1-terra', independence: 'degraded' },
   ]);
 });
 

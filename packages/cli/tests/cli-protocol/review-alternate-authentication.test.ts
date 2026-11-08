@@ -105,6 +105,6 @@ describe('when an alternate independent route exposes expired authentication', (
       fallback_failure: 'invalid_output',
       independence: 'none',
     });
-    expect(readFileSync(routeLog, 'utf8')).toBe('codex\ncodex\nclaude\n');
+    expect(readFileSync(routeLog, 'utf8')).toBe('codex\ncodex\nclaude\nclaude\n');
   }, 30_000);
 });

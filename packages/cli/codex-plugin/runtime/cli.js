@@ -31825,6 +31825,7 @@ var init_preferences = __esm(() => {
 // src/review/policy.ts
 var exports_policy = {};
 __export(exports_policy, {
+  reviewerModelChain: () => reviewerModelChain,
   reviewRoutePlan: () => reviewRoutePlan,
   readReviewPolicy: () => readReviewPolicy,
   readPrimaryReviewerModel: () => readPrimaryReviewerModel,
@@ -31874,30 +31875,26 @@ function readConfiguredReviewRoutes(cwd, author) {
     return;
   return effectiveConfiguredRoutes(cwd, author)?.routes;
 }
-function modelFor(model) {
-  return model === undefined ? {} : { model };
+function reviewerModelChain(cwd, reviewer) {
+  const primary = readPrimaryReviewerModel(cwd, reviewer);
+  const alternate = readAlternateReviewerModel(cwd, reviewer);
+  return alternate !== undefined && alternate !== primary ? [primary, alternate] : [primary];
+}
+function agentRoutes(cwd, reviewer, independence) {
+  return reviewerModelChain(cwd, reviewer).map((model) => ({
+    reviewer,
+    ...model !== undefined && { model },
+    independence
+  }));
 }
 function builtInReviewRoutes(cwd, author) {
   const plan = reviewRoutePlan(author);
   if (plan === undefined)
     return [];
-  const primaryModel = readPrimaryReviewerModel(cwd, plan.preferred);
-  const alternateModel = readAlternateReviewerModel(cwd, plan.preferred);
   return [
-    { reviewer: plan.preferred, ...modelFor(primaryModel), independence: "cross-agent" },
-    ...alternateModel !== undefined && alternateModel !== primaryModel ? [{ reviewer: plan.preferred, model: alternateModel, independence: "cross-agent" }] : [],
-    {
-      reviewer: plan.independentFallback,
-      ...modelFor(readPrimaryReviewerModel(cwd, plan.independentFallback)),
-      independence: "cross-agent"
-    },
-    ...plan.degradedFallback === undefined ? [] : [
-      {
-        reviewer: plan.degradedFallback,
-        ...modelFor(readPrimaryReviewerModel(cwd, plan.degradedFallback)),
-        independence: "degraded"
-      }
-    ]
+    ...agentRoutes(cwd, plan.preferred, "cross-agent"),
+    ...agentRoutes(cwd, plan.independentFallback, "cross-agent"),
+    ...plan.degradedFallback === undefined ? [] : agentRoutes(cwd, plan.degradedFallback, "degraded")
   ];
 }
 function readPrimaryReviewerModel(cwd, reviewer) {
@@ -58265,24 +58262,29 @@ async function executePrimaryReview(input, reviewer, primaryModel, runDeadline) 
     preferredModelFailure: rejectedModelFailure
   };
 }
-async function executeOnPrimaryModel(input, reviewer, prepared, runDeadline) {
-  const model = readPrimaryReviewerModel(input.cwd, reviewer);
-  const execution = await executeReview(reviewer, prepared, model, runDeadline);
-  const modelUnsupported = model !== undefined && execution.outcome.kind === "failed" && execution.outcome.failure === "unsupported" && !execution.outcome.terminal;
-  if (!modelUnsupported || !canFundRoute(runDeadline))
-    return { execution, prepared };
-  const retryPrepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
+function modelSelectionUnsupported(model, outcome) {
+  return model !== undefined && outcome.kind === "failed" && outcome.failure === "unsupported" && !outcome.terminal;
+}
+async function executeOnModelChain(input, reviewer, firstPrepared, runDeadline) {
+  const freshPacket = () => prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
     attestation: input.executionAttestation
   });
-  const retried = await executeReview(reviewer, retryPrepared, undefined, runDeadline);
-  return {
-    execution: {
-      outcome: retried.outcome,
-      sourceChanged: execution.sourceChanged || retried.sourceChanged,
-      snapshotChanged: execution.snapshotChanged || retried.snapshotChanged
-    },
-    prepared: retryPrepared
-  };
+  const chain = reviewerModelChain(input.cwd, reviewer);
+  let prepared = firstPrepared;
+  let execution = await executeReview(reviewer, prepared, chain[0], runDeadline);
+  let sourceChanged = execution.sourceChanged;
+  let snapshotChanged = execution.snapshotChanged;
+  const attempts = modelSelectionUnsupported(chain[0], execution.outcome) ? [undefined] : chain.slice(1);
+  for (const model of attempts) {
+    const failed = execution.outcome.kind === "failed" && !execution.outcome.terminal;
+    if (!failed || !canFundRoute(runDeadline))
+      break;
+    prepared = freshPacket();
+    execution = await executeReview(reviewer, prepared, model, runDeadline);
+    sourceChanged ||= execution.sourceChanged;
+    snapshotChanged ||= execution.snapshotChanged;
+  }
+  return { execution: { ...execution, sourceChanged, snapshotChanged }, prepared };
 }
 function prepareFallbackReview(input, assignedReviewer, author) {
   const fallbackName = agentName(author);
@@ -58345,7 +58347,7 @@ function fallbackAssurance(kind, reviewer, input) {
   };
 }
 async function runDegradedFallback(input) {
-  const { execution, prepared } = await executeOnPrimaryModel(input, input.author, prepareFallbackReview(input, input.assignedReviewer, input.author), input.runDeadline);
+  const { execution, prepared } = await executeOnModelChain(input, input.author, prepareFallbackReview(input, input.assignedReviewer, input.author), input.runDeadline);
   const { outcome, sourceChanged, snapshotChanged } = execution;
   const fallback = outcome.kind === "completed" ? { kind: "completed" } : { kind: "failed", failure: outcome.failure };
   const changedResult = changedReviewResult({
@@ -58470,7 +58472,7 @@ async function runIndependentFallback(input) {
     return { kind: "skipped" };
   input.progress?.start(`${agentName(input.preferredReviewer)} did not complete; trying an independent ${agentName(input.reviewer)} review\u2026`);
   input.progress?.heartbeat?.(`Still waiting for a response from ${agentName(input.reviewer)}\u2026`);
-  const { execution, prepared } = await executeOnPrimaryModel(input, input.reviewer, prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
+  const { execution, prepared } = await executeOnModelChain(input, input.reviewer, prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
     attestation: input.executionAttestation
   }), input.runDeadline);
   const { outcome, sourceChanged, snapshotChanged } = execution;

@@ -1549,7 +1549,7 @@ describe('cross-agent review public-command wiring', () => {
       findings: [{ code: 'REVIEW_ROUTES_EXHAUSTED' }],
       data: { status: 'blocked', independence: 'none' },
     });
-    expect(readFileSync(log, 'utf8')).toBe('codex\ncodex\nclaude\n');
+    expect(readFileSync(log, 'utf8')).toBe('codex\ncodex\nclaude\nclaude\n');
     expect(result.stdout).not.toContain('"state":"healthy"');
   });
 
