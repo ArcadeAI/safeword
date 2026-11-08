@@ -1,5 +1,4 @@
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import {
   chmodSync,
   cpSync,
@@ -18,15 +17,11 @@ import nodePath from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { ReviewPacket, UnverifiedReviewerOutput } from '../../src/review/contract.js';
-import {
-  EXECUTION_PLAN_CONFORMANCE_CASES,
-  executionPlanConformanceDigests,
-} from '../../src/review/execution-plan-conformance.js';
 import { EXECUTION_PLAN_REVIEW_RUBRIC } from '../../src/review/execution-plan-rubric.generated.js';
 import { extractExecutionPlanReviewRubric } from '../../src/review/execution-plan-rubric.js';
 import { assemblePlanContract } from '../../src/review/packet.js';
-import { reviewPromptContract } from '../../src/review/review-rubric.js';
 import { reconcilePlanContract } from '../../src/review/runtime.js';
+import { EXECUTION_PLAN_SAMPLES } from '../fixtures/execution-plan-samples.js';
 import {
   cleanupTrustedReviewerDirectories,
   createTrustedReviewerDirectory,
@@ -131,29 +126,6 @@ function patchInstalledDeliveryTaxonomy(distribution: string): void {
   writeFileSync(module, patched);
 }
 
-function retainInstalledRouteAdmission(distribution: string, rubric: string): void {
-  const currentDigest = executionPlanConformanceDigests().contract_sha256;
-  const contract = reviewPromptContract('plan-execution').replace(
-    EXECUTION_PLAN_REVIEW_RUBRIC,
-    () => rubric,
-  );
-  const fixtureDigest = createHash('sha256').update(contract).digest('hex');
-  let replacements = 0;
-  const entries = readdirSync(nodePath.join(distribution, 'dist'));
-  for (const entry of entries) {
-    if (!entry.endsWith('.js')) continue;
-    const path = nodePath.join(distribution, 'dist', entry);
-    const source = readFileSync(path, 'utf8');
-    if (!source.includes(currentDigest)) continue;
-    writeFileSync(
-      path,
-      source.replaceAll(currentDigest, () => fixtureDigest),
-    );
-    replacements += 1;
-  }
-  if (replacements !== 1) throw new Error('Installed reviewer admission identity was not unique');
-}
-
 function installApprovingReviewer(): string {
   const root = createTrustedReviewerDirectory('safeword-contract-identity-');
   const executable = nodePath.join(root, 'claude');
@@ -241,20 +213,17 @@ function runInstalledReview(state: InstalledContractState) {
     }
     case 'missing-reviewer': {
       patchInstalledReviewerRubric(distribution, '');
-      retainInstalledRouteAdmission(distribution, '');
       break;
     }
     case 'stale-reviewer': {
       const stale = `${canonicalRubric}\nStale reviewer-only text.`;
       patchInstalledReviewerRubric(distribution, stale);
-      retainInstalledRouteAdmission(distribution, stale);
 
       break;
     }
     case 'stale-slicing-contract': {
       const stale = withDriftedSlicingContract(canonicalRubric);
       patchInstalledReviewerRubric(distribution, stale);
-      retainInstalledRouteAdmission(distribution, stale);
       break;
     }
     case 'incomplete-pair': {
@@ -264,7 +233,6 @@ function runInstalledReview(state: InstalledContractState) {
         canonicalReference.replace(canonicalRubric, () => incomplete),
       );
       patchInstalledReviewerRubric(distribution, incomplete);
-      retainInstalledRouteAdmission(distribution, incomplete);
 
       break;
     }
@@ -277,9 +245,7 @@ function runInstalledReview(state: InstalledContractState) {
   const project = temporaryDirectory('safeword-contract-project-');
   const ticket = nodePath.join(project, '.project/tickets/T1-feature');
   mkdirSync(ticket, { recursive: true });
-  const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
-    candidate => candidate.id === 'one-coherent-change',
-  );
+  const testCase = EXECUTION_PLAN_SAMPLES.find(candidate => candidate.id === 'one-coherent-change');
   if (testCase === undefined) throw new Error('Missing canonical Execution Plan fixture');
   writeFileSync(nodePath.join(ticket, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
   writeFileSync(nodePath.join(ticket, 'execution-plan.md'), testCase.execution_plan);

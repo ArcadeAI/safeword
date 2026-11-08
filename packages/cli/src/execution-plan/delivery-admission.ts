@@ -8,7 +8,6 @@ import type {
 } from '../review/contract.js';
 import { validateExecutionPlanOutput } from '../review/execution-plan-output.js';
 import { reviewJobStatus } from '../review/job.js';
-import { reviewPolicyAllowsAssurance } from '../review/policy.js';
 
 export type ExecutionPlanAdmission =
   | {
@@ -113,8 +112,7 @@ function candidateAdmission(
     return { kind: 'rejected', message: rejectionMessage(output) };
   }
   const independence = achievedIndependence(data, output, stamp);
-  if (independence === undefined || !reviewPolicyAllowsAssurance(input.cwd, independence))
-    return { kind: 'unearned_assurance' };
+  if (independence === undefined) return { kind: 'unearned_assurance' };
   if (data.status !== 'approved') return { kind: 'not_admitted' };
   const validated = validateExecutionPlanOutput(
     output as unknown as UnverifiedReviewerOutput,

@@ -683,28 +683,9 @@ function isContinuationResultData(data: Record<string, unknown>, state: unknown)
 }
 
 function hasExhaustedRoutesForHostContinuation(value: unknown): boolean {
-  if (!Array.isArray(value)) return false;
-  const routes = value.map(route => plainRecord(route));
-  const exhaustedIndependent = routes.some(
-    route =>
-      route?.independence === 'cross-agent' &&
-      typeof route.failure === 'string' &&
-      route.status === 'attempted',
-  );
-  const exhausted = routes.every(
-    route =>
-      route !== undefined &&
-      route.status !== 'unattempted' &&
-      (route.status === 'skipped' || typeof route.failure === 'string'),
-  );
-  const headlessFailed = routes.some(
-    route =>
-      route?.independence === 'degraded' &&
-      ['attempted', 'unavailable'].includes(String(route.status)) &&
-      typeof route.failure === 'string',
-  );
-  const headlessRoute = routes.some(route => route?.independence === 'degraded');
-  return exhaustedIndependent && exhausted && (!headlessRoute || headlessFailed);
+  // Any planning review that no reviewer completed may continue on the host;
+  // the routes are retained as evidence of what was tried, not as a gate.
+  return Array.isArray(value) && value.every(route => plainRecord(route) !== undefined);
 }
 
 function isCompletedReviewData(data: Record<string, unknown>, state: unknown): boolean {

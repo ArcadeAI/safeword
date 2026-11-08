@@ -20,17 +20,11 @@ import { hasCitation, parseImplPlan, sectionBody } from './lib/impl-plan.ts';
 import { createLedgerShaResolver } from './lib/ledger-git.ts';
 import { validateLedger, wholeTicketPassApplies } from './lib/ledger-validation.ts';
 import {
-  AUTHOR_MODEL_ENV,
   hashArtifact,
   isArchitectureReviewGateEnabled,
   isTerminalHandoffCorrectionEnabled,
   isStopQualityReviewEnabled,
-  isCrossModelReviewRequired,
-  isSatisfyingCoordinatorReviewStamp,
-  isSatisfyingSkipStamp,
-  modelsMatch,
   parseReviewStamps,
-  readCrossAgentReviewPolicy,
   reviewGateForIndependentDesign,
   reviewScope,
 } from './lib/review-ledger.ts';
@@ -340,10 +334,8 @@ function checkImplPlanArtifact(ticketInfo: TicketInfo): void {
  * `.safeword/config.json` sets `architectureReviewGate: true`. For a new-flow
  * feature leaving implement (verify/done), require (a) the impl-plan Decisions
  * section to carry cited evidence — the /figure-it-out trace — and (b) a
- * design-review stamp bound to this ticket's impl-plan at its current content.
- * When `crossModelReview` is set, the satisfying real-review stamp must record a
- * model different from the author's (env `SAFEWORD_AUTHOR_MODEL`); an absent tag
- * fails closed. Runs AFTER checkImplPlanArtifact, so absent/malformed plans were
+ * design-review stamp bound to this ticket's impl-plan at its current content,
+ * at any achieved independence. Runs AFTER checkImplPlanArtifact, so absent/malformed plans were
  * already blocked there (precedence). Skips and exemptions are auditable.
  */
 function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
@@ -382,27 +374,6 @@ function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
     hardBlockDone(
       'Architecture review gate: the impl-plan design has no independent design review at its current content. Run `safeword review run plan-implementation ...`, then record its author_agent, actual_reviewer, and independence with `bun "\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts impl-plan`; add a model only when independently verified.',
     );
-  }
-
-  // Ceiling-raiser: under cross-model, a real-review stamp must record a model different from
-  // the author. Evaluate over ALL real-review stamps at this scope (the log is append-only, so a
-  // corrected re-review can sit after a same-model attempt) — pass if any is cross-model. A logged
-  // skip records no real-review stamp, so it deliberately bypasses cross-model: that is the same
-  // auditable escape valve every safeword gate carries, not an oversight.
-  if (isCrossModelReviewRequired(rawConfig)) {
-    if (stamps.some(stamp => isSatisfyingSkipStamp(scope, stamp))) return;
-    const modelVerifiedStamps = verifiedStamps(stamps, projectDir, scope, true);
-    const realReviews = modelVerifiedStamps.filter(stamp =>
-      isSatisfyingCoordinatorReviewStamp(scope, stamp, readCrossAgentReviewPolicy(rawConfig)),
-    );
-    const hasCrossModelReview = realReviews.some(
-      s => !modelsMatch(s.model, process.env[AUTHOR_MODEL_ENV]),
-    );
-    if (!hasCrossModelReview) {
-      hardBlockDone(
-        'Architecture review gate (cross-model): the design review must be performed by a different model than the author. Re-run `safeword review run plan-implementation ...` with a different configured reviewer model, then record its returned provenance and reviewer_model via `write-review-stamp.ts impl-plan`.',
-      );
-    }
   }
 }
 

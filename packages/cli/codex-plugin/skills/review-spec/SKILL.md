@@ -118,11 +118,10 @@ and sealed packet; collect that same job's terminal result. A bare
 reviewer or hand-written independent evidence. Use the checks below as the
 scenario-gate rubric and to triage the returned findings.
 
-If a current approving result carries `independence: reduced` under
-`prefer`, name the actual reviewer and state before any finding that the
-review was not independent. Never describe it as cross-agent coverage. Under
-`require`, or for a stale, rejected, blocked, or unreceipted result, do not
-stamp or advance.
+If a current approving result carries `independence: reduced`, name the
+actual reviewer and state before any finding that the review was not
+independent. Never describe it as cross-agent coverage. For a stale,
+rejected, blocked, or unreceipted result, do not stamp or advance.
 
 Fail closed: missing or unreadable required feature/spec inputs, dispatch
 failure, timeout, a malformed result, `request_changes`, unsatisfied required independence,
