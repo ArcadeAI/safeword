@@ -51,11 +51,9 @@ var __toESM = (mod, isNodeMode, target) => (
   )
 );
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/identity.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/identity.js
 var require_identity = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/identity.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/identity.js'(exports) {
     'use strict';
     var ALIAS = /* @__PURE__ */ Symbol.for('yaml.alias');
     var DOC = /* @__PURE__ */ Symbol.for('yaml.document');
@@ -110,11 +108,9 @@ var require_identity = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/visit.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/visit.js
 var require_visit = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/visit.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/visit.js'(exports) {
     'use strict';
     var identity = require_identity();
     var BREAK = /* @__PURE__ */ Symbol('break visit');
@@ -251,11 +247,9 @@ var require_visit = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/directives.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/directives.js
 var require_directives = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/directives.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/directives.js'(exports) {
     'use strict';
     var identity = require_identity();
     var visit3 = require_visit();
@@ -415,11 +409,9 @@ var require_directives = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/anchors.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/anchors.js
 var require_anchors = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/anchors.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/anchors.js'(exports) {
     'use strict';
     var identity = require_identity();
     var visit3 = require_visit();
@@ -489,11 +481,9 @@ var require_anchors = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/applyReviver.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/applyReviver.js
 var require_applyReviver = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/applyReviver.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/applyReviver.js'(exports) {
     'use strict';
     function applyReviver(reviver, obj, key, val) {
       if (val && typeof val === 'object') {
@@ -534,11 +524,9 @@ var require_applyReviver = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/toJS.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/toJS.js
 var require_toJS = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/toJS.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/toJS.js'(exports) {
     'use strict';
     var identity = require_identity();
     function toJS(value, arg, ctx) {
@@ -562,11 +550,9 @@ var require_toJS = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Node.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Node.js
 var require_Node = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Node.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Node.js'(exports) {
     'use strict';
     var applyReviver = require_applyReviver();
     var identity = require_identity();
@@ -607,11 +593,9 @@ var require_Node = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Alias.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Alias.js
 var require_Alias = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Alias.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Alias.js'(exports) {
     'use strict';
     var anchors = require_anchors();
     var visit3 = require_visit();
@@ -716,11 +700,9 @@ var require_Alias = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Scalar.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Scalar.js
 var require_Scalar = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Scalar.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Scalar.js'(exports) {
     'use strict';
     var identity = require_identity();
     var Node = require_Node();
@@ -749,11 +731,9 @@ var require_Scalar = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/createNode.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/createNode.js
 var require_createNode = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/createNode.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/createNode.js'(exports) {
     'use strict';
     var Alias = require_Alias();
     var identity = require_identity();
@@ -832,11 +812,9 @@ var require_createNode = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Collection.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Collection.js
 var require_Collection = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Collection.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Collection.js'(exports) {
     'use strict';
     var createNode = require_createNode();
     var identity = require_identity();
@@ -977,9 +955,9 @@ var require_Collection = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyComment.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyComment.js
 var require_stringifyComment = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyComment.js'(
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyComment.js'(
     exports,
   ) {
     'use strict';
@@ -1000,9 +978,9 @@ var require_stringifyComment = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/foldFlowLines.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/foldFlowLines.js
 var require_foldFlowLines = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/foldFlowLines.js'(
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/foldFlowLines.js'(
     exports,
   ) {
     'use strict';
@@ -1130,9 +1108,9 @@ ${indent}${text.slice(fold + 1, end2)}`;
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyString.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyString.js
 var require_stringifyString = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyString.js'(
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyString.js'(
     exports,
   ) {
     'use strict';
@@ -1455,11 +1433,9 @@ ${indent}`,
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringify.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringify.js
 var require_stringify = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringify.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringify.js'(exports) {
     'use strict';
     var anchors = require_anchors();
     var identity = require_identity();
@@ -1584,9 +1560,9 @@ ${ctx.indent}${str}`;
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyPair.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyPair.js
 var require_stringifyPair = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyPair.js'(
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyPair.js'(
     exports,
   ) {
     'use strict';
@@ -1746,11 +1722,9 @@ ${ctx.indent}`;
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/log.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/log.js
 var require_log = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/log.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/log.js'(exports) {
     'use strict';
     var node_process = __require('process');
     function debug(logLevel, ...messages) {
@@ -1767,11 +1741,9 @@ var require_log = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/merge.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/merge.js
 var require_merge = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/merge.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/merge.js'(exports) {
     'use strict';
     var identity = require_identity();
     var Scalar = require_Scalar();
@@ -1829,11 +1801,9 @@ var require_merge = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/addPairToJSMap.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/addPairToJSMap.js
 var require_addPairToJSMap = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/addPairToJSMap.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/addPairToJSMap.js'(exports) {
     'use strict';
     var log = require_log();
     var merge = require_merge();
@@ -1891,11 +1861,9 @@ var require_addPairToJSMap = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Pair.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Pair.js
 var require_Pair = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Pair.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Pair.js'(exports) {
     'use strict';
     var createNode = require_createNode();
     var stringifyPair = require_stringifyPair();
@@ -1933,9 +1901,9 @@ var require_Pair = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyCollection.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyCollection.js
 var require_stringifyCollection = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyCollection.js'(
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyCollection.js'(
     exports,
   ) {
     'use strict';
@@ -2095,11 +2063,9 @@ ${indent}${end}`;
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/YAMLMap.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/YAMLMap.js
 var require_YAMLMap = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/YAMLMap.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/YAMLMap.js'(exports) {
     'use strict';
     var stringifyCollection = require_stringifyCollection();
     var addPairToJSMap = require_addPairToJSMap();
@@ -2224,11 +2190,9 @@ var require_YAMLMap = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/map.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/map.js
 var require_map = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/map.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/map.js'(exports) {
     'use strict';
     var identity = require_identity();
     var YAMLMap = require_YAMLMap();
@@ -2247,11 +2211,9 @@ var require_map = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/YAMLSeq.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/YAMLSeq.js
 var require_YAMLSeq = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/YAMLSeq.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/YAMLSeq.js'(exports) {
     'use strict';
     var createNode = require_createNode();
     var stringifyCollection = require_stringifyCollection();
@@ -2356,11 +2318,9 @@ var require_YAMLSeq = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/seq.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/seq.js
 var require_seq = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/seq.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/seq.js'(exports) {
     'use strict';
     var identity = require_identity();
     var YAMLSeq = require_YAMLSeq();
@@ -2379,11 +2339,9 @@ var require_seq = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/string.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/string.js
 var require_string = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/string.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/string.js'(exports) {
     'use strict';
     var stringifyString = require_stringifyString();
     var string = {
@@ -2400,11 +2358,9 @@ var require_string = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/null.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/null.js
 var require_null = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/null.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/null.js'(exports) {
     'use strict';
     var Scalar = require_Scalar();
     var nullTag = {
@@ -2421,11 +2377,9 @@ var require_null = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/bool.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/bool.js
 var require_bool = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/bool.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/bool.js'(exports) {
     'use strict';
     var Scalar = require_Scalar();
     var boolTag = {
@@ -2446,9 +2400,9 @@ var require_bool = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyNumber.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyNumber.js
 var require_stringifyNumber = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyNumber.js'(
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyNumber.js'(
     exports,
   ) {
     'use strict';
@@ -2478,11 +2432,9 @@ var require_stringifyNumber = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/float.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/float.js
 var require_float = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/float.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/float.js'(exports) {
     'use strict';
     var Scalar = require_Scalar();
     var stringifyNumber = require_stringifyNumber();
@@ -2531,11 +2483,9 @@ var require_float = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/int.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/int.js
 var require_int = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/int.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/int.js'(exports) {
     'use strict';
     var stringifyNumber = require_stringifyNumber();
     var intIdentify = value => typeof value === 'bigint' || Number.isInteger(value);
@@ -2578,11 +2528,9 @@ var require_int = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/schema.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/schema.js
 var require_schema = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/schema.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/schema.js'(exports) {
     'use strict';
     var map = require_map();
     var _null = require_null();
@@ -2608,11 +2556,9 @@ var require_schema = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/json/schema.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/json/schema.js
 var require_schema2 = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/json/schema.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/json/schema.js'(exports) {
     'use strict';
     var Scalar = require_Scalar();
     var map = require_map();
@@ -2678,9 +2624,9 @@ var require_schema2 = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/binary.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/binary.js
 var require_binary = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/binary.js'(
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/binary.js'(
     exports,
   ) {
     'use strict';
@@ -2758,11 +2704,9 @@ var require_binary = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/pairs.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/pairs.js
 var require_pairs = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/pairs.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/pairs.js'(exports) {
     'use strict';
     var identity = require_identity();
     var Pair = require_Pair();
@@ -2837,11 +2781,9 @@ ${cn.comment}`
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/omap.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/omap.js
 var require_omap = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/omap.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/omap.js'(exports) {
     'use strict';
     var identity = require_identity();
     var toJS = require_toJS();
@@ -2914,11 +2856,9 @@ var require_omap = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/bool.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/bool.js
 var require_bool2 = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/bool.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/bool.js'(exports) {
     'use strict';
     var Scalar = require_Scalar();
     function boolStringify({ value, source }, ctx) {
@@ -2947,11 +2887,9 @@ var require_bool2 = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/float.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/float.js
 var require_float2 = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/float.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/float.js'(exports) {
     'use strict';
     var Scalar = require_Scalar();
     var stringifyNumber = require_stringifyNumber();
@@ -3002,11 +2940,9 @@ var require_float2 = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/int.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/int.js
 var require_int2 = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/int.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/int.js'(exports) {
     'use strict';
     var stringifyNumber = require_stringifyNumber();
     var intIdentify = value => typeof value === 'bigint' || Number.isInteger(value);
@@ -3082,11 +3018,9 @@ var require_int2 = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/set.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/set.js
 var require_set = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/set.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/set.js'(exports) {
     'use strict';
     var identity = require_identity();
     var Pair = require_Pair();
@@ -3180,9 +3114,9 @@ var require_set = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/timestamp.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/timestamp.js
 var require_timestamp = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/timestamp.js'(
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/timestamp.js'(
     exports,
   ) {
     'use strict';
@@ -3277,9 +3211,9 @@ var require_timestamp = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/schema.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/schema.js
 var require_schema3 = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/schema.js'(
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/schema.js'(
     exports,
   ) {
     'use strict';
@@ -3323,11 +3257,9 @@ var require_schema3 = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/tags.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/tags.js
 var require_tags = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/tags.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/tags.js'(exports) {
     'use strict';
     var map = require_map();
     var _null = require_null();
@@ -3424,11 +3356,9 @@ var require_tags = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/Schema.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/Schema.js
 var require_Schema = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/Schema.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/Schema.js'(exports) {
     'use strict';
     var identity = require_identity();
     var map = require_map();
@@ -3475,9 +3405,9 @@ var require_Schema = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyDocument.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyDocument.js
 var require_stringifyDocument = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyDocument.js'(
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyDocument.js'(
     exports,
   ) {
     'use strict';
@@ -3555,11 +3485,9 @@ var require_stringifyDocument = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/Document.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/Document.js
 var require_Document = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/Document.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/Document.js'(exports) {
     'use strict';
     var Alias = require_Alias();
     var Collection = require_Collection();
@@ -3858,11 +3786,9 @@ var require_Document = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/errors.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/errors.js
 var require_errors = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/errors.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/errors.js'(exports) {
     'use strict';
     var YAMLError = class extends Error {
       constructor(name, pos, code, message) {
@@ -3924,11 +3850,9 @@ ${pointer}
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-props.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-props.js
 var require_resolve_props = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-props.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-props.js'(exports) {
     'use strict';
     function resolveProps(
       tokens,
@@ -4095,9 +4019,9 @@ var require_resolve_props = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-contains-newline.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-contains-newline.js
 var require_util_contains_newline = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-contains-newline.js'(
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-contains-newline.js'(
     exports,
   ) {
     'use strict';
@@ -4130,9 +4054,9 @@ var require_util_contains_newline = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-flow-indent-check.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-flow-indent-check.js
 var require_util_flow_indent_check = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-flow-indent-check.js'(
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-flow-indent-check.js'(
     exports,
   ) {
     'use strict';
@@ -4154,9 +4078,9 @@ var require_util_flow_indent_check = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-map-includes.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-map-includes.js
 var require_util_map_includes = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-map-includes.js'(
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-map-includes.js'(
     exports,
   ) {
     'use strict';
@@ -4175,9 +4099,9 @@ var require_util_map_includes = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-block-map.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-block-map.js
 var require_resolve_block_map = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-block-map.js'(
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-block-map.js'(
     exports,
   ) {
     'use strict';
@@ -4300,9 +4224,9 @@ var require_resolve_block_map = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-block-seq.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-block-seq.js
 var require_resolve_block_seq = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-block-seq.js'(
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-block-seq.js'(
     exports,
   ) {
     'use strict';
@@ -4350,11 +4274,9 @@ var require_resolve_block_seq = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-end.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-end.js
 var require_resolve_end = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-end.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-end.js'(exports) {
     'use strict';
     function resolveEnd(end, offset, reqSpace, onError) {
       let comment = '';
@@ -4396,9 +4318,9 @@ var require_resolve_end = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-flow-collection.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-flow-collection.js
 var require_resolve_flow_collection = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-flow-collection.js'(
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-flow-collection.js'(
     exports,
   ) {
     'use strict';
@@ -4591,9 +4513,9 @@ var require_resolve_flow_collection = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-collection.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-collection.js
 var require_compose_collection = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-collection.js'(
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-collection.js'(
     exports,
   ) {
     'use strict';
@@ -4690,9 +4612,9 @@ var require_compose_collection = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-block-scalar.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-block-scalar.js
 var require_resolve_block_scalar = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-block-scalar.js'(
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-block-scalar.js'(
     exports,
   ) {
     'use strict';
@@ -4865,9 +4787,9 @@ var require_resolve_block_scalar = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-flow-scalar.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-flow-scalar.js
 var require_resolve_flow_scalar = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-flow-scalar.js'(
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-flow-scalar.js'(
     exports,
   ) {
     'use strict';
@@ -5075,9 +4997,9 @@ var require_resolve_flow_scalar = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-scalar.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-scalar.js
 var require_compose_scalar = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-scalar.js'(
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-scalar.js'(
     exports,
   ) {
     'use strict';
@@ -5168,9 +5090,9 @@ var require_compose_scalar = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-empty-scalar-position.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-empty-scalar-position.js
 var require_util_empty_scalar_position = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-empty-scalar-position.js'(
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-empty-scalar-position.js'(
     exports,
   ) {
     'use strict';
@@ -5200,11 +5122,9 @@ var require_util_empty_scalar_position = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-node.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-node.js
 var require_compose_node = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-node.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-node.js'(exports) {
     'use strict';
     var Alias = require_Alias();
     var identity = require_identity();
@@ -5312,11 +5232,9 @@ var require_compose_node = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-doc.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-doc.js
 var require_compose_doc = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-doc.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-doc.js'(exports) {
     'use strict';
     var Document = require_Document();
     var composeNode = require_compose_node();
@@ -5366,11 +5284,9 @@ var require_compose_doc = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/composer.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/composer.js
 var require_composer = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/composer.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/composer.js'(exports) {
     'use strict';
     var node_process = __require('process');
     var directives = require_directives();
@@ -5590,11 +5506,9 @@ ${end.comment}`
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst-scalar.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst-scalar.js
 var require_cst_scalar = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst-scalar.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst-scalar.js'(exports) {
     'use strict';
     var resolveBlockScalar = require_resolve_block_scalar();
     var resolveFlowScalar = require_resolve_flow_scalar();
@@ -5774,11 +5688,9 @@ var require_cst_scalar = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst-stringify.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst-stringify.js
 var require_cst_stringify = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst-stringify.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst-stringify.js'(exports) {
     'use strict';
     var stringify = cst => ('type' in cst ? stringifyToken(cst) : stringifyItem(cst));
     function stringifyToken(token) {
@@ -5824,11 +5736,9 @@ var require_cst_stringify = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst-visit.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst-visit.js
 var require_cst_visit = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst-visit.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst-visit.js'(exports) {
     'use strict';
     var BREAK = /* @__PURE__ */ Symbol('break visit');
     var SKIP = /* @__PURE__ */ Symbol('skip children');
@@ -5881,11 +5791,9 @@ var require_cst_visit = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst.js
 var require_cst = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst.js'(exports) {
     'use strict';
     var cstScalar = require_cst_scalar();
     var cstStringify = require_cst_stringify();
@@ -5990,11 +5898,9 @@ var require_cst = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/lexer.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/lexer.js
 var require_lexer = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/lexer.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/lexer.js'(exports) {
     'use strict';
     var cst = require_cst();
     function isEmpty(ch) {
@@ -6543,11 +6449,9 @@ var require_lexer = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/line-counter.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/line-counter.js
 var require_line_counter = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/line-counter.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/line-counter.js'(exports) {
     'use strict';
     var LineCounter = class {
       constructor() {
@@ -6572,11 +6476,9 @@ var require_line_counter = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/parser.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/parser.js
 var require_parser = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/parser.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/parser.js'(exports) {
     'use strict';
     var node_process = __require('process');
     var cst = require_cst();
@@ -7403,11 +7305,9 @@ var require_parser = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/public-api.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/public-api.js
 var require_public_api = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/public-api.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/public-api.js'(exports) {
     'use strict';
     var composer = require_composer();
     var Document = require_Document();
@@ -7501,11 +7401,9 @@ var require_public_api = __commonJS({
   },
 });
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/index.js
+// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/index.js
 var require_dist = __commonJS({
-  '../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/index.js'(
-    exports,
-  ) {
+  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/index.js'(exports) {
     'use strict';
     var composer = require_composer();
     var Document = require_Document();
@@ -7566,7 +7464,7 @@ import {
 } from 'node:fs';
 import nodePath10 from 'node:path';
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/scanner.js
+// ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/scanner.js
 function createScanner(text, ignoreTrivia = false) {
   const len = text.length;
   let pos = 0,
@@ -7996,7 +7894,7 @@ var CharacterCodes;
   CharacterCodes2[(CharacterCodes2['tab'] = 9)] = 'tab';
 })(CharacterCodes || (CharacterCodes = {}));
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/string-intern.js
+// ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/string-intern.js
 var cachedSpaces = new Array(20).fill(0).map((_, index) => {
   return ' '.repeat(index);
 });
@@ -8027,7 +7925,7 @@ var cachedBreakLinesWithSpaces = {
 };
 var supportedEols = ['\n', '\r', '\r\n'];
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/format.js
+// ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/format.js
 function format(documentText, range, options) {
   let initialIndentLevel;
   let formatText;
@@ -8272,7 +8170,7 @@ function isEOL(text, offset) {
   return '\r\n'.indexOf(text.charAt(offset)) !== -1;
 }
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/parser.js
+// ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/parser.js
 var ParseOptions;
 (function (ParseOptions2) {
   ParseOptions2.DEFAULT = {
@@ -8846,7 +8744,7 @@ function getNodeType(value) {
   }
 }
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/edit.js
+// ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/edit.js
 function setProperty(text, originalPath, value, options) {
   const path = originalPath.slice();
   const errors = [];
@@ -9032,7 +8930,7 @@ function applyEdit(text, edit) {
   return text.substring(0, edit.offset) + edit.content + text.substring(edit.offset + edit.length);
 }
 
-// ../../../../../../Users/alex/.codex/worktrees/t0fk4h-current-proof/safeword/node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/main.js
+// ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/main.js
 var ScanError;
 (function (ScanError2) {
   ScanError2[(ScanError2['None'] = 0)] = 'None';

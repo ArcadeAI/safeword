@@ -22,6 +22,8 @@ Preserve owned planning review after updates confined to the standard Work Log s
 
 Use the existing actual CLI review/status fixture with its private reviewer stub: progress retains approval; changed scope and non-log decisions stale it. A section after Work Log remains bound. This fixture is not qualification or native-host acceptance.
 
+The standard section is an exact level-2 Work Log heading through the next level-1 or level-2 heading. Nested entries are history, not authority to change accepted scope or decisions; accepted changes must appear in the bound contract. Nonstandard headings remain bound. Old approvals with logged content can become stale once on upgrade; do not rewrite or infer approval for them.
+
 ## Root Cause
 
 At main e00ea1e65, semanticTicketIdentity excludes phase/status/last_modified metadata but hashes the complete body, including automatic Work Log entries. Direct controls show phase-only identity unchanged, log-only identity changed, scope identity changed. Existing 85 planning tests pass; their progress control changes only phase, not the log.
