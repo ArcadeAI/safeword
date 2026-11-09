@@ -168,9 +168,9 @@ func bad() {
       const result = runLintHook(projectDirectory, filePath);
       expect(result.status).toBe(0);
 
-      // ESLint/Prettier should format
+      // Post-edit diagnostics must preserve unfinished edits.
       const formatted = readTestFile(projectDirectory, 'src/lint-ts.ts');
-      expect(formatted.trim()).toBe('const x = 1;');
+      expect(formatted).toBe('const x=1\n');
     });
 
     it.skipIf(!IS_GOLANGCI_LINT_AVAILABLE)('routes .go files to golangci-lint', () => {

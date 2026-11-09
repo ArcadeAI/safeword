@@ -99,9 +99,9 @@ describe('E2E: Golden Path', () => {
     // Run the lint hook
     runLintHook(projectDirectory, filePath);
 
-    // File should be formatted (Prettier adds semicolon and spaces)
+    // Post-edit diagnostics preserve unfinished edits byte-for-byte.
     const result = readTestFile(projectDirectory, 'src/hook-test.ts');
-    expect(result.trim()).toBe('const x = 1;');
+    expect(result).toBe('const x=1\n');
   });
 
   it('generated Gherkin lint script checks root and package feature files', () => {
@@ -169,7 +169,7 @@ describe('E2E: Golden Path', () => {
     try {
       expect(result.status).toBe(0);
       expect(result.stdout).toContain('hookSpecificOutput');
-      expect(result.stdout).toContain('Lint errors remain after auto-fix');
+      expect(result.stdout).toContain('Lint diagnostics for');
       expect(result.stdout).toContain('Invalid Gherkin syntax');
     } finally {
       unlinkSync(filePath);
@@ -188,7 +188,7 @@ describe('E2E: Golden Path', () => {
       // preserved byte-for-byte, and the failure is surfaced, not swallowed.
       expect(result.status).toBe(0);
       expect(readTestFile(projectDirectory, 'src/syntax-error.ts')).toBe(unparseable);
-      expect(result.stdout).toContain('Lint errors remain after auto-fix');
+      expect(result.stdout).toContain('Lint diagnostics for');
     });
 
     it('exits cleanly and silently on a non-existent file', () => {
@@ -302,16 +302,16 @@ describe('E2E: TypeScript Lint Hook Fallback', () => {
     }
   });
 
-  it('lint hook formats files without safeword ESLint config', () => {
+  it('lint hook preserves files without safeword ESLint config', () => {
     writeTestFile(projectDirectory, 'src/fallback.ts', 'const x=1\n');
     const filePath = nodePath.join(projectDirectory, 'src/fallback.ts');
 
     // Opt out of repair so the hook must use the fallback path (ESLint without
-    // --config, then Prettier), rather than reaching the registry in a test.
+    // --config), rather than reaching the registry in a test.
     runLintHook(projectDirectory, filePath, { SAFEWORD_NO_AUTO_UPGRADE: '1' });
 
-    // File should still be formatted by Prettier
+    // Fallback diagnostics must preserve unfinished edits.
     const result = readTestFile(projectDirectory, 'src/fallback.ts');
-    expect(result).toContain('const x = 1');
+    expect(result).toBe('const x=1\n');
   });
 });

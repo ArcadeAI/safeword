@@ -1,23 +1,8 @@
 /**
- * Acceptance lane for the formatter-aware lint hook (ticket V7GGJZ).
- *
- * Each scenario builds a throwaway project, runs the REAL post-tool-lint hook
- * against a file, and asserts on the resulting bytes — proving the runtime
- * behavior end-to-end, not just the detection unit.
- *
- * The fixture is the minimal shape the lint hook needs:
- *   - `.safeword/eslint.config.mjs` (empty flat config) so the hook finds an
- *     eslint config and never attempts a `safeword upgrade`, and so `eslint --fix`
- *     is a guaranteed no-op (the scenarios isolate Prettier's behavior).
- *   - `.safeword/.prettierrc` (safeword's single-quote defaults) so that WHEN the
- *     hook does run Prettier, a double-quoted file is rewritten to single quotes.
- *     Skipped for the own-Prettier-config case so the customer's config resolves.
- *   - a `node_modules` symlink to this repo's, so the hook's `bunx eslint/prettier`
- *     resolve the installed binaries (fast, offline, deterministic).
- *
- * The divergence between safeword's single-quote default and a double-quoted
- * source file is the observable signal: quotes survive ⇒ Prettier was skipped;
- * quotes flip ⇒ Prettier ran.
+ * Runs the real post-edit hook with deliberately unformatted source. JS/TS
+ * fixtures require positive diagnostic output as well as preserved bytes, so
+ * a startup failure cannot masquerade as a successful observational check.
+ * External formatter ownership and JSON behavior retain their existing scope.
  */
 
 import { strict as assert } from 'node:assert';
@@ -36,8 +21,8 @@ const SESSION_LINT_CHECK = nodePath.join(PROJECT_ROOT, '.safeword/hooks/session-
 const REPO_NODE_MODULES = nodePath.join(PROJECT_ROOT, 'node_modules');
 
 const SAFEWORD_PRETTIERRC = `${JSON.stringify({ singleQuote: true, semi: true })}\n`;
-const DOUBLE_QUOTE_TS = 'export const greeting = "hello world";\n';
-const SINGLE_QUOTE_TS = "export const greeting = 'hello world';\n";
+const DOUBLE_QUOTE_TS = 'export const greeting={ message:"hello world" }\n';
+const SINGLE_QUOTE_TS = "export const greeting = 'hello world'\n";
 const COMPACT_JSON = '{"a":1}\n';
 
 const FORMATTER_CONFIG_FILE: Record<string, string> = {
@@ -57,7 +42,10 @@ interface FormatterWorld extends SafewordWorld {
 function createProject(options: { safewordPrettier?: boolean } = {}): string {
   const directory = mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'safeword-fmt-'));
   mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
-  writeFileSync(nodePath.join(directory, '.safeword/eslint.config.mjs'), 'export default [];\n');
+  writeFileSync(
+    nodePath.join(directory, '.safeword/eslint.config.mjs'),
+    `export default [{ files: ['**/*.ts'], rules: { 'no-restricted-syntax': ['error', { selector: 'Program', message: 'fixture-diagnostic' }] } }];\n`,
+  );
   if (options.safewordPrettier !== false) {
     writeFileSync(nodePath.join(directory, '.safeword/.prettierrc'), SAFEWORD_PRETTIERRC);
   }
@@ -85,10 +73,18 @@ function runLintHookOn(world: FormatterWorld, name: string): void {
     env: { ...process.env, CLAUDE_PROJECT_DIR: directory, SAFEWORD_TEST_DISABLE_AUTO_UPGRADE: '1' },
     encoding: 'utf8',
   });
+  assert.equal(result.error, undefined, 'hook process must start');
+  assert.equal(result.status, 0, result.stderr);
+  if (name.endsWith('.ts'))
+    assert.match(
+      result.stdout,
+      /fixture-diagnostic|no project-local executable/,
+      'hook must produce an observable diagnostic',
+    );
   world.result = {
     stdout: result.stdout ?? '',
     stderr: result.stderr ?? '',
-    exitCode: result.status ?? 0,
+    exitCode: result.status ?? -1,
   };
 }
 
@@ -130,9 +126,7 @@ Given('a repo whose formatting is owned by Biome', function (this: FormatterWorl
 Given(
   'a repo with its own Prettier config that uses double quotes',
   function (this: FormatterWorld) {
-    // No safeword prettierrc → the hook runs bare `prettier --write`, which
-    // resolves the customer's config; double-quote style means a single-quoted
-    // file is rewritten to double quotes.
+    // A customer formatter must not rewrite an unfinished post-edit file.
     this.projectDirectory = createProject({ safewordPrettier: false });
     writeFile(this.projectDirectory, '.prettierrc', `${JSON.stringify({ singleQuote: false })}\n`);
     this.fileSeed = SINGLE_QUOTE_TS;
@@ -189,10 +183,12 @@ When('safeword runs its session lint check', function (this: FormatterWorld) {
     env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
     encoding: 'utf8',
   });
+  assert.equal(result.error, undefined, 'session hook process must start');
+  assert.equal(result.status, 0, result.stderr);
   this.result = {
     stdout: result.stdout ?? '',
     stderr: result.stderr ?? '',
-    exitCode: result.status ?? 0,
+    exitCode: result.status ?? -1,
   };
 });
 
@@ -204,18 +200,6 @@ Then(
     assert.equal(readPending(this), this.contentsBefore, 'the hook reformatted the file');
   },
 );
-
-Then('the file is formatted with double quotes', function (this: FormatterWorld) {
-  const after = readPending(this);
-  assert.match(after, /"hello world"/, 'expected double quotes (customer Prettier config)');
-  assert.doesNotMatch(after, /'hello world'/, 'should not be safeword single-quote style');
-});
-
-Then("the file is formatted with safeword's Prettier style", function (this: FormatterWorld) {
-  const after = readPending(this);
-  assert.match(after, /'hello world'/, "expected safeword's single-quote style");
-  assert.notEqual(after, this.contentsBefore, 'expected Prettier to reformat the file');
-});
 
 Then(
   'it emits no warning that Prettier is missing or should be installed',

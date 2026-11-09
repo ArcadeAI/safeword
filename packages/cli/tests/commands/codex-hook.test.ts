@@ -64,7 +64,10 @@ describe('packagedNamespaceRootLabel', () => {
     mkdirSync(nodePath.dirname(executable), { recursive: true });
     mkdirSync(nodePath.dirname(sourceFile), { recursive: true });
     writeFileSync(nodePath.join(projectDirectory, 'biome.json'), '{}\n');
-    writeFileSync(sourceFile, 'export const source = 1;\n');
+    writeFileSync(
+      sourceFile,
+      'import { pending } from "./pending";\nexport const source={ x:1 };\n',
+    );
     writeFileSync(executable, `#!/bin/sh\necho "$*" >> ${JSON.stringify(log)}\n`);
     chmodSync(executable, 0o755);
     return { sourceFile, log };
@@ -166,10 +169,7 @@ describe('packagedNamespaceRootLabel', () => {
   }
 
   function expectBiomeChecked(log: string, operand: string) {
-    expect(readFileSync(log, 'utf8').trim().split('\n')).toEqual([
-      `check --write -- ${operand}`,
-      `check -- ${operand}`,
-    ]);
+    expect(readFileSync(log, 'utf8').trim().split('\n')).toEqual([`check -- ${operand}`]);
   }
 
   afterEach(() => {
@@ -844,6 +844,9 @@ command = "npx --yes safeword hook codex pre-tool-use"
     expect(result.status, result.stderr).toBe(0);
     expect(existsSync(log)).toBe(true);
     expectBiomeChecked(log, 'source.ts');
+    expect(readFileSync(nodePath.join(projectDirectory, 'source.ts'), 'utf8')).toBe(
+      'import { pending } from "./pending";\nexport const source={ x:1 };\n',
+    );
   });
 
   it.each([
@@ -962,6 +965,9 @@ esac
 
     expect(result.status, result.stderr).toBe(0);
     expectBiomeChecked(log, 'source.ts');
+    expect(readFileSync(nodePath.join(projectDirectory, 'source.ts'), 'utf8')).toBe(
+      'import { pending } from "./pending";\nexport const source={ x:1 };\n',
+    );
   });
 
   it('continues linting later apply_patch targets after an earlier host warning', () => {
@@ -998,10 +1004,7 @@ esac
         additionalContext: expect.stringMatching(/no project-local executable/i),
       },
     });
-    expect(readFileSync(log, 'utf8').trim().split('\n')).toEqual([
-      'check --write -- second.ts',
-      'check -- second.ts',
-    ]);
+    expect(readFileSync(log, 'utf8').trim().split('\n')).toEqual(['check -- second.ts']);
   });
 
   it('preserves legacy timestamp and retro-nudge prompt context through the plugin dispatcher', () => {
