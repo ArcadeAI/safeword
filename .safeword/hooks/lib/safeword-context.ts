@@ -12,6 +12,7 @@ export type Agent = 'claude' | 'codex' | 'cursor';
 export type HookInput = {
   cwd?: string;
   session_id?: string;
+  source?: string;
   workspace_root?: string;
 };
 
@@ -20,16 +21,20 @@ const CODEX_AUTHORITY = [
   'These current paths supersede retired Safeword instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.',
 ].join('\n');
 
-// Session-start hooks run repeatedly and their output has a small host-controlled
-// context budget. Keep this durable pointer compact; the handbook stays the source
-// of truth and is read when an agent begins non-trivial work.
-function sessionBootstrap(handbook: string, guides: string): string {
-  return [
-    'Safeword session bootstrap:',
-    `Before non-trivial work, read ${handbook} and the applicable guide in ${guides}.`,
-    'Current tickets, learnings, and project context are under `.project/` (or the configured namespace root).',
-    'Follow the active Safeword workflow and its gates.',
-  ].join('\n');
+// Host hook context is capped (Claude Code: 10,000 characters) and the handbook is
+// larger, so inject an instruction to read it rather than its contents. Keep it one
+// unconditional line with an absolute path. In headless Claude Code evals with the full
+// plugin loaded (Opus and Sonnet), this line made a full handbook read the first tool
+// call in 24/24 trials, including after compaction. The conditional "before non-trivial
+// work" pointer scored 0/24, and a bare "First, Read <path> in full." was skipped after
+// compaction (1/6) because the summary looks like the read already happened.
+export function sessionBootstrap(handbookPath: string): string {
+  return `First, Read \`${handbookPath}\` in full, even for trivial requests or right after compaction; a summary or earlier read does not count.`;
+}
+
+// A resumed session still holds the earlier read; startup, clear and compact do not.
+export function needsSafewordContext(input: HookInput): boolean {
+  return input.source !== 'resume';
 }
 
 export function withCodexAuthority(context: string | null): string | null {
@@ -90,10 +95,7 @@ export function readSafewordContext(projectDir: string): string | null {
   // context. This preserves the packaged-context boundary for native Codex.
   if (!readFileSync(safewordPath, 'utf8').trim()) return null;
 
-  return sessionBootstrap(
-    packagedPath ? 'the packaged Safeword handbook' : '`.safeword/SAFEWORD.md`',
-    packagedPath ? 'the packaged Safeword guides' : `\`${['.safeword', 'guides'].join('/')}/\``,
-  );
+  return sessionBootstrap(nodePath.resolve(safewordPath));
 }
 
 export function createSafewordContextResponse(

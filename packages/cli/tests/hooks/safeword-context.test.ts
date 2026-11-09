@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   createSafewordContextResponse,
+  needsSafewordContext,
   readSafewordContext,
 } from '../../templates/hooks/lib/safeword-context.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
@@ -31,10 +32,10 @@ describe('Safeword standing context authority', () => {
       .hookSpecificOutput.additionalContext;
 
     expect(context.indexOf('.project/')).toBeGreaterThanOrEqual(0);
-    expect(context.indexOf('.safeword/guides/')).toBeGreaterThanOrEqual(0);
     expect(context).toMatch(/supersed|ignore/i);
-    expect(context).toContain('.safeword/SAFEWORD.md');
-    expect(context).toMatch(/before non-trivial work/i);
+    expect(context).toContain(
+      `First, Read \`${nodePath.resolve(root, '.safeword/SAFEWORD.md')}\` in full, even for trivial requests or right after compaction; a summary or earlier read does not count.`,
+    );
     expect(context).not.toContain('# Full standing instructions');
     expect(context.length).toBeLessThanOrEqual(1000);
 
@@ -67,7 +68,9 @@ describe('Safeword standing context authority', () => {
     try {
       const context = readSafewordContext(root);
 
-      expect(context).toContain('the packaged Safeword handbook');
+      expect(context).toBe(
+        `First, Read \`${packagedHandbook}\` in full, even for trivial requests or right after compaction; a summary or earlier read does not count.`,
+      );
       expect(context).not.toContain('.safeword/SAFEWORD.md');
       expect(context).not.toContain('Package-only detail');
       expect(context?.length).toBeLessThanOrEqual(1000);
@@ -78,5 +81,12 @@ describe('Safeword standing context authority', () => {
         process.env.SAFEWORD_PACKAGED_CONTEXT_PATH = previousPath;
       }
     }
+  });
+
+  it('re-instructs the read at startup, clear and compaction but not on resume', () => {
+    for (const source of ['startup', 'clear', 'compact', undefined]) {
+      expect(needsSafewordContext({ source })).toBe(true);
+    }
+    expect(needsSafewordContext({ source: 'resume' })).toBe(false);
   });
 });

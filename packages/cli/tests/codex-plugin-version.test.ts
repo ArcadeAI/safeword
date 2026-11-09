@@ -725,7 +725,7 @@ describe('Codex plugin release contract', () => {
       expect(JSON.parse(sessionStart.stdout)).toMatchObject({
         hookSpecificOutput: {
           hookEventName: 'SessionStart',
-          additionalContext: expect.stringContaining('Safeword session bootstrap'),
+          additionalContext: expect.stringContaining('First, Read `'),
         },
       });
       const sessionProof = JSON.parse(

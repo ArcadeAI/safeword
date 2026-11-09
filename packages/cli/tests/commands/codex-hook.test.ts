@@ -555,9 +555,10 @@ describe('packagedNamespaceRootLabel', () => {
     );
 
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain('Safeword session bootstrap');
-    expect(result.stdout).toContain('the packaged Safeword handbook');
-    expect(result.stdout).toContain('the packaged Safeword guides');
+    expect(result.stdout).toContain('First, Read `');
+    expect(result.stdout).toMatch(
+      /First, Read `\/[^`]*SAFEWORD\.md` in full, even for trivial requests or right after compaction; a summary or earlier read does not count\./,
+    );
     expect(result.stdout).toContain('.project/');
     expect(result.stdout).toContain('supersede');
     expect(result.stdout).not.toContain('.safeword/guides/');
@@ -582,8 +583,10 @@ describe('packagedNamespaceRootLabel', () => {
     );
 
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain('Safeword session bootstrap');
-    expect(result.stdout).toContain('the packaged Safeword handbook');
+    expect(result.stdout).toContain('First, Read `');
+    expect(result.stdout).toMatch(
+      /First, Read `\/[^`]*SAFEWORD\.md` in full, even for trivial requests or right after compaction; a summary or earlier read does not count\./,
+    );
     expect(result.stdout).not.toContain('SAFEWORD Agent Instructions');
     expect(result.stdout.length).toBeLessThanOrEqual(1000);
   });
@@ -602,8 +605,10 @@ describe('packagedNamespaceRootLabel', () => {
     );
 
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain('Safeword session bootstrap');
-    expect(result.stdout).toContain('the packaged Safeword handbook');
+    expect(result.stdout).toContain('First, Read `');
+    expect(result.stdout).toMatch(
+      /First, Read `\/[^`]*SAFEWORD\.md` in full, even for trivial requests or right after compaction; a summary or earlier read does not count\./,
+    );
     expect(result.stdout.length).toBeLessThanOrEqual(1000);
     expect(rootEntries(projectDirectory)).toEqual(before);
   });
