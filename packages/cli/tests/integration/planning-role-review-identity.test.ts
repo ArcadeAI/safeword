@@ -265,4 +265,17 @@ describe('complete planning role identity through authenticated public review', 
     const status = await current.status();
     expect(status.status).toBe('stale');
   });
+  it('retains approval when progress is appended to the ticket work log', async () => {
+    const current = await review();
+    current.edit(text => `${text}\n## Work Log\n\n- Advanced phase without changing accepted work.\n`);
+    expect((await current.status()).status).toBe('approved');
+    current.edit(text => `${text}- Recorded passing proof for unchanged behavior.\n`);
+    expect((await current.status()).status).toBe('approved');
+  });
+
+  it('still binds accepted decisions after the work log', async () => {
+    const current = await review();
+    current.edit(text => `${text}\n## Work Log\n\n- Recorded progress.\n\n## Decisions\n\nAllow anonymous approval.\n`);
+    expect((await current.status()).status).toBe('stale');
+  });
 });
