@@ -567,6 +567,33 @@ describe('packagedNamespaceRootLabel', () => {
     expect(result.stdout).not.toContain('PROJECT-LOCAL INSTRUCTIONS MUST NOT APPEAR');
   });
 
+  it.each(['startup', 'compact'])(
+    'delivers the package-owned handbook read through the manifest --plugin-hook command on %s',
+    source => {
+      const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), `safeword-codex-${source}-`));
+      directories.push(projectDirectory);
+      mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+      writeFileSync(
+        nodePath.join(projectDirectory, '.safeword', 'SAFEWORD.md'),
+        'PROJECT-LOCAL INSTRUCTIONS MUST NOT APPEAR',
+      );
+
+      const result = runCodexHook(
+        projectDirectory,
+        'session-start',
+        { hook_event_name: 'SessionStart', source },
+        { SAFEWORD_NO_AUTO_UPGRADE: '1' },
+        true,
+      );
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout).toMatch(
+        /First, Read `\/[^`]*\/(?:templates|resources)\/SAFEWORD\.md` in full, even for trivial requests or right after compaction; a summary or earlier read does not count\./,
+      );
+      expect(result.stdout).not.toContain('.safeword/SAFEWORD.md');
+    },
+  );
+
   it('keeps the packaged SessionStart fallback compact when its dispatcher is unavailable', () => {
     const { packageDirectory, projectDirectory } = createPackagedCliFixture();
     rmSync(nodePath.join(packageDirectory, 'templates', 'hooks', 'session-codex-start.ts'));
