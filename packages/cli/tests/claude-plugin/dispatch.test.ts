@@ -410,7 +410,7 @@ describe('Claude plugin dispatcher', () => {
 
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).toMatch(
-      /First, Read `\/[^`]*SAFEWORD\.md` in full, even for trivial requests or right after compaction; a summary or earlier read does not count\./,
+      /First, Read `\/[^`]*\/(?:templates|resources)\/SAFEWORD\.md` in full, even for trivial requests or right after compaction; a summary or earlier read does not count\./,
     );
     expect(result.stdout).not.toContain('.safeword/SAFEWORD.md');
     expect(result.stdout).not.toContain('.safeword/guides/');

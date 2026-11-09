@@ -35,8 +35,9 @@ const PACKAGE_OWNED_AUTHORITY = `${[
   'These current paths supersede retired Safeword instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.',
 ].join('\n')}\n\n`;
 // The read instruction names the packaged handbook by absolute path, which varies by install.
+// It must be the package-owned copy (templates/ or resources/), never the project's .safeword/ copy.
 const PACKAGE_OWNED_READ_LINE =
-  /^First, Read `\/[^`]*SAFEWORD\.md` in full, even for trivial requests or right after compaction; a summary or earlier read does not count\.$/u;
+  /^First, Read `\/[^`]*\/(?:templates|resources)\/SAFEWORD\.md` in full, even for trivial requests or right after compaction; a summary or earlier read does not count\.$/u;
 
 interface CodexPluginHookParityWorld extends SafewordWorld {
   codexHookInput?: object;
@@ -708,6 +709,7 @@ Then(
     const context = parsed.hookSpecificOutput?.additionalContext ?? '';
     assert.ok(context.startsWith(PACKAGE_OWNED_AUTHORITY), context);
     assert.match(context.slice(PACKAGE_OWNED_AUTHORITY.length), PACKAGE_OWNED_READ_LINE);
+    assert.doesNotMatch(context, /\.safeword\/SAFEWORD\.md/u);
     assert.equal(context.split('First, Read `').length, 2);
   },
 );
