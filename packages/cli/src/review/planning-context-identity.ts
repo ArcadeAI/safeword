@@ -153,6 +153,16 @@ export function semanticMarkdownIdentity(content: string): string {
   return identity(normalizeNodes(nodes));
 }
 
+function ticketContractNodes(body: string): readonly MarkdownNode[] {
+  let inWorkLog = false;
+  return parseMarkdown(body).filter(node => {
+    if (node.type === 'heading' && (node.depth ?? 0) <= 2) {
+      inWorkLog = node.depth === 2 && headingText(node) === 'Work Log';
+    }
+    return !inWorkLog;
+  });
+}
+
 export function semanticTicketIdentity(content: string, reviewKind?: string): string {
   const { metadata, body } = parseTicketMetadata(content);
   const retained = Object.fromEntries(
@@ -170,7 +180,8 @@ export function semanticTicketIdentity(content: string, reviewKind?: string): st
     );
     if (matching.length > 0) retained.review_dispositions = matching;
   }
-  const nodes = parseMarkdown(body);
+  // Work Log is progress history, not accepted scope or decision authority.
+  const nodes = ticketContractNodes(body);
   return identity({ version: 1, metadata: retained, body: normalizeNodes(nodes) });
 }
 
