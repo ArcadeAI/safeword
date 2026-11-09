@@ -355,10 +355,8 @@ function readPackagedSafewordInstructions(): string | undefined {
     'Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.',
     'These current paths supersede retired Safeword instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.',
     '',
-    'Safeword session bootstrap:',
-    'Before non-trivial work, read the packaged Safeword handbook and the applicable guide in `.safeword/guides/`.',
-    'Current tickets, learnings, and project context are under `.project/` (or the configured namespace root).',
-    'Follow the active Safeword workflow and its gates.',
+    // Same one-line instruction as templates/hooks/lib/safeword-context.ts.
+    `First, Read \`${nodePath.resolve(instructionsPath)}\` in full, even for trivial requests or right after compaction; a summary or earlier read does not count.`,
   ].join('\n');
 }
 

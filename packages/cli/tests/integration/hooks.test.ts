@@ -1744,10 +1744,29 @@ describe('session-safeword-context.ts', () => {
     expect(result.status, result.stderr || result.stdout).toBe(0);
     const output = JSON.parse(result.stdout);
     expect(output.hookSpecificOutput.hookEventName).toBe('SessionStart');
-    expect(output.hookSpecificOutput.additionalContext).toContain('Safeword session bootstrap');
+    expect(output.hookSpecificOutput.additionalContext).toContain('First, Read `');
     expect(output.hookSpecificOutput.additionalContext).toContain('.safeword/SAFEWORD.md');
     expect(output.hookSpecificOutput.additionalContext).not.toContain('## Workflow');
     expect(output.hookSpecificOutput.additionalContext.length).toBeLessThanOrEqual(1000);
+  });
+
+  it('stays silent on resume, when the earlier read is still in context', () => {
+    const result = spawnSync(
+      'bun',
+      ['.safeword/hooks/session-safeword-context.ts', '--agent=claude'],
+      {
+        cwd: shared.projectDirectory,
+        input: JSON.stringify({
+          hook_event_name: 'SessionStart',
+          source: 'resume',
+          cwd: shared.projectDirectory,
+        }),
+        encoding: 'utf8',
+      },
+    );
+
+    expect(result.status, result.stderr || result.stdout).toBe(0);
+    expect(result.stdout.trim()).toBe('');
   });
 
   it('emits a compact Cursor bootstrap that points to SAFEWORD.md', () => {
@@ -1763,7 +1782,7 @@ describe('session-safeword-context.ts', () => {
 
     expect(result.status, result.stderr || result.stdout).toBe(0);
     const output = JSON.parse(result.stdout);
-    expect(output.additional_context).toContain('Safeword session bootstrap');
+    expect(output.additional_context).toContain('First, Read `');
     expect(output.additional_context).toContain('.safeword/SAFEWORD.md');
     expect(output.additional_context).not.toContain('## Workflow');
     expect(output.additional_context.length).toBeLessThanOrEqual(1000);
@@ -1789,7 +1808,7 @@ describe('session-safeword-context.ts', () => {
     expect(result.status).toBe(0);
     const output = JSON.parse(result.stdout);
     expect(output.hookSpecificOutput.hookEventName).toBe('SessionStart');
-    expect(output.hookSpecificOutput.additionalContext).toContain('Safeword session bootstrap');
+    expect(output.hookSpecificOutput.additionalContext).toContain('First, Read `');
   });
 
   it('falls back to hook stdin cwd when CLAUDE_PROJECT_DIR is stale', () => {
@@ -1812,7 +1831,7 @@ describe('session-safeword-context.ts', () => {
       expect(result.status).toBe(0);
       const output = JSON.parse(result.stdout);
       expect(output.hookSpecificOutput.hookEventName).toBe('SessionStart');
-      expect(output.hookSpecificOutput.additionalContext).toContain('Safeword session bootstrap');
+      expect(output.hookSpecificOutput.additionalContext).toContain('First, Read `');
     } finally {
       rmSync(staleDirectory, { recursive: true, force: true });
     }
@@ -1831,7 +1850,7 @@ describe('session-codex-start.ts', () => {
     expect(result.status, result.stderr || result.stdout).toBe(0);
     const output = JSON.parse(result.stdout);
     expect(output.hookSpecificOutput.hookEventName).toBe('SessionStart');
-    expect(output.hookSpecificOutput.additionalContext).toContain('Safeword session bootstrap');
+    expect(output.hookSpecificOutput.additionalContext).toContain('First, Read `');
     expect(output.hookSpecificOutput.additionalContext).toContain('.safeword/SAFEWORD.md');
     expect(output.hookSpecificOutput.additionalContext).not.toContain('## Workflow');
     expect(output.hookSpecificOutput.additionalContext.length).toBeLessThanOrEqual(1000);

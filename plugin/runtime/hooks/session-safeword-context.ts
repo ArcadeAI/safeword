@@ -3,6 +3,7 @@
 
 import {
   createSafewordContextResponse,
+  needsSafewordContext,
   parseAgent,
   readHookInput,
   readSafewordContext,
@@ -12,6 +13,7 @@ import {
 export async function runSessionSafewordContext(): Promise<number> {
   const agent = parseAgent();
   const hookInput = await readHookInput();
+  if (!needsSafewordContext(hookInput)) return 0;
   const context = readSafewordContext(resolveProjectDir(hookInput));
   const response = createSafewordContextResponse(agent, context);
 

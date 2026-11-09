@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "681c7b51f82ef05b7db21bc39d8d61e8729ce19f4779684a0b6be40c5d248ae5"
+      "sha256": "ed2bea9febd7a2ad3d561b5ba77c07de80ee9fea8885372a7c16bc16cc861e99"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "fef014d35c4b6dfc9ac852fba76363217c3c906a5284222e83c2aabddb47ed8a"
+      "sha256": "50b7ccd3007b4152e793d8789989067e9d6964d4291207b8a3084f504b299849"
     },
     {
       "path": "runtime/event-groups.json",
@@ -427,7 +427,7 @@
     },
     {
       "path": "runtime/hooks/lib/safeword-context.ts",
-      "sha256": "ed4f812e77e08061b716efaa3505e4a89cf48e4a2660b31d3e9c9166e28337fd"
+      "sha256": "76facd138ad0d5514280646b5c88b9412dfa8206b533936962b9972893ee366a"
     },
     {
       "path": "runtime/hooks/lib/scenario-format.ts",
@@ -603,7 +603,7 @@
     },
     {
       "path": "runtime/hooks/session-safeword-context.ts",
-      "sha256": "56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5"
+      "sha256": "121d6a37737cde3e3d88793b15a06dfa61af27c7263725ebe487735b821e26b2"
     },
     {
       "path": "runtime/hooks/session-start-reentry.ts",
@@ -1419,7 +1419,7 @@
     },
     {
       "path": "templates/hooks/lib/safeword-context.ts",
-      "sha256": "5b75108b800dfde5e4930477e713fb42296c1e061ef7dd59af3d48aa39f2deec"
+      "sha256": "b9be385aa9bdf216c18b9bde9284ce82b7a104b8c69e52b31f8231a65c7ff80b"
     },
     {
       "path": "templates/hooks/lib/scenario-format.ts",
@@ -1595,7 +1595,7 @@
     },
     {
       "path": "templates/hooks/session-safeword-context.ts",
-      "sha256": "56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5"
+      "sha256": "121d6a37737cde3e3d88793b15a06dfa61af27c7263725ebe487735b821e26b2"
     },
     {
       "path": "templates/hooks/session-start-reentry.ts",
