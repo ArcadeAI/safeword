@@ -11,6 +11,7 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { validatePlanningProductFrame } from '../../src/review/planning-context-identity.js';
 import { createTicketRouted } from '../../src/ticket-create/index.js';
 import { resolveFolderByTrackerKey } from '../../src/tracker-sync/resolve-by-key.js';
 import { loadTrackerMap } from '../../src/tracker-sync/tracker-map.js';
@@ -39,6 +40,23 @@ describe('createTicketRouted (tracker-identity-and-join.TB1)', () => {
   });
   afterEach(() => {
     removeTemporaryDirectory(cwd);
+  });
+
+  it('scaffolds standalone features with the fields required by planning review', async () => {
+    const result = await createTicketRouted(
+      cwd,
+      { slug: 'convert-temperature', type: 'feature', title: 'Convert temperatures' },
+      {
+        config: { provider: 'none', body: 'minimal' },
+        buildWriter: vi.fn(),
+        minter: fixedMinter('PLAN01'),
+      },
+    );
+    const product = readFileSync(nodePath.join(result.folderPath, 'spec.md'), 'utf8');
+    expect(product).toContain('# Product Plan: Convert temperatures');
+    expect(() => {
+      validatePlanningProductFrame(product);
+    }).not.toThrow();
   });
 
   // TB1.AC1.no_tracker_is_local_as_today — provider:none stays local, no client built
