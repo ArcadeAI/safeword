@@ -6,6 +6,11 @@
 
 - **Problem / Why now:** <customer problem and decision-bearing evidence>
 - **Expected outcome:** <observable business or user outcome>
+- **Persona outcome inventory:**
+  - **<canonical persona>:** <complete intended outcomes, including success, failure and recovery>
+- **Known facts:** <observed or user-confirmed facts supporting these outcomes>
+- **Assumptions:** <untested beliefs to confirm, or none>
+- **Unresolved product decisions:** <remaining user-owned choices, or none when resolved>
 - **Success threshold:** <falsifiable threshold; use an observable outcome when no honest metric exists>
 - **Project non-goals:** <explicit boundaries>
 - **Reversibility:** <two-way | one-way: data model, public API, or migration | skip: reason>
