@@ -1795,7 +1795,7 @@
     },
     {
       "path": "templates/spec-template.md",
-      "sha256": "3b57423be698eb75f6b536c1a14be33e0df4f9e4d2fa5d7395fd491a471e6c9d"
+      "sha256": "d4aca0aa62f282d5f9b9aaf47b68fad8f63493588a42604f6359163959e72bca"
     },
     {
       "path": "templates/statusline/reentry.ts",
