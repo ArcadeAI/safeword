@@ -53391,13 +53391,16 @@ function semanticMarkdownIdentity(content) {
   return identity(normalizeNodes(nodes));
 }
 function ticketContractNodes(body) {
+  const nodes = parseMarkdown(body);
   let inWorkLog = false;
-  return parseMarkdown(body).filter((node) => {
+  const retained = nodes.filter((node) => {
     if (node.type === "heading" && (node.depth ?? 0) <= 2) {
       inWorkLog = node.depth === 2 && headingText(node) === "Work Log";
     }
     return !inWorkLog;
   });
+  const definitions = referencedDefinitions(nodes, retained).filter((node) => !retained.includes(node));
+  return [...retained, ...definitions];
 }
 function semanticTicketIdentity(content, reviewKind) {
   const { metadata: metadata2, body } = parseTicketMetadata(content);

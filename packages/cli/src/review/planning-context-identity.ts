@@ -154,13 +154,19 @@ export function semanticMarkdownIdentity(content: string): string {
 }
 
 function ticketContractNodes(body: string): readonly MarkdownNode[] {
+  const nodes = parseMarkdown(body);
   let inWorkLog = false;
-  return parseMarkdown(body).filter(node => {
+  const retained = nodes.filter(node => {
     if (node.type === 'heading' && (node.depth ?? 0) <= 2) {
       inWorkLog = node.depth === 2 && headingText(node) === 'Work Log';
     }
     return !inWorkLog;
   });
+  // Contract references retain their destinations even when defined in history.
+  const definitions = referencedDefinitions(nodes, retained).filter(
+    node => !retained.includes(node),
+  );
+  return [...retained, ...definitions];
 }
 
 export function semanticTicketIdentity(content: string, reviewKind?: string): string {
