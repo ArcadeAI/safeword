@@ -88,13 +88,13 @@ afterEach(() => {
   cleanupTrustedReviewerDirectories();
 });
 
-async function review() {
+async function review(ticketContent = metadata) {
   const project = createTemporaryDirectory();
   projects.push(project);
   await createConfiguredProject(project);
   writePlanningInventories(project);
   mkdirSync(nodePath.join(project, folder), { recursive: true });
-  writeFileSync(nodePath.join(project, ticketPath), metadata);
+  writeFileSync(nodePath.join(project, ticketPath), ticketContent);
   writeFileSync(nodePath.join(project, specPath), product);
   writeFileSync(nodePath.join(project, target), implementation);
   writeFileSync(
@@ -138,7 +138,7 @@ process.stdin.on('end', () => {
   expect(result.exitCode, `${result.stdout}\n${result.stderr}`).toBe(0);
   expect(capturedPacket(capture).kind).toBe('plan-implementation');
   expect(capturedPacket(capture).context_files).toEqual(
-    expect.arrayContaining([expect.objectContaining({ path: ticketPath, content: metadata })]),
+    expect.arrayContaining([expect.objectContaining({ path: ticketPath, content: ticketContent })]),
   );
   const receipt = JSON.parse(result.stdout).data;
   expect(receipt.status).toBe('approved');
@@ -285,5 +285,13 @@ describe('complete planning role identity through authenticated public review', 
     );
     const changedDecision = await current.status();
     expect(changedDecision.status).toBe('stale');
+  });
+  it('binds a contract link destination defined after the work log', async () => {
+    const current = await review(
+      `${metadata}\n## Contract\n\nFollow [approval policy][policy].\n\n## Work Log\n\n- Recorded progress.\n\n[policy]: https://example.com/authenticated\n`,
+    );
+    current.edit(text => text.replace('/authenticated', '/anonymous'));
+    const status = await current.status();
+    expect(status.status).toBe('stale');
   });
 });
