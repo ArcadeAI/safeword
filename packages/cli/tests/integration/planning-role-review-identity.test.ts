@@ -294,4 +294,17 @@ describe('complete planning role identity through authenticated public review', 
     const status = await current.status();
     expect(status.status).toBe('stale');
   });
+  it('accepts literal bracketed text in the ticket contract', async () => {
+    const current = await review(`${metadata}\n## Contract\n\n[WIP] approval policy.\n`);
+    const status = await current.status();
+    expect(status.status).toBe('approved');
+  });
+  it('ignores a later duplicate definition in progress history', async () => {
+    const current = await review(
+      `${metadata}\n## Contract\n\nFollow [approval policy][policy].\n\n[policy]: https://example.com/authenticated\n\n## Work Log\n\n- Recorded progress.\n`,
+    );
+    current.edit(text => `${text}\n[policy]: https://example.com/history-only\n`);
+    const status = await current.status();
+    expect(status.status).toBe('approved');
+  });
 });
