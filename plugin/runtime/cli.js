@@ -3665,7 +3665,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/session-dependency-readiness.ts": "295d14c5a3d8112b01259cf89ce718144a568e62e0baf5aaa19eca3fcfdc50ff",
         ".safeword/hooks/session-lint-check.ts": "6d8e5819bd52208799089d19bfdbd569fc46b9d518df4c45ab2c3b605d9647dc",
         ".safeword/hooks/session-reply-format.ts": "41f7578e93188d5efacdd9ecbf29f72753a6fe98bca71fe321c61f547aeb8532",
-        ".safeword/hooks/session-safeword-context.ts": "56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5",
+        ".safeword/hooks/session-safeword-context.ts": "121d6a37737cde3e3d88793b15a06dfa61af27c7263725ebe487735b821e26b2",
         ".safeword/hooks/session-start-reentry.ts": "b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d",
         ".safeword/hooks/session-version.ts": "c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64",
         ".safeword/hooks/stop-quality.ts": "8081f7d919d1432e519007ebbd658a3a9fb32e12266bc176604886b7cec1d163",
@@ -85929,10 +85929,7 @@ function readPackagedSafewordInstructions() {
     "Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.",
     "These current paths supersede retired Safeword instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.",
     "",
-    "Safeword session bootstrap:",
-    "Before non-trivial work, read the packaged Safeword handbook and the applicable guide in `.safeword/guides/`.",
-    "Current tickets, learnings, and project context are under `.project/` (or the configured namespace root).",
-    "Follow the active Safeword workflow and its gates."
+    `First, Read \`${nodePath155.resolve(instructionsPath)}\` in full, even for trivial requests or right after compaction; a summary or earlier read does not count.`
   ].join(`
 `);
 }
