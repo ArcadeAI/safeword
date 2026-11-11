@@ -163,7 +163,7 @@ function ticketContractNodes(body: string): readonly MarkdownNode[] {
     return !inWorkLog;
   });
   // Contract references retain their destinations even when defined in history.
-  const definitions = referencedDefinitions(nodes, retained).filter(
+  const definitions = referencedDefinitions(nodes, retained, false).filter(
     node => !retained.includes(node),
   );
   return [...retained, ...definitions];
@@ -269,7 +269,11 @@ function capturedParent(
   return { ticket, parentTicket, parent, relationship };
 }
 
-function referencedDefinitions(nodes: readonly MarkdownNode[], retained: readonly MarkdownNode[]) {
+function referencedDefinitions(
+  nodes: readonly MarkdownNode[],
+  retained: readonly MarkdownNode[],
+  requireUnique = true,
+) {
   const references = new Set<string>();
   const visit = (node: MarkdownNode): void => {
     if (
@@ -287,6 +291,12 @@ function referencedDefinitions(nodes: readonly MarkdownNode[], retained: readonl
       typeof node.identifier === 'string' &&
       references.has(node.identifier),
   );
+  // Tickets follow Markdown: undefined brackets are literal; the first definition wins.
+  if (!requireUnique)
+    return definitions.filter(
+      (node, index) =>
+        definitions.findIndex(first => first.identifier === node.identifier) === index,
+    );
   if (
     [...references].some(
       reference => definitions.filter(node => node.identifier === reference).length !== 1,

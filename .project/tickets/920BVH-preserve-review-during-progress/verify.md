@@ -140,3 +140,27 @@ The private native profile lives outside the shareable evidence archive at
 
 Historical RED remains missing where originally missing. All failed, rejected,
 stale or exhausted evidence and all 33 deferred OpenCode/cloud cases remain.
+
+## Administrative merge follow-through — 2026-11-11
+
+User authorized green checks and administrative merging of PRs #7077/#7078.
+The Product Plan branch was merged locally without source conflict; the sole
+generated identity checksum conflict was regenerated, not chosen by hand.
+Combined focused checks pass (23 tests) and release checks pass (81 tests).
+
+Fresh review a778c7e8 identified that a contract reference definition placed
+after Work Log was excluded. Actual public CLI RED reported approved rather
+than stale; the test is retained at b546b62d8 (its first commit attempt failed
+lint; only equivalent await formatting changed). Fix 4d2488ac8 retained the
+referenced destination. Review d65f2a84 became stale during formatting;
+review 339c7237 then requested compatibility repairs. Actual follow-up RED
+at abeeb9291 confirmed a later duplicate definition staled unchanged approval.
+The alleged undefined-bracket failure did not reproduce: its control passed.
+
+The final repair preserves referenced destinations with first-definition-wins
+Markdown semantics for tickets, while leaving the strict parent-spec policy
+unchanged. All 27 focused checks pass. Earlier full-suite results above remain
+at their original candidates, not attributed to this correction. Exact-head
+CI and fresh independent review must finish before merging. Raw RED/GREEN,
+stale/rejected review and generator logs remain in the permanent trial archive.
+No qualification, route change, reconstructed RED or deferred-case credit.

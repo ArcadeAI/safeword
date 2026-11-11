@@ -53399,7 +53399,7 @@ function ticketContractNodes(body) {
     }
     return !inWorkLog;
   });
-  const definitions = referencedDefinitions(nodes, retained).filter((node) => !retained.includes(node));
+  const definitions = referencedDefinitions(nodes, retained, false).filter((node) => !retained.includes(node));
   return [...retained, ...definitions];
 }
 function semanticTicketIdentity(content, reviewKind) {
@@ -53459,7 +53459,7 @@ function capturedParent(packet, target) {
     throw new Error("Planning child context has no captured parent spec.");
   return { ticket, parentTicket, parent, relationship };
 }
-function referencedDefinitions(nodes, retained) {
+function referencedDefinitions(nodes, retained, requireUnique = true) {
   const references = new Set;
   const visit3 = (node) => {
     if ((node.type === "linkReference" || node.type === "imageReference") && typeof node.identifier === "string")
@@ -53471,6 +53471,8 @@ function referencedDefinitions(nodes, retained) {
   for (const node of retained)
     visit3(node);
   const definitions = nodes.filter((node) => node.type === "definition" && typeof node.identifier === "string" && references.has(node.identifier));
+  if (!requireUnique)
+    return definitions.filter((node, index) => definitions.findIndex((first) => first.identifier === node.identifier) === index);
   if ([...references].some((reference) => definitions.filter((node) => node.identifier === reference).length !== 1)) {
     throw new Error("Planning parent context has missing or duplicate referenced link definitions.");
   }
