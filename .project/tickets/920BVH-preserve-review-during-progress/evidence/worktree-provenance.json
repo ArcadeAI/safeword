@@ -1,0 +1,47 @@
+{
+  "recorded_after_tests": true,
+  "original_execution_root": "/private/tmp/safeword-4200-main-evidence",
+  "current_root": "/Users/alex/.codex/worktrees/4200-completion-progress/safeword",
+  "worktree_admin_directory": "/Users/alex/Projects/safeword/.git/worktrees/safeword-4200-main-evidence",
+  "explanation": "The same worktree was renamed with git worktree move after the final full and targeted runs; it was not replaced by a main checkout. The Git-managed HEAD reflog and immutable candidate file comparisons are included below.",
+  "head": "d2100c86948bebb7b80db977600dae0e1157401a",
+  "branch": "codex/4200-completion-progress",
+  "head_reflog": "HEAD@{2026-11-09T14:31:47-08:00} d2100c86948bebb7b80db977600dae0e1157401a commit: build: regenerate proof fix with the locked local dependencies\nHEAD@{2026-11-09T14:29:57-08:00} cf218e1f5a5a8a0eadaa0e6b48c1ff45c5e85c6e commit: test: prove execution scheduling preserves design approval\nHEAD@{2026-11-09T14:12:11-08:00} b43f1e4de656437b39731a9150e95590321f85f9 commit: fix: preserve planning approval across work-log progress\nHEAD@{2026-11-09T14:10:21-08:00} bb2e17ade2babeb72eb9fcc1c30222470fbe7283 commit: test: expose planning approval lost after work-log progress\nHEAD@{2026-11-09T14:08:00-08:00} e00ea1e6533df161fbb94f98cb76dc48d86c4ed0 checkout: moving from e00ea1e6533df161fbb94f98cb76dc48d86c4ed0 to codex/4200-completion-progress\nHEAD@{2026-11-09T14:06:10-08:00} e00ea1e6533df161fbb94f98cb76dc48d86c4ed0 \n",
+  "implementation_files": [
+    {
+      "path": "packages/cli/src/review/planning-context-identity.ts",
+      "sha256": "4b0cabf266aeed71b437e15f59647a8233f3e459c62548c4d9bd81dc35fa0a3d",
+      "matches_d2100c869": true
+    },
+    {
+      "path": "packages/cli/tests/integration/planning-role-review-identity.test.ts",
+      "sha256": "6231ff515c1f89ebbedfd346cec153b2185c30fce630c0ed3ea66ce0999bca2f",
+      "matches_d2100c869": true
+    },
+    {
+      "path": "packages/cli/tests/integration/execution-upstream-planning-context.test.ts",
+      "sha256": "3570742857b16fc45503cf8ab8f82e8bff90bfb7c12706b5c5c595ef5d3b3013",
+      "matches_d2100c869": true
+    },
+    {
+      "path": "packages/cli/codex-plugin/runtime/cli.js",
+      "sha256": "25398ffbdbff4204c527b321a35e5f519a8b0a8c98e1b56b28299b2b098af123",
+      "matches_d2100c869": true
+    },
+    {
+      "path": "plugin/runtime/cli.js",
+      "sha256": "c53c2fba569dab78e3b284b0d8f4fcb6909d7d935172092482f47724b6856c37",
+      "matches_d2100c869": true
+    },
+    {
+      "path": "plugin/identity.json",
+      "sha256": "6834caa50af395b79538d68fa2da373ee2562fad58ff12747cd0667ddce4d4d4",
+      "matches_d2100c869": true
+    },
+    {
+      "path": "plugin/inventory.json",
+      "sha256": "21285af0615038f2d8a7120668b05a05eef9f4b7e90d3a5782fad8f7a3559ffa",
+      "matches_d2100c869": true
+    }
+  ]
+}

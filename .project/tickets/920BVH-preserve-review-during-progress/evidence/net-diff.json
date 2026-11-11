@@ -1,0 +1,9 @@
+{
+  "base": "e00ea1e65",
+  "candidate": "d2100c869",
+  "name_status": "A\t.project/tickets/920BVH-preserve-review-during-progress/ticket.md\nM\tpackages/cli/codex-plugin/runtime/cli.js\nM\tpackages/cli/src/review/planning-context-identity.ts\nM\tpackages/cli/tests/integration/execution-upstream-planning-context.test.ts\nM\tpackages/cli/tests/integration/planning-role-review-identity.test.ts\nM\tplugin/identity.json\nM\tplugin/inventory.json\nM\tplugin/runtime/cli.js\n",
+  "dispatch_js_base_blob": "fe466c897546b8e842d72d2514a7540df081a551",
+  "dispatch_js_candidate_blob": "fe466c897546b8e842d72d2514a7540df081a551",
+  "dispatch_js_net_changed": false,
+  "explanation": "Intermediate generated dispatch churn reverted by final locked-dependency generation. Final candidate dispatch.js equals base, so it is not changed work."
+}

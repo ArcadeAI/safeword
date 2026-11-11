@@ -1,0 +1,9 @@
+{
+  "head": "d2100c86948bebb7b80db977600dae0e1157401a",
+  "branch": "codex/4200-completion-progress",
+  "recorded_after_completion": true,
+  "git_status": " M .project/tickets/920BVH-preserve-review-during-progress/ticket.md\n?? .project/tickets/920BVH-preserve-review-during-progress/evidence/\n?? .project/tickets/920BVH-preserve-review-during-progress/verify.md\n",
+  "full_cli_log_sha256": "8ab26065bc0ccc8f22ed5448d532be30fb19deb9b904f1e2e143b253338742b1",
+  "release_log_sha256": "8424268b93e24eaec7eb35d48ebee1f170c1c02436306a1d267d530d3313f4c0",
+  "emitted_artifacts_match": true
+}
