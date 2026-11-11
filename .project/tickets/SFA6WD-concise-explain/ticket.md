@@ -2,8 +2,8 @@
 id: SFA6WD
 slug: concise-explain
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 subtype: bug-investigated
 scope:
   - Replace the explain skill and Cursor command instructions with the approved wording.
@@ -14,7 +14,7 @@ done_when:
   - The approved prompt is shipped across supported surfaces.
   - Relevant tests and closing verification pass.
 created: 2026-11-08T23:04:21.272Z
-last_modified: 2026-11-08T23:04:21.272Z
+last_modified: 2026-11-11T18:45:00.000Z
 ---
 
 # Make Safeword explanations brief and clear
@@ -36,7 +36,7 @@ The explain prompt prescribes lengthy target-specific steps and a fixed output f
 
 - The prompt contract test failed against the original and passed against the replacement.
 - Generated surfaces and lifecycle fixtures regenerated and checked successfully.
-- Full CLI suite passed twice: 719 files, 11,615 tests, 14 skipped each time.
+- Earlier full CLI runs passed twice: 719 files, 11,615 tests, 14 skipped each time. The rebased current head passed 719 files, 11,624 tests, 12 skipped.
 - Acceptance suite passed 599 scenarios and 11,786 steps; proof suite passed 52 tests.
 - The current PR's dependency audit passed after rebasing onto main.
 - Project install synchronized skill copies. Local Claude activation requires a published plugin version and is outside this source change.
