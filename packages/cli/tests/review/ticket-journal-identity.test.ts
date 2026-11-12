@@ -134,6 +134,14 @@ describe('ticket journal does not stale planning approvals', () => {
     );
   });
 
+  it('keeps identity when the hook creates the first Work Log after an unclosed fence', () => {
+    const legacy = `${ticket.slice(0, ticket.indexOf('## Work Log'))}\`\`\`text\nnotes\n`;
+    expectSame(
+      legacy,
+      appendWorkLogEntry(legacy, '- 2026-11-09T01:28:11.624Z Phase: plan-execution → implement'),
+    );
+  });
+
   it('ignores a phase stamp wherever it lands, even in a later section', () => {
     const later = `${ticket}\n## Decisions\n\nKeep two decimals.\n`;
     expectSame(later, `${later}- 2026-11-09T01:28:11.624Z Phase: plan-execution → implement\n`);

@@ -179,8 +179,16 @@ const PHASE_STAMP_LINE =
  * The hook only appends whole stamp lines at end of file, so removing them
  * restores the ticket's prior text exactly, whatever Markdown surrounds them.
  */
+const HOOK_WORK_LOG_HEADING = '\n## Work Log';
+
 function withoutPhaseStamps(body: string): string {
-  return body.replaceAll(PHASE_STAMP_LINE, '');
+  // A ticket with no Work Log gets one from the hook along with its first stamp;
+  // a bare trailing heading is that addition, so drop it and normalize the end.
+  let text = body.replaceAll(PHASE_STAMP_LINE, '').trimEnd();
+  if (text.endsWith(HOOK_WORK_LOG_HEADING)) {
+    text = text.slice(0, -HOOK_WORK_LOG_HEADING.length).trimEnd();
+  }
+  return `${text}\n`;
 }
 
 function isWorkLogHeading(node: MarkdownNode): boolean {

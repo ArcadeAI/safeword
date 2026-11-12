@@ -53075,7 +53075,12 @@ function nestedDefinitions(node) {
   return (node.children ?? []).flatMap((child) => nestedDefinitions(child));
 }
 function withoutPhaseStamps(body) {
-  return body.replaceAll(PHASE_STAMP_LINE, "");
+  let text = body.replaceAll(PHASE_STAMP_LINE, "").trimEnd();
+  if (text.endsWith(HOOK_WORK_LOG_HEADING)) {
+    text = text.slice(0, -HOOK_WORK_LOG_HEADING.length).trimEnd();
+  }
+  return `${text}
+`;
 }
 function isWorkLogHeading(node) {
   return node.type === "heading" && node.depth === 2 && normalizedText(node) === "Work Log";
@@ -53509,7 +53514,8 @@ function createPlanningReviewIdentity(packet) {
     canonical_contract_digest: contractDigest
   };
 }
-var nodeTypes, TICKET_BOOKKEEPING_KEYS, JOURNAL_NODE_TYPES, PHASE_STAMP_LINE, productFrameFields;
+var nodeTypes, TICKET_BOOKKEEPING_KEYS, JOURNAL_NODE_TYPES, PHASE_STAMP_LINE, HOOK_WORK_LOG_HEADING = `
+## Work Log`, productFrameFields;
 var init_planning_context_identity = __esm(() => {
   init_markdown();
   init_gherkin_feature();
