@@ -9,9 +9,96 @@ catalogue assertions and the existing timeout remain unchanged. No production,
 generated, dependency or review-policy change.
 
 **PR Scope:** PASS — one catalogue-test setup flag/comment and bounded task
-records. Draft #7190 is published at `1c54c4a78`; no Ready promotion or merge.
+records. Draft #7190 is published at `f7081a0ea`; no Ready promotion or merge.
 
-## Current closure status
+## Verify Checklist — November 12 Pacific
+
+Tested implementation head `f7081a0ea583d73bc1d39abab9e2b887fa72e9f1`, based
+on main `8daeec44c`. Complete packaged verification
+`/tmp/VRJ93G-main-verify-queued.log` exited 0 with the supported longer shared
+lock wait. Full lint separately exited 0. Subsequent record edits change no
+source, dependencies, assertion or timeout.
+
+**Test Suite:** ✓ 11629/11629 tests pass in each of two full CLI passes; each covers 719 files with 14 skipped. Relay 198 pass / 1 skip; collector 153 pass. Repeated counts overlap and are not added.
+**Gherkin:** ✅ Acceptance lane passes: 599 scenarios / 11786 steps, plus 52 BDD proof checks.
+**Build:** ✅ Success — all resolved workspace builds, including website.
+**Lint:** ✅ Clean — full ESLint, Gherkin lint and changed-file checks pass.
+**Typecheck:** ✅ Clean — resolved TypeScript/Python checks pass, website diagnostics clean.
+**Scenarios:** ⏭️ Task regression, no new feature ledger; full suite includes the unchanged catalogue/profile assertions. Missing local RED remains missing.
+**Refactor:** ✅ No change warranted — setup-only flag/comment; no beneficial structural change in scope.
+**PR Scope:** ✅ Diff matches ticket scope — one catalogue setup flag/comment and bounded records against accepted main.
+**Dep Drift:** ✅ Clean — Bun audit: none in 1171 packages; uv: none in 39 packages; experimental Python scan clean. Go: zero reachable vulnerabilities, with 1 imported/14 module notices retained. Main's accepted lock/toolchain changes came from #7201.
+**Parent Epic:** #4200 remains incomplete; this task grants no original feature or deferred-case credit.
+**Reconcile:** ✅ No pattern deviation.
+**Experience:** ⏭️ N/A — test setup repair, not a new persona-facing flow.
+**Surface Evidence:** ✅ Local lifecycle boundary: all 50 asset bytes verified, errors empty, state changed, no package-manager invocation. Full test/CI coverage recorded; no native OpenCode activation claimed.
+**Evidence limits:** ⚠️ Historical CI timeout not reproduced locally; no fresh RED. First post-update verification exited 75 before package tests could start. Earlier failed full runs and every CI attempt remain preserved. These do not alter the observed green subsequent invocation.
+
+CI `43260512508` is successful at the tested head on attempt two. Node 24
+passed first attempt. Node 22 passed its CLI suite first attempt (11633 pass /
+10 skip) but timed out at 30 seconds in the separate Claude-plugin release
+check. Only that failed job was rerun once, unchanged: CLI suite passed again,
+all 81 release checks passed, and the same release check took 23.177s. The
+timeout remains a real historical failure; no causal claim or timeout change.
+
+Fresh independent cross-agent Claude review `61babf97` approves the entire
+catalogue test, with existing assertion-quality warnings preserved below.
+Coordinator reports alias `opus`; no exact full model ID or qualification
+claim. Configured advisory workflow produced noop and is not counted as
+approval. No Ready promotion or merge performed or authorized.
+
+Permanent evidence directory: `safeword-trials/2026-11-08-main-da2778353-csv/epic-followthrough-2026-11-11/opencode-timeout/main-update-2026-11-12/` under `/Users/alex/Projects/`.
+
+## Earlier continuation observations — November 12 Pacific
+
+PR #7201 is now merged on main `8daeec44c`. This branch merged that main
+cleanly at `f7081a0ea583d73bc1d39abab9e2b887fa72e9f1`, installed from the
+accepted lock with pinned Bun 1.4.4, and pushed the merge to existing Draft
+PR #7190. Against current main the scope remains the original test flag/comment
+and this task's records. No production behavior or test assertion changed.
+
+Changed-file ESLint, full repository lint/Gherkin lint/typecheck and diff checks
+pass. Current-head CI `43260512508` is running; dependency audit, CLI contract,
+Dogfood parity, OpenCode conformance and lint pass. Configured advisory review
+`43260507582` completed successfully; its substantive feedback still needs
+inspection before claiming AI-review approval.
+
+First post-update packaged verification `/tmp/VRJ93G-main-verify.log` exited
+75: CLI and BDD proof invocations could not start within the shared lock's
+one-minute queue limit. Relay 198 passed / 1 skipped, collector 153 passed,
+599 acceptance scenarios / 11,786 steps, builds and typechecks pass. Bun audit
+reports no vulnerabilities in 1,171 packages; uv reports none in 39 packages;
+the experimental Python scan also passes. Go reports zero reachable
+vulnerabilities, retaining 1 imported and 14 module notices. This is not an
+all-green invocation, despite the passing non-package lanes.
+
+A fresh complete packaged verification is queued at
+`/tmp/VRJ93G-main-verify-queued.log` with the supported
+`SAFEWORD_TEST_LOCK_MAX_WAIT_MS=3600000`. This changes only queue admission
+wait, not any test timeout. No lock removal or interruption of other worktrees.
+
+Current-head real offline lifecycle probe passes: all 50 catalogue asset bytes
+match, state is changed, errors are empty, and no package-manager process is
+invoked. Probe elapsed time is 950ms including module startup and verification,
+not a CI bound or native-host activation claim. Logs are
+`/tmp/VRJ93G-main-offline-probe.{json,log}`.
+
+Fresh cross-agent Claude review `61babf97-a10d-4e58-ab77-ddea67f1c2ab`
+approves the integrated head's complete catalogue test file with no errors;
+the coordinator reports reviewer model `opus`, not a verified full model ID.
+Warnings concern existing generic missing-skill matching, hardcoded agent
+expectations and breadth of absent-project-file checks; information concerns
+diagnostics and other user-directory isolation. No assertion changes made:
+these predate the setup edit and do not block it. The install legitimately
+writes project Safeword files, so an empty-project assertion is not the
+contract. Deriving every expectation from production data would also reduce
+independence; wider assertion design remains outside this bounded repair.
+Current advisory workflow `43260507582` produced `kind: noop`, not approval.
+
+Task remains verify/in_progress. No done stamp, Ready promotion or merge.
+Missing local RED, every historical failure and all 33 deferred cases remain.
+
+## Historical closure status — before the main update
 
 Exact-head CI `43130744212` passed on its first attempt, including both Node
 versions, acceptance/release checks, lint/typecheck and the CI dependency audit.
@@ -49,7 +136,7 @@ pass or make the aggregate verification invocation green.
   its log and job metadata remain preserved. Exact historical subprocess
   timing is unknown; no local timeout reproduction or fabricated RED claimed.
 
-## Blocking dependency and smallest continuation
+## Historical blocker and continuation — before #7201 merged
 
 Existing Draft PR #7201 separately addresses the inherited JavaScript/Python
 audit findings, including certifi, filelock and msgpack, with lockfile and Bun
