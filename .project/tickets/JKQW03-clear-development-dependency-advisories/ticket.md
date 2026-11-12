@@ -31,6 +31,7 @@ last_modified: 2026-11-12T01:02:46.536Z
 - 2026-11-12T01:15:00Z Reviewed: Independent intake review approved. Re-resolving with Bun 1.4 also moved postcss-selector-parser from 7.1.5 to 7.2.0 and its nested copy from 6.1.4 to 6.1.5; these are intentional lockfile updates.
 - 2026-11-12T01:19:00Z Fixed: A brace-pattern smoke check exposed that the global brace-expansion override broke minimatch 3. Scoped minimatch 3 to patched brace-expansion 1.1.22; the brace-pattern check and both dependency audits now pass.
 - 2026-11-12T01:30:00Z Fixed: Full CLI tests exposed that eslint-plugin-import-x 4.17.1 imports an API absent from minimatch 11. Updated that plugin to 4.18.1, which declares minimatch 11 support, and kept the patched minimatch 11 override; targeted integration tests are running.
+- 2026-11-12T03:00:00Z Checked: The affected integration tests and new brace-pattern regression test passed, 33/33. An isolated Codex plugin contract failed because Bun 1.4 emits a guarded inlined literal where the test expected a bare literal. Updated the test parser to check the statically true guard. The full suite also hit widespread slow integration timeouts while other worktrees competed for the shared test lock; isolated reruns are pending.
 
 ## Decision and failure modes
 
