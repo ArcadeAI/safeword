@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "e5e97b55335318ff5df1711ab0d05bb8bb149975b1f302009bed9df21dbcb1a6"
+      "sha256": "2e8ce3e3be55e0d32bd8e8c5e5b362dabcbbf0fae3f039979d16a632132d5589"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "b34e5f9a055d9341017f9040e3bd03c74c09967e33477d85962bfdf67ea7c51b"
+      "sha256": "7b070a8b471c6d2623ead2af8037522a994b03ae0e7fb21c50d400f5a7e5c085"
     },
     {
       "path": "runtime/event-groups.json",
@@ -711,8 +711,8 @@
     },
     {
       "path": "skills/explain/SKILL.md",
-      "sha256": "82417539e61415c35d085f0dc4a201c34f6c56d70ccd7a5f79353d2becdac4d7",
-      "skill_sha256": "cfe6d784a08ef3881a0890058e1f1ece7288ccfa1099289b63f897312683c2a1"
+      "sha256": "6e50852d12d72fa9cb606e68ec14775fdd9e0d41754674de8a48e89377f96ec3",
+      "skill_sha256": "c3a10eb99d915cdf171d51280883a31b3ed7e40800c2d1a1b4868d00aa0d0eb3"
     },
     {
       "path": "skills/figure-it-out/SKILL.md",
@@ -839,7 +839,7 @@
     },
     {
       "path": "templates/commands/explain.md",
-      "sha256": "646d05de81cbc686b8d76b33135f8f7f5ea3be4f606544eea9b6231a9746104e"
+      "sha256": "c18a9056c4075b2e1ab915a395ad14d8d8865d1d83cf6bdeff8343810c2acd67"
     },
     {
       "path": "templates/commands/finish-review.md",
@@ -1727,7 +1727,7 @@
     },
     {
       "path": "templates/skills/explain/SKILL.md",
-      "sha256": "6673eccef3a9e68659c4e4b81b1e63bf9da03b1ae802dc7d22f419cb7c65472d"
+      "sha256": "6e50852d12d72fa9cb606e68ec14775fdd9e0d41754674de8a48e89377f96ec3"
     },
     {
       "path": "templates/skills/figure-it-out/SKILL.md",
