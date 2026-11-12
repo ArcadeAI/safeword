@@ -29,6 +29,7 @@ last_modified: 2026-11-12T01:02:46.536Z
 - 2026-11-12T01:07:00Z Investigated: Updated Python locks and fast-uri, leaving minimatch and KaTeX findings. Bun 1.3.14 supports only global overrides; forcing minimatch 11 globally breaks eslint-plugin-jsx-a11y, which requires minimatch 3's callable API.
 - 2026-11-12T01:08:00Z Built: Pinned Bun 1.4.4 across local, CI, and container sources; scoped minimatch 3 to eslint-plugin-jsx-a11y, pinned patched minimatch 11 elsewhere and KaTeX 0.18.2, and regenerated bundled runtimes. Bun and Python audits now pass.
 - 2026-11-12T01:15:00Z Reviewed: Independent intake review approved. Re-resolving with Bun 1.4 also moved postcss-selector-parser from 7.1.5 to 7.2.0 and its nested copy from 6.1.4 to 6.1.5; these are intentional lockfile updates.
+- 2026-11-12T01:19:00Z Fixed: A brace-pattern smoke check exposed that the global brace-expansion override broke minimatch 3. Scoped minimatch 3 to patched brace-expansion 1.1.22; the brace-pattern check and both dependency audits now pass.
 
 ## Decision and failure modes
 
