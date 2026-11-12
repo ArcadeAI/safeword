@@ -83,19 +83,48 @@ export function resolveProjectDir(input: HookInput): string {
   return process.cwd();
 }
 
+/**
+ * A plugin runtime named its packaged handbook, but the file is missing or empty.
+ * Plugin installs never fall back to a project copy: agents follow the bootstrap
+ * line faithfully, so a stale `.safeword` handbook would silently become authority.
+ */
+export class MissingPackagedHandbookError extends Error {
+  constructor(readonly packagedPath: string) {
+    super(
+      `Safeword's plugin is missing its packaged handbook at ${packagedPath}. Reinstall or update the Safeword plugin; Safeword does not fall back to a project copy.`,
+    );
+    this.name = 'MissingPackagedHandbookError';
+  }
+}
+
+function hasHandbookContent(path: string): boolean {
+  return existsSync(path) && readFileSync(path, 'utf8').trim() !== '';
+}
+
+/**
+ * Plugin runtimes (the Claude dispatcher and the Codex hook bridge) always set
+ * SAFEWORD_PACKAGED_CONTEXT_PATH; only legacy project-hook installs leave it
+ * unset and read the project's own handbook.
+ */
 export function readSafewordContext(projectDir: string): string | null {
-  const packagedContextPath = process.env.SAFEWORD_PACKAGED_CONTEXT_PATH;
-  const packagedPath =
-    packagedContextPath && existsSync(packagedContextPath) ? packagedContextPath : undefined;
-  const safewordPath = packagedPath ?? nodePath.join(projectDir, '.safeword/SAFEWORD.md');
-  if (!existsSync(safewordPath)) return null;
+  const packagedPath = process.env.SAFEWORD_PACKAGED_CONTEXT_PATH;
+  // Read and validate the selected authority path, but never inject its full
+  // contents into a bounded hook context.
+  if (packagedPath) {
+    if (!hasHandbookContent(packagedPath)) throw new MissingPackagedHandbookError(packagedPath);
+    return sessionBootstrap(nodePath.resolve(packagedPath));
+  }
 
-  // Read and validate the selected authority path (which may be the packaged
-  // plugin handbook), but never inject its full contents into a bounded hook
-  // context. This preserves the packaged-context boundary for native Codex.
-  if (!readFileSync(safewordPath, 'utf8').trim()) return null;
+  const projectPath = nodePath.join(projectDir, '.safeword/SAFEWORD.md');
+  if (!hasHandbookContent(projectPath)) return null;
+  return sessionBootstrap(nodePath.resolve(projectPath));
+}
 
-  return sessionBootstrap(nodePath.resolve(safewordPath));
+/** Report a missing packaged handbook as a visible hook failure; rethrow anything else. */
+export function reportMissingPackagedHandbook(error: unknown): number {
+  if (!(error instanceof MissingPackagedHandbookError)) throw error;
+  process.stderr.write(`${error.message}\n`);
+  return 1;
 }
 
 export function createSafewordContextResponse(

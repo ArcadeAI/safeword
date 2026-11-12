@@ -9388,7 +9388,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/session-reply-format.ts':
         '41f7578e93188d5efacdd9ecbf29f72753a6fe98bca71fe321c61f547aeb8532',
       '.safeword/hooks/session-safeword-context.ts':
-        '121d6a37737cde3e3d88793b15a06dfa61af27c7263725ebe487735b821e26b2',
+        '0c54231000694c482d4b2c92fa1bf55f4c6211910c310f2d29836cdb61719937',
       '.safeword/hooks/session-start-reentry.ts':
         'b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d',
       '.safeword/hooks/session-version.ts':
@@ -13551,12 +13551,11 @@ function executeConfiguredHooks(input) {
   }
 }
 function exposePackagedSafewordContext(pluginRoot) {
-  const packagedSafewordPath = nodePath10.join(pluginRoot, 'resources', 'SAFEWORD.md');
-  if (existsSync7(packagedSafewordPath)) {
-    process.env.SAFEWORD_PACKAGED_CONTEXT_PATH = packagedSafewordPath;
-  } else {
-    delete process.env.SAFEWORD_PACKAGED_CONTEXT_PATH;
-  }
+  process.env.SAFEWORD_PACKAGED_CONTEXT_PATH = nodePath10.join(
+    pluginRoot,
+    'resources',
+    'SAFEWORD.md',
+  );
 }
 function completeSuccessfulExecution(input) {
   if (input.execution.status !== 0 || input.execution.postExecutionEligible === false) {

@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "5683572ffa319d334bd31fe35a4717172da1b96ba8faf0f795e408daec07de34"
+      "sha256": "ac9d39bf11b2a4258a77ccd3201db74138d45e16f098d60acbdf86867e986f3f"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "50b7ccd3007b4152e793d8789989067e9d6964d4291207b8a3084f504b299849"
+      "sha256": "b34e5f9a055d9341017f9040e3bd03c74c09967e33477d85962bfdf67ea7c51b"
     },
     {
       "path": "runtime/event-groups.json",
@@ -427,7 +427,7 @@
     },
     {
       "path": "runtime/hooks/lib/safeword-context.ts",
-      "sha256": "76facd138ad0d5514280646b5c88b9412dfa8206b533936962b9972893ee366a"
+      "sha256": "fa0cb86127544386ccee42e1aedcf67c2578c50bbaa77c539c3a726e5e26abc8"
     },
     {
       "path": "runtime/hooks/lib/scenario-format.ts",
@@ -579,7 +579,7 @@
     },
     {
       "path": "runtime/hooks/session-codex-start.ts",
-      "sha256": "d419a42809d370e7fe70aec5f0ef32f73e31685eb651c3ccfaddf508fae7ef9c"
+      "sha256": "34b3852520e03627f5887d2110c4080f9786d708df21d6b5ffac827a0d825510"
     },
     {
       "path": "runtime/hooks/session-compact-context.ts",
@@ -603,7 +603,7 @@
     },
     {
       "path": "runtime/hooks/session-safeword-context.ts",
-      "sha256": "121d6a37737cde3e3d88793b15a06dfa61af27c7263725ebe487735b821e26b2"
+      "sha256": "0c54231000694c482d4b2c92fa1bf55f4c6211910c310f2d29836cdb61719937"
     },
     {
       "path": "runtime/hooks/session-start-reentry.ts",
@@ -1419,7 +1419,7 @@
     },
     {
       "path": "templates/hooks/lib/safeword-context.ts",
-      "sha256": "b9be385aa9bdf216c18b9bde9284ce82b7a104b8c69e52b31f8231a65c7ff80b"
+      "sha256": "2ff53bf3b8ae09bf920a959c97aab9eee4b60d6ab40a9a14b636c6c5e9875da0"
     },
     {
       "path": "templates/hooks/lib/scenario-format.ts",
@@ -1571,7 +1571,7 @@
     },
     {
       "path": "templates/hooks/session-codex-start.ts",
-      "sha256": "8899e9ed506ca012b694f3193be29d68aa31bf0aca9dd3930b653bb93e74980f"
+      "sha256": "07aa635b87f15a913e03edc42a813236f591988d7dcd46c77a0970c1da3ca258"
     },
     {
       "path": "templates/hooks/session-compact-context.ts",
@@ -1595,7 +1595,7 @@
     },
     {
       "path": "templates/hooks/session-safeword-context.ts",
-      "sha256": "121d6a37737cde3e3d88793b15a06dfa61af27c7263725ebe487735b821e26b2"
+      "sha256": "0c54231000694c482d4b2c92fa1bf55f4c6211910c310f2d29836cdb61719937"
     },
     {
       "path": "templates/hooks/session-start-reentry.ts",

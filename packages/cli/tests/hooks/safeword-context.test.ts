@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   createSafewordContextResponse,
+  MissingPackagedHandbookError,
   needsSafewordContext,
   readSafewordContext,
 } from '../../templates/hooks/lib/safeword-context.js';
@@ -74,6 +75,67 @@ describe('Safeword standing context authority', () => {
       expect(context).not.toContain('.safeword/SAFEWORD.md');
       expect(context).not.toContain('Package-only detail');
       expect(context?.length).toBeLessThanOrEqual(1000);
+    } finally {
+      if (previousPath === undefined) {
+        delete process.env.SAFEWORD_PACKAGED_CONTEXT_PATH;
+      } else {
+        process.env.SAFEWORD_PACKAGED_CONTEXT_PATH = previousPath;
+      }
+    }
+  });
+
+  it.each([
+    ['missing', false],
+    ['empty', true],
+  ])(
+    'fails loudly in plugin mode when the packaged handbook is %s, never naming the project copy',
+    (_label, writesEmptyFile) => {
+      const root = createTemporaryDirectory();
+      roots.push(root);
+      mkdirSync(nodePath.join(root, '.safeword'), { recursive: true });
+      writeFileSync(nodePath.join(root, '.safeword/SAFEWORD.md'), '# Stale project copy\n');
+      const packagedHandbook = nodePath.join(root, 'plugin/resources/SAFEWORD.md');
+      if (writesEmptyFile) {
+        mkdirSync(nodePath.dirname(packagedHandbook), { recursive: true });
+        writeFileSync(packagedHandbook, '  \n');
+      }
+
+      const previousPath = process.env.SAFEWORD_PACKAGED_CONTEXT_PATH;
+      process.env.SAFEWORD_PACKAGED_CONTEXT_PATH = packagedHandbook;
+      try {
+        let thrown: unknown;
+        try {
+          readSafewordContext(root);
+        } catch (error) {
+          thrown = error;
+        }
+
+        expect(thrown).toBeInstanceOf(MissingPackagedHandbookError);
+        const message = (thrown as Error).message;
+        expect(message).toContain(packagedHandbook);
+        expect(message).not.toContain('.safeword/SAFEWORD.md');
+      } finally {
+        if (previousPath === undefined) {
+          delete process.env.SAFEWORD_PACKAGED_CONTEXT_PATH;
+        } else {
+          process.env.SAFEWORD_PACKAGED_CONTEXT_PATH = previousPath;
+        }
+      }
+    },
+  );
+
+  it('keeps the project handbook for legacy installs that carry no packaged path', () => {
+    const root = createTemporaryDirectory();
+    roots.push(root);
+    mkdirSync(nodePath.join(root, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(root, '.safeword/SAFEWORD.md'), '# Project handbook\n');
+
+    const previousPath = process.env.SAFEWORD_PACKAGED_CONTEXT_PATH;
+    process.env.SAFEWORD_PACKAGED_CONTEXT_PATH = '';
+    try {
+      expect(readSafewordContext(root)).toContain(
+        `\`${nodePath.resolve(root, '.safeword/SAFEWORD.md')}\``,
+      );
     } finally {
       if (previousPath === undefined) {
         delete process.env.SAFEWORD_PACKAGED_CONTEXT_PATH;

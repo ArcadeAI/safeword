@@ -3665,7 +3665,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/session-dependency-readiness.ts": "295d14c5a3d8112b01259cf89ce718144a568e62e0baf5aaa19eca3fcfdc50ff",
         ".safeword/hooks/session-lint-check.ts": "6d8e5819bd52208799089d19bfdbd569fc46b9d518df4c45ab2c3b605d9647dc",
         ".safeword/hooks/session-reply-format.ts": "41f7578e93188d5efacdd9ecbf29f72753a6fe98bca71fe321c61f547aeb8532",
-        ".safeword/hooks/session-safeword-context.ts": "121d6a37737cde3e3d88793b15a06dfa61af27c7263725ebe487735b821e26b2",
+        ".safeword/hooks/session-safeword-context.ts": "0c54231000694c482d4b2c92fa1bf55f4c6211910c310f2d29836cdb61719937",
         ".safeword/hooks/session-start-reentry.ts": "b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d",
         ".safeword/hooks/session-version.ts": "c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64",
         ".safeword/hooks/stop-quality.ts": "8081f7d919d1432e519007ebbd658a3a9fb32e12266bc176604886b7cec1d163",
@@ -85933,14 +85933,19 @@ function deny2(reason) {
   process26.stdout.write(`${JSON.stringify(output)}
 `);
 }
+function packagedSafewordHandbookPath() {
+  return findPackagedTemplate("SAFEWORD.md") ?? nodePath155.join(TEMPLATE_DIRECTORIES[0] ?? MODULE_DIRECTORY, "SAFEWORD.md");
+}
 function readPackagedSafewordInstructions() {
   const instructionsPath = findPackagedTemplate("SAFEWORD.md");
   if (!instructionsPath)
     return;
   if (!readFileSync100(instructionsPath, "utf8").trim())
     return;
+  const guidesPath = findPackagedTemplate("guides");
+  const guidesAuthority = guidesPath ? `current workflow guides live under \`${nodePath155.resolve(guidesPath)}\`` : "the applicable Safeword guides provide the current workflows";
   return [
-    "Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.",
+    `Current Safeword authority: tickets and their user stories/test definitions live under \`.project/\` (or the configured namespace root), and ${guidesAuthority}.`,
     "These current paths supersede retired Safeword instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.",
     "",
     `First, Read \`${nodePath155.resolve(instructionsPath)}\` in full, even for trivial requests or right after compaction; a summary or earlier read does not count.`
@@ -86006,7 +86011,7 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
       writeFileSync41(nodePath155.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
       executableHookPath = nodePath155.join(temporaryHookDirectory, nodePath155.basename(hookPath));
     }
-    const packagedContextPath = relativePath === "session-codex-start.ts" ? findPackagedTemplate("SAFEWORD.md") ?? "" : "";
+    const packagedContextPath = relativePath === "session-codex-start.ts" ? packagedSafewordHandbookPath() : "";
     return runHookFile(executableHookPath, rawInput, projectDirectory, packagedContextPath);
   } finally {
     if (temporaryHookDirectory)
@@ -86234,6 +86239,12 @@ async function runSessionStart(projectDirectory) {
   const packagedResult = runPackagedHook("session-codex-start.ts", rawInput, projectDirectory);
   if (packagedResult.stdout.trim() !== "") {
     process26.stdout.write(packagedResult.stdout);
+    return;
+  }
+  if (!findPackagedTemplate("SAFEWORD.md")) {
+    process26.stderr.write(packagedResult.stderr || `Safeword's plugin is missing its packaged handbook at ${packagedSafewordHandbookPath()}. Reinstall or update the Safeword plugin.
+`);
+    process26.exitCode = 1;
     return;
   }
   const input = parseCodexHookInput(rawInput);
