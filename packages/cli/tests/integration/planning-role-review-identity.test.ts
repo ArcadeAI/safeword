@@ -3,7 +3,12 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { createConfiguredProject, createTemporaryDirectory, runCli } from '../helpers.js';
+import {
+  createConfiguredProject,
+  createTemporaryDirectory,
+  runCli,
+  spawnHookScript,
+} from '../helpers.js';
 import { writePlanningInventories } from '../planning-fixtures.js';
 import {
   cleanupTrustedReviewerDirectories,
@@ -12,6 +17,10 @@ import {
 } from '../review-fixtures.js';
 
 const projects: string[] = [];
+const workLogHook = nodePath.resolve(
+  import.meta.dirname,
+  '../../../../.safeword/hooks/post-tool-work-log.ts',
+);
 const folder = '.project/tickets/OWN123-owned-product';
 const ticketPath = `${folder}/ticket.md`;
 const specPath = `${folder}/spec.md`;
@@ -49,6 +58,12 @@ done_when: current approval advances
 phase_anchors:
   - scenario-gate: .project/tickets/OWN123-owned-product/behavior.feature
 ---
+
+# Preserve approval
+
+## Work Log
+
+- 2026-11-09T00:00:00.000Z Started: Created ticket OWN123
 `;
 const product = `# Product Plan: Preserve approval
 
@@ -88,13 +103,13 @@ afterEach(() => {
   cleanupTrustedReviewerDirectories();
 });
 
-async function review() {
+async function review(ticket = metadata) {
   const project = createTemporaryDirectory();
   projects.push(project);
   await createConfiguredProject(project);
   writePlanningInventories(project);
   mkdirSync(nodePath.join(project, folder), { recursive: true });
-  writeFileSync(nodePath.join(project, ticketPath), metadata);
+  writeFileSync(nodePath.join(project, ticketPath), ticket);
   writeFileSync(nodePath.join(project, specPath), product);
   writeFileSync(nodePath.join(project, target), implementation);
   writeFileSync(
@@ -138,12 +153,13 @@ process.stdin.on('end', () => {
   expect(result.exitCode, `${result.stdout}\n${result.stderr}`).toBe(0);
   expect(capturedPacket(capture).kind).toBe('plan-implementation');
   expect(capturedPacket(capture).context_files).toEqual(
-    expect.arrayContaining([expect.objectContaining({ path: ticketPath, content: metadata })]),
+    expect.arrayContaining([expect.objectContaining({ path: ticketPath, content: ticket })]),
   );
   const receipt = JSON.parse(result.stdout).data;
   expect(receipt.status).toBe('approved');
   return {
     identity: receipt.review_identity,
+    project,
     edit: (transform: (text: string) => string) => {
       const path = nodePath.join(project, ticketPath);
       const before = readFileSync(path, 'utf8');
@@ -251,11 +267,40 @@ describe('complete planning role identity through authenticated public review', 
     expect(status.status).toBe('stale');
     expect(status.review_identity).toEqual(current.identity);
   });
-  it('retains approval for ordinary ticket progress as a passing control', async () => {
+  it('retains approval when the real work-log hook records a phase change', async () => {
     const current = await review();
     current.edit(text => text.replace('phase: intake', 'phase: define-behavior'));
+    const path = nodePath.join(current.project, ticketPath);
+    const before = readFileSync(path, 'utf8');
+    spawnHookScript(workLogHook, current.project, {
+      hook_event_name: 'PostToolUse',
+      tool_name: 'Edit',
+      tool_input: {
+        file_path: path,
+        old_string: 'phase: intake',
+        new_string: 'phase: define-behavior',
+      },
+    });
+    expect(readFileSync(path, 'utf8'), 'the hook must append its journal line').toContain(
+      `${before}- `,
+    );
     const status = await current.status();
     expect(status.status).toBe('approved');
+  });
+  it('retains approval for an agent-written journal note', async () => {
+    const current = await review();
+    current.edit(text => `${text}- Ledger correction: the GREEN commit is 27b98d4a.\n`);
+    const status = await current.status();
+    expect(status.status).toBe('approved');
+  });
+  it('stales approval when a journal-nested link destination used by scope changes', async () => {
+    const linked = metadata
+      .replace('scope: preserve authenticated approval', 'scope: preserve [approval][policy]')
+      .concat('- Linked the policy.\n\n  [policy]: https://example.com/v1\n');
+    const current = await review(linked);
+    current.edit(text => text.replace('example.com/v1', 'example.com/v2'));
+    const status = await current.status();
+    expect(status.status).toBe('stale');
   });
   it('stales approval for an accepted scope change as a passing control', async () => {
     const current = await review();
