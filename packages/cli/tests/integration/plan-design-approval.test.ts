@@ -165,6 +165,10 @@ while True:
         break
     output.extend(chunk)
     if not answered and b'Approve this reviewed Implementation Plan?' in output:
+        mutated = os.environ.get('PTY_RUNNER_APPEND_BEFORE_ANSWER')
+        if mutated:
+            with open(mutated, 'a') as target:
+                target.write('\nA boundary changed while the prompt was open.\n')
         os.write(fd, response)
         answered = True
 _, status = os.waitpid(pid, 0)
@@ -989,6 +993,39 @@ describe('an accepted design enters Execution Planning', () => {
     expect(events).toHaveLength(1);
     expect(events[0]).toContain(`"planDigest":"${digest}"`);
     expect(events[0]).toContain('"decision":"approved"');
+  });
+});
+
+describe('an approval answers only the approach bytes it presented', () => {
+  it('refuses a yes when the approach changes while the prompt is open', () => {
+    const project = fixture(true);
+    const planPath = nodePath.join(project.ticketDirectory, 'impl-plan.md');
+    const presentedDigest = createHash('sha256').update(PLAN).digest('hex');
+
+    const result = runApprovalInPty(project, 'y', {
+      PTY_RUNNER_APPEND_BEFORE_ANSWER: planPath,
+    });
+
+    expect(result.stdout).toContain('Approve this reviewed Implementation Plan?');
+    expect(readFileSync(planPath, 'utf8')).not.toBe(PLAN);
+    expect(result.stdout).toContain('changed while the approval prompt was open');
+    expect(result.stdout).toContain(presentedDigest);
+    expect(result.stdout).not.toContain('Approved approach:');
+    expect(approvalEvents(project.ledgerPath)).toHaveLength(0);
+    expect(phase(project.ticketPath)).toBe('plan-implementation');
+  });
+
+  it('approves when the approach is unchanged after the prompt', () => {
+    const project = fixture(true);
+
+    const result = runApprovalInPty(project, 'y');
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Approved approach:');
+    expect(decisionPayloads(project.ledgerPath)).toMatchObject([
+      { decision: 'approved', planDigest: createHash('sha256').update(PLAN).digest('hex') },
+    ]);
+    expect(phase(project.ticketPath)).toBe('plan-execution');
   });
 });
 

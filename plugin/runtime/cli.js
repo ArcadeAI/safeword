@@ -81628,6 +81628,31 @@ function currentApprovalResult(context, achievedIndependence) {
   }
   return result2(context, "approved", reconciled.changedFiles, `Existing approval remains current for ${nodePath133.relative(context.cwd, context.planPath)} at ${context.digest}.`, { severity: "info", achievedIndependence });
 }
+function presentedApproachDrift(context) {
+  const planPath = nodePath133.relative(context.cwd, context.planPath);
+  const recovery = `No decision was recorded. Obtain a current Implementation Plan review, then rerun safeword ticket approve-plan ${context.ticketId}.`;
+  let current;
+  try {
+    current = readContext2(context.cwd, context.ticketId);
+  } catch (error2) {
+    const reason = error2 instanceof Error ? error2.message : String(error2);
+    return `${planPath} could not be reread after the approval prompt (${reason}). ${recovery}`;
+  }
+  if (current.digest !== context.digest) {
+    return `${planPath} changed while the approval prompt was open (presented ${context.digest}, now ${current.digest}). ${recovery}`;
+  }
+  const review = currentReview(current);
+  if (!review.ok) {
+    return `The Implementation Plan review stopped being current while the approval prompt was open: ${review.reason} ${recovery}`;
+  }
+  return;
+}
+function presentedApproachRefusal(context, achievedIndependence, returnedToPlanning) {
+  const drift = presentedApproachDrift(context);
+  if (drift === undefined)
+    return;
+  return result2(context, "pending", returnedToPlanning ? [nodePath133.relative(context.cwd, context.ticketPath)] : [], drift, { achievedIndependence });
+}
 async function approve(context, noInput) {
   assertActivePlanningAuthorCopy(context.cwd, "plan-implementation");
   const executionDiscovery = currentExecutionDiscovery(context);
@@ -81657,7 +81682,7 @@ async function approve(context, noInput) {
     return result2(context, "pending", [ledgerTarget, ...returnedToPlanning ? [ticketTarget] : []], "Human design approval is pending; the ticket remains in Implementation Planning.", { achievedIndependence: review.independence });
   }
   const accepted = await askForApproval(context.plan);
-  return settleInteractiveDecision(context, accepted, ledgerTarget, review.independence, returnedToPlanning);
+  return presentedApproachRefusal(context, review.independence, returnedToPlanning) ?? settleInteractiveDecision(context, accepted, ledgerTarget, review.independence, returnedToPlanning);
 }
 async function approvePlanResult(cwd, ticketId, options) {
   try {
