@@ -142,6 +142,25 @@ describe('appendWorkLogEntry', () => {
     expect(result).toBe(`${content}\n## Work Log\n\n${ENTRY}\n`);
   });
 
+  it('Scenario: a section after the Work Log keeps the entry inside the Work Log', () => {
+    const content =
+      '---\nid: X\n---\n\n## Work Log\n\n- old entry\n\n## Decisions\n\nKeep two decimals.\n';
+    const result = appendWorkLogEntry(content, ENTRY);
+    expect(result).toBe(
+      `---\nid: X\n---\n\n## Work Log\n\n- old entry\n${ENTRY}\n\n## Decisions\n\nKeep two decimals.\n`,
+    );
+  });
+
+  it('Scenario: a shell comment in a fenced Work Log block does not end the section', () => {
+    const content = '## Work Log\n\n- ran:\n\n```bash\n# rebuild first\nbun run build\n```\n';
+    expect(appendWorkLogEntry(content, ENTRY)).toBe(`${content}${ENTRY}\n`);
+  });
+
+  it('Scenario: a subsection inside the Work Log does not end it', () => {
+    const content = '## Work Log\n\n- old entry\n\n### Execution discovery\n\n> Repair.\n';
+    expect(appendWorkLogEntry(content, ENTRY)).toBe(`${content}${ENTRY}\n`);
+  });
+
   it('Scenario: a file missing its trailing newline still appends cleanly', () => {
     const content = '---\nid: X\n---\n\n## Work Log\n\n- old entry';
     const result = appendWorkLogEntry(content, ENTRY);

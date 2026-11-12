@@ -71,14 +71,30 @@ export function detectPhaseTransition(
 }
 
 /**
- * Append a work-log entry as the file's last line. The Work Log is the last
- * section of a ticket by convention, so appending at end lands inside it;
- * when the heading is missing entirely, the section is created first. Every
- * prior byte survives — the result always starts with the (newline-
- * normalized) input.
+ * Append a work-log entry as the Work Log section's last line. The entry goes
+ * before the next level-1 or level-2 heading, so a section after the Work Log
+ * keeps its bytes and review identity (#5766); with no later section it lands
+ * at end of file. A missing Work Log is created at end of file. Every byte
+ * outside the inserted line survives.
  */
 export function appendWorkLogEntry(content: string, entry: string): string {
   const body = content.endsWith('\n') ? content : `${content}\n`;
-  const hasWorkLog = /^## Work Log[ \t]*$/m.test(body);
-  return hasWorkLog ? `${body}${entry}\n` : `${body}\n## Work Log\n\n${entry}\n`;
+  const heading = /^## Work Log[ \t]*$/m.exec(body);
+  if (heading === null) return `${body}\n## Work Log\n\n${entry}\n`;
+  const sectionEnd = nextSectionStart(body, heading.index + heading[0].length);
+  if (sectionEnd === undefined) return `${body}${entry}\n`;
+  const section = body.slice(0, sectionEnd).replace(/\n+$/u, '\n');
+  return `${section}${entry}\n\n${body.slice(sectionEnd)}`;
+}
+
+/** Offset of the next level-1 or level-2 heading line, skipping fenced code. */
+function nextSectionStart(body: string, from: number): number | undefined {
+  let offset = from;
+  let fenced = false;
+  for (const line of body.slice(from).split('\n')) {
+    if (/^ {0,3}(```|~~~)/u.test(line)) fenced = !fenced;
+    else if (!fenced && /^#{1,2}[ \t]/u.test(line)) return offset;
+    offset += line.length + 1;
+  }
+  return undefined;
 }

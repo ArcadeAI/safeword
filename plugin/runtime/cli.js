@@ -53396,7 +53396,7 @@ function nestedDefinitions(node) {
   return (node.children ?? []).flatMap((child) => nestedDefinitions(child));
 }
 function isWorkLogHeading(node) {
-  return node.type === "heading" && node.depth === 2 && normalizeChildren(node).map((child) => headingText(child)).join("") === "Work Log";
+  return node.type === "heading" && node.depth === 2 && normalizedText(node) === "Work Log";
 }
 function withoutJournal(nodes) {
   let inWorkLog = false;
@@ -53425,12 +53425,14 @@ function semanticTicketIdentity(content, reviewKind) {
 function headingText(node) {
   return node.value ?? node.children?.map((child) => headingText(child)).join("") ?? "";
 }
+function normalizedText(node) {
+  return normalizeChildren(node).map((child) => headingText(child)).join("");
+}
 function requiredSection(nodes, depth, key, identifier = false) {
   const matches = nodes.flatMap((node, index) => {
     if (node.type !== "heading" || node.depth !== depth)
       return [];
-    const children = normalizeChildren(node);
-    const text = children.map((child) => headingText(child)).join("");
+    const text = normalizedText(node);
     const label = identifier ? text.split(/\s+/u, 1)[0] : text;
     return label === key ? [index] : [];
   });
@@ -53533,7 +53535,7 @@ function validatePlanningProductFrame(content) {
   const counts = new Map;
   const visit3 = (node, parent) => {
     if (node.type === "paragraph") {
-      const text = normalizeChildren(node).map((child) => headingText(child)).join("");
+      const text = normalizedText(node);
       const colon = text.indexOf(":");
       const label = text.slice(0, colon);
       if (productFrameFields.includes(label)) {
