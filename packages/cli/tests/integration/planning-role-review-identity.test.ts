@@ -297,6 +297,20 @@ describe('complete planning role identity through authenticated public review', 
     const status = await current.status();
     expect(status.status).toBe('approved');
   });
+  it('stales approval when the scenario anchor selects a different feature', async () => {
+    const current = await review();
+    const other = `${folder}/other.feature`;
+    writeFileSync(
+      nodePath.join(current.project, other),
+      '@approval.BU1.R1 @surface.safeword-cli\nFeature: Trust approval\n  Scenario: Anonymous approval\n    Given no evidence\n    When approval is requested\n    Then approval is granted\n',
+    );
+    current.edit(text =>
+      text.replace(`scenario-gate: ${scenarioPath}`, () => `scenario-gate: ${other}`),
+    );
+    const status = await current.status();
+    expect(status.status).toBe('stale');
+    expect(status.messages.join('\n')).toContain(`scenarios ${other}`);
+  });
   it('stales approval when a journal-nested link destination used by scope changes', async () => {
     const linked = metadata
       .replace('scope: preserve authenticated approval', 'scope: preserve [approval][policy]')
