@@ -2,8 +2,8 @@
 id: DYJHJN
 slug: plugin-only-handbook-source
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-11-12T16:23:02.870Z
 last_modified: 2026-11-12T16:23:02.870Z
 external_prs: [https://github.com/ArcadeAI/safeword/pull/7220]
@@ -41,3 +41,4 @@ external_prs: [https://github.com/ArcadeAI/safeword/pull/7220]
 - 2026-11-12T17:15:00Z refactor: handbook path named once in configured-paths (e55d2de7f); Codex project marker reuses the constant (14a45c3da). Declined: hook-side and OpenCode-string copies (deliberate standalone duplicates), schema literal keys (regex-read), Codex fallback message (different failure, would add a cross-boundary import).
 - 2026-11-12T17:40:00Z quality-review pass 1 (cross-agent, Codex gpt-6.1-sol): error — Codex bridge exited 0 silently when the bundled handbook was empty. Fixed with a public-CLI test (054226aa7).
 - 2026-11-12T17:55:00Z quality-review pass 2 (cross-agent, Codex): error — packageRunnerIsAvailable uses lstat, so a symlinked npx reads as unavailable. Declined for this PR: pre-existing code this diff does not change; it cannot retire a read handbook copy (package hooks read the published CLI's bundled handbook; script hooks are detected by their script file). Proposed as a follow-up.
+- 2026-11-12T18:25:00Z Complete: /verify green at 807a738ac (verify.md); audit doc drift fixed (c3d7bae4f); merged main (807a738ac).
