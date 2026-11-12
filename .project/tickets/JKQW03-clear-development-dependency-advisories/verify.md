@@ -28,4 +28,3 @@
 - The pinned-Bun contract test checks CI's `setup-bun` version source. I separately compared the explicit website deployment pin and both Dockerfile tags with `packageManager` and `mise.toml`; both container build stages passed.
 - Independent quality review of the complete branch diff approved, receipt `ff62baf9-181c-4496-b4fa-407df3a65225`.
 - Audit passed — diff-scoped dependency-cruiser found zero violations across 532 modules and 952 dependencies; changed tests, documentation, learnings, principle references, and domain docs had no findings. Python dead-code inspection is limited as noted above.
-
