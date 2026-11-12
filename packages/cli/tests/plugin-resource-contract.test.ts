@@ -88,9 +88,12 @@ describe('native plugin resource contract', () => {
           { cwd: project, encoding: 'utf8' },
         );
         expect(install.status, `${bundleName}: ${install.stdout}${install.stderr}`).toBe(0);
-        expect(readFileSync(nodePath.join(project, '.safeword/SAFEWORD.md'))).toEqual(
-          readFileSync(nodePath.join(isolatedPlugin, 'templates/SAFEWORD.md')),
+        expect(readFileSync(nodePath.join(project, '.safeword/AGENTS.md'))).toEqual(
+          readFileSync(nodePath.join(isolatedPlugin, 'templates/AGENTS.md')),
         );
+        // No selected host reads a project handbook copy; the plugin ships its own.
+        expect(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md'))).toBe(false);
+        expect(existsSync(nodePath.join(project, '.safeword/enrolled'))).toBe(true);
       } finally {
         rmSync(fixture, { recursive: true, force: true });
       }
