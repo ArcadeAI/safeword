@@ -14,6 +14,7 @@ import {
   schemaForProjectSurfaces,
   schemaForSharedAgentRuntime,
 } from '../schema.js';
+import { PROJECT_HANDBOOK_PATH } from '../utils/configured-paths.js';
 
 function isLegacyClaudePath(path: string): boolean {
   return path === '.claude' || path.startsWith('.claude/');
@@ -103,8 +104,6 @@ function retainedHostUninstallSchema(
     );
   });
 }
-
-const PROJECT_HANDBOOK_PATH = '.safeword/SAFEWORD.md';
 
 /**
  * Only project-delivered hosts read the project handbook copy: Cursor rules and

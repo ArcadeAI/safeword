@@ -1838,6 +1838,7 @@ __export(exports_configured_paths, {
   defaultConfiguredPath: () => defaultConfiguredPath,
   SAFEWORD_ENROLLMENT_MARKER_CONTENT: () => SAFEWORD_ENROLLMENT_MARKER_CONTENT,
   SAFEWORD_ENROLLMENT_MARKER: () => SAFEWORD_ENROLLMENT_MARKER,
+  PROJECT_HANDBOOK_PATH: () => PROJECT_HANDBOOK_PATH,
   NAMESPACE_ROOT_LEGACY: () => NAMESPACE_ROOT_LEGACY,
   LEGACY_SAFEWORD_ENROLLMENT_MARKER: () => LEGACY_SAFEWORD_ENROLLMENT_MARKER,
   GENERATED_ARCHITECTURE_FILENAME: () => GENERATED_ARCHITECTURE_FILENAME
@@ -2006,7 +2007,7 @@ function resolveConfiguredPath(cwd, key) {
   }
   return nodePath10.join(cwd, override);
 }
-var CONFIGURED_PATH_KEYS, CONFIG_SUBPATH, SAFEWORD_ENROLLMENT_MARKER = ".safeword/enrolled", LEGACY_SAFEWORD_ENROLLMENT_MARKER = ".safeword/SAFEWORD.md", SAFEWORD_ENROLLMENT_MARKER_CONTENT = `This project is enrolled in Safeword. Safeword hooks only run in enrolled projects; uninstall Safeword rather than deleting this file.
+var CONFIGURED_PATH_KEYS, CONFIG_SUBPATH, SAFEWORD_ENROLLMENT_MARKER = ".safeword/enrolled", PROJECT_HANDBOOK_PATH = ".safeword/SAFEWORD.md", LEGACY_SAFEWORD_ENROLLMENT_MARKER, SAFEWORD_ENROLLMENT_MARKER_CONTENT = `This project is enrolled in Safeword. Safeword hooks only run in enrolled projects; uninstall Safeword rather than deleting this file.
 `, NAMESPACE_ROOT_DEFAULT = ".project", NAMESPACE_ROOT_LEGACY = ".safeword-project", GENERATED_ARCHITECTURE_FILENAME = "architecture.generated.md";
 var init_configured_paths = __esm(() => {
   init_fs();
@@ -2019,6 +2020,7 @@ var init_configured_paths = __esm(() => {
     "architecture"
   ];
   CONFIG_SUBPATH = [".safeword", "config.json"];
+  LEGACY_SAFEWORD_ENROLLMENT_MARKER = PROJECT_HANDBOOK_PATH;
 });
 
 // src/utils/architecture-document.ts
@@ -34923,13 +34925,13 @@ function projectLifecycleSchema(cwd, agents, operation = "check", remainingNativ
   const lifecycleSchema = withSelectedOwnedPaths(schemaForSharedAgentRuntime(surfaceSchema, sharedRuntimeNeeded(selected, legacyClaudeActive)));
   return operation === "uninstall" || projectHandbookNeeded(cwd, selected, legacyClaudeInstalled) ? lifecycleSchema : withoutUnreadProjectHandbook(lifecycleSchema);
 }
-var PROJECT_HANDBOOK_PATH = ".safeword/SAFEWORD.md";
 var init_schema2 = __esm(() => {
   init_delivery_schema();
   init_delivery_schema2();
   init_legacy_authority();
   init_owned_paths();
   init_schema();
+  init_configured_paths();
 });
 
 // src/lifecycle/cursor.ts

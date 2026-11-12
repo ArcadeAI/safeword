@@ -70,11 +70,13 @@ interface SafewordConfigShape {
 const CONFIG_SUBPATH = ['.safeword', 'config.json'];
 /** Dedicated enrollment marker written by install and upgrade. */
 export const SAFEWORD_ENROLLMENT_MARKER = '.safeword/enrolled';
+/** Project copy of the handbook, read only by project-delivered hosts. */
+export const PROJECT_HANDBOOK_PATH = '.safeword/SAFEWORD.md';
 /**
  * Pre-marker enrollment evidence. Older installs only carry the project
  * handbook copy; plugin-mode upgrades replace it with the dedicated marker.
  */
-export const LEGACY_SAFEWORD_ENROLLMENT_MARKER = '.safeword/SAFEWORD.md';
+export const LEGACY_SAFEWORD_ENROLLMENT_MARKER = PROJECT_HANDBOOK_PATH;
 export const SAFEWORD_ENROLLMENT_MARKER_CONTENT =
   'This project is enrolled in Safeword. Safeword hooks only run in enrolled projects; uninstall Safeword rather than deleting this file.\n';
 
