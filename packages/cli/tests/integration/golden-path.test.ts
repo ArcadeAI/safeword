@@ -92,7 +92,7 @@ describe('E2E: Golden Path', () => {
     expect(formatted).toContain('const x = 1');
   });
 
-  it('post-tool-lint hook processes files', () => {
+  it('post-tool-lint hook preserves unfinished TypeScript edits', () => {
     const filePath = nodePath.join(projectDirectory, 'src/hook-test.ts');
     writeTestFile(projectDirectory, 'src/hook-test.ts', 'const x=1\n');
 

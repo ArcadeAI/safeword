@@ -136,7 +136,7 @@ dependencies = ["ruff", "mypy", "deadcode", "pip-audit"]
   });
 
   describe('Lint hook routes to correct linter', () => {
-    it('routes .ts files to ESLint', () => {
+    it('preserves unfinished TypeScript edits', () => {
       const filePath = nodePath.join(projectDirectory, 'src/lint-ts.ts');
       writeTestFile(projectDirectory, 'src/lint-ts.ts', 'const x=1\n');
 

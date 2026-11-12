@@ -2,7 +2,7 @@
 id: 0FA865
 slug: preserve-intermediate-edits
 type: task
-phase: verify
+phase: done
 status: in_progress
 created: 2026-11-08T23:27:33.769Z
 last_modified: 2026-11-08T23:27:33.769Z
@@ -16,7 +16,7 @@ last_modified: 2026-11-08T23:27:33.769Z
 
 ## Scope
 
-Claude, Codex (shared Claude lint hook), and Cursor post-edit JS/TS checks report diagnostics without applying fixes. Explicit helper fix mode and other languages retain existing behavior.
+Post-edit JS/TS checks preserve files across Claude, Codex (shared Claude lint hook), and Cursor. Claude/Codex surface diagnostics; Cursor retains its existing marker and silent diagnostic handling. Explicit helper fix mode and other languages retain existing behavior.
 
 ## Done when
 
@@ -56,3 +56,7 @@ Post-edit JS/TS checks become observational; explicit lint actions retain mutati
 ## Work Log
 
 - 2026-11-08T23:27:33.769Z Started: Created ticket 0FA865
+- 2026-11-11: Resumed final verification after PR #7158 passed CI at f1be248a7. Merged newer main through e49310a74 as 4c548cc99; only generated metadata conflicted, and all five surfaces were regenerated. Post-merge focused verification passed 95 tests, formatter acceptance passed 10 scenarios, and lint/types/parity passed. Full verification and new-head CI are being collected before closure.
+- Baseline acceptance triage: the planning-review fixture in approve-coherent-implementation-plans.feature failed identically on untouched main e00ea1e65 and this branch; a baseline dry run also reproduced 1,786 undefined steps across six unchanged planning features. Those planning-suite problems are outside #2810/#2809 and are not represented as passing checks.
+- Final results on 4c548cc99: both Node CI jobs and every reported CI check passed. Local full CLI verification had 11,637 passes and one timeout; that single test passed on the one isolated retry. Package acceptance passed 599 scenarios and 11,786 steps; the lock-blocked proof-tag check passed 52/52 on retry. The aggregate verification exit 75 from shared-lock contention remains documented rather than overwritten. No product changes were needed after the main merge.
+- Scoped audit passed with disclosed coverage warnings: no dependency violations, config drift, or broken changed references. Corrected stale automatic-fix descriptions in the README and two website pages; the website built nine pages successfully. Clarified three existing test titles without changing callbacks or assertions. Final CI will validate this documentation/test-label-only follow-up.
