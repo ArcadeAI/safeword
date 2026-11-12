@@ -53390,15 +53390,33 @@ function semanticMarkdownIdentity(content) {
   const nodes = parseMarkdown(content);
   return identity(normalizeNodes(nodes));
 }
+function nestedDefinitions(node) {
+  if (node.type === "definition")
+    return [node];
+  return (node.children ?? []).flatMap((child) => nestedDefinitions(child));
+}
+function isWorkLogHeading(node) {
+  return node.type === "heading" && node.depth === 2 && normalizeChildren(node).map((child) => headingText(child)).join("") === "Work Log";
+}
+function withoutJournal(nodes) {
+  let inWorkLog = false;
+  return nodes.flatMap((node) => {
+    if (node.type === "heading" && (node.depth ?? 0) <= 2)
+      inWorkLog = isWorkLogHeading(node);
+    if (!inWorkLog || !JOURNAL_NODE_TYPES.has(node.type))
+      return [node];
+    return nestedDefinitions(node);
+  });
+}
 function semanticTicketIdentity(content, reviewKind) {
   const { metadata: metadata2, body } = parseTicketMetadata(content);
-  const retained = Object.fromEntries(Object.entries(metadata2).filter(([key]) => !["phase", "status", "last_modified", "review_dispositions"].includes(key)));
+  const retained = Object.fromEntries(Object.entries(metadata2).filter(([key]) => !TICKET_BOOKKEEPING_KEYS.has(key)));
   if (reviewKind !== undefined && Array.isArray(metadata2.review_dispositions)) {
     const matching = metadata2.review_dispositions.filter((value) => value !== null && typeof value === "object" && !Array.isArray(value) && value.review_kind === reviewKind);
     if (matching.length > 0)
       retained.review_dispositions = matching;
   }
-  const nodes = parseMarkdown(body);
+  const nodes = withoutJournal(parseMarkdown(body));
   return identity({ version: 1, metadata: retained, body: normalizeNodes(nodes) });
 }
 function headingText(node) {
@@ -53801,7 +53819,7 @@ function createPlanningReviewIdentity(packet) {
     canonical_contract_digest: contractDigest
   };
 }
-var nodeTypes, productFrameFields;
+var nodeTypes, TICKET_BOOKKEEPING_KEYS, JOURNAL_NODE_TYPES, productFrameFields;
 var init_planning_context_identity = __esm(() => {
   init_markdown();
   init_gherkin_feature();
@@ -53837,6 +53855,14 @@ var init_planning_context_identity = __esm(() => {
     "tableRow",
     "tableCell"
   ]);
+  TICKET_BOOKKEEPING_KEYS = new Set([
+    "phase",
+    "status",
+    "last_modified",
+    "review_dispositions",
+    "phase_anchors"
+  ]);
+  JOURNAL_NODE_TYPES = new Set(["list", "paragraph"]);
   productFrameFields = [
     "Expected outcome",
     "Persona outcome inventory",
@@ -59410,13 +59436,29 @@ function shellQuote4(value) {
 function reviewStatusCommand(id2) {
   return `${shellQuote4(process.execPath)} ${shellQuote4(cliEntrypoint())} review status ${id2}`;
 }
-function staleResult(record2) {
+function changedPlanningSources(recorded, current) {
+  if (recorded === undefined || current === undefined)
+    return [];
+  const digests = new Map([
+    ...current.targets.map((target) => [`target ${target.path}`, target.digest]),
+    ...current.dependencies.map((source) => [`${source.role} ${source.path}`, source.semantic_digest])
+  ]);
+  const changed = [
+    ...recorded.targets.map((target) => [`target ${target.path}`, target.digest]),
+    ...recorded.dependencies.map((source) => [`${source.role} ${source.path}`, source.semantic_digest])
+  ].filter(([key, digest7]) => digests.get(key) !== digest7).map(([key]) => key);
+  return [...new Set(changed)];
+}
+function staleMessage(changed) {
+  return changed.length === 0 ? "The reviewed source changed after this review started; run a fresh review." : `The reviewed source changed after this review started (${changed.join(", ")}); run a fresh review.`;
+}
+function staleResult(record2, changed = []) {
   return createResult({
     state: "action_required",
     findings: [
       {
         code: "REVIEW_STALE",
-        message: "The reviewed source changed after this review started; run a fresh review.",
+        message: staleMessage(changed),
         severity: "warning"
       }
     ],
@@ -59503,8 +59545,9 @@ function terminalResult(cwd, record2) {
       execution: record2.execution,
       planningContractUse: "currency"
     });
-    if (current.fingerprint !== record2.source_fingerprint)
-      return staleResult(record2);
+    if (current.fingerprint !== record2.source_fingerprint) {
+      return staleResult(record2, changedPlanningSources(record2.review_identity, current.reviewIdentity));
+    }
     if (record2.result !== undefined)
       return withReviewProvenance(cwd, record2, record2.result, current.excludedTargets);
   } catch {
@@ -81255,6 +81298,7 @@ var init_planning_contract_copy_failure = __esm(() => {
 // src/commands/plan-approval.ts
 var exports_plan_approval = {};
 __export(exports_plan_approval, {
+  executionDiscoveryNotice: () => executionDiscoveryNotice,
   approvePlanResult: () => approvePlanResult
 });
 import { createHash as createHash47, randomUUID as randomUUID17 } from "crypto";
