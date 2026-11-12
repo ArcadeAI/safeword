@@ -170,6 +170,31 @@ function nestedDefinitions(node: MarkdownNode): MarkdownNode[] {
   return (node.children ?? []).flatMap(child => nestedDefinitions(child));
 }
 
+/** The exact line the work-log hook writes: `- <ISO time> Phase: <from> → <to>`. */
+const PHASE_STAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[.\d]{0,10}Z Phase: [\w-]+ → [\w-]+$/u;
+
+function isPhaseStamp(item: MarkdownNode): boolean {
+  const [paragraph, ...rest] = item.children ?? [];
+  return (
+    paragraph?.type === 'paragraph' &&
+    rest.length === 0 &&
+    PHASE_STAMP.test(normalizedText(paragraph))
+  );
+}
+
+/**
+ * Drops hook-written phase stamps from every top-level list, wherever the hook
+ * placed them, so a misplaced stamp can never change the identity (#5766).
+ */
+function withoutPhaseStamps(nodes: readonly MarkdownNode[]): MarkdownNode[] {
+  return nodes.flatMap(node => {
+    if (node.type !== 'list') return [node];
+    const children = (node.children ?? []).filter(item => !isPhaseStamp(item));
+    if (children.length === 0) return [];
+    return [children.length === node.children?.length ? node : { ...node, children }];
+  });
+}
+
 function isWorkLogHeading(node: MarkdownNode): boolean {
   return node.type === 'heading' && node.depth === 2 && normalizedText(node) === 'Work Log';
 }
@@ -215,7 +240,7 @@ export function semanticTicketIdentity(content: string, reviewKind?: string): st
     );
     if (matching.length > 0) retained.review_dispositions = matching;
   }
-  const nodes = withoutJournal(parseMarkdown(body));
+  const nodes = withoutJournal(withoutPhaseStamps(parseMarkdown(body)));
   return identity({ version: 1, metadata: retained, body: normalizeNodes(nodes) });
 }
 

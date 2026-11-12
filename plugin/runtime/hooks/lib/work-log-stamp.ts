@@ -96,17 +96,21 @@ export function appendWorkLogEntry(content: string, entry: string): string {
  */
 function nextSectionStart(body: string, from: number): number | undefined {
   let offset = from;
-  let fenced = false;
+  let fence: string | undefined;
   let paragraphStart: number | undefined;
   let inList = false;
   let previousBlank = true;
   for (const line of body.slice(from).split('\n')) {
     const blank = line.trim() === '';
-    if (/^ {0,3}(```|~~~)/u.test(line)) {
-      fenced = !fenced;
+    const marker = /^ {0,3}(`{3,}|~{3,})/u.exec(line)?.[1];
+    if (fence !== undefined) {
+      // Code content is never structure; only a matching fence closes it.
+      if (marker?.startsWith(fence[0] ?? '') && marker.length >= fence.length) {
+        if (line.trim() === marker) fence = undefined;
+      }
+    } else if (marker !== undefined) {
+      fence = marker;
       paragraphStart = undefined;
-    } else if (fenced) {
-      // Code content is never structure.
     } else if (/^ {0,3}#{1,2}([ \t]|$)/u.test(line)) {
       return offset;
     } else if (paragraphStart !== undefined && /^ {0,3}(=+|-+)[ \t]*$/u.test(line)) {

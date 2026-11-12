@@ -101,12 +101,34 @@ describe('ticket journal does not stale planning approvals', () => {
     ['a setext section after the Work Log', 'Decisions\n---------\n\nKeep two decimals.\n'],
     ['a fenced command with a # comment', '```bash\n# rebuild first\nbun run build\n```\n'],
     ['a thematic break between entries', '- earlier\n  continued\n---\n- later\n'],
+    [
+      'a backtick fence holding a tilde line',
+      '```markdown\n~~~\n```\n\n## Decisions\n\nKeep two decimals.\n',
+    ],
+    [
+      'a tilde fence holding a backtick line',
+      '~~~text\n```\n~~~\n\n## Decisions\n\nKeep two decimals.\n',
+    ],
+    [
+      'a short backtick line inside a longer fence',
+      '````markdown\n```\n````\n\n## Decisions\n\nKeep two decimals.\n',
+    ],
   ])('keeps identity when the hook stamps a ticket with %s', (_name, tail) => {
     const shaped = `${ticket}\n${tail}`;
     expectSame(
       shaped,
       appendWorkLogEntry(shaped, '- 2026-11-09T01:28:11.624Z Phase: plan-execution → implement'),
     );
+  });
+
+  it('ignores a phase stamp wherever it lands, even in a later section', () => {
+    const later = `${ticket}\n## Decisions\n\nKeep two decimals.\n`;
+    expectSame(later, `${later}- 2026-11-09T01:28:11.624Z Phase: plan-execution → implement\n`);
+  });
+
+  it('still counts a non-stamp list item added to a later section', () => {
+    const later = `${ticket}\n## Decisions\n\nKeep two decimals.\n`;
+    expectChanged(later, `${later}- Also allow Rankine.\n`);
   });
 
   it('ignores a plain note written directly after an execution-discovery notice', () => {
