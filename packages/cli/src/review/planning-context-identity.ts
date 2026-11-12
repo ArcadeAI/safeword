@@ -171,13 +171,7 @@ function nestedDefinitions(node: MarkdownNode): MarkdownNode[] {
 }
 
 function isWorkLogHeading(node: MarkdownNode): boolean {
-  return (
-    node.type === 'heading' &&
-    node.depth === 2 &&
-    normalizeChildren(node)
-      .map(child => headingText(child))
-      .join('') === 'Work Log'
-  );
+  return node.type === 'heading' && node.depth === 2 && normalizedText(node) === 'Work Log';
 }
 
 /**
@@ -229,6 +223,13 @@ function headingText(node: MarkdownNode): string {
   return node.value ?? node.children?.map(child => headingText(child)).join('') ?? '';
 }
 
+/** A heading's or paragraph's text after whitespace normalization. */
+function normalizedText(node: MarkdownNode): string {
+  return normalizeChildren(node)
+    .map(child => headingText(child))
+    .join('');
+}
+
 function requiredSection(
   nodes: readonly MarkdownNode[],
   depth: number,
@@ -237,8 +238,7 @@ function requiredSection(
 ): readonly MarkdownNode[] {
   const matches = nodes.flatMap((node, index) => {
     if (node.type !== 'heading' || node.depth !== depth) return [];
-    const children = normalizeChildren(node);
-    const text = children.map(child => headingText(child)).join('');
+    const text = normalizedText(node);
     const label = identifier ? text.split(/\s+/u, 1)[0] : text;
     return label === key ? [index] : [];
   });
@@ -407,9 +407,7 @@ export function validatePlanningProductFrame(content: string): void {
   const counts = new Map<string, number>();
   const visit = (node: MarkdownNode, parent?: MarkdownNode): void => {
     if (node.type === 'paragraph') {
-      const text = normalizeChildren(node)
-        .map(child => headingText(child))
-        .join('');
+      const text = normalizedText(node);
       const colon = text.indexOf(':');
       const label = text.slice(0, colon);
       if (productFrameFields.includes(label)) {
