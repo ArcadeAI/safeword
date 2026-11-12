@@ -153,12 +153,52 @@ export function semanticMarkdownIdentity(content: string): string {
   return identity(normalizeNodes(nodes));
 }
 
+/** Ticket progress bookkeeping that never changes the accepted contract. */
+const TICKET_BOOKKEEPING_KEYS = new Set([
+  'phase',
+  'status',
+  'last_modified',
+  'review_dispositions',
+  'phase_anchors',
+]);
+
+/** Journal node types dropped from the Work Log; every other node type is retained. */
+const JOURNAL_NODE_TYPES = new Set(['list', 'paragraph']);
+
+function nestedDefinitions(node: MarkdownNode): MarkdownNode[] {
+  if (node.type === 'definition') return [node];
+  return (node.children ?? []).flatMap(child => nestedDefinitions(child));
+}
+
+function isWorkLogHeading(node: MarkdownNode): boolean {
+  return (
+    node.type === 'heading' &&
+    node.depth === 2 &&
+    normalizeChildren(node)
+      .map(child => headingText(child))
+      .join('') === 'Work Log'
+  );
+}
+
+/**
+ * Drops the Work Log's journal entries (top-level lists and paragraphs) while
+ * keeping every other node in it — headings, blockquotes such as the
+ * execution-discovery notice, and any unknown type — plus every reference
+ * definition, wherever it is nested, since retained text may resolve through it.
+ */
+function withoutJournal(nodes: readonly MarkdownNode[]): MarkdownNode[] {
+  let inWorkLog = false;
+  return nodes.flatMap(node => {
+    if (node.type === 'heading' && (node.depth ?? 0) <= 2) inWorkLog = isWorkLogHeading(node);
+    if (!inWorkLog || !JOURNAL_NODE_TYPES.has(node.type)) return [node];
+    return nestedDefinitions(node);
+  });
+}
+
 export function semanticTicketIdentity(content: string, reviewKind?: string): string {
   const { metadata, body } = parseTicketMetadata(content);
   const retained = Object.fromEntries(
-    Object.entries(metadata).filter(
-      ([key]) => !['phase', 'status', 'last_modified', 'review_dispositions'].includes(key),
-    ),
+    Object.entries(metadata).filter(([key]) => !TICKET_BOOKKEEPING_KEYS.has(key)),
   );
   if (reviewKind !== undefined && Array.isArray(metadata.review_dispositions)) {
     const matching = metadata.review_dispositions.filter(
@@ -170,7 +210,7 @@ export function semanticTicketIdentity(content: string, reviewKind?: string): st
     );
     if (matching.length > 0) retained.review_dispositions = matching;
   }
-  const nodes = parseMarkdown(body);
+  const nodes = withoutJournal(parseMarkdown(body));
   return identity({ version: 1, metadata: retained, body: normalizeNodes(nodes) });
 }
 

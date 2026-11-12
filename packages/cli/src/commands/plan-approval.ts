@@ -206,7 +206,8 @@ function currentExecutionDiscovery(context: ApprovalContext): ExecutionDiscovery
   );
 }
 
-function executionDiscoveryNotice(
+/** The ticket notice that forces a fresh Implementation Plan review after a discovery. */
+export function executionDiscoveryNotice(
   discovery: Exclude<ExecutionDiscovery, { destination: 'invalid' }>,
 ): string {
   const messages = [
