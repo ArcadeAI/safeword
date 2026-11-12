@@ -33,24 +33,30 @@ function runSessionStart(pluginRoot: string, project: string, codexHome: string)
 }
 
 describe('Codex plugin handbook authority', () => {
-  it('fails loudly when the bundle lacks its handbook instead of naming the project copy', () => {
-    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-handbook-'));
-    fixtures.push(fixture);
-    const pluginRoot = nodePath.join(fixture, 'plugin');
-    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
-    rmSync(nodePath.join(pluginRoot, 'resources/SAFEWORD.md'));
-    rmSync(nodePath.join(pluginRoot, 'templates/SAFEWORD.md'));
-    const project = nodePath.join(fixture, 'project');
-    mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
-    writeFileSync(nodePath.join(project, '.safeword/SAFEWORD.md'), '# Stale project copy\n');
+  it.each(['missing', 'empty'] as const)(
+    'fails loudly when the bundled handbook is %s instead of naming the project copy',
+    state => {
+      const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-handbook-'));
+      fixtures.push(fixture);
+      const pluginRoot = nodePath.join(fixture, 'plugin');
+      cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+      for (const handbook of ['resources/SAFEWORD.md', 'templates/SAFEWORD.md']) {
+        if (state === 'missing') rmSync(nodePath.join(pluginRoot, handbook));
+        else writeFileSync(nodePath.join(pluginRoot, handbook), '  \n');
+      }
+      const project = nodePath.join(fixture, 'project');
+      mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
+      writeFileSync(nodePath.join(project, '.safeword/SAFEWORD.md'), '# Stale project copy\n');
 
-    const result = runSessionStart(pluginRoot, project, nodePath.join(fixture, 'codex-home'));
+      const result = runSessionStart(pluginRoot, project, nodePath.join(fixture, 'codex-home'));
 
-    expect(result.status).not.toBe(0);
-    expect(result.stderr).toContain('missing its packaged handbook');
-    expect(result.stderr).toContain(nodePath.join(pluginRoot, 'resources/SAFEWORD.md'));
-    expect(`${result.stdout}${result.stderr}`).not.toContain('.safeword/SAFEWORD.md');
-  }, 30_000);
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain('missing its packaged handbook');
+      expect(result.stderr).toContain(nodePath.join(pluginRoot, 'resources/SAFEWORD.md'));
+      expect(`${result.stdout}${result.stderr}`).not.toContain('.safeword/SAFEWORD.md');
+    },
+    30_000,
+  );
 
   it('points an enrolled project at the bundled handbook and guides', () => {
     const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-handbook-'));

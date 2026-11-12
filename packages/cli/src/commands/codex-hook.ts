@@ -358,10 +358,16 @@ function packagedSafewordHandbookPath(): string {
   );
 }
 
-function readPackagedSafewordInstructions(): string | undefined {
+/** The bundled handbook when it exists and has content; otherwise undefined. */
+function usablePackagedHandbookPath(): string | undefined {
   const instructionsPath = findPackagedTemplate('SAFEWORD.md');
+  if (!instructionsPath || !readFileSync(instructionsPath, 'utf8').trim()) return undefined;
+  return instructionsPath;
+}
+
+function readPackagedSafewordInstructions(): string | undefined {
+  const instructionsPath = usablePackagedHandbookPath();
   if (!instructionsPath) return undefined;
-  if (!readFileSync(instructionsPath, 'utf8').trim()) return undefined;
   const guidesPath = findPackagedTemplate('guides');
   const guidesAuthority = guidesPath
     ? `current workflow guides live under \`${nodePath.resolve(guidesPath)}\``
@@ -809,11 +815,11 @@ async function runSessionStart(projectDirectory: string): Promise<void> {
     process.stdout.write(packagedResult.stdout);
     return;
   }
-  if (!findPackagedTemplate('SAFEWORD.md')) {
+  if (!usablePackagedHandbookPath()) {
     // Surface the hook's missing-handbook error instead of starting silently.
     process.stderr.write(
       packagedResult.stderr ||
-        `Safeword's plugin is missing its packaged handbook at ${packagedSafewordHandbookPath()}. Reinstall or update the Safeword plugin.\n`,
+        `Safeword's plugin is missing its packaged handbook at ${packagedSafewordHandbookPath()}. Reinstall or update the Safeword plugin; Safeword does not fall back to a project copy.\n`,
     );
     process.exitCode = 1;
     return;

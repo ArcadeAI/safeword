@@ -85960,11 +85960,15 @@ function deny2(reason) {
 function packagedSafewordHandbookPath() {
   return findPackagedTemplate("SAFEWORD.md") ?? nodePath155.join(TEMPLATE_DIRECTORIES[0] ?? MODULE_DIRECTORY, "SAFEWORD.md");
 }
-function readPackagedSafewordInstructions() {
+function usablePackagedHandbookPath() {
   const instructionsPath = findPackagedTemplate("SAFEWORD.md");
-  if (!instructionsPath)
+  if (!instructionsPath || !readFileSync100(instructionsPath, "utf8").trim())
     return;
-  if (!readFileSync100(instructionsPath, "utf8").trim())
+  return instructionsPath;
+}
+function readPackagedSafewordInstructions() {
+  const instructionsPath = usablePackagedHandbookPath();
+  if (!instructionsPath)
     return;
   const guidesPath = findPackagedTemplate("guides");
   const guidesAuthority = guidesPath ? `current workflow guides live under \`${nodePath155.resolve(guidesPath)}\`` : "the applicable Safeword guides provide the current workflows";
@@ -86265,8 +86269,8 @@ async function runSessionStart(projectDirectory) {
     process26.stdout.write(packagedResult.stdout);
     return;
   }
-  if (!findPackagedTemplate("SAFEWORD.md")) {
-    process26.stderr.write(packagedResult.stderr || `Safeword's plugin is missing its packaged handbook at ${packagedSafewordHandbookPath()}. Reinstall or update the Safeword plugin.
+  if (!usablePackagedHandbookPath()) {
+    process26.stderr.write(packagedResult.stderr || `Safeword's plugin is missing its packaged handbook at ${packagedSafewordHandbookPath()}. Reinstall or update the Safeword plugin; Safeword does not fall back to a project copy.
 `);
     process26.exitCode = 1;
     return;
