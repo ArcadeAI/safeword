@@ -173,6 +173,14 @@ describe('appendWorkLogEntry', () => {
     expect(appendWorkLogEntry(content, ENTRY)).toBe(`${content}${ENTRY}\n`);
   });
 
+  it('Scenario: a fenced example Work Log heading is not the real one', () => {
+    const content =
+      '# T\n\n```markdown\n## Work Log\n```\n\n## Work Log\n\n- old entry\n\n## Decisions\n\nKeep.\n';
+    expect(appendWorkLogEntry(content, ENTRY)).toBe(
+      `# T\n\n\`\`\`markdown\n## Work Log\n\`\`\`\n\n## Work Log\n\n- old entry\n${ENTRY}\n\n## Decisions\n\nKeep.\n`,
+    );
+  });
+
   it('Scenario: a subsection inside the Work Log does not end it', () => {
     const content = '## Work Log\n\n- old entry\n\n### Execution discovery\n\n> Repair.\n';
     expect(appendWorkLogEntry(content, ENTRY)).toBe(`${content}${ENTRY}\n`);

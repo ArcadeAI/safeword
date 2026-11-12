@@ -475,7 +475,7 @@
     },
     {
       "path": "runtime/hooks/lib/work-log-stamp.ts",
-      "sha256": "8e5ad8247f0b5f1ee55aea14768ea8bac6727a3402d098a512edf0625b433dbe"
+      "sha256": "5cf6e937e20b6f0afa766f8c20455de9cf5d05cf7ae1f5d61d1bdbd3c4332c20"
     },
     {
       "path": "runtime/hooks/post-tool-bypass-warn.ts",
@@ -1467,7 +1467,7 @@
     },
     {
       "path": "templates/hooks/lib/work-log-stamp.ts",
-      "sha256": "8e5ad8247f0b5f1ee55aea14768ea8bac6727a3402d098a512edf0625b433dbe"
+      "sha256": "5cf6e937e20b6f0afa766f8c20455de9cf5d05cf7ae1f5d61d1bdbd3c4332c20"
     },
     {
       "path": "templates/hooks/post-tool-bypass-warn.ts",

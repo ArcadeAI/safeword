@@ -79,58 +79,71 @@ export function detectPhaseTransition(
  */
 export function appendWorkLogEntry(content: string, entry: string): string {
   const body = content.endsWith('\n') ? content : `${content}\n`;
-  const heading = /^## Work Log[ \t]*$/m.exec(body);
-  if (heading === null) return `${body}\n## Work Log\n\n${entry}\n`;
-  const sectionEnd = nextSectionStart(body, heading.index + heading[0].length);
-  if (sectionEnd === undefined) return `${body}${entry}\n`;
-  const section = body.slice(0, sectionEnd).replace(/\n+$/u, '\n');
-  return `${section}${entry}\n\n${body.slice(sectionEnd)}`;
+  const headings = sectionHeadings(body);
+  const workLog = headings.findIndex(heading => heading.level === 2 && heading.text === 'Work Log');
+  if (workLog === -1) return `${body}\n## Work Log\n\n${entry}\n`;
+  const next = headings[workLog + 1];
+  if (next === undefined) return `${body}${entry}\n`;
+  const section = body.slice(0, next.offset).replace(/\n+$/u, '\n');
+  return `${section}${entry}\n\n${body.slice(next.offset)}`;
+}
+
+interface SectionHeading {
+  readonly offset: number;
+  readonly level: 1 | 2;
+  readonly text: string;
 }
 
 /**
- * Offset of the next level-1 or level-2 heading — ATX (`## X`) or setext (a
- * paragraph underlined with `=` or `-`) — skipping fenced code. A `---` after a
- * list item or quote is a thematic break, not a heading, as Markdown reads it.
- * Detecting a boundary too early is harmless (the entry still lands in the Work
- * Log); missing one would put the entry in a section the review identity binds.
+ * Every level-1 or level-2 heading — ATX (`## X`) or setext (a paragraph
+ * underlined with `=` or `-`) — outside fenced code, read the way Markdown
+ * does: a fence closes only on the same character at least as long, and a
+ * `---` after a list item or quote is a thematic break. Misplacement here only
+ * affects tidiness: the review identity ignores phase stamps wherever they land.
  */
-function nextSectionStart(body: string, from: number): number | undefined {
-  let offset = from;
+function sectionHeadings(body: string): SectionHeading[] {
+  const headings: SectionHeading[] = [];
+  let offset = 0;
   let fence: string | undefined;
-  let paragraphStart: number | undefined;
+  let paragraph: { offset: number; lines: string[] } | undefined;
   let inList = false;
   let previousBlank = true;
-  for (const line of body.slice(from).split('\n')) {
+  for (const line of body.split('\n')) {
     const blank = line.trim() === '';
     const marker = /^ {0,3}(`{3,}|~{3,})/u.exec(line)?.[1];
+    const atx = /^ {0,3}(#{1,2})(?:[ \t]+(.*?))?[ \t#]*$/u.exec(line);
     if (fence !== undefined) {
-      // Code content is never structure; only a matching fence closes it.
       if (marker?.startsWith(fence[0] ?? '') && marker.length >= fence.length) {
         if (line.trim() === marker) fence = undefined;
       }
     } else if (marker !== undefined) {
       fence = marker;
-      paragraphStart = undefined;
-    } else if (/^ {0,3}#{1,2}([ \t]|$)/u.test(line)) {
-      return offset;
-    } else if (paragraphStart !== undefined && /^ {0,3}(=+|-+)[ \t]*$/u.test(line)) {
-      return paragraphStart;
+      paragraph = undefined;
+    } else if (atx !== null) {
+      headings.push({ offset, level: atx[1] === '#' ? 1 : 2, text: (atx[2] ?? '').trim() });
+      paragraph = undefined;
+    } else if (paragraph !== undefined && /^ {0,3}(=+|-+)[ \t]*$/u.test(line)) {
+      const level = line.trim().startsWith('=') ? 1 : 2;
+      headings.push({ offset: paragraph.offset, level, text: paragraph.lines.join(' ').trim() });
+      paragraph = undefined;
     } else if (blank) {
-      paragraphStart = undefined;
+      paragraph = undefined;
     } else if (/^ {0,3}([-*+]|\d{1,9}[.)])([ \t]|$)/u.test(line)) {
       inList = true;
-      paragraphStart = undefined;
+      paragraph = undefined;
     } else if (/^ {0,3}>/u.test(line)) {
       inList = false;
-      paragraphStart = undefined;
+      paragraph = undefined;
     } else if (inList && (!previousBlank || /^\s/u.test(line))) {
       // A list item's continuation line, not a top-level paragraph.
-    } else if (paragraphStart === undefined) {
+    } else if (paragraph === undefined) {
       inList = false;
-      paragraphStart = offset;
+      paragraph = { offset, lines: [line] };
+    } else {
+      paragraph.lines.push(line);
     }
     previousBlank = blank;
     offset += line.length + 1;
   }
-  return undefined;
+  return headings;
 }
