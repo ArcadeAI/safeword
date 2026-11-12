@@ -2,7 +2,7 @@
 id: 0FA865
 slug: preserve-intermediate-edits
 type: task
-phase: done
+phase: verify
 status: in_progress
 created: 2026-11-08T23:27:33.769Z
 last_modified: 2026-11-08T23:27:33.769Z
@@ -18,6 +18,8 @@ last_modified: 2026-11-08T23:27:33.769Z
 
 Post-edit JS/TS checks preserve files across Claude, Codex (shared Claude lint hook), and Cursor. Claude/Codex surface diagnostics; Cursor retains its existing marker and silent diagnostic handling. Explicit helper fix mode and other languages retain existing behavior.
 
+Completion follow-up: isolate project test subprocesses from the invoking hook's project and plugin routing variables, so existing acceptance fixtures exercise their own projects and runtimes.
+
 ## Done when
 
 - Hook entry tests preserve pending imports and unrelated formatting for ESLint, Biome, and Ultracite.
@@ -27,6 +29,8 @@ Post-edit JS/TS checks preserve files across Claude, Codex (shared Claude lint h
 ## Root Cause
 
 The hook invokes whole-file fix commands immediately after each edit. This removes temporarily unused imports and changes untouched code. Mutation timing is the cause; import resolution is not involved. The existing test preset disables some unused-import rules, narrowing but not removing the risk in host configurations.
+
+Completion failure investigation: Codex exports CLAUDE_PROJECT_DIR and SAFEWORD_PLUGIN_CLI to its hook. The test runner removed runtime identity but retained these routing overrides. CLAUDE_PROJECT_DIR redirects the profile fixture to this checkout; SAFEWORD_PLUGIN_CLI overrides the lockfile fixture's runtime. Each acceptance failure reproduced by injecting its corresponding variable. A real runTests fixture failed with HOOK_ENV_LEAKED before the fix and passed afterward, ruling out formatter logic and random timeout as the cause of these failures. The fix extends the existing child-environment boundary while preserving parent state and ordinary application variables.
 
 ## Design decision
 
