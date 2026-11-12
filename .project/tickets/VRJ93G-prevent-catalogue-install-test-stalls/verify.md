@@ -8,6 +8,10 @@ comment. The real lifecycle installer, isolated filesystem profile, all
 catalogue assertions and the existing timeout remain unchanged. No production,
 generated, dependency or review-policy change.
 
+**PR Scope:** One existing catalogue-test setup flag/comment and this task's
+investigation/verification records. No pull request is published; full completion
+and Ready/merge evidence remain pending, not inferred from these focused checks.
+
 - Unchanged baseline: catalogue file passes 5/5 locally, 8.45s.
 - Changed candidate: catalogue and profile files pass 28/28, 15.41s combined.
 - Direct offline lifecycle probe: all 50 catalogue assets match their expected
