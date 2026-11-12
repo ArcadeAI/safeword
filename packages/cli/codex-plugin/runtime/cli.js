@@ -53390,6 +53390,18 @@ function semanticMarkdownIdentity(content) {
   const nodes = parseMarkdown(content);
   return identity(normalizeNodes(nodes));
 }
+function ticketContractNodes(body) {
+  const nodes = parseMarkdown(body);
+  let inWorkLog = false;
+  const retained = nodes.filter((node) => {
+    if (node.type === "heading" && (node.depth ?? 0) <= 2) {
+      inWorkLog = node.depth === 2 && headingText(node) === "Work Log";
+    }
+    return !inWorkLog;
+  });
+  const definitions = referencedDefinitions(nodes, retained, false).filter((node) => !retained.includes(node));
+  return [...retained, ...definitions];
+}
 function semanticTicketIdentity(content, reviewKind) {
   const { metadata: metadata2, body } = parseTicketMetadata(content);
   const retained = Object.fromEntries(Object.entries(metadata2).filter(([key]) => !["phase", "status", "last_modified", "review_dispositions"].includes(key)));
@@ -53398,7 +53410,7 @@ function semanticTicketIdentity(content, reviewKind) {
     if (matching.length > 0)
       retained.review_dispositions = matching;
   }
-  const nodes = parseMarkdown(body);
+  const nodes = ticketContractNodes(body);
   return identity({ version: 1, metadata: retained, body: normalizeNodes(nodes) });
 }
 function headingText(node) {
@@ -53447,7 +53459,7 @@ function capturedParent(packet, target) {
     throw new Error("Planning child context has no captured parent spec.");
   return { ticket, parentTicket, parent, relationship };
 }
-function referencedDefinitions(nodes, retained) {
+function referencedDefinitions(nodes, retained, requireUnique = true) {
   const references = new Set;
   const visit3 = (node) => {
     if ((node.type === "linkReference" || node.type === "imageReference") && typeof node.identifier === "string")
@@ -53459,6 +53471,8 @@ function referencedDefinitions(nodes, retained) {
   for (const node of retained)
     visit3(node);
   const definitions = nodes.filter((node) => node.type === "definition" && typeof node.identifier === "string" && references.has(node.identifier));
+  if (!requireUnique)
+    return definitions.filter((node, index) => definitions.findIndex((first) => first.identifier === node.identifier) === index);
   if ([...references].some((reference) => definitions.filter((node) => node.identifier === reference).length !== 1)) {
     throw new Error("Planning parent context has missing or duplicate referenced link definitions.");
   }

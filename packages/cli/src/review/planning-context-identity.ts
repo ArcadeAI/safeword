@@ -153,6 +153,22 @@ export function semanticMarkdownIdentity(content: string): string {
   return identity(normalizeNodes(nodes));
 }
 
+function ticketContractNodes(body: string): readonly MarkdownNode[] {
+  const nodes = parseMarkdown(body);
+  let inWorkLog = false;
+  const retained = nodes.filter(node => {
+    if (node.type === 'heading' && (node.depth ?? 0) <= 2) {
+      inWorkLog = node.depth === 2 && headingText(node) === 'Work Log';
+    }
+    return !inWorkLog;
+  });
+  // Contract references retain their destinations even when defined in history.
+  const definitions = referencedDefinitions(nodes, retained, false).filter(
+    node => !retained.includes(node),
+  );
+  return [...retained, ...definitions];
+}
+
 export function semanticTicketIdentity(content: string, reviewKind?: string): string {
   const { metadata, body } = parseTicketMetadata(content);
   const retained = Object.fromEntries(
@@ -170,7 +186,8 @@ export function semanticTicketIdentity(content: string, reviewKind?: string): st
     );
     if (matching.length > 0) retained.review_dispositions = matching;
   }
-  const nodes = parseMarkdown(body);
+  // Work Log is progress history, not accepted scope or decision authority.
+  const nodes = ticketContractNodes(body);
   return identity({ version: 1, metadata: retained, body: normalizeNodes(nodes) });
 }
 
@@ -252,7 +269,11 @@ function capturedParent(
   return { ticket, parentTicket, parent, relationship };
 }
 
-function referencedDefinitions(nodes: readonly MarkdownNode[], retained: readonly MarkdownNode[]) {
+function referencedDefinitions(
+  nodes: readonly MarkdownNode[],
+  retained: readonly MarkdownNode[],
+  requireUnique = true,
+) {
   const references = new Set<string>();
   const visit = (node: MarkdownNode): void => {
     if (
@@ -270,6 +291,12 @@ function referencedDefinitions(nodes: readonly MarkdownNode[], retained: readonl
       typeof node.identifier === 'string' &&
       references.has(node.identifier),
   );
+  // Tickets follow Markdown: undefined brackets are literal; the first definition wins.
+  if (!requireUnique)
+    return definitions.filter(
+      (node, index) =>
+        definitions.findIndex(first => first.identifier === node.identifier) === index,
+    );
   if (
     [...references].some(
       reference => definitions.filter(node => node.identifier === reference).length !== 1,
