@@ -181,6 +181,18 @@ describe('appendWorkLogEntry', () => {
     );
   });
 
+  it('Scenario: an unclosed fence at end of file is closed before the entry', () => {
+    const content = '## Work Log\n\n```text\nprogress\n';
+    expect(appendWorkLogEntry(content, ENTRY)).toBe(`${content}\`\`\`\n\n${ENTRY}\n`);
+  });
+
+  it('Scenario: an unclosed fence is closed before a newly created Work Log', () => {
+    const content = '# T\n\n```text\nnotes\n';
+    expect(appendWorkLogEntry(content, ENTRY)).toBe(
+      `${content}\`\`\`\n\n## Work Log\n\n${ENTRY}\n`,
+    );
+  });
+
   it('Scenario: a subsection inside the Work Log does not end it', () => {
     const content = '## Work Log\n\n- old entry\n\n### Execution discovery\n\n> Repair.\n';
     expect(appendWorkLogEntry(content, ENTRY)).toBe(`${content}${ENTRY}\n`);

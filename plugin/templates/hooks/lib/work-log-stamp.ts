@@ -79,11 +79,13 @@ export function detectPhaseTransition(
  */
 export function appendWorkLogEntry(content: string, entry: string): string {
   const body = content.endsWith('\n') ? content : `${content}\n`;
-  const headings = sectionHeadings(body);
+  const { headings, openFence } = sectionHeadings(body);
+  // An unclosed fence would swallow anything appended as code; close it first.
+  const closed = openFence === undefined ? body : `${body}${openFence}\n`;
   const workLog = headings.findIndex(heading => heading.level === 2 && heading.text === 'Work Log');
-  if (workLog === -1) return `${body}\n## Work Log\n\n${entry}\n`;
+  if (workLog === -1) return `${closed}\n## Work Log\n\n${entry}\n`;
   const next = headings[workLog + 1];
-  if (next === undefined) return `${body}${entry}\n`;
+  if (next === undefined) return `${closed}${openFence === undefined ? '' : '\n'}${entry}\n`;
   const section = body.slice(0, next.offset).replace(/\n+$/u, '\n');
   return `${section}${entry}\n\n${body.slice(next.offset)}`;
 }
@@ -101,7 +103,10 @@ interface SectionHeading {
  * `---` after a list item or quote is a thematic break. Misplacement here only
  * affects tidiness: the review identity ignores phase stamps wherever they land.
  */
-function sectionHeadings(body: string): SectionHeading[] {
+function sectionHeadings(body: string): {
+  readonly headings: SectionHeading[];
+  readonly openFence: string | undefined;
+} {
   const headings: SectionHeading[] = [];
   let offset = 0;
   let fence: string | undefined;
@@ -145,5 +150,5 @@ function sectionHeadings(body: string): SectionHeading[] {
     previousBlank = blank;
     offset += line.length + 1;
   }
-  return headings;
+  return { headings, openFence: fence };
 }

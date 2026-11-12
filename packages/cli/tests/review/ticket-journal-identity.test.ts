@@ -101,6 +101,7 @@ describe('ticket journal does not stale planning approvals', () => {
     ['a setext section after the Work Log', 'Decisions\n---------\n\nKeep two decimals.\n'],
     ['a fenced command with a # comment', '```bash\n# rebuild first\nbun run build\n```\n'],
     ['a thematic break between entries', '- earlier\n  continued\n---\n- later\n'],
+    ['an unclosed fence at end of file', '```text\nprogress\n'],
     [
       'a backtick fence holding a tilde line',
       '```markdown\n~~~\n```\n\n## Decisions\n\nKeep two decimals.\n',
