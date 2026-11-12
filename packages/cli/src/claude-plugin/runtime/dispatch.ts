@@ -952,15 +952,15 @@ function executeConfiguredHooks(input: {
 }
 
 // Points the SessionStart context hook at the packaged handbook (mirrors the
-// same env var Codex's runtime already sets) so it never falls back to
-// reading the project's .safeword/SAFEWORD.md.
+// same env var Codex's runtime already sets). Always set, even when the file is
+// missing: the hook then fails loudly instead of falling back to the project's
+// own handbook copy, which may be stale.
 function exposePackagedSafewordContext(pluginRoot: string): void {
-  const packagedSafewordPath = nodePath.join(pluginRoot, 'resources', 'SAFEWORD.md');
-  if (existsSync(packagedSafewordPath)) {
-    process.env.SAFEWORD_PACKAGED_CONTEXT_PATH = packagedSafewordPath;
-  } else {
-    delete process.env.SAFEWORD_PACKAGED_CONTEXT_PATH;
-  }
+  process.env.SAFEWORD_PACKAGED_CONTEXT_PATH = nodePath.join(
+    pluginRoot,
+    'resources',
+    'SAFEWORD.md',
+  );
 }
 
 function completeSuccessfulExecution(input: {

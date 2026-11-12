@@ -306,7 +306,7 @@ describe('Codex plugin release contract', () => {
           { cwd: project, encoding: 'utf8' },
         );
         expect(install.status, `${install.stdout}${install.stderr}`).toBe(0);
-        expect(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md'))).toBe(true);
+        expect(existsSync(nodePath.join(project, '.safeword/enrolled'))).toBe(true);
         const sessionStart = spawnSync(
           'bun',
           [runtimePath, 'hook', 'codex', 'session-start', '--plugin-hook'],

@@ -7,6 +7,7 @@ import {
   parseAgent,
   readHookInput,
   readSafewordContext,
+  reportMissingPackagedHandbook,
   resolveProjectDir,
 } from './lib/safeword-context.ts';
 
@@ -14,7 +15,12 @@ export async function runSessionSafewordContext(): Promise<number> {
   const agent = parseAgent();
   const hookInput = await readHookInput();
   if (!needsSafewordContext(hookInput)) return 0;
-  const context = readSafewordContext(resolveProjectDir(hookInput));
+  let context: string | null;
+  try {
+    context = readSafewordContext(resolveProjectDir(hookInput));
+  } catch (error) {
+    return reportMissingPackagedHandbook(error);
+  }
   const response = createSafewordContextResponse(agent, context);
 
   if (response) {
