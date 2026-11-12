@@ -12,7 +12,7 @@ type: feature
 phase: plan-execution
 status: in_progress
 scope:
-  - convert temperatures, see [requirements][req]
+  - convert temperatures
 out_of_scope:
   - Rankine
 done_when:
@@ -23,7 +23,7 @@ phase_anchors:
 
 # Ticket
 
-**Goal:** Convert a CSV of temperatures.
+**Goal:** Convert a CSV of temperatures, as the [requirements][req] say.
 
 ## Work Log
 
@@ -113,11 +113,11 @@ describe('ticket contract changes still stale planning approvals', () => {
     expectChanged(ticket, ticket.replace('a CSV of temperatures', 'a CSV of pressures'));
   });
 
-  it('counts a changed reference destination stored in the Work Log', () => {
+  it('counts a changed reference destination stored in the Work Log and used by the goal', () => {
     expectChanged(ticket, ticket.replace('requirements-v1', 'requirements-v2'));
   });
 
-  it('counts a changed reference destination nested in a Work Log list item', () => {
+  it('counts a changed reference destination nested in a Work Log list item and used by the goal', () => {
     const nested = ticket.replace(
       '\n[req]: https://example.com/requirements-v1\n',
       '- Linked the requirements.\n\n  [req]: https://example.com/requirements-v1\n',
@@ -142,5 +142,15 @@ describe('a ticket without a Work Log', () => {
   it('ignores the heading the hook creates with the first entry', () => {
     const bare = ticket.slice(0, ticket.indexOf('## Work Log'));
     expectSame(bare, appendWorkLogEntry(bare, '- 2026-11-09T01:28:11.624Z Phase: a → b'));
+  });
+});
+
+describe('Work Log reference definitions follow Markdown', () => {
+  it('ignores an unreferenced definition added to the Work Log', () => {
+    expectSame(ticket, `${ticket}\n[unused]: https://example.com/unused\n`);
+  });
+
+  it('ignores a later duplicate of a definition the goal already resolves', () => {
+    expectSame(ticket, `${ticket}\n[req]: https://example.com/history-only\n`);
   });
 });

@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "1e3b433244d9fb4b30dcd9d706100b913857e9256a6e0311c4af0783d383d3c8"
+      "sha256": "f5f8429fd19ba855ddc90086c1337929be9a141c001488c9a978f876a78ae963"
     },
     {
       "path": "runtime/dispatch.js",
@@ -1795,7 +1795,7 @@
     },
     {
       "path": "templates/spec-template.md",
-      "sha256": "3b57423be698eb75f6b536c1a14be33e0df4f9e4d2fa5d7395fd491a471e6c9d"
+      "sha256": "d4aca0aa62f282d5f9b9aaf47b68fad8f63493588a42604f6359163959e72bca"
     },
     {
       "path": "templates/statusline/reentry.ts",

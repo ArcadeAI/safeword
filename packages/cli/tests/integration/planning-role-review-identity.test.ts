@@ -103,13 +103,13 @@ afterEach(() => {
   cleanupTrustedReviewerDirectories();
 });
 
-async function review(ticket = metadata) {
+async function review(ticketContent = metadata) {
   const project = createTemporaryDirectory();
   projects.push(project);
   await createConfiguredProject(project);
   writePlanningInventories(project);
   mkdirSync(nodePath.join(project, folder), { recursive: true });
-  writeFileSync(nodePath.join(project, ticketPath), ticket);
+  writeFileSync(nodePath.join(project, ticketPath), ticketContent);
   writeFileSync(nodePath.join(project, specPath), product);
   writeFileSync(nodePath.join(project, target), implementation);
   writeFileSync(
@@ -153,7 +153,7 @@ process.stdin.on('end', () => {
   expect(result.exitCode, `${result.stdout}\n${result.stderr}`).toBe(0);
   expect(capturedPacket(capture).kind).toBe('plan-implementation');
   expect(capturedPacket(capture).context_files).toEqual(
-    expect.arrayContaining([expect.objectContaining({ path: ticketPath, content: ticket })]),
+    expect.arrayContaining([expect.objectContaining({ path: ticketPath, content: ticketContent })]),
   );
   const receipt = JSON.parse(result.stdout).data;
   expect(receipt.status).toBe('approved');
@@ -311,9 +311,12 @@ describe('complete planning role identity through authenticated public review', 
     expect(status.status).toBe('stale');
     expect(status.messages.join('\n')).toContain(`scenarios ${other}`);
   });
-  it('stales approval when a journal-nested link destination used by scope changes', async () => {
+  it('stales approval when a journal-nested link destination used by the contract changes', async () => {
     const linked = metadata
-      .replace('scope: preserve authenticated approval', 'scope: preserve [approval][policy]')
+      .replace(
+        '# Preserve approval\n',
+        '# Preserve approval\n\nFollow [approval policy][policy].\n',
+      )
       .concat('- Linked the policy.\n\n  [policy]: https://example.com/v1\n');
     const current = await review(linked);
     current.edit(text => text.replace('example.com/v1', 'example.com/v2'));
@@ -328,5 +331,47 @@ describe('complete planning role identity through authenticated public review', 
     const status = await current.status();
     expect(status.status).toBe('stale');
     expect(status.messages.join('\n')).toContain(`(ticket ${ticketPath})`);
+  });
+  it('retains approval when progress is appended to the ticket work log', async () => {
+    const current = await review();
+    current.edit(
+      text => `${text}\n## Work Log\n\n- Advanced phase without changing accepted work.\n`,
+    );
+    const addedLog = await current.status();
+    expect(addedLog.status).toBe('approved');
+    current.edit(text => `${text}- Recorded passing proof for unchanged behavior.\n`);
+    const updatedLog = await current.status();
+    expect(updatedLog.status).toBe('approved');
+  });
+
+  it('still binds accepted decisions after the work log', async () => {
+    const current = await review();
+    current.edit(
+      text =>
+        `${text}\n## Work Log\n\n- Recorded progress.\n\n## Decisions\n\nAllow anonymous approval.\n`,
+    );
+    const changedDecision = await current.status();
+    expect(changedDecision.status).toBe('stale');
+  });
+  it('binds a contract link destination defined after the work log', async () => {
+    const current = await review(
+      `${metadata}\n## Contract\n\nFollow [approval policy][policy].\n\n## Work Log\n\n- Recorded progress.\n\n[policy]: https://example.com/authenticated\n`,
+    );
+    current.edit(text => text.replace('/authenticated', '/anonymous'));
+    const status = await current.status();
+    expect(status.status).toBe('stale');
+  });
+  it('accepts literal bracketed text in the ticket contract', async () => {
+    const current = await review(`${metadata}\n## Contract\n\n[WIP] approval policy.\n`);
+    const status = await current.status();
+    expect(status.status).toBe('approved');
+  });
+  it('ignores a later duplicate definition in progress history', async () => {
+    const current = await review(
+      `${metadata}\n## Contract\n\nFollow [approval policy][policy].\n\n[policy]: https://example.com/authenticated\n\n## Work Log\n\n- Recorded progress.\n`,
+    );
+    current.edit(text => `${text}\n[policy]: https://example.com/history-only\n`);
+    const status = await current.status();
+    expect(status.status).toBe('approved');
   });
 });

@@ -53400,16 +53400,16 @@ function isWorkLogHeading(node) {
 }
 function withoutJournal(nodes) {
   let inWorkLog = false;
-  return nodes.flatMap((node) => {
+  const retained = nodes.filter((node) => {
     if (node.type === "heading" && (node.depth ?? 0) <= 2) {
       inWorkLog = isWorkLogHeading(node);
       if (inWorkLog)
-        return [];
+        return false;
     }
-    if (!inWorkLog || !JOURNAL_NODE_TYPES.has(node.type))
-      return [node];
-    return nestedDefinitions(node);
+    return !inWorkLog || !JOURNAL_NODE_TYPES.has(node.type);
   });
+  const definitions = referencedDefinitions(nodes.flatMap((node) => nestedDefinitions(node)), retained, false).filter((node) => !retained.includes(node));
+  return [...retained, ...definitions];
 }
 function semanticTicketIdentity(content, reviewKind) {
   const { metadata: metadata2, body } = parseTicketMetadata(content);
@@ -53468,7 +53468,7 @@ function capturedParent(packet, target) {
     throw new Error("Planning child context has no captured parent spec.");
   return { ticket, parentTicket, parent, relationship };
 }
-function referencedDefinitions(nodes, retained) {
+function referencedDefinitions(nodes, retained, requireUnique = true) {
   const references = new Set;
   const visit3 = (node) => {
     if ((node.type === "linkReference" || node.type === "imageReference") && typeof node.identifier === "string")
@@ -53480,6 +53480,8 @@ function referencedDefinitions(nodes, retained) {
   for (const node of retained)
     visit3(node);
   const definitions = nodes.filter((node) => node.type === "definition" && typeof node.identifier === "string" && references.has(node.identifier));
+  if (!requireUnique)
+    return definitions.filter((node, index) => definitions.findIndex((first) => first.identifier === node.identifier) === index);
   if ([...references].some((reference) => definitions.filter((node) => node.identifier === reference).length !== 1)) {
     throw new Error("Planning parent context has missing or duplicate referenced link definitions.");
   }
@@ -53865,7 +53867,7 @@ var init_planning_context_identity = __esm(() => {
     "review_dispositions",
     "phase_anchors"
   ]);
-  JOURNAL_NODE_TYPES = new Set(["list", "paragraph"]);
+  JOURNAL_NODE_TYPES = new Set(["list", "paragraph", "definition"]);
   productFrameFields = [
     "Expected outcome",
     "Persona outcome inventory",

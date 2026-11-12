@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "ok": true,
+  "state": "healthy",
+  "changed": false,
+  "findings": [
+    {
+      "code": "REVIEW_INDEPENDENCE",
+      "message": "A different agent (Claude) checked the work in a separate headless process.",
+      "severity": "info"
+    },
+    {
+      "code": "REVIEWER_SUMMARY",
+      "message": "The evidence now supports verify.md's headline claims, and it resolves the three earlier blocking findings. (1) Builds: full-cli.log (15:14) and targeted.log (15:31) produce the same chunks as the final release.log (14:32, after d2100c869 at 14:31:47), for example chunk-4U4WATAT.js at 548.46 KB and plan-approval-C45PB5AK.js. So the full suite passed on the frozen-lockfile candidate build: 718 files, 11,624 passed, 14 skipped. The release suite also passed: 13 files, 81 tests. The targeted run passed 15/15. (2) Location: worktree-provenance.json explains why the run path is named `safeword-4200-main-evidence`. The worktree admin directory carries that name. The HEAD reflog shows the checkout to codex/4200-completion-progress at 14:08 and nothing after d2100c869, and the seven changed files match d2100c869 by hash. That provenance is disclosed as recorded after the runs, which is acceptable as attribution evidence. (3) dispatch.js: net-diff.json shows the same Git blob at base and candidate. The staleness reported at cf218e1f5 was intermediate churn, so review 13a94973 covers all changed work: reviewed source, tests and metadata, plus the two excluded cli.js bundles. RED (1 failed, 6 passed), GREEN (7/7), the 119-test regression run and the failed release run (79 passed, 2 failed) are attached, and their timestamps fit the reflog. Scope limits are stated honestly. The remaining issues are evidence-quality warnings.",
+      "severity": "info"
+    },
+    {
+      "code": "REVIEWER_FINDING",
+      "message": "Log naming is backwards. `final-targeted.log` (14:15:16) predates cf218e1f5 and d2100c869. Its chunks (chunk-VLMFVO5V.js at 548.53 KB, plan-approval-LETHWJPG.js) match the earlier borrowed-dependency build. `targeted.log` (15:31:24) is the run on the candidate build. verify.md's 'three-file final run passes 15/15' is supported only by targeted.log. Rename the files, or state in verify.md which log backs the candidate Gherkin/receipt claim, so a reader does not credit the pre-candidate log.",
+      "severity": "warning"
+    },
+    {
+      "code": "REVIEWER_FINDING",
+      "message": "lint-final.log and typecheck-final.log are empty files; their sha256 is the empty-string hash e3b0c442\u2026. They record no command, exit status or file list. An empty file also cannot be told apart from a check that never ran, so the Lint and Typecheck PASS lines still rest on assertion. Capture the command line and exit code.",
+      "severity": "warning"
+    },
+    {
+      "code": "REVIEWER_FINDING",
+      "message": "The seven-file run (96 passed, 1 failed) and the relay/collector build that fixed it are cited but not attached. The checklist line 'all 11 contracts' for pre-commit is also stated without a transcript, though verify.md says so openly. permanent-generated-check.log has a single line with no command or commit. These are supporting claims, not headline claims, so they do not block approval.",
+      "severity": "warning"
+    },
+    {
+      "code": "REVIEWER_FINDING",
+      "message": "metadata.json's `emitted_artifacts_match: true` compares names and sizes only, and no comparison output is attached. verify.md correctly calls this supplementary. The chunk names in the attached logs are content hashes, and they give the stronger per-build tie-in that the evidence actually relies on.",
+      "severity": "warning"
+    },
+    {
+      "code": "REVIEWER_FINDING",
+      "message": "The 119-test regressions.log ran at 14:12:36, before cf218e1f5 added the execution-scheduling control. It is earlier regression evidence, not a run of the final tree. The full CLI run at 15:14 covers the final tree.",
+      "severity": "info"
+    },
+    {
+      "code": "REVIEWER_FINDING",
+      "message": "The warnings carried forward from code review 13a94973 are restated accurately. They are: no negative control for nonstandard Work Log headings, inline-code heading normalization, Work Log content still visible to later reviewers, and one-time staleness after upgrade. The 'Experience' claim that genuine scope/decision edits still revoke approval is therefore only as strong as the tested cases.",
+      "severity": "info"
+    }
+  ],
+  "effects": {
+    "files": [],
+    "packages": [],
+    "configuration": [],
+    "network": [
+      {
+        "kind": "review",
+        "target": "claude",
+        "operation": "request"
+      }
+    ],
+    "destructive": []
+  },
+  "errors": [],
+  "recovery": [],
+  "next_actions": [],
+  "data": {
+    "command": "review run",
+    "status": "approved",
+    "review_kind": "quality-review",
+    "review_targets": [
+      ".project/tickets/920BVH-preserve-review-during-progress/verify.md"
+    ],
+    "author_agent": "codex",
+    "assigned_reviewer": "claude",
+    "actual_reviewer": "claude",
+    "reviewer_model": "claude-opus-5-5",
+    "independence": "cross-agent",
+    "reviewer_output": {
+      "schema_version": 1,
+      "dispatch_id": "06cd149a-ccdb-4732-b776-9a15baa5d00f",
+      "reviewer_agent": "claude",
+      "verdict": "approve",
+      "summary": "The evidence now supports verify.md's headline claims, and it resolves the three earlier blocking findings. (1) Builds: full-cli.log (15:14) and targeted.log (15:31) produce the same chunks as the final release.log (14:32, after d2100c869 at 14:31:47), for example chunk-4U4WATAT.js at 548.46 KB and plan-approval-C45PB5AK.js. So the full suite passed on the frozen-lockfile candidate build: 718 files, 11,624 passed, 14 skipped. The release suite also passed: 13 files, 81 tests. The targeted run passed 15/15. (2) Location: worktree-provenance.json explains why the run path is named `safeword-4200-main-evidence`. The worktree admin directory carries that name. The HEAD reflog shows the checkout to codex/4200-completion-progress at 14:08 and nothing after d2100c869, and the seven changed files match d2100c869 by hash. That provenance is disclosed as recorded after the runs, which is acceptable as attribution evidence. (3) dispatch.js: net-diff.json shows the same Git blob at base and candidate. The staleness reported at cf218e1f5 was intermediate churn, so review 13a94973 covers all changed work: reviewed source, tests and metadata, plus the two excluded cli.js bundles. RED (1 failed, 6 passed), GREEN (7/7), the 119-test regression run and the failed release run (79 passed, 2 failed) are attached, and their timestamps fit the reflog. Scope limits are stated honestly. The remaining issues are evidence-quality warnings.",
+      "findings": [
+        {
+          "severity": "warning",
+          "message": "Log naming is backwards. `final-targeted.log` (14:15:16) predates cf218e1f5 and d2100c869. Its chunks (chunk-VLMFVO5V.js at 548.53 KB, plan-approval-LETHWJPG.js) match the earlier borrowed-dependency build. `targeted.log` (15:31:24) is the run on the candidate build. verify.md's 'three-file final run passes 15/15' is supported only by targeted.log. Rename the files, or state in verify.md which log backs the candidate Gherkin/receipt claim, so a reader does not credit the pre-candidate log."
+        },
+        {
+          "severity": "warning",
+          "message": "lint-final.log and typecheck-final.log are empty files; their sha256 is the empty-string hash e3b0c442\u2026. They record no command, exit status or file list. An empty file also cannot be told apart from a check that never ran, so the Lint and Typecheck PASS lines still rest on assertion. Capture the command line and exit code."
+        },
+        {
+          "severity": "warning",
+          "message": "The seven-file run (96 passed, 1 failed) and the relay/collector build that fixed it are cited but not attached. The checklist line 'all 11 contracts' for pre-commit is also stated without a transcript, though verify.md says so openly. permanent-generated-check.log has a single line with no command or commit. These are supporting claims, not headline claims, so they do not block approval."
+        },
+        {
+          "severity": "warning",
+          "message": "metadata.json's `emitted_artifacts_match: true` compares names and sizes only, and no comparison output is attached. verify.md correctly calls this supplementary. The chunk names in the attached logs are content hashes, and they give the stronger per-build tie-in that the evidence actually relies on."
+        },
+        {
+          "severity": "info",
+          "message": "The 119-test regressions.log ran at 14:12:36, before cf218e1f5 added the execution-scheduling control. It is earlier regression evidence, not a run of the final tree. The full CLI run at 15:14 covers the final tree."
+        },
+        {
+          "severity": "info",
+          "message": "The warnings carried forward from code review 13a94973 are restated accurately. They are: no negative control for nonstandard Work Log headings, inline-code heading normalization, Work Log content still visible to later reviewers, and one-time staleness after upgrade. The 'Experience' claim that genuine scope/decision edits still revoke approval is therefore only as strong as the tested cases."
+        }
+      ]
+    },
+    "excluded_targets": [],
+    "review_id": "761cd1ab-a286-4798-875c-c9db7cc577ef",
+    "review_excluded_targets": []
+  }
+}

@@ -163,7 +163,7 @@ const TICKET_BOOKKEEPING_KEYS = new Set([
 ]);
 
 /** Journal node types dropped from the Work Log; every other node type is retained. */
-const JOURNAL_NODE_TYPES = new Set(['list', 'paragraph']);
+const JOURNAL_NODE_TYPES = new Set(['list', 'paragraph', 'definition']);
 
 function nestedDefinitions(node: MarkdownNode): MarkdownNode[] {
   if (node.type === 'definition') return [node];
@@ -181,22 +181,29 @@ function isWorkLogHeading(node: MarkdownNode): boolean {
 }
 
 /**
- * Drops the Work Log heading and its journal entries (top-level lists and paragraphs) while
- * keeping every other node in it — headings, blockquotes such as the
- * execution-discovery notice, and any unknown type — plus every reference
- * definition, wherever it is nested, since retained text may resolve through it.
+ * Drops the Work Log heading and its journal entries (top-level lists, paragraphs
+ * and definitions) while keeping every other node in it — headings, blockquotes
+ * such as the execution-discovery notice, and any unknown type — plus each
+ * definition that retained text references, wherever it is nested.
  */
 function withoutJournal(nodes: readonly MarkdownNode[]): MarkdownNode[] {
   let inWorkLog = false;
-  return nodes.flatMap(node => {
+  const retained = nodes.filter(node => {
     if (node.type === 'heading' && (node.depth ?? 0) <= 2) {
       inWorkLog = isWorkLogHeading(node);
       // The hook creates the heading on a ticket's first entry; it carries no contract.
-      if (inWorkLog) return [];
+      if (inWorkLog) return false;
     }
-    if (!inWorkLog || !JOURNAL_NODE_TYPES.has(node.type)) return [node];
-    return nestedDefinitions(node);
+    return !inWorkLog || !JOURNAL_NODE_TYPES.has(node.type);
   });
+  // Contract references keep their destinations even when defined in history,
+  // nested or not; tickets follow Markdown, so the first definition wins.
+  const definitions = referencedDefinitions(
+    nodes.flatMap(node => nestedDefinitions(node)),
+    retained,
+    false,
+  ).filter(node => !retained.includes(node));
+  return [...retained, ...definitions];
 }
 
 export function semanticTicketIdentity(content: string, reviewKind?: string): string {
@@ -296,7 +303,11 @@ function capturedParent(
   return { ticket, parentTicket, parent, relationship };
 }
 
-function referencedDefinitions(nodes: readonly MarkdownNode[], retained: readonly MarkdownNode[]) {
+function referencedDefinitions(
+  nodes: readonly MarkdownNode[],
+  retained: readonly MarkdownNode[],
+  requireUnique = true,
+) {
   const references = new Set<string>();
   const visit = (node: MarkdownNode): void => {
     if (
@@ -314,6 +325,12 @@ function referencedDefinitions(nodes: readonly MarkdownNode[], retained: readonl
       typeof node.identifier === 'string' &&
       references.has(node.identifier),
   );
+  // Tickets follow Markdown: undefined brackets are literal; the first definition wins.
+  if (!requireUnique)
+    return definitions.filter(
+      (node, index) =>
+        definitions.findIndex(first => first.identifier === node.identifier) === index,
+    );
   if (
     [...references].some(
       reference => definitions.filter(node => node.identifier === reference).length !== 1,
