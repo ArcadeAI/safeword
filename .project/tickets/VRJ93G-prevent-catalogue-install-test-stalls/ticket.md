@@ -3,7 +3,7 @@ id: VRJ93G
 slug: prevent-catalogue-install-test-stalls
 type: task
 subtype: bug-investigated
-phase: intake
+phase: verify
 status: in_progress
 external_issue: https://github.com/ArcadeAI/safeword/issues/6371
 scope:
@@ -28,6 +28,11 @@ last_modified: 2026-11-12T00:19:43.585Z
 **Why:** Both Node jobs failed on main e49310a74 after exact-tree PR CI passed; preserve the failures and isolate the slow boundary.
 
 ## Work Log
+
+- Verification outcome, November 11 Pacific: Full local plan exited 1. CLI pass one: 2 failed / 11,626 passed / 14 skipped; pass two: 1 different failure / 11,627 passed / 14 skipped. The three failed cases all pass unchanged in an isolated 3-case run (207 filtered out); neither failed full pass is erased. All 599 acceptance scenarios, 11,786 steps, 52 proof checks, build and typecheck lanes pass. Local Bun/uv audits still report inherited findings; locks and production dependencies were not edited here. Existing Draft #7201 addresses those dependencies separately and remains unmerged. Keep VRJ93G at verify/in_progress and #7190 Draft; no closure approval/receipt, Ready promotion or merge. Full logs and the bounded Figure It Out recovery decision are preserved in the permanent trial archive.
+
+- Closure follow-through, November 11 Pacific: Draft #7190 is published at 1c54c4a78. CI 43130744212 passed on its first attempt, including both Node suites; main failure 43090952840 remains preserved. User requested verification and ticket closure, not Ready promotion or merge. Intake record review 79871443 approved with a cross-agent Claude Sonnet fallback; the first stamp lacked independence metadata and correctly did not authorize transition. The authenticated stamp with the actual reviewer metadata succeeded. Code review 21cd5c4d used Claude Opus and remains the unchanged-test review. Full local verification is running before closure.
+- Timing clarification: 632ms was the first offline installation-only probe. The later 667ms probe included byte-for-byte validation of all 50 catalogue assets. Neither is a CI timing bound. This test intentionally proves local catalogue installation, not online package-download success; its original assertions did not check download success. Production online installation is unchanged, and this patch does not claim new online-network coverage.
 
 - 2026-11-11 Pacific: User explicitly approved the test-only offline setup. Changed only offline:false to offline:true plus its explanatory comment; original installer, catalogue/filesystem assertions and 60s timeout remain. Catalogue/profile checks pass 28/28, changed-file lint passes and independent cross-agent review 21cd5c4d approves. Existing assertion-strength warnings were retained, not expanded into this patch. No production source, generated surface, dependency, route, qualification, deferred case, GitHub issue or main branch changed. Full-suite/CI verification and ticket closure are not claimed.
 
