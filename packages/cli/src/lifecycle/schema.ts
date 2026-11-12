@@ -3,6 +3,7 @@ import nodePath from 'node:path';
 
 import { schemaForClaudeDelivery } from '../claude-plugin/delivery-schema.js';
 import { schemaForCodexDelivery } from '../codex-plugin/delivery-schema.js';
+import { legacyCodexEventIsViable } from '../codex-plugin/legacy-authority.js';
 import { generateOwnedPathsModule, resolvedNamespaceDirectory } from '../owned-paths.js';
 import {
   filterSchemaPaths,
@@ -13,6 +14,7 @@ import {
   schemaForProjectSurfaces,
   schemaForSharedAgentRuntime,
 } from '../schema.js';
+import { PROJECT_HANDBOOK_PATH } from '../utils/configured-paths.js';
 
 function isLegacyClaudePath(path: string): boolean {
   return path === '.claude' || path.startsWith('.claude/');
@@ -103,6 +105,35 @@ function retainedHostUninstallSchema(
   });
 }
 
+/**
+ * Only project-delivered hosts read the project handbook copy: Cursor rules and
+ * hooks, and legacy Claude or Codex project hooks. Native plugins ship their own
+ * handbook and never fall back to this copy.
+ */
+function projectHandbookNeeded(
+  cwd: string,
+  selected: ReadonlySet<string>,
+  legacyClaudeInstalled: boolean,
+): boolean {
+  return (
+    selected.has('cursor') ||
+    installedCursorActive(cwd) ||
+    legacyClaudeInstalled ||
+    legacyCodexEventIsViable(cwd, 'session-start')
+  );
+}
+
+/** Retire the project handbook copy where no host reads it, so it cannot go stale. */
+function withoutUnreadProjectHandbook(schema: SafewordSchema): SafewordSchema {
+  return {
+    ...schema,
+    ownedFiles: Object.fromEntries(
+      Object.entries(schema.ownedFiles).filter(([path]) => path !== PROJECT_HANDBOOK_PATH),
+    ),
+    deprecatedFiles: [...schema.deprecatedFiles, PROJECT_HANDBOOK_PATH],
+  };
+}
+
 export function projectLifecycleSchema(
   cwd: string,
   agents: readonly string[],
@@ -131,7 +162,10 @@ export function projectLifecycleSchema(
   // workflow assets. Cursor is the only selected host whose declared authority
   // remains project-delivered; an observed legacy Claude install keeps its
   // runtime until the migration proves replacement.
-  return withSelectedOwnedPaths(
+  const lifecycleSchema = withSelectedOwnedPaths(
     schemaForSharedAgentRuntime(surfaceSchema, sharedRuntimeNeeded(selected, legacyClaudeActive)),
   );
+  return operation === 'uninstall' || projectHandbookNeeded(cwd, selected, legacyClaudeInstalled)
+    ? lifecycleSchema
+    : withoutUnreadProjectHandbook(lifecycleSchema);
 }

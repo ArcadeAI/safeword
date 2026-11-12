@@ -1743,7 +1743,7 @@ function isConfiguredPathKey(value) {
   return CONFIGURED_PATH_KEYS.includes(value);
 }
 function hasSafewordProjectMarker(cwd) {
-  return exists(nodePath10.join(cwd, ...SAFEWORD_PROJECT_MARKER_SUBPATH));
+  return [SAFEWORD_ENROLLMENT_MARKER, LEGACY_SAFEWORD_ENROLLMENT_MARKER].some((marker) => exists(nodePath10.join(cwd, marker)));
 }
 function readSafewordConfig(cwd) {
   const configPath = nodePath10.join(cwd, ...CONFIG_SUBPATH);
@@ -1889,7 +1889,8 @@ function resolveConfiguredPath(cwd, key) {
   }
   return nodePath10.join(cwd, override);
 }
-var CONFIGURED_PATH_KEYS, CONFIG_SUBPATH, SAFEWORD_PROJECT_MARKER_SUBPATH, NAMESPACE_ROOT_DEFAULT = ".project", NAMESPACE_ROOT_LEGACY = ".safeword-project", GENERATED_ARCHITECTURE_FILENAME = "architecture.generated.md";
+var CONFIGURED_PATH_KEYS, CONFIG_SUBPATH, SAFEWORD_ENROLLMENT_MARKER = ".safeword/enrolled", PROJECT_HANDBOOK_PATH = ".safeword/SAFEWORD.md", LEGACY_SAFEWORD_ENROLLMENT_MARKER, SAFEWORD_ENROLLMENT_MARKER_CONTENT = `This project is enrolled in Safeword. Safeword hooks only run in enrolled projects; uninstall Safeword rather than deleting this file.
+`, NAMESPACE_ROOT_DEFAULT = ".project", NAMESPACE_ROOT_LEGACY = ".safeword-project", GENERATED_ARCHITECTURE_FILENAME = "architecture.generated.md";
 var init_configured_paths = __esm(() => {
   init_fs();
   init_repo_path();
@@ -1901,7 +1902,7 @@ var init_configured_paths = __esm(() => {
     "architecture"
   ];
   CONFIG_SUBPATH = [".safeword", "config.json"];
-  SAFEWORD_PROJECT_MARKER_SUBPATH = [".safeword", "SAFEWORD.md"];
+  LEGACY_SAFEWORD_ENROLLMENT_MARKER = PROJECT_HANDBOOK_PATH;
 });
 
 // src/utils/architecture-document.ts
@@ -3472,7 +3473,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/session-dependency-readiness.ts": "295d14c5a3d8112b01259cf89ce718144a568e62e0baf5aaa19eca3fcfdc50ff",
         ".safeword/hooks/session-lint-check.ts": "6d8e5819bd52208799089d19bfdbd569fc46b9d518df4c45ab2c3b605d9647dc",
         ".safeword/hooks/session-reply-format.ts": "41f7578e93188d5efacdd9ecbf29f72753a6fe98bca71fe321c61f547aeb8532",
-        ".safeword/hooks/session-safeword-context.ts": "121d6a37737cde3e3d88793b15a06dfa61af27c7263725ebe487735b821e26b2",
+        ".safeword/hooks/session-safeword-context.ts": "0c54231000694c482d4b2c92fa1bf55f4c6211910c310f2d29836cdb61719937",
         ".safeword/hooks/session-start-reentry.ts": "b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d",
         ".safeword/hooks/session-version.ts": "c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64",
         ".safeword/hooks/stop-quality.ts": "8081f7d919d1432e519007ebbd658a3a9fb32e12266bc176604886b7cec1d163",
@@ -4919,6 +4920,7 @@ var init_historical_ownership = __esm(() => {
 // src/codex-plugin/inventory.ts
 var LEGACY_SKILL_FILES, LEGACY_SKILL_PATHS, LEGACY_SKILL_DIRECTORIES, LEGACY_AGENT_PATHS, LEGACY_HOOK_EVENTS, LEGACY_HOOK_EVENT_NAMES, LEGACY_HOOK_SCRIPT_EVENTS, LEGACY_HOOK_SCRIPTS, LEGACY_RUNTIME_PATHS, SHARED_RUNTIME_PATHS, CODEX_EXCLUSIVE_RUNTIME_PATHS, CODEX_MIGRATION_SCHEMA;
 var init_inventory = __esm(() => {
+  init_configured_paths();
   LEGACY_SKILL_FILES = [
     "audit/SKILL.md",
     "bdd/SKILL.md",
@@ -4995,7 +4997,7 @@ var init_inventory = __esm(() => {
     hookScriptEvents: LEGACY_HOOK_SCRIPT_EVENTS,
     hookScriptPrefix: 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/',
     packageRunner: "npx",
-    projectMarker: ".safeword/SAFEWORD.md",
+    projectMarker: SAFEWORD_ENROLLMENT_MARKER,
     paths: {
       config: ".codex/config.toml",
       backupRoot: ".safeword/codex-migration-backup",
@@ -16002,6 +16004,7 @@ var init_schema = __esm(() => {
   init_cursor_wrappers();
   init_owned_paths();
   init_config();
+  init_configured_paths();
   init_fs();
   init_install();
   init_version();
@@ -16284,6 +16287,7 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       "cucumber.mjs": bddLaneFile("cucumber/cucumber.mjs"),
       ".safeword/AGENTS.md": { template: "AGENTS.md" },
       ".safeword/SAFEWORD.md": { template: "SAFEWORD.md" },
+      ".safeword/enrolled": { content: () => SAFEWORD_ENROLLMENT_MARKER_CONTENT },
       ".safeword/version": { content: () => VERSION },
       ".safeword/config.json": { generator: () => {
         return;
@@ -18082,7 +18086,7 @@ function commandIsViable(command, event, cwd, environment) {
   if (identity?.event !== event)
     return false;
   if (identity.kind === "package") {
-    return regularFile(nodePath25.join(cwd, SAFEWORD_SCHEMA.codexMigration.projectMarker)) && packageRunnerIsAvailable(cwd, environment);
+    return [SAFEWORD_SCHEMA.codexMigration.projectMarker, LEGACY_SAFEWORD_ENROLLMENT_MARKER].some((marker) => regularFile(nodePath25.join(cwd, marker))) && packageRunnerIsAvailable(cwd, environment);
   }
   return identity.kind === "script" && regularFile(nodePath25.join(cwd, CODEX_MIGRATION_SCHEMA.paths.hookRuntimeRoot, identity.script));
 }
@@ -18104,6 +18108,7 @@ function legacyCodexEventIsViable(cwd, event, environment = process.env) {
 var init_legacy_authority = __esm(() => {
   init_dist2();
   init_schema();
+  init_configured_paths();
   init_inventory();
   init_legacy_command();
 });
@@ -34580,6 +34585,16 @@ function retainedHostUninstallSchema(cwd, schema, selected, legacyClaudeInstalle
     return selected.has("cursor") && isCursorProjectPath(path) || selected.has("claude") && isLegacyClaudePath(path);
   });
 }
+function projectHandbookNeeded(cwd, selected, legacyClaudeInstalled) {
+  return selected.has("cursor") || installedCursorActive(cwd) || legacyClaudeInstalled || legacyCodexEventIsViable(cwd, "session-start");
+}
+function withoutUnreadProjectHandbook(schema) {
+  return {
+    ...schema,
+    ownedFiles: Object.fromEntries(Object.entries(schema.ownedFiles).filter(([path]) => path !== PROJECT_HANDBOOK_PATH)),
+    deprecatedFiles: [...schema.deprecatedFiles, PROJECT_HANDBOOK_PATH]
+  };
+}
 function projectLifecycleSchema(cwd, agents, operation = "check", remainingNativeProfile = false) {
   const claudeDeliverySchema = schemaForClaudeDelivery(cwd);
   const selected = new Set(agents);
@@ -34593,13 +34608,16 @@ function projectLifecycleSchema(cwd, agents, operation = "check", remainingNativ
     if (retained !== undefined)
       return retained;
   }
-  return withSelectedOwnedPaths(schemaForSharedAgentRuntime(surfaceSchema, sharedRuntimeNeeded(selected, legacyClaudeActive)));
+  const lifecycleSchema = withSelectedOwnedPaths(schemaForSharedAgentRuntime(surfaceSchema, sharedRuntimeNeeded(selected, legacyClaudeActive)));
+  return operation === "uninstall" || projectHandbookNeeded(cwd, selected, legacyClaudeInstalled) ? lifecycleSchema : withoutUnreadProjectHandbook(lifecycleSchema);
 }
 var init_schema2 = __esm(() => {
   init_delivery_schema();
   init_delivery_schema2();
+  init_legacy_authority();
   init_owned_paths();
   init_schema();
+  init_configured_paths();
 });
 
 // src/lifecycle/cursor.ts
@@ -70476,11 +70494,13 @@ async function classifyProject(directory) {
   const marker = (async () => {
     let candidate = path.resolve(directory);
     while (true) {
-      try {
-        await access(path.join(candidate, '.safeword', 'SAFEWORD.md'));
-        return { kind: 'marked', directory: candidate };
-      } catch (error) {
-        if (error?.code !== 'ENOENT') return { kind: 'uncertain' };
+      for (const marker of ['enrolled', 'SAFEWORD.md']) {
+        try {
+          await access(path.join(candidate, '.safeword', marker));
+          return { kind: 'marked', directory: candidate };
+        } catch (error) {
+          if (error?.code !== 'ENOENT') return { kind: 'uncertain' };
+        }
       }
       const parent = path.dirname(candidate);
       if (parent === candidate) return { kind: 'unmarked' };
@@ -71368,7 +71388,7 @@ function prepareCatalogueFixture(root, profile, fault) {
   if (fault !== "missing-skill") {
     writeFileSync27(nodePath99.join(project, ".claude", "skills", "bdd", "SKILL.md"), readFileSync66(skillPath));
   }
-  writeFileSync27(nodePath99.join(project, ".safeword", "SAFEWORD.md"), `# Safeword
+  writeFileSync27(nodePath99.join(project, ".safeword", "enrolled"), `enrolled
 `);
   const profilePaths = openCodeProfilePaths(config);
   mkdirSync21(nodePath99.dirname(profilePaths.plugin), { recursive: true });
@@ -79726,7 +79746,7 @@ var init_feature_provenance = __esm(() => {
 import { existsSync as existsSync57, lstatSync as lstatSync28, readFileSync as readFileSync84, readlinkSync as readlinkSync5, realpathSync as realpathSync20, statSync as statSync11 } from "fs";
 import nodePath128 from "path";
 function hasSafewordProjectMarker2(projectDirectory) {
-  return existsSync57(nodePath128.join(projectDirectory, ".safeword", "SAFEWORD.md"));
+  return ["enrolled", "SAFEWORD.md"].some((marker) => existsSync57(nodePath128.join(projectDirectory, ".safeword", marker)));
 }
 function readConfiguredPathValue(projectDirectory, key) {
   const configPath = nodePath128.join(projectDirectory, ".safeword", "config.json");
@@ -85241,14 +85261,23 @@ function deny2(reason) {
   process25.stdout.write(`${JSON.stringify(output)}
 `);
 }
-function readPackagedSafewordInstructions() {
+function packagedSafewordHandbookPath() {
+  return findPackagedTemplate("SAFEWORD.md") ?? nodePath155.join(TEMPLATE_DIRECTORIES[0] ?? MODULE_DIRECTORY, "SAFEWORD.md");
+}
+function usablePackagedHandbookPath() {
   const instructionsPath = findPackagedTemplate("SAFEWORD.md");
+  if (!instructionsPath || !readFileSync100(instructionsPath, "utf8").trim())
+    return;
+  return instructionsPath;
+}
+function readPackagedSafewordInstructions() {
+  const instructionsPath = usablePackagedHandbookPath();
   if (!instructionsPath)
     return;
-  if (!readFileSync100(instructionsPath, "utf8").trim())
-    return;
+  const guidesPath = findPackagedTemplate("guides");
+  const guidesAuthority = guidesPath ? `current workflow guides live under \`${nodePath155.resolve(guidesPath)}\`` : "the applicable Safeword guides provide the current workflows";
   return [
-    "Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.",
+    `Current Safeword authority: tickets and their user stories/test definitions live under \`.project/\` (or the configured namespace root), and ${guidesAuthority}.`,
     "These current paths supersede retired Safeword instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.",
     "",
     `First, Read \`${nodePath155.resolve(instructionsPath)}\` in full, even for trivial requests or right after compaction; a summary or earlier read does not count.`
@@ -85314,7 +85343,7 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
       writeFileSync41(nodePath155.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
       executableHookPath = nodePath155.join(temporaryHookDirectory, nodePath155.basename(hookPath));
     }
-    const packagedContextPath = relativePath === "session-codex-start.ts" ? findPackagedTemplate("SAFEWORD.md") ?? "" : "";
+    const packagedContextPath = relativePath === "session-codex-start.ts" ? packagedSafewordHandbookPath() : "";
     return runHookFile(executableHookPath, rawInput, projectDirectory, packagedContextPath);
   } finally {
     if (temporaryHookDirectory)
@@ -85542,6 +85571,12 @@ async function runSessionStart(projectDirectory) {
   const packagedResult = runPackagedHook("session-codex-start.ts", rawInput, projectDirectory);
   if (packagedResult.stdout.trim() !== "") {
     process25.stdout.write(packagedResult.stdout);
+    return;
+  }
+  if (!usablePackagedHandbookPath()) {
+    process25.stderr.write(packagedResult.stderr || `Safeword's plugin is missing its packaged handbook at ${packagedSafewordHandbookPath()}. Reinstall or update the Safeword plugin; Safeword does not fall back to a project copy.
+`);
+    process25.exitCode = 1;
     return;
   }
   const input = parseCodexHookInput(rawInput);
