@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { hasSafewordProjectMarker } from './namespace-root.ts';
+
 declare const Bun: { stdin: { json(): Promise<unknown> } };
 
 // Packaged dependency closure: .safeword/guides/
@@ -59,7 +61,7 @@ export async function readHookInput(): Promise<HookInput> {
 export function findProjectDir(candidate: string): string | null {
   let current = nodePath.resolve(candidate);
   while (true) {
-    if (existsSync(nodePath.join(current, '.safeword/SAFEWORD.md'))) return current;
+    if (hasSafewordProjectMarker(current)) return current;
 
     const parent = nodePath.dirname(current);
     if (parent === current) return null;

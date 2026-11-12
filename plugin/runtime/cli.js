@@ -1836,7 +1836,10 @@ __export(exports_configured_paths, {
   isArchitectureDocumentEnforcementEnabled: () => isArchitectureDocumentEnforcementEnabled,
   hasSafewordProjectMarker: () => hasSafewordProjectMarker,
   defaultConfiguredPath: () => defaultConfiguredPath,
+  SAFEWORD_ENROLLMENT_MARKER_CONTENT: () => SAFEWORD_ENROLLMENT_MARKER_CONTENT,
+  SAFEWORD_ENROLLMENT_MARKER: () => SAFEWORD_ENROLLMENT_MARKER,
   NAMESPACE_ROOT_LEGACY: () => NAMESPACE_ROOT_LEGACY,
+  LEGACY_SAFEWORD_ENROLLMENT_MARKER: () => LEGACY_SAFEWORD_ENROLLMENT_MARKER,
   GENERATED_ARCHITECTURE_FILENAME: () => GENERATED_ARCHITECTURE_FILENAME
 });
 import nodePath10 from "path";
@@ -1844,7 +1847,7 @@ function isConfiguredPathKey(value) {
   return CONFIGURED_PATH_KEYS.includes(value);
 }
 function hasSafewordProjectMarker(cwd) {
-  return exists(nodePath10.join(cwd, ...SAFEWORD_PROJECT_MARKER_SUBPATH));
+  return [SAFEWORD_ENROLLMENT_MARKER, LEGACY_SAFEWORD_ENROLLMENT_MARKER].some((marker) => exists(nodePath10.join(cwd, marker)));
 }
 function readSafewordConfig(cwd) {
   const configPath = nodePath10.join(cwd, ...CONFIG_SUBPATH);
@@ -2003,7 +2006,8 @@ function resolveConfiguredPath(cwd, key) {
   }
   return nodePath10.join(cwd, override);
 }
-var CONFIGURED_PATH_KEYS, CONFIG_SUBPATH, SAFEWORD_PROJECT_MARKER_SUBPATH, NAMESPACE_ROOT_DEFAULT = ".project", NAMESPACE_ROOT_LEGACY = ".safeword-project", GENERATED_ARCHITECTURE_FILENAME = "architecture.generated.md";
+var CONFIGURED_PATH_KEYS, CONFIG_SUBPATH, SAFEWORD_ENROLLMENT_MARKER = ".safeword/enrolled", LEGACY_SAFEWORD_ENROLLMENT_MARKER = ".safeword/SAFEWORD.md", SAFEWORD_ENROLLMENT_MARKER_CONTENT = `This project is enrolled in Safeword. Safeword hooks only run in enrolled projects; uninstall Safeword rather than deleting this file.
+`, NAMESPACE_ROOT_DEFAULT = ".project", NAMESPACE_ROOT_LEGACY = ".safeword-project", GENERATED_ARCHITECTURE_FILENAME = "architecture.generated.md";
 var init_configured_paths = __esm(() => {
   init_fs();
   init_repo_path();
@@ -2015,7 +2019,6 @@ var init_configured_paths = __esm(() => {
     "architecture"
   ];
   CONFIG_SUBPATH = [".safeword", "config.json"];
-  SAFEWORD_PROJECT_MARKER_SUBPATH = [".safeword", "SAFEWORD.md"];
 });
 
 // src/utils/architecture-document.ts
@@ -5188,7 +5191,7 @@ var init_inventory = __esm(() => {
     hookScriptEvents: LEGACY_HOOK_SCRIPT_EVENTS,
     hookScriptPrefix: 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/',
     packageRunner: "npx",
-    projectMarker: ".safeword/SAFEWORD.md",
+    projectMarker: ".safeword/enrolled",
     paths: {
       config: ".codex/config.toml",
       backupRoot: ".safeword/codex-migration-backup",
@@ -16132,6 +16135,7 @@ var init_schema = __esm(() => {
   init_cursor_wrappers();
   init_owned_paths();
   init_config();
+  init_configured_paths();
   init_fs();
   init_install();
   init_version();
@@ -16414,6 +16418,7 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       "cucumber.mjs": bddLaneFile("cucumber/cucumber.mjs"),
       ".safeword/AGENTS.md": { template: "AGENTS.md" },
       ".safeword/SAFEWORD.md": { template: "SAFEWORD.md" },
+      ".safeword/enrolled": { content: () => SAFEWORD_ENROLLMENT_MARKER_CONTENT },
       ".safeword/version": { content: () => VERSION },
       ".safeword/config.json": { generator: () => {
         return;
@@ -18222,7 +18227,7 @@ function commandIsViable(command, event, cwd, environment) {
   if (identity?.event !== event)
     return false;
   if (identity.kind === "package") {
-    return regularFile(nodePath25.join(cwd, SAFEWORD_SCHEMA.codexMigration.projectMarker)) && packageRunnerIsAvailable(cwd, environment);
+    return [SAFEWORD_SCHEMA.codexMigration.projectMarker, LEGACY_SAFEWORD_ENROLLMENT_MARKER].some((marker) => regularFile(nodePath25.join(cwd, marker))) && packageRunnerIsAvailable(cwd, environment);
   }
   return identity.kind === "script" && regularFile(nodePath25.join(cwd, CODEX_MIGRATION_SCHEMA.paths.hookRuntimeRoot, identity.script));
 }
@@ -18244,6 +18249,7 @@ function legacyCodexEventIsViable(cwd, event, environment = process.env) {
 var init_legacy_authority = __esm(() => {
   init_dist();
   init_schema();
+  init_configured_paths();
   init_inventory();
   init_legacy_command();
 });
@@ -34891,6 +34897,16 @@ function retainedHostUninstallSchema(cwd, schema, selected, legacyClaudeInstalle
     return selected.has("cursor") && isCursorProjectPath(path7) || selected.has("claude") && isLegacyClaudePath(path7);
   });
 }
+function projectHandbookNeeded(cwd, selected, legacyClaudeInstalled) {
+  return selected.has("cursor") || installedCursorActive(cwd) || legacyClaudeInstalled || legacyCodexEventIsViable(cwd, "session-start");
+}
+function withoutUnreadProjectHandbook(schema) {
+  return {
+    ...schema,
+    ownedFiles: Object.fromEntries(Object.entries(schema.ownedFiles).filter(([path7]) => path7 !== PROJECT_HANDBOOK_PATH)),
+    deprecatedFiles: [...schema.deprecatedFiles, PROJECT_HANDBOOK_PATH]
+  };
+}
 function projectLifecycleSchema(cwd, agents, operation = "check", remainingNativeProfile = false) {
   const claudeDeliverySchema = schemaForClaudeDelivery(cwd);
   const selected = new Set(agents);
@@ -34904,11 +34920,14 @@ function projectLifecycleSchema(cwd, agents, operation = "check", remainingNativ
     if (retained !== undefined)
       return retained;
   }
-  return withSelectedOwnedPaths(schemaForSharedAgentRuntime(surfaceSchema, sharedRuntimeNeeded(selected, legacyClaudeActive)));
+  const lifecycleSchema = withSelectedOwnedPaths(schemaForSharedAgentRuntime(surfaceSchema, sharedRuntimeNeeded(selected, legacyClaudeActive)));
+  return operation === "uninstall" || projectHandbookNeeded(cwd, selected, legacyClaudeInstalled) ? lifecycleSchema : withoutUnreadProjectHandbook(lifecycleSchema);
 }
+var PROJECT_HANDBOOK_PATH = ".safeword/SAFEWORD.md";
 var init_schema2 = __esm(() => {
   init_delivery_schema();
   init_delivery_schema2();
+  init_legacy_authority();
   init_owned_paths();
   init_schema();
 });
@@ -71001,11 +71020,13 @@ async function classifyProject(directory) {
   const marker = (async () => {
     let candidate = path.resolve(directory);
     while (true) {
-      try {
-        await access(path.join(candidate, '.safeword', 'SAFEWORD.md'));
-        return { kind: 'marked', directory: candidate };
-      } catch (error) {
-        if (error?.code !== 'ENOENT') return { kind: 'uncertain' };
+      for (const marker of ['enrolled', 'SAFEWORD.md']) {
+        try {
+          await access(path.join(candidate, '.safeword', marker));
+          return { kind: 'marked', directory: candidate };
+        } catch (error) {
+          if (error?.code !== 'ENOENT') return { kind: 'uncertain' };
+        }
       }
       const parent = path.dirname(candidate);
       if (parent === candidate) return { kind: 'unmarked' };
@@ -71895,7 +71916,7 @@ function prepareCatalogueFixture(root, profile, fault) {
   if (fault !== "missing-skill") {
     writeFileSync27(nodePath99.join(project, ".claude", "skills", "bdd", "SKILL.md"), readFileSync66(skillPath));
   }
-  writeFileSync27(nodePath99.join(project, ".safeword", "SAFEWORD.md"), `# Safeword
+  writeFileSync27(nodePath99.join(project, ".safeword", "enrolled"), `enrolled
 `);
   const profilePaths = openCodeProfilePaths(config);
   mkdirSync21(nodePath99.dirname(profilePaths.plugin), { recursive: true });
@@ -80325,7 +80346,7 @@ var init_feature_provenance = __esm(() => {
 import { existsSync as existsSync57, lstatSync as lstatSync28, readFileSync as readFileSync84, readlinkSync as readlinkSync5, realpathSync as realpathSync20, statSync as statSync11 } from "fs";
 import nodePath128 from "path";
 function hasSafewordProjectMarker2(projectDirectory) {
-  return existsSync57(nodePath128.join(projectDirectory, ".safeword", "SAFEWORD.md"));
+  return ["enrolled", "SAFEWORD.md"].some((marker) => existsSync57(nodePath128.join(projectDirectory, ".safeword", marker)));
 }
 function readConfiguredPathValue(projectDirectory, key) {
   const configPath3 = nodePath128.join(projectDirectory, ".safeword", "config.json");
