@@ -96,6 +96,19 @@ describe('ticket journal does not stale planning approvals', () => {
     );
   });
 
+  it.each([
+    ['an ATX section after the Work Log', '## Decisions\n\nKeep two decimals.\n'],
+    ['a setext section after the Work Log', 'Decisions\n---------\n\nKeep two decimals.\n'],
+    ['a fenced command with a # comment', '```bash\n# rebuild first\nbun run build\n```\n'],
+    ['a thematic break between entries', '- earlier\n  continued\n---\n- later\n'],
+  ])('keeps identity when the hook stamps a ticket with %s', (_name, tail) => {
+    const shaped = `${ticket}\n${tail}`;
+    expectSame(
+      shaped,
+      appendWorkLogEntry(shaped, '- 2026-11-09T01:28:11.624Z Phase: plan-execution → implement'),
+    );
+  });
+
   it('ignores a plain note written directly after an execution-discovery notice', () => {
     const discovered = `${ticket}${notice}`;
     expectSame(discovered, `${discovered}Narrative: repair started.\n`);

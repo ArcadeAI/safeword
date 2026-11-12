@@ -156,6 +156,23 @@ describe('appendWorkLogEntry', () => {
     expect(appendWorkLogEntry(content, ENTRY)).toBe(`${content}${ENTRY}\n`);
   });
 
+  it.each([
+    ['a dashed setext heading', 'Decisions\n---------'],
+    ['an equals setext heading', 'Decisions\n========='],
+    ['a two-line setext heading', 'Accepted\ndecisions\n---'],
+  ])('Scenario: %s after the Work Log keeps the entry inside it', (_name, later) => {
+    const head = '## Work Log\n\n- old entry\n\n';
+    const content = `${head}${later}\n\nKeep two decimals.\n`;
+    expect(appendWorkLogEntry(content, ENTRY)).toBe(
+      `## Work Log\n\n- old entry\n${ENTRY}\n\n${later}\n\nKeep two decimals.\n`,
+    );
+  });
+
+  it('Scenario: a thematic break after a Work Log entry does not end the section', () => {
+    const content = '## Work Log\n\n- old entry\n  continued\n---\n- later entry\n';
+    expect(appendWorkLogEntry(content, ENTRY)).toBe(`${content}${ENTRY}\n`);
+  });
+
   it('Scenario: a subsection inside the Work Log does not end it', () => {
     const content = '## Work Log\n\n- old entry\n\n### Execution discovery\n\n> Repair.\n';
     expect(appendWorkLogEntry(content, ENTRY)).toBe(`${content}${ENTRY}\n`);

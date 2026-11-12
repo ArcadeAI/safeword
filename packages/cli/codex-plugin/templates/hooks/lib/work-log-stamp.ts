@@ -87,13 +87,45 @@ export function appendWorkLogEntry(content: string, entry: string): string {
   return `${section}${entry}\n\n${body.slice(sectionEnd)}`;
 }
 
-/** Offset of the next level-1 or level-2 heading line, skipping fenced code. */
+/**
+ * Offset of the next level-1 or level-2 heading — ATX (`## X`) or setext (a
+ * paragraph underlined with `=` or `-`) — skipping fenced code. A `---` after a
+ * list item or quote is a thematic break, not a heading, as Markdown reads it.
+ * Detecting a boundary too early is harmless (the entry still lands in the Work
+ * Log); missing one would put the entry in a section the review identity binds.
+ */
 function nextSectionStart(body: string, from: number): number | undefined {
   let offset = from;
   let fenced = false;
+  let paragraphStart: number | undefined;
+  let inList = false;
+  let previousBlank = true;
   for (const line of body.slice(from).split('\n')) {
-    if (/^ {0,3}(```|~~~)/u.test(line)) fenced = !fenced;
-    else if (!fenced && /^#{1,2}[ \t]/u.test(line)) return offset;
+    const blank = line.trim() === '';
+    if (/^ {0,3}(```|~~~)/u.test(line)) {
+      fenced = !fenced;
+      paragraphStart = undefined;
+    } else if (fenced) {
+      // Code content is never structure.
+    } else if (/^ {0,3}#{1,2}([ \t]|$)/u.test(line)) {
+      return offset;
+    } else if (paragraphStart !== undefined && /^ {0,3}(=+|-+)[ \t]*$/u.test(line)) {
+      return paragraphStart;
+    } else if (blank) {
+      paragraphStart = undefined;
+    } else if (/^ {0,3}([-*+]|\d{1,9}[.)])([ \t]|$)/u.test(line)) {
+      inList = true;
+      paragraphStart = undefined;
+    } else if (/^ {0,3}>/u.test(line)) {
+      inList = false;
+      paragraphStart = undefined;
+    } else if (inList && (!previousBlank || /^\s/u.test(line))) {
+      // A list item's continuation line, not a top-level paragraph.
+    } else if (paragraphStart === undefined) {
+      inList = false;
+      paragraphStart = offset;
+    }
+    previousBlank = blank;
     offset += line.length + 1;
   }
   return undefined;
