@@ -2,7 +2,7 @@
 id: JKQW03
 slug: clear-development-dependency-advisories
 type: task
-phase: implement
+phase: verify
 status: in_progress
 scope:
   - Update vulnerable JavaScript and Python lockfile dependencies to patched versions.
