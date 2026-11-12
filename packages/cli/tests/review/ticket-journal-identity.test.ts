@@ -34,6 +34,12 @@ phase_anchors:
 
 const kinds = ['scenario-gate', 'plan-implementation', 'plan-execution'] as const;
 
+const notice = executionDiscoveryNotice({
+  destination: 'plan-implementation',
+  reviewId: 'review-1',
+  findings: ['Repair the affected plan.'],
+});
+
 function expectSame(before: string, after: string): void {
   expect(after, 'the mutation must change the source').not.toBe(before);
   for (const kind of kinds) {
@@ -80,11 +86,6 @@ describe('ticket journal does not stale planning approvals', () => {
   });
 
   it('ignores journal entries appended after an execution-discovery notice', () => {
-    const notice = executionDiscoveryNotice({
-      destination: 'plan-implementation',
-      reviewId: 'review-1',
-      findings: ['Repair the affected plan.'],
-    });
     const discovered = `${ticket}${notice}`;
     expectSame(
       discovered,
@@ -98,11 +99,6 @@ describe('ticket journal does not stale planning approvals', () => {
 
 describe('ticket contract changes still stale planning approvals', () => {
   it('counts the execution-discovery notice', () => {
-    const notice = executionDiscoveryNotice({
-      destination: 'plan-implementation',
-      reviewId: 'review-1',
-      findings: ['Repair the affected plan.'],
-    });
     expectChanged(ticket, `${ticket}${notice}`);
   });
 
