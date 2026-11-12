@@ -177,7 +177,11 @@ process.stdin.on('end', () => {
       );
       const state = JSON.parse(status.stdout).data.status as string;
       expect(status.exitCode, `${status.stdout}\n${status.stderr}`).toBe(state === 'stale' ? 2 : 0);
-      return JSON.parse(status.stdout).data;
+      const parsed = JSON.parse(status.stdout);
+      return {
+        ...parsed.data,
+        messages: parsed.findings.map((f: { message: string }) => f.message),
+      };
     },
   };
 }
@@ -302,12 +306,13 @@ describe('complete planning role identity through authenticated public review', 
     const status = await current.status();
     expect(status.status).toBe('stale');
   });
-  it('stales approval for an accepted scope change as a passing control', async () => {
+  it('stales approval for an accepted scope change and names the changed ticket', async () => {
     const current = await review();
     current.edit(text =>
       text.replace('scope: preserve authenticated approval', 'scope: permit anonymous approval'),
     );
     const status = await current.status();
     expect(status.status).toBe('stale');
+    expect(status.messages.join('\n')).toContain(`(ticket ${ticketPath})`);
   });
 });
