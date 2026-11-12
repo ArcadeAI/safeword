@@ -95,6 +95,11 @@ describe('ticket journal does not stale planning approvals', () => {
       ),
     );
   });
+
+  it('ignores a plain note written directly after an execution-discovery notice', () => {
+    const discovered = `${ticket}${notice}`;
+    expectSame(discovered, `${discovered}Narrative: repair started.\n`);
+  });
 });
 
 describe('ticket contract changes still stale planning approvals', () => {
