@@ -7,6 +7,7 @@ status: in_progress
 scope:
   - Ticket identity ignores Work Log journal entries, its heading and phase_anchors
   - Stale planning receipts name changed, added or removed sources
+  - The work-log hook writes inside the Work Log section, before any later section
 out_of_scope:
   - approve-plan prompt recheck (PR 7215)
   - planningSurfaceIdentity reference definitions
@@ -37,7 +38,7 @@ This ticket was opened after the work was done. The fix was built test-first on 
 
 ## Scope
 
-- In: the ticket identity ignores the `## Work Log` heading, its top-level lists, paragraphs and definitions, plus `phase_anchors`. Stale planning receipts name each changed, added or removed source.
+- In: the ticket identity ignores the `## Work Log` heading, its top-level lists, paragraphs and definitions, plus `phase_anchors`. Stale planning receipts name each changed, added or removed source. The work-log hook inserts its line before the next level-1 or level-2 heading (fenced code is skipped). The execution-discovery notice ends with a blank line, so a later note cannot join its quote. New tickets mark the Work Log as progress history.
 - Kept bound: frontmatter contract fields and unknown keys, same-kind `review_dispositions`, headings and blockquotes in the Work Log (the execution-discovery notice), sections after the Work Log, and referenced link definitions (first definition wins, including nested ones).
 - Out: `approve-plan` prompt recheck (PR #7215), `planningSurfaceIdentity` reference definitions (separate task), and the review-runner/stamp-verifier version mismatch.
 
@@ -47,7 +48,7 @@ Main's 920BVH treats everything under the Work Log as history, which includes th
 
 ## Proof
 
-- Unit: `tests/review/ticket-journal-identity.test.ts`, `tests/review/stale-planning-sources.test.ts`.
+- Unit: `tests/review/ticket-journal-identity.test.ts`, `tests/review/stale-planning-sources.test.ts`, `tests/hooks/work-log-stamp.test.ts` (entry placement), `tests/utils/ticket-writer.test.ts` (Work Log comment).
 - CLI/status integration: `tests/integration/planning-role-review-identity.test.ts` (real work-log hook, journal note, nested link destination, scenario anchor switch), and `tests/integration/plan-design-approval.test.ts` (discovery notice sequence).
 - Trial replay: the pre-fix fingerprint reproduces all five recorded ticket digests. With the fix, the 01:29, 01:46 and 04:46 refreshes stay approved, and the 02:58 precision cap still goes stale.
 - Live: a copy of N4DYBQ with real Codex approvals, stamped. A headless Claude Code session with this branch's plugin changed `plan-execution → implement`. The hook appended its line, all three stayed approved, and coding stayed authorized.
@@ -56,4 +57,7 @@ Main's 920BVH treats everything under the Work Log as history, which includes th
 
 - 2026-11-12T05:47:19.091Z Started: Created ticket AHYMS2
 - Recorded already-delivered work: commits f6a2025ed..c109fd4f7 on PR #7200; CI green on c109fd4f7. Remaining: tdd-review, /verify, /audit, close.
+- tdd-review (scenario-complete): clean. Follow-up gap deferred: `appendWorkLogEntry` appends at end of file, so on a ticket with a `##` section after `## Work Log` the hook's line lands in a bound section and phase changes stale approvals again. The ticket template keeps Work Log last.
 - 2026-11-12T05:48:24.669Z Phase: intake → implement
+- Refactor: shared `normalizedText` across three heading/frame checks (fa3203194); shared the notice fixture in the journal tests (265b27766).
+- Quality review ab466dff was degraded (Codex timed out; not independent). Applied: work-log placement inside the section (c725596ad, resolves the deferred tdd-review gap), notice trailing blank line (6f594b4c0), and a Work Log comment in new tickets (c620b43ee). Declined: bumping the identity `version` (hashed, never shown, so no diagnostic gain); a committed trial-replay test (the data is local-only, and results are on PR #7200).
