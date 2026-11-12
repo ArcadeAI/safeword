@@ -1,21 +1,21 @@
 ## Verify Checklist
 
-**Test Suite:** ⚠️ Local environment limitation: one prescribed full-suite run had 3 timeouts; the second passed 11624/11624 executed tests (12 additional skipped), and the affected files passed 82/82 in isolation.
-**Gherkin:** ✅ Acceptance lane passes (599 scenarios, 11786 steps).
-**Build:** ✅ Success (`bun ci` built the CLI; generated surfaces checked).
-**Lint:** ✅ Clean (ESLint, Gherkin lint, and TypeScript typecheck).
+**Test Suite:** ✓ 11632/11632 executed tests pass in each of two local CLI runs after a frozen reinstall (12 additional skipped); current-head Node 22 and 24 CI also passes, with 11,634/11,634 executed tests in Node 24.
+**Gherkin:** ✅ Acceptance lane passes: 599 scenarios and 11,786 steps locally and in Node 24 CI; CI proof suite passes 52/52 tests.
+**Build:** ✅ Success — CLI build, generated-surface check, and CI package builds.
+**Lint:** ✅ Clean — ESLint, Gherkin lint, and TypeScript typecheck.
 **Typecheck:** ✅ Clean.
-**Dependency audit:** ❌ The prescribed verify command found 9 JavaScript and 16 Python advisories in existing locks; its overall exit code was 1.
-**Scenarios:** All 0 scenarios marked complete (task ticket has no test-definitions.md).
+**Dependency audit:** ✅ Clean — Bun found no vulnerabilities in 1,171 packages; Python found none in 39.
+**Scenarios:** All 0 scenarios marked complete — task ticket has no test-definitions.md.
 **Refactor:** ✅ No change warranted — the approved prompt is intentionally short.
-**PR Scope:** ✅ Diff matches ticket scope; dependency updates remain on a separate branch.
-**Dep Drift:** ✅ Clean — no dependency manifests changed.
-**Parent Epic:** N/A
+**PR Scope:** ✅ Diff matches ticket scope; dependency remediation was merged separately in PR #7201.
+**Dep Drift:** ✅ Clean — this branch changes no dependency manifests.
+**Parent Epic:** N/A.
 **Reconcile:** ✅ No pattern deviation — source templates and generated host copies follow existing layout.
-**Experience:** ✅ No new friction — walked a Safeword user asking for a blocked-gate explanation; worst step is reading the relevant ticket; new steps vs before = 0.
-**Surface Evidence:** ⚠️ 1 unproven/limited — generated Claude, Codex, and Cursor copies contain the approved prompt, but the local Claude plugin version is not published for activation.
-**Evidence limits:** ⚠️ One of two full CLI runs in the prescribed verify command timed out on 3 unrelated integration tests; the second full run passed 11,624 tests, and all 82 tests in the affected files passed in isolation. Local Claude plugin activation is unavailable until the unpublished plugin version is installed; packaged output and CI parity are verified.
+**Experience:** ✅ No new friction — walked a Safeword user asking for an explanation; worst step is reading the relevant ticket; new steps vs before = 0.
+**Surface Evidence:** ✅ 3/3 distributed prompt packages match the approved wording: Claude, Codex, and Cursor. Claude was checked at the package level, not by live plugin activation; generated-surface and physical-install CI checks pass.
+**Evidence limits:** ⚠️ Local activation of the unpublished Claude plugin was not exercised; its packaged copy and installation boundary were verified. The prescribed local verify command exited 0 after the frozen reinstall. Three earlier integration timeouts did not recur in either current-head local run or hosted CI.
 
-Audit passed — focused diff contains prompt templates, matching generated copies, a prompt contract test, and the migration assertion update. `git diff --check` passed; dependency-cruiser reported 0 errors and 5 pre-existing orphan warnings.
+Audit passed — the diff-scoped audit found zero dependency-rule violations; changed configuration, documentation, and learning references had no findings. Generated surfaces were regenerated and verified after the dependency merge.
 
-PR #7157 remains Draft pending disposition of the dependency-audit findings and human review. Final-head CI passed.
+PR #7157 current-head CI passes on Node 22 and 24, including release and behavior lanes.
