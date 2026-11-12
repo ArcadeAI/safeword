@@ -172,23 +172,25 @@ function nestedDefinitions(node: MarkdownNode): MarkdownNode[] {
 
 /** The exact line the work-log hook appends: `- <ISO time>Z Phase: <from> → <to>`. */
 const PHASE_STAMP_LINE =
-  /^- \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[.\d]{0,10}Z Phase: [\w-]+ → [\w-]+\n/gmu;
+  /^- \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[.\d]{0,10}Z Phase: [\w-]+ → [\w-]+$/u;
+
+const HOOK_WORK_LOG_HEADING = '## Work Log';
 
 /**
- * Removes hook-written phase stamp lines from the text before parsing (#5766).
- * The hook only appends whole stamp lines at end of file, so removing them
- * restores the ticket's prior text exactly, whatever Markdown surrounds them.
+ * Removes the hook's trailing bookkeeping before parsing (#5766). The hook only
+ * ever appends whole stamp lines at end of file (creating a `## Work Log` first
+ * on a ticket without one), so stripping the trailing run of stamp lines, then
+ * a bare trailing heading, restores the prior text whatever Markdown surrounds
+ * it. A stamp-shaped line anywhere else is content and stays bound.
  */
-const HOOK_WORK_LOG_HEADING = '\n## Work Log';
-
 function withoutPhaseStamps(body: string): string {
-  // A ticket with no Work Log gets one from the hook along with its first stamp;
-  // a bare trailing heading is that addition, so drop it and normalize the end.
-  let text = body.replaceAll(PHASE_STAMP_LINE, '').trimEnd();
-  if (text.endsWith(HOOK_WORK_LOG_HEADING)) {
-    text = text.slice(0, -HOOK_WORK_LOG_HEADING.length).trimEnd();
+  const lines = body.trimEnd().split('\n');
+  while (lines.length > 0 && PHASE_STAMP_LINE.test(lines.at(-1) ?? '')) {
+    lines.pop();
+    while (lines.length > 0 && (lines.at(-1) ?? '').trim() === '') lines.pop();
   }
-  return `${text}\n`;
+  if (lines.at(-1) === HOOK_WORK_LOG_HEADING) lines.pop();
+  return `${lines.join('\n').trimEnd()}\n`;
 }
 
 function isWorkLogHeading(node: MarkdownNode): boolean {

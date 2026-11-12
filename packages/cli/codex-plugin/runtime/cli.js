@@ -53075,11 +53075,17 @@ function nestedDefinitions(node) {
   return (node.children ?? []).flatMap((child) => nestedDefinitions(child));
 }
 function withoutPhaseStamps(body) {
-  let text = body.replaceAll(PHASE_STAMP_LINE, "").trimEnd();
-  if (text.endsWith(HOOK_WORK_LOG_HEADING)) {
-    text = text.slice(0, -HOOK_WORK_LOG_HEADING.length).trimEnd();
+  const lines = body.trimEnd().split(`
+`);
+  while (lines.length > 0 && PHASE_STAMP_LINE.test(lines.at(-1) ?? "")) {
+    lines.pop();
+    while (lines.length > 0 && (lines.at(-1) ?? "").trim() === "")
+      lines.pop();
   }
-  return `${text}
+  if (lines.at(-1) === HOOK_WORK_LOG_HEADING)
+    lines.pop();
+  return `${lines.join(`
+`).trimEnd()}
 `;
 }
 function isWorkLogHeading(node) {
@@ -53514,8 +53520,7 @@ function createPlanningReviewIdentity(packet) {
     canonical_contract_digest: contractDigest
   };
 }
-var nodeTypes, TICKET_BOOKKEEPING_KEYS, JOURNAL_NODE_TYPES, PHASE_STAMP_LINE, HOOK_WORK_LOG_HEADING = `
-## Work Log`, productFrameFields;
+var nodeTypes, TICKET_BOOKKEEPING_KEYS, JOURNAL_NODE_TYPES, PHASE_STAMP_LINE, HOOK_WORK_LOG_HEADING = "## Work Log", productFrameFields;
 var init_planning_context_identity = __esm(() => {
   init_markdown();
   init_gherkin_feature();
@@ -53559,7 +53564,7 @@ var init_planning_context_identity = __esm(() => {
     "phase_anchors"
   ]);
   JOURNAL_NODE_TYPES = new Set(["list", "paragraph", "definition"]);
-  PHASE_STAMP_LINE = /^- \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[.\d]{0,10}Z Phase: [\w-]+ \u2192 [\w-]+\n/gmu;
+  PHASE_STAMP_LINE = /^- \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[.\d]{0,10}Z Phase: [\w-]+ \u2192 [\w-]+$/u;
   productFrameFields = [
     "Expected outcome",
     "Persona outcome inventory",

@@ -147,6 +147,16 @@ describe('ticket journal does not stale planning approvals', () => {
     expectSame(later, `${later}- 2026-11-09T01:28:11.624Z Phase: plan-execution → implement\n`);
   });
 
+  it('still counts a changed stamp-shaped example inside a bound section', () => {
+    const example = (to: string) =>
+      ticket.replace(
+        '## Work Log',
+        () =>
+          `## Contract\n\n\`\`\`text\n- 2026-11-09T01:28:11.624Z Phase: plan-execution → ${to}\n\`\`\`\n\n## Work Log`,
+      );
+    expectChanged(example('implement'), example('verify'));
+  });
+
   it('still counts a non-stamp list item added to a later section', () => {
     const later = `${ticket}\n## Decisions\n\nKeep two decimals.\n`;
     expectChanged(later, `${later}- Also allow Rankine.\n`);

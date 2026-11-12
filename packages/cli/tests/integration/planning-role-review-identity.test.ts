@@ -311,6 +311,18 @@ describe('complete planning role identity through authenticated public review', 
     expect(status.status).toBe('stale');
     expect(status.messages.join('\n')).toContain(`scenarios ${other}`);
   });
+  it('stales approval when a stamp-shaped contract example changes', async () => {
+    const contract = metadata.replace(
+      '# Preserve approval\n',
+      () =>
+        '# Preserve approval\n\n```text\n- 2026-11-09T01:28:11.624Z Phase: intake → define-behavior\n```\n',
+    );
+    const current = await review(contract);
+    current.edit(text => text.replace('intake → define-behavior', 'intake → verify'));
+    const status = await current.status();
+    expect(status.status).toBe('stale');
+  });
+
   it('stales approval when a journal-nested link destination used by the contract changes', async () => {
     const linked = metadata
       .replace(
