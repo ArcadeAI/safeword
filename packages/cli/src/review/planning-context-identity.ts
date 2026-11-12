@@ -170,29 +170,17 @@ function nestedDefinitions(node: MarkdownNode): MarkdownNode[] {
   return (node.children ?? []).flatMap(child => nestedDefinitions(child));
 }
 
-/** The exact line the work-log hook writes: `- <ISO time> Phase: <from> → <to>`. */
-const PHASE_STAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[.\d]{0,10}Z Phase: [\w-]+ → [\w-]+$/u;
-
-function isPhaseStamp(item: MarkdownNode): boolean {
-  const [paragraph, ...rest] = item.children ?? [];
-  return (
-    paragraph?.type === 'paragraph' &&
-    rest.length === 0 &&
-    PHASE_STAMP.test(normalizedText(paragraph))
-  );
-}
+/** The exact line the work-log hook appends: `- <ISO time>Z Phase: <from> → <to>`. */
+const PHASE_STAMP_LINE =
+  /^- \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[.\d]{0,10}Z Phase: [\w-]+ → [\w-]+\n/gmu;
 
 /**
- * Drops hook-written phase stamps from every top-level list, wherever the hook
- * placed them, so a misplaced stamp can never change the identity (#5766).
+ * Removes hook-written phase stamp lines from the text before parsing (#5766).
+ * The hook only appends whole stamp lines at end of file, so removing them
+ * restores the ticket's prior text exactly, whatever Markdown surrounds them.
  */
-function withoutPhaseStamps(nodes: readonly MarkdownNode[]): MarkdownNode[] {
-  return nodes.flatMap(node => {
-    if (node.type !== 'list') return [node];
-    const children = (node.children ?? []).filter(item => !isPhaseStamp(item));
-    if (children.length === 0) return [];
-    return [children.length === node.children?.length ? node : { ...node, children }];
-  });
+function withoutPhaseStamps(body: string): string {
+  return body.replaceAll(PHASE_STAMP_LINE, '');
 }
 
 function isWorkLogHeading(node: MarkdownNode): boolean {
@@ -240,7 +228,7 @@ export function semanticTicketIdentity(content: string, reviewKind?: string): st
     );
     if (matching.length > 0) retained.review_dispositions = matching;
   }
-  const nodes = withoutJournal(withoutPhaseStamps(parseMarkdown(body)));
+  const nodes = withoutJournal(parseMarkdown(withoutPhaseStamps(`${body}\n`)));
   return identity({ version: 1, metadata: retained, body: normalizeNodes(nodes) });
 }
 

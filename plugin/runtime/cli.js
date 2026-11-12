@@ -53074,19 +53074,8 @@ function nestedDefinitions(node) {
     return [node];
   return (node.children ?? []).flatMap((child) => nestedDefinitions(child));
 }
-function isPhaseStamp(item) {
-  const [paragraph, ...rest] = item.children ?? [];
-  return paragraph?.type === "paragraph" && rest.length === 0 && PHASE_STAMP.test(normalizedText(paragraph));
-}
-function withoutPhaseStamps(nodes) {
-  return nodes.flatMap((node) => {
-    if (node.type !== "list")
-      return [node];
-    const children = (node.children ?? []).filter((item) => !isPhaseStamp(item));
-    if (children.length === 0)
-      return [];
-    return [children.length === node.children?.length ? node : { ...node, children }];
-  });
+function withoutPhaseStamps(body) {
+  return body.replaceAll(PHASE_STAMP_LINE, "");
 }
 function isWorkLogHeading(node) {
   return node.type === "heading" && node.depth === 2 && normalizedText(node) === "Work Log";
@@ -53112,7 +53101,8 @@ function semanticTicketIdentity(content, reviewKind) {
     if (matching.length > 0)
       retained.review_dispositions = matching;
   }
-  const nodes = withoutJournal(withoutPhaseStamps(parseMarkdown(body)));
+  const nodes = withoutJournal(parseMarkdown(withoutPhaseStamps(`${body}
+`)));
   return identity2({ version: 1, metadata: retained, body: normalizeNodes(nodes) });
 }
 function headingText(node) {
@@ -53519,7 +53509,7 @@ function createPlanningReviewIdentity(packet) {
     canonical_contract_digest: contractDigest
   };
 }
-var nodeTypes, TICKET_BOOKKEEPING_KEYS, JOURNAL_NODE_TYPES, PHASE_STAMP, productFrameFields;
+var nodeTypes, TICKET_BOOKKEEPING_KEYS, JOURNAL_NODE_TYPES, PHASE_STAMP_LINE, productFrameFields;
 var init_planning_context_identity = __esm(() => {
   init_markdown();
   init_gherkin_feature();
@@ -53563,7 +53553,7 @@ var init_planning_context_identity = __esm(() => {
     "phase_anchors"
   ]);
   JOURNAL_NODE_TYPES = new Set(["list", "paragraph", "definition"]);
-  PHASE_STAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[.\d]{0,10}Z Phase: [\w-]+ \u2192 [\w-]+$/u;
+  PHASE_STAMP_LINE = /^- \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[.\d]{0,10}Z Phase: [\w-]+ \u2192 [\w-]+\n/gmu;
   productFrameFields = [
     "Expected outcome",
     "Persona outcome inventory",

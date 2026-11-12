@@ -122,6 +122,18 @@ describe('ticket journal does not stale planning approvals', () => {
     );
   });
 
+  it.each([
+    ['an HTML block with example headings', '<pre>\n## Work Log\n## Decisions\n</pre>\n\n'],
+    ['a fenced example Work Log', '```markdown\n## Work Log\n```\n\n'],
+  ])('keeps identity when the hook stamps a ticket with %s before its Work Log', (_name, block) => {
+    const withBlock = ticket.replace('## Work Log', () => `${block}## Work Log`);
+    const shaped = `${withBlock}\n## Decisions\n\nKeep.\n`;
+    expectSame(
+      shaped,
+      appendWorkLogEntry(shaped, '- 2026-11-09T01:28:11.624Z Phase: plan-execution → implement'),
+    );
+  });
+
   it('ignores a phase stamp wherever it lands, even in a later section', () => {
     const later = `${ticket}\n## Decisions\n\nKeep two decimals.\n`;
     expectSame(later, `${later}- 2026-11-09T01:28:11.624Z Phase: plan-execution → implement\n`);

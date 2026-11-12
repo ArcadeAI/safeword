@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "698729145969e6f580ca09969f9c9308942ccdd2cb9356988a67e35db62d218a"
+      "sha256": "0f2e9ccee64506801eba9fd1c19e7ac23d4a6ba1aa072dd40c75086934e9480e"
     },
     {
       "path": "runtime/dispatch.js",
@@ -475,7 +475,7 @@
     },
     {
       "path": "runtime/hooks/lib/work-log-stamp.ts",
-      "sha256": "ee1ccb7bed5fc1353b1931f4d584a423960d4b08702cc407682e5603b6c9e1be"
+      "sha256": "3b0b0e8cc2cc25c06ffad9fde77b2959470cbdbd5de69a0e034c20925b06c581"
     },
     {
       "path": "runtime/hooks/post-tool-bypass-warn.ts",
@@ -1467,7 +1467,7 @@
     },
     {
       "path": "templates/hooks/lib/work-log-stamp.ts",
-      "sha256": "ee1ccb7bed5fc1353b1931f4d584a423960d4b08702cc407682e5603b6c9e1be"
+      "sha256": "3b0b0e8cc2cc25c06ffad9fde77b2959470cbdbd5de69a0e034c20925b06c581"
     },
     {
       "path": "templates/hooks/post-tool-bypass-warn.ts",

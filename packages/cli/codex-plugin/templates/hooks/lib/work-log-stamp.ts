@@ -71,84 +71,18 @@ export function detectPhaseTransition(
 }
 
 /**
- * Append a work-log entry as the Work Log section's last line. The entry goes
- * before the next level-1 or level-2 heading, so a section after the Work Log
- * keeps its bytes and review identity (#5766); with no later section it lands
- * at end of file. A missing Work Log is created at end of file. Every byte
- * outside the inserted line survives.
+ * Append a work-log entry as the file's last line. The Work Log is the last
+ * section of a ticket by convention, so appending at end lands inside it;
+ * when the heading is missing entirely, the section is created first. Every
+ * prior byte survives — the result always starts with the (newline-
+ * normalized) input.
+ *
+ * The review identity strips these stamp lines before parsing (#5766), so
+ * appending at end of file can never change a ticket's approval identity,
+ * whatever Markdown the ticket ends with.
  */
 export function appendWorkLogEntry(content: string, entry: string): string {
   const body = content.endsWith('\n') ? content : `${content}\n`;
-  const { headings, openFence } = sectionHeadings(body);
-  // An unclosed fence would swallow anything appended as code; close it first.
-  const closed = openFence === undefined ? body : `${body}${openFence}\n`;
-  const workLog = headings.findIndex(heading => heading.level === 2 && heading.text === 'Work Log');
-  if (workLog === -1) return `${closed}\n## Work Log\n\n${entry}\n`;
-  const next = headings[workLog + 1];
-  if (next === undefined) return `${closed}${openFence === undefined ? '' : '\n'}${entry}\n`;
-  const section = body.slice(0, next.offset).replace(/\n+$/u, '\n');
-  return `${section}${entry}\n\n${body.slice(next.offset)}`;
-}
-
-interface SectionHeading {
-  readonly offset: number;
-  readonly level: 1 | 2;
-  readonly text: string;
-}
-
-/**
- * Every level-1 or level-2 heading — ATX (`## X`) or setext (a paragraph
- * underlined with `=` or `-`) — outside fenced code, read the way Markdown
- * does: a fence closes only on the same character at least as long, and a
- * `---` after a list item or quote is a thematic break. Misplacement here only
- * affects tidiness: the review identity ignores phase stamps wherever they land.
- */
-function sectionHeadings(body: string): {
-  readonly headings: SectionHeading[];
-  readonly openFence: string | undefined;
-} {
-  const headings: SectionHeading[] = [];
-  let offset = 0;
-  let fence: string | undefined;
-  let paragraph: { offset: number; lines: string[] } | undefined;
-  let inList = false;
-  let previousBlank = true;
-  for (const line of body.split('\n')) {
-    const blank = line.trim() === '';
-    const marker = /^ {0,3}(`{3,}|~{3,})/u.exec(line)?.[1];
-    const atx = /^ {0,3}(#{1,2})(?:[ \t]+(.*?))?[ \t#]*$/u.exec(line);
-    if (fence !== undefined) {
-      if (marker?.startsWith(fence[0] ?? '') && marker.length >= fence.length) {
-        if (line.trim() === marker) fence = undefined;
-      }
-    } else if (marker !== undefined) {
-      fence = marker;
-      paragraph = undefined;
-    } else if (atx !== null) {
-      headings.push({ offset, level: atx[1] === '#' ? 1 : 2, text: (atx[2] ?? '').trim() });
-      paragraph = undefined;
-    } else if (paragraph !== undefined && /^ {0,3}(=+|-+)[ \t]*$/u.test(line)) {
-      const level = line.trim().startsWith('=') ? 1 : 2;
-      headings.push({ offset: paragraph.offset, level, text: paragraph.lines.join(' ').trim() });
-      paragraph = undefined;
-    } else if (blank) {
-      paragraph = undefined;
-    } else if (/^ {0,3}([-*+]|\d{1,9}[.)])([ \t]|$)/u.test(line)) {
-      inList = true;
-      paragraph = undefined;
-    } else if (/^ {0,3}>/u.test(line)) {
-      inList = false;
-      paragraph = undefined;
-    } else if (inList && (!previousBlank || /^\s/u.test(line))) {
-      // A list item's continuation line, not a top-level paragraph.
-    } else if (paragraph === undefined) {
-      inList = false;
-      paragraph = { offset, lines: [line] };
-    } else {
-      paragraph.lines.push(line);
-    }
-    previousBlank = blank;
-    offset += line.length + 1;
-  }
-  return { headings, openFence: fence };
+  const hasWorkLog = /^## Work Log[ \t]*$/m.test(body);
+  return hasWorkLog ? `${body}${entry}\n` : `${body}\n## Work Log\n\n${entry}\n`;
 }

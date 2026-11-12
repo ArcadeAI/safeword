@@ -7,7 +7,7 @@ status: in_progress
 scope:
   - Ticket identity ignores Work Log journal entries, its heading and phase_anchors
   - Stale planning receipts name changed, added or removed sources
-  - The work-log hook writes inside the Work Log section, before any later section
+  - Hook-written phase stamp lines never change the identity, wherever they land
 out_of_scope:
   - approve-plan prompt recheck (PR 7215)
   - planningSurfaceIdentity reference definitions
@@ -38,7 +38,7 @@ This ticket was opened after the work was done. The fix was built test-first on 
 
 ## Scope
 
-- In: the ticket identity ignores the `## Work Log` heading, its top-level lists, paragraphs and definitions, plus `phase_anchors`. Stale planning receipts name each changed, added or removed source. The work-log hook inserts its line before the next level-1 or level-2 heading (fenced code is skipped). The execution-discovery notice ends with a blank line, so a later note cannot join its quote. New tickets mark the Work Log as progress history.
+- In: the ticket identity ignores the `## Work Log` heading, its top-level lists, paragraphs and definitions, plus `phase_anchors`. Stale planning receipts name each changed, added or removed source. The identity strips hook-format phase stamp lines (`- <ISO>Z Phase: X → Y`) from the text before parsing. The hook still appends at end of file, as on main, so removing the stamp restores the prior text exactly, whatever Markdown the ticket ends with. The execution-discovery notice ends with a blank line, so a later note cannot join its quote. New tickets mark the Work Log as progress history.
 - Kept bound: frontmatter contract fields and unknown keys, same-kind `review_dispositions`, headings and blockquotes in the Work Log (the execution-discovery notice), sections after the Work Log, and referenced link definitions (first definition wins, including nested ones).
 - Out: `approve-plan` prompt recheck (PR #7215), `planningSurfaceIdentity` reference definitions (separate task), and the review-runner/stamp-verifier version mismatch.
 
@@ -62,4 +62,5 @@ Main's 920BVH treats everything under the Work Log as history, which includes th
 - Refactor: shared `normalizedText` across three heading/frame checks (fa3203194); shared the notice fixture in the journal tests (265b27766).
 - Quality review ab466dff was degraded (Codex timed out; not independent). Applied: work-log placement inside the section (c725596ad, resolves the deferred tdd-review gap), notice trailing blank line (6f594b4c0), and a Work Log comment in new tickets (c620b43ee). Declined: bumping the identity `version` (hashed, never shown, so no diagnostic gain); a committed trial-replay test (the data is local-only, and results are on PR #7200).
 - Independent Codex re-reviews (cross-agent) found placement errors, each fixed test-first: setext headings (58e11b0df); fence matching plus a class-level fix where the identity drops hook-format phase stamps from every top-level list, so placement no longer affects approvals (9c704b66e); fence-aware location of the Work Log heading (569dabfb9); and closing an unclosed fence before appending (221dfee3f).
-- Final re-review 17b53142 raised one error, in `phaseIn` false transition detection from unindented fenced examples. It is unchanged by this ticket and identical on main, and it no longer stales approvals because stamps are ignored. Answered as out of scope and split into a separate task.
+- Implement-exit review df1a21e9 found a fifth scanner case (headings inside an HTML `<pre>` block). Class-level fix: removed the hook's Markdown scanning entirely. The hook appends at end of file again (main's behavior), and the identity strips exact stamp lines from the text before parsing. Agreement tests cover HTML blocks, fences, setext and ATX headings, and unclosed fences; disabling the strip fails 9 of them. Cosmetic cost: on a ticket with a section after the Work Log, the stamp sits at end of file. Known limit: a legacy ticket with no Work Log that ends inside an unclosed fence gets its first, hook-created `## Work Log` heading as code.
+- Earlier final re-review 17b53142 raised one error, in `phaseIn` false transition detection from unindented fenced examples. It is unchanged by this ticket and identical on main, and it no longer stales approvals because stamps are ignored. Answered as out of scope and split into a separate task.
