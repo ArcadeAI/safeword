@@ -812,26 +812,25 @@ function reviewStatusCommand(id: string): string {
  * a stale result can say what changed instead of sending the agent to diff
  * files itself (issue #5766). Empty when either identity is unavailable.
  */
-function changedPlanningSources(
+export function changedPlanningSources(
   recorded: PlanningReviewIdentity | undefined,
   current: PlanningReviewIdentity | undefined,
 ): readonly string[] {
   if (recorded === undefined || current === undefined) return [];
-  const digests = new Map<string, string>([
-    ...current.targets.map(target => [`target ${target.path}`, target.digest] as const),
-    ...current.dependencies.map(
+  const before = planningSourceDigests(recorded);
+  const after = planningSourceDigests(current);
+  return [...new Set([...before.keys(), ...after.keys()])].filter(
+    key => before.get(key) !== after.get(key),
+  );
+}
+
+function planningSourceDigests(identity: PlanningReviewIdentity): ReadonlyMap<string, string> {
+  return new Map([
+    ...identity.targets.map(target => [`target ${target.path}`, target.digest] as const),
+    ...identity.dependencies.map(
       source => [`${source.role} ${source.path}`, source.semantic_digest] as const,
     ),
   ]);
-  const changed = [
-    ...recorded.targets.map(target => [`target ${target.path}`, target.digest] as const),
-    ...recorded.dependencies.map(
-      source => [`${source.role} ${source.path}`, source.semantic_digest] as const,
-    ),
-  ]
-    .filter(([key, digest]) => digests.get(key) !== digest)
-    .map(([key]) => key);
-  return [...new Set(changed)];
 }
 
 function staleMessage(changed: readonly string[]): string {

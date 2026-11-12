@@ -39,6 +39,10 @@ import { PLANNING_ROLE_PRODUCT, writeImplementationRoleInputs } from '../plannin
 
 const TICKET_ID = 'PLAN42';
 const TICKET_FOLDER = `${TICKET_ID}-review-the-approach`;
+const WORK_LOG_HOOK = nodePath.resolve(
+  import.meta.dirname,
+  '../../../../.safeword/hooks/post-tool-work-log.ts',
+);
 const EXECUTION_PLAN_TEMPLATE = readFileSync(
   nodePath.resolve(__dirname, '../../templates/doc-templates/execution-plan-template.md'),
   'utf8',
@@ -379,7 +383,7 @@ function decisionPayloads(path: string): Record<string, unknown>[] {
   ) as Record<string, unknown>[];
 }
 
-function appendCurrentReview(project: Fixture, plan: string): void {
+function appendCurrentReview(project: Fixture, plan: string): string {
   const reviewId = runImplementationReview(project, TICKET_FOLDER);
   const scope = reviewScope(TICKET_FOLDER, 'impl-plan', hashArtifact(plan));
   writeFileSync(
@@ -390,6 +394,7 @@ function appendCurrentReview(project: Fixture, plan: string): void {
       '',
     ].join('\n')}`,
   );
+  return reviewId;
 }
 
 function runApprovalInPty(
@@ -697,7 +702,7 @@ async function approveRepairedImplementation(
   project: Fixture,
   humanGate: boolean,
   changedApproach: boolean,
-): Promise<void> {
+): Promise<string> {
   const originalImplementationPlan = readFileSync(
     nodePath.join(project.ticketDirectory, 'impl-plan.md'),
     'utf8',
@@ -717,7 +722,7 @@ async function approveRepairedImplementation(
   );
   expect(beforeFreshReview.exitCode, beforeFreshReview.stdout).toBe(2);
   expect(phase(project.ticketPath)).toBe('plan-implementation');
-  appendCurrentReview(project, revisedImplementationPlan);
+  const freshReviewId = appendCurrentReview(project, revisedImplementationPlan);
   const implementationApproved = await runCli(
     ['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID],
     { cwd: project.root, env: reviewEnvironment(project) },
@@ -732,6 +737,68 @@ async function approveRepairedImplementation(
     expect(implementationApproved.exitCode, implementationApproved.stdout).toBe(0);
     expect(decisionPayloads(project.ledgerPath)).toHaveLength(humanGate ? 1 : 0);
   }
+  return freshReviewId;
+}
+
+async function reviewStatus(project: Fixture, reviewId: string): Promise<string> {
+  const status = await runCli(['--json', 'review', 'status', reviewId], {
+    cwd: project.root,
+    env: reviewEnvironment(project),
+  });
+  return String(JSON.parse(status.stdout).data.status);
+}
+
+/**
+ * Current-format reviews bind the ticket, so the discovery notice stales them;
+ * legacy reviews do not, and approve-plan's legacy-discovery refusal blocks them.
+ */
+async function expectDiscoveryStalesEarlierApproval(
+  project: Fixture,
+  currentFormat: boolean,
+): Promise<void> {
+  if (!currentFormat) return;
+  expect(
+    await reviewStatus(project, project.reviewId ?? ''),
+    'the discovery notice must stale the earlier Implementation Plan approval',
+  ).toBe('stale');
+}
+
+/** Journal entries written after the discovery notice keep the fresh approval current. */
+async function expectJournalKeepsFreshApproval(project: Fixture, reviewId: string): Promise<void> {
+  recordPhaseChange(project, 'plan-execution', 'implement');
+  writeFileSync(
+    project.ticketPath,
+    `${readFileSync(project.ticketPath, 'utf8')}- Narrative: repair reviewed.\n`,
+  );
+  expect(
+    await reviewStatus(project, reviewId),
+    'journal entries after the discovery notice must keep the fresh approval',
+  ).toBe('approved');
+  recordPhaseChange(project, 'implement', 'plan-execution');
+}
+
+/** Records a phase change the way a host does: the edit, then the real work-log hook. */
+function recordPhaseChange(project: Fixture, from: string, to: string): void {
+  writeFileSync(
+    project.ticketPath,
+    readFileSync(project.ticketPath, 'utf8').replace(`phase: ${from}`, () => `phase: ${to}`),
+  );
+  const hook = spawnSync('bun', [WORK_LOG_HOOK], {
+    cwd: project.root,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: project.root },
+    input: JSON.stringify({
+      hook_event_name: 'PostToolUse',
+      tool_name: 'Edit',
+      tool_input: {
+        file_path: project.ticketPath,
+        old_string: `phase: ${from}`,
+        new_string: `phase: ${to}`,
+      },
+    }),
+    encoding: 'utf8',
+  });
+  expect(hook.status, hook.stderr).toBe(0);
+  expect(readFileSync(project.ticketPath, 'utf8')).toContain(`Phase: ${from} → ${to}`);
 }
 
 describe('implementation-time discoveries return to the affected planning phase', () => {
@@ -892,6 +959,7 @@ describe('implementation-time discoveries return to the affected planning phase'
       expect(result.stdout).toContain(`"planning_destination":"${planningDestination}"`);
 
       if (planningDestination === 'plan-implementation') {
+        await expectDiscoveryStalesEarlierApproval(project, native === true);
         const unrepaired = await runCli(
           ['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID],
           { cwd: project.root, env: reviewEnvironment(project) },
@@ -914,7 +982,10 @@ describe('implementation-time discoveries return to the affected planning phase'
           expect(afterUnrelated.stdout).toContain('Convert its retained plan');
           convertToCurrentPlanning(project);
         }
-        await approveRepairedImplementation(project, humanGate, changedApproach);
+        await expectJournalKeepsFreshApproval(
+          project,
+          await approveRepairedImplementation(project, humanGate, changedApproach),
+        );
       }
 
       expect(phase(project.ticketPath)).toBe('plan-execution');

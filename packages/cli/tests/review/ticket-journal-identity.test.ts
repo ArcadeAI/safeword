@@ -137,3 +137,10 @@ describe('ticket contract changes still stale planning approvals', () => {
     );
   });
 });
+
+describe('a ticket without a Work Log', () => {
+  it('ignores the heading the hook creates with the first entry', () => {
+    const bare = ticket.slice(0, ticket.indexOf('## Work Log'));
+    expectSame(bare, appendWorkLogEntry(bare, '- 2026-11-09T01:28:11.624Z Phase: a → b'));
+  });
+});

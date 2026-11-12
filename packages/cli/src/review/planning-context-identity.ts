@@ -181,7 +181,7 @@ function isWorkLogHeading(node: MarkdownNode): boolean {
 }
 
 /**
- * Drops the Work Log's journal entries (top-level lists and paragraphs) while
+ * Drops the Work Log heading and its journal entries (top-level lists and paragraphs) while
  * keeping every other node in it — headings, blockquotes such as the
  * execution-discovery notice, and any unknown type — plus every reference
  * definition, wherever it is nested, since retained text may resolve through it.
@@ -189,7 +189,11 @@ function isWorkLogHeading(node: MarkdownNode): boolean {
 function withoutJournal(nodes: readonly MarkdownNode[]): MarkdownNode[] {
   let inWorkLog = false;
   return nodes.flatMap(node => {
-    if (node.type === 'heading' && (node.depth ?? 0) <= 2) inWorkLog = isWorkLogHeading(node);
+    if (node.type === 'heading' && (node.depth ?? 0) <= 2) {
+      inWorkLog = isWorkLogHeading(node);
+      // The hook creates the heading on a ticket's first entry; it carries no contract.
+      if (inWorkLog) return [];
+    }
     if (!inWorkLog || !JOURNAL_NODE_TYPES.has(node.type)) return [node];
     return nestedDefinitions(node);
   });

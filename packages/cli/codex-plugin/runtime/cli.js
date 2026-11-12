@@ -53401,8 +53401,11 @@ function isWorkLogHeading(node) {
 function withoutJournal(nodes) {
   let inWorkLog = false;
   return nodes.flatMap((node) => {
-    if (node.type === "heading" && (node.depth ?? 0) <= 2)
+    if (node.type === "heading" && (node.depth ?? 0) <= 2) {
       inWorkLog = isWorkLogHeading(node);
+      if (inWorkLog)
+        return [];
+    }
     if (!inWorkLog || !JOURNAL_NODE_TYPES.has(node.type))
       return [node];
     return nestedDefinitions(node);
@@ -58939,6 +58942,7 @@ __export(exports_job, {
   readReviewRouteProofs: () => readReviewRouteProofs,
   executableRedGate: () => executableRedGate,
   completeReviewJob: () => completeReviewJob,
+  changedPlanningSources: () => changedPlanningSources,
   cancelReviewJob: () => cancelReviewJob,
   approvedRetrospectiveReview: () => approvedRetrospectiveReview
 });
@@ -59439,15 +59443,15 @@ function reviewStatusCommand(id2) {
 function changedPlanningSources(recorded, current) {
   if (recorded === undefined || current === undefined)
     return [];
-  const digests = new Map([
-    ...current.targets.map((target) => [`target ${target.path}`, target.digest]),
-    ...current.dependencies.map((source) => [`${source.role} ${source.path}`, source.semantic_digest])
+  const before = planningSourceDigests(recorded);
+  const after = planningSourceDigests(current);
+  return [...new Set([...before.keys(), ...after.keys()])].filter((key) => before.get(key) !== after.get(key));
+}
+function planningSourceDigests(identity2) {
+  return new Map([
+    ...identity2.targets.map((target) => [`target ${target.path}`, target.digest]),
+    ...identity2.dependencies.map((source) => [`${source.role} ${source.path}`, source.semantic_digest])
   ]);
-  const changed = [
-    ...recorded.targets.map((target) => [`target ${target.path}`, target.digest]),
-    ...recorded.dependencies.map((source) => [`${source.role} ${source.path}`, source.semantic_digest])
-  ].filter(([key, digest7]) => digests.get(key) !== digest7).map(([key]) => key);
-  return [...new Set(changed)];
 }
 function staleMessage(changed) {
   return changed.length === 0 ? "The reviewed source changed after this review started; run a fresh review." : `The reviewed source changed after this review started (${changed.join(", ")}); run a fresh review.`;
