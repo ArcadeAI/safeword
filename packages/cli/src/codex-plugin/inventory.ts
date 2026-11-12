@@ -1,3 +1,5 @@
+import { SAFEWORD_ENROLLMENT_MARKER } from '../utils/configured-paths.js';
+
 const LEGACY_SKILL_FILES = [
   'audit/SKILL.md',
   'bdd/SKILL.md',
@@ -85,7 +87,7 @@ export const CODEX_MIGRATION_SCHEMA = {
   hookScriptEvents: LEGACY_HOOK_SCRIPT_EVENTS,
   hookScriptPrefix: 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/',
   packageRunner: 'npx' as const,
-  projectMarker: '.safeword/enrolled',
+  projectMarker: SAFEWORD_ENROLLMENT_MARKER,
   paths: {
     config: '.codex/config.toml',
     backupRoot: '.safeword/codex-migration-backup',

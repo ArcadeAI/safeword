@@ -5117,6 +5117,7 @@ var init_historical_ownership = __esm(() => {
 // src/codex-plugin/inventory.ts
 var LEGACY_SKILL_FILES, LEGACY_SKILL_PATHS, LEGACY_SKILL_DIRECTORIES, LEGACY_AGENT_PATHS, LEGACY_HOOK_EVENTS, LEGACY_HOOK_EVENT_NAMES, LEGACY_HOOK_SCRIPT_EVENTS, LEGACY_HOOK_SCRIPTS, LEGACY_RUNTIME_PATHS, SHARED_RUNTIME_PATHS, CODEX_EXCLUSIVE_RUNTIME_PATHS, CODEX_MIGRATION_SCHEMA;
 var init_inventory = __esm(() => {
+  init_configured_paths();
   LEGACY_SKILL_FILES = [
     "audit/SKILL.md",
     "bdd/SKILL.md",
@@ -5193,7 +5194,7 @@ var init_inventory = __esm(() => {
     hookScriptEvents: LEGACY_HOOK_SCRIPT_EVENTS,
     hookScriptPrefix: 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/',
     packageRunner: "npx",
-    projectMarker: ".safeword/enrolled",
+    projectMarker: SAFEWORD_ENROLLMENT_MARKER,
     paths: {
       config: ".codex/config.toml",
       backupRoot: ".safeword/codex-migration-backup",
