@@ -733,6 +733,11 @@ describe('packagedNamespaceRootLabel', () => {
       'scope, out_of_scope, done_when.',
     ],
     [
+      'capitalised nulls and empty block scalars',
+      'scope: NULL\nout_of_scope: |\ndone_when: >-\n',
+      'scope, out_of_scope, done_when.',
+    ],
+    [
       'quoted empty values',
       'scope: \'\'\nout_of_scope: ""\ndone_when: z\n',
       'scope, out_of_scope.',

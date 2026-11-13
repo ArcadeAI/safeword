@@ -60020,14 +60020,25 @@ function isEmptyFrontmatterValue(value) {
   if (Array.isArray(value))
     return value.every((item) => item.trim() === "");
   const trimmed = value.trim();
-  return trimmed === "" || trimmed === "null" || trimmed === "~";
+  return trimmed === "" || trimmed === "~" || /^null$/i.test(trimmed);
 }
 function parseFrontmatter(yaml) {
   const result = {};
   const lines = yaml.split(/\r?\n/);
   let currentKey = null;
   let currentList = null;
+  let currentBlock = null;
   for (const line of lines) {
+    if (currentBlock !== null && currentKey !== null) {
+      if (line.trim() === "" || /^[ \t]/.test(line)) {
+        currentBlock.push(line.trim());
+        continue;
+      }
+      result[currentKey] = currentBlock.join(`
+`).trim();
+      currentBlock = null;
+      currentKey = null;
+    }
     const listMatch = line.match(/^[ \t]+-[ \t]+(.*)$/);
     if (listMatch) {
       currentList?.push(stripQuotes(withoutComment((listMatch[1] ?? "").trim())));
@@ -60044,7 +60055,10 @@ function parseFrontmatter(yaml) {
       const raw = withoutComment((pairMatch[2] ?? "").trim());
       if (!key)
         continue;
-      if (raw === "") {
+      if (/^[|>][+-]?\d?$/.test(raw)) {
+        currentKey = key;
+        currentBlock = [];
+      } else if (raw === "") {
         currentKey = key;
         currentList = [];
       } else if (raw.startsWith("[") && raw.endsWith("]")) {
@@ -60057,6 +60071,10 @@ function parseFrontmatter(yaml) {
   }
   if (currentList !== null && currentKey !== null) {
     result[currentKey] = currentList;
+  }
+  if (currentBlock !== null && currentKey !== null) {
+    result[currentKey] = currentBlock.join(`
+`).trim();
   }
   return result;
 }

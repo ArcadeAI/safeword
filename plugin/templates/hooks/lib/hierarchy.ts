@@ -37,18 +37,19 @@ export const REQUIRED_INTAKE_FIELDS = ['scope', 'out_of_scope', 'done_when'] as 
 
 /**
  * True when a parsed frontmatter value carries no content: absent, blank, a YAML
- * null (`null` or `~`), or a list whose items are all blank.
+ * null (`null`, `Null`, `NULL` or `~`), or a list whose items are all blank.
  */
 export function isEmptyFrontmatterValue(value: string | string[] | undefined): boolean {
   if (value === undefined) return true;
   if (Array.isArray(value)) return value.every(item => item.trim() === '');
   const trimmed = value.trim();
-  return trimmed === '' || trimmed === 'null' || trimmed === '~';
+  return trimmed === '' || trimmed === '~' || /^null$/i.test(trimmed);
 }
 
 /**
  * Minimal YAML frontmatter parser — no external dependencies.
- * Handles simple key: value pairs and block sequences (- item).
+ * Handles simple key: value pairs, block sequences (- item) and block scalars
+ * (`|` / `>`, whose indented lines are joined with newlines, not folded).
  * All scalar values are returned as raw strings (failsafe mode) so
  * leading-zero IDs like `001` are preserved as '001', not integer 1.
  */
@@ -57,8 +58,20 @@ export function parseFrontmatter(yaml: string): Record<string, string | string[]
   const lines = yaml.split(/\r?\n/);
   let currentKey: string | null = null;
   let currentList: string[] | null = null;
+  let currentBlock: string[] | null = null;
 
   for (const line of lines) {
+    // Block scalar body: indented or blank lines under `key: |` / `key: >`
+    if (currentBlock !== null && currentKey !== null) {
+      if (line.trim() === '' || /^[ \t]/.test(line)) {
+        currentBlock.push(line.trim());
+        continue;
+      }
+      result[currentKey] = currentBlock.join('\n').trim();
+      currentBlock = null;
+      currentKey = null;
+    }
+
     // Block sequence item (e.g. "  - 013")
     const listMatch = line.match(/^[ \t]+-[ \t]+(.*)$/);
     if (listMatch) {
@@ -79,7 +92,11 @@ export function parseFrontmatter(yaml: string): Record<string, string | string[]
       const key = pairMatch[1] ?? '';
       const raw = withoutComment((pairMatch[2] ?? '').trim());
       if (!key) continue;
-      if (raw === '') {
+      if (/^[|>][+-]?\d?$/.test(raw)) {
+        // Start of block scalar
+        currentKey = key;
+        currentBlock = [];
+      } else if (raw === '') {
         // Start of block sequence
         currentKey = key;
         currentList = [];
@@ -93,9 +110,12 @@ export function parseFrontmatter(yaml: string): Record<string, string | string[]
     }
   }
 
-  // Flush trailing list
+  // Flush trailing list or block scalar
   if (currentList !== null && currentKey !== null) {
     result[currentKey] = currentList;
+  }
+  if (currentBlock !== null && currentKey !== null) {
+    result[currentKey] = currentBlock.join('\n').trim();
   }
 
   return result;

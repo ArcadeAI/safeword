@@ -22,7 +22,7 @@ import {
   readTicketFrontmatter,
   resolveTicketDirectory,
   updateTicketStatus,
-} from '../../../../.safeword/hooks/lib/hierarchy';
+} from '../../templates/hooks/lib/hierarchy';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers';
 
 /* eslint-disable unicorn/no-null -- Ticket frontmatter uses null values */
@@ -333,6 +333,8 @@ describe('isEmptyFrontmatterValue', () => {
     ['blank', '  '],
     ['YAML null word', 'null'],
     ['YAML null tilde', '~'],
+    ['capitalised YAML null', 'Null'],
+    ['upper-case YAML null', 'NULL'],
     ['empty list', []],
     ['list of blanks', ['', '  ']],
   ])('treats a %s value as empty', (_label, value) => {
@@ -379,5 +381,22 @@ describe('parseFrontmatter comments', () => {
       title: 'Fix#123',
       scope: ['#563 cost gate'],
     });
+  });
+});
+
+describe('parseFrontmatter block scalars', () => {
+  it('reads indented lines under a literal block as one value', () => {
+    expect(parseFrontmatter('scope: |\n  line one\n  line two\nphase: intake')).toEqual({
+      scope: 'line one\nline two',
+      phase: 'intake',
+    });
+  });
+
+  it('reads an empty folded block as an empty value', () => {
+    expect(parseFrontmatter('scope: >-\nphase: intake')).toEqual({ scope: '', phase: 'intake' });
+  });
+
+  it('keeps list-looking lines inside a block as text', () => {
+    expect(parseFrontmatter('scope: |\n  - not a list')).toEqual({ scope: '- not a list' });
   });
 });
