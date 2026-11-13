@@ -1,6 +1,6 @@
 # Epic #4200 — next critical path, 2026-11-11
 
-## Latest update — November 12
+## Current handoff — November 13
 
 November 13: user explicitly authorized administrative merge of #7190.
 Supported checked Ready promotion succeeded; GitHub confirms verified head
@@ -11,6 +11,12 @@ ESLint release accepts patched minimatch; do not apply the diagnostic override.
 The converter audit remains failed and its journey incomplete. Missing RED,
 failure history and all 33 deferred cases remain. The accepted dispute feature
 below can proceed independently; no qualification or route change authorized.
+
+Next: resume the accepted dispute feature, 26FK42. Keep the converter on hold
+for upstream ESLint. This delivery preserves the planning/evidence records;
+it does not approve or implement the unfinished 5GK1CN proposal.
+
+## Historical observations — November 12
 
 Main `8daeec44c` includes dependency repair #7201. Catalogue repair #7190
 merged that main, passed complete local verification (each full CLI pass:
@@ -139,4 +145,6 @@ already merged; they need no new PR or implementation campaign.
 
 Raw source checks, failed main logs and this handoff are backed up under the
 permanent trial archive's `epic-followthrough-2026-11-11/`. The original working
-tree's pre-existing 5GK1CN/parent changes remain separate and uncommitted.
+tree's pre-existing 5GK1CN/parent changes were separate and uncommitted at
+that capture. They are now saved by preservation delivery AAV0Q5, without
+approving their implementation or completion claims.

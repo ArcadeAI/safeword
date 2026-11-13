@@ -5,7 +5,7 @@ The authority is this epic's existing `ticket.md` `done_when` list (17 items)
 and `spec.md` Rules. No original checkbox, historical RED, approval or status
 is changed. GitHub #4200 being closed does not establish these obligations.
 
-## Current reconciliation — 2026-11-12
+## Current reconciliation — 2026-11-13
 
 November 13 update: #7190 is merged as `fd784a2fd` at verified head
 `75d96de44`, following explicit user admin-merge authority and successful
@@ -15,7 +15,9 @@ converter dependency exception: original dependencies stay unchanged, its audit
 still fails and no native completion is credited. Original failures, missing
 RED, epic status and all 33 deferred cases remain unchanged.
 
-Main is now `8daeec44c`, including #7201's accepted dependency/toolchain
+## Historical reconciliation — 2026-11-12
+
+Observed main on November 12 was `8daeec44c`, including #7201's accepted dependency/toolchain
 repair. Draft catalogue repair #7190 integrated main at `f7081a0ea` and
 passed complete local verification: two CLI passes of 719 files / 11629 tests
 each (14 skipped), 599 acceptance scenarios, 52 proof checks, builds, lint,

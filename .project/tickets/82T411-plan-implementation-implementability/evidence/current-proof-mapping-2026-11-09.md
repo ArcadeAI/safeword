@@ -7,7 +7,7 @@ ESLint and leave converter dependencies unchanged. Its failed audit and native
 proof limitation remain; no original scenario, missing RED or deferred case is
 promoted. The earlier proposal below is diagnostic only and not authorized.
 
-Latest observation, November 12: main `8daeec44c` includes #7201. Draft #7190
+Historical observation, November 12: main `8daeec44c` includes #7201. Draft #7190
 integrated it at `f7081a0ea`; complete local verification, two full CLI passes
 (719 files / 11629 pass / 14 skip each), 599 acceptance scenarios, 52 proof
 checks, builds, lint/typechecks and audits pass. Fresh independent approval

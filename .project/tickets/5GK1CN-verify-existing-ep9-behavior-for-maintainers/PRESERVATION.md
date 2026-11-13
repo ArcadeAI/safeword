@@ -16,5 +16,9 @@ feature remains `@wip`, its 52 ledger rows remain unchecked, and current
 scenario approval is still missing. The failed/stale/reduced-independence
 reviews, missing RED and all 33 deferred cases remain preserved.
 
+The captured spec's accepted-design statement refers to historical planning
+approval `0f3addde-34ce-4e0a-ae67-20351c3fc9ec` in evidence/. It is not an
+approval of the subsequently repaired scenario packet or live execution.
+
 Resume only by reconciling these records against then-current main and the
 accepted parent contract. Saving this packet does not commit us to building it.
