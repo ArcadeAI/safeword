@@ -141,6 +141,7 @@ const PLAN = [
   'Revisit when the approval authority changes.',
   '',
 ].join('\n');
+const PLAN_DIGEST = createHash('sha256').update(PLAN).digest('hex');
 
 const PTY_RUNNER = String.raw`
 import errno, os, pty, select, sys
@@ -690,9 +691,7 @@ describe('a declined design returns to Implementation Planning', () => {
     );
     const events = approvalEvents(project.ledgerPath);
     expect(events).toHaveLength(1);
-    expect(events[0]).toContain(
-      `"planDigest":"${createHash('sha256').update(PLAN).digest('hex')}"`,
-    );
+    expect(events[0]).toContain(`"planDigest":"${PLAN_DIGEST}"`);
     expect(events[0]).toContain('"decision":"declined"');
   });
 });
@@ -977,7 +976,7 @@ describe('implementation-time discoveries return to the affected planning phase'
 describe('an accepted design enters Execution Planning', () => {
   it('binds the approval to the exact approach bytes before advancing', () => {
     const project = fixture(true);
-    const digest = createHash('sha256').update(PLAN).digest('hex');
+    const digest = PLAN_DIGEST;
 
     const result = runApprovalInPty(project, 'y');
 
@@ -1000,7 +999,6 @@ describe('an approval answers only the approach bytes it presented', () => {
   it('refuses a yes when the approach changes while the prompt is open', () => {
     const project = fixture(true);
     const planPath = nodePath.join(project.ticketDirectory, 'impl-plan.md');
-    const presentedDigest = createHash('sha256').update(PLAN).digest('hex');
 
     const result = runApprovalInPty(project, 'y', {
       PTY_RUNNER_APPEND_BEFORE_ANSWER: planPath,
@@ -1010,7 +1008,7 @@ describe('an approval answers only the approach bytes it presented', () => {
     expect(result.stdout).toContain('Approve this reviewed Implementation Plan?');
     expect(readFileSync(planPath, 'utf8')).not.toBe(PLAN);
     expect(result.stdout).toContain('changed while the approval prompt was open');
-    expect(result.stdout).toContain(presentedDigest);
+    expect(result.stdout).toContain(PLAN_DIGEST);
     expect(result.stdout).not.toContain('Approved approach:');
     expect(approvalEvents(project.ledgerPath)).toHaveLength(0);
     expect(phase(project.ticketPath)).toBe('plan-implementation');
@@ -1043,7 +1041,7 @@ describe('an approval answers only the approach bytes it presented', () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('Approved approach:');
     expect(decisionPayloads(project.ledgerPath)).toMatchObject([
-      { decision: 'approved', planDigest: createHash('sha256').update(PLAN).digest('hex') },
+      { decision: 'approved', planDigest: PLAN_DIGEST },
     ]);
     expect(phase(project.ticketPath)).toBe('plan-execution');
   });
@@ -1524,7 +1522,7 @@ syncBuiltinESMExports();
 
   it('records a fresh approval after an earlier approval was superseded', () => {
     const project = fixture(true);
-    const digest = createHash('sha256').update(PLAN).digest('hex');
+    const digest = PLAN_DIGEST;
     const identity = (decision: 'approved' | 'declined') => ({
       authorityRef: 'interactive-cli',
       decision,
