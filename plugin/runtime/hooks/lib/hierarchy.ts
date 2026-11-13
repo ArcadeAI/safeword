@@ -33,6 +33,17 @@ export type NextAction =
 // ---------------------------------------------------------------------------
 
 /**
+ * True when a parsed frontmatter value carries no content: absent, blank, a YAML
+ * null (`null` or `~`), or a list whose items are all blank.
+ */
+export function isEmptyFrontmatterValue(value: string | string[] | undefined): boolean {
+  if (value === undefined) return true;
+  if (Array.isArray(value)) return value.every(item => item.trim() === '');
+  const trimmed = value.trim();
+  return trimmed === '' || trimmed === 'null' || trimmed === '~';
+}
+
+/**
  * Minimal YAML frontmatter parser — no external dependencies.
  * Handles simple key: value pairs and block sequences (- item).
  * All scalar values are returned as raw strings (failsafe mode) so

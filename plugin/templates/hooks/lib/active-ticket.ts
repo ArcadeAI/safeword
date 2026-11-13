@@ -9,7 +9,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import { parseFrontmatter } from './hierarchy.js';
+import { isEmptyFrontmatterValue, parseFrontmatter } from './hierarchy.js';
 import { inspirationContractProvenance } from './feature-provenance.js';
 import { evaluateProductInspiration } from './inspiration.js';
 import { evaluateCriteriaGate, evaluateJtbdGate } from './jtbd.js';
@@ -112,11 +112,6 @@ function childSpecIssues(
  * string `'null'`, or empty — including an empty block sequence (which parses to
  * `[]`) or a list of only blank items.
  */
-function isMissingReadinessFrontmatterField(value: string | string[] | undefined): boolean {
-  if (value === undefined || value === 'null') return true;
-  return Array.isArray(value) ? value.every(item => item.trim() === '') : value.trim() === '';
-}
-
 function addReadinessIssue(
   issues: FeatureTicketReadinessIssue[],
   item: string,
@@ -178,7 +173,7 @@ export function evaluateFeatureTicketReadiness(
     const meta = parseFrontmatter(frontmatterMatch[1] ?? '');
     ticketMeta = meta;
     const missing = REQUIRED_READINESS_FRONTMATTER.filter(field =>
-      isMissingReadinessFrontmatterField(meta[field]),
+      isEmptyFrontmatterValue(meta[field]),
     );
     if (missing.length > 0) {
       addReadinessIssue(

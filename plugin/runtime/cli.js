@@ -3460,7 +3460,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "32b7dc3cd73b8a0361625489238ce88bff32ce01ea27ffcec65d39ceafcb8fdb",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "0182b1726ade1b7e0f035202d87fca254cb9b371e9b4b9830fdd740a1b834e8e",
+        ".safeword/hooks/pre-tool-quality.ts": "e97301f80e7642b044d813a32e1b1522a40c78d08230ff3a6b73097d26e47023",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "9ab95529d1c7ca2ffc1a1303c4f08dc55e35e1e49bd951ca917dfbdf13a95a39",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -60014,6 +60014,14 @@ var init_job = __esm(() => {
 });
 
 // templates/hooks/lib/hierarchy.ts
+function isEmptyFrontmatterValue(value) {
+  if (value === undefined)
+    return true;
+  if (Array.isArray(value))
+    return value.every((item) => item.trim() === "");
+  const trimmed = value.trim();
+  return trimmed === "" || trimmed === "null" || trimmed === "~";
+}
 function parseFrontmatter(yaml) {
   const result = {};
   const lines = yaml.split(/\r?\n/);
@@ -85201,36 +85209,12 @@ function extractTargetPaths(input) {
   const filePath = input.tool_input?.file_path ?? input.tool_input?.notebook_path;
   return filePath ? [filePath] : [];
 }
-function frontmatterBody2(content) {
-  const normalized = content.replaceAll(`\r
-`, `
-`);
-  if (!normalized.startsWith(`---
-`))
-    return;
-  const end = normalized.indexOf(`
----`, 4);
-  return end === -1 ? undefined : normalized.slice(4, end);
-}
-function frontmatterHasField(body, field) {
-  const lines = body.split(`
-`);
-  const fieldPrefix = `${field}:`;
-  for (const [index, line] of lines.entries()) {
-    if (!line.startsWith(fieldPrefix))
-      continue;
-    const afterColon = line.slice(fieldPrefix.length).trim();
-    if (afterColon.length > 0)
-      return true;
-    return lines.slice(index + 1).some((nextLine) => /^\s+-\s*\S/u.test(nextLine));
-  }
-  return false;
-}
 function missingIntakeFields(ticketContent) {
-  const body = frontmatterBody2(ticketContent);
-  if (body === undefined)
+  const match = /^---\r?\n([\s\S]*?)\r?\n---/u.exec(ticketContent);
+  if (!match)
     return [...REQUIRED_INTAKE_FIELDS];
-  return REQUIRED_INTAKE_FIELDS.filter((field) => !frontmatterHasField(body, field));
+  const meta = parseFrontmatter(match[1] ?? "");
+  return REQUIRED_INTAKE_FIELDS.filter((field) => isEmptyFrontmatterValue(meta[field]));
 }
 function testDefinitionsTicketFolder(projectDirectory, targetPath) {
   const ticketsDirectory = nodePath155.join(resolveNamespaceRoot(projectDirectory), "tickets");
@@ -85727,6 +85711,7 @@ async function codexHook(event, options = {}) {
 }
 var EXPLAIN_HINT = "Run `$explain` for a plain-English version of this block.", EXIT_CODE_DENY_MODE = "exit-code", PRE_TOOL_QUALITY_HOOK_PATH = "codex/pre-tool-quality.ts", REQUIRED_INTAKE_FIELDS, MODULE_DIRECTORY, TEMPLATE_DIRECTORIES, POST_TOOL_GUIDANCE_PATH = ".project/codex-post-tool-guidance.txt", PROMPT_CONTEXT_PATH = ".project/codex-prompt-context.txt", STOP_CONTINUATION_PATH = ".project/codex-stop-continuation.txt", CODEX_RUN_IDENTITY_CACHE2 = "codex-run-identity.json", CODEX_REVIEW_STAMP_IDENTITY_CACHE = "codex-review-stamp-identity.json", RECORD_SKILL_INVOCATION_SCRIPT = ".safeword/hooks/record-skill-invocation.ts", WRITE_REVIEW_STAMP_SCRIPT = ".safeword/hooks/write-review-stamp.ts", PACKAGED_RECORD_SKILL_INVOCATION = "project record-skill-invocation", PACKAGED_WRITE_REVIEW_STAMP = "project runtime write-review-stamp", REVIEW_STAMP_CACHE_KEY = "review-stamp", SKILL_NAME_PATTERN3, SHELL_SEPARATORS = ";&|", SHELL_WHITESPACE, SUPPORTED_CODEX_HOOK_EVENTS, stdinCache, INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE = 3, POST_TOOL_CONTEXT_HOOKS, CODEX_HOOK_RUNNERS;
 var init_codex_hook = __esm(() => {
+  init_hierarchy();
   init_legacy_authority();
   init_profile_proof();
   init_project_directory();

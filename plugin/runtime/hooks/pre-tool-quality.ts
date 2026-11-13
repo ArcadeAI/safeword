@@ -27,7 +27,7 @@ import { detectBroadProcessKill } from './lib/process-kill-guard.ts';
 import { evaluateBlockedOnGate } from './lib/blocked-on-gate.ts';
 import { isGitOperationInProgress } from './lib/git-operation.ts';
 import { applyUniqueEdit, collectNewTransitions } from './lib/checkbox-transitions.ts';
-import { parseFrontmatter } from './lib/hierarchy.ts';
+import { isEmptyFrontmatterValue, parseFrontmatter } from './lib/hierarchy.ts';
 import { evaluateCriteriaGate, evaluateJtbdGate } from './lib/jtbd.ts';
 import { hasInspirationActivationCandidate } from './lib/inspiration.ts';
 import { classifyAnnotation, isValidSha, isValidSkipReason } from './lib/parse-annotation.ts';
@@ -244,11 +244,6 @@ function deny(reason: string, remedy?: string, exposeReasonToUser = false): neve
  * string `'null'`, or empty — including an empty block sequence (which parses to
  * `[]`) or a list of only blank items.
  */
-function isMissingFrontmatterField(value: string | string[] | undefined): boolean {
-  if (value === undefined || value === 'null') return true;
-  return Array.isArray(value) ? value.every(item => item.trim() === '') : value.trim() === '';
-}
-
 // Keep the host-provided spelling as the session identity: state files are keyed
 // by that exact string. Use the canonical form only for filesystem containment
 // and relative-path comparisons (`/var` and `/private/var` alias on macOS).
@@ -668,7 +663,7 @@ if (
 
   const meta = parseFrontmatter(frontmatterMatch![1] ?? '');
   const required = ['scope', 'out_of_scope', 'done_when'] as const;
-  const missing = required.filter(field => isMissingFrontmatterField(meta[field]));
+  const missing = required.filter(field => isEmptyFrontmatterValue(meta[field]));
 
   if (missing.length > 0) {
     deny(

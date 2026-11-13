@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
+import { isEmptyFrontmatterValue, parseFrontmatter } from '../../templates/hooks/lib/hierarchy.js';
 import { legacyCodexEventIsViable } from '../codex-plugin/legacy-authority.js';
 import {
   CODEX_PLUGIN_HOOK_EVENTS,
@@ -285,33 +286,11 @@ function extractTargetPaths(input: CodexHookInput): string[] {
   return filePath ? [filePath] : [];
 }
 
-function frontmatterBody(content: string): string | undefined {
-  const normalized = content.replaceAll('\r\n', '\n');
-  if (!normalized.startsWith('---\n')) return undefined;
-  const end = normalized.indexOf('\n---', 4);
-  return end === -1 ? undefined : normalized.slice(4, end);
-}
-
-function frontmatterHasField(body: string, field: string): boolean {
-  const lines = body.split('\n');
-  const fieldPrefix = `${field}:`;
-
-  for (const [index, line] of lines.entries()) {
-    if (!line.startsWith(fieldPrefix)) continue;
-
-    const afterColon = line.slice(fieldPrefix.length).trim();
-    if (afterColon.length > 0) return true;
-
-    return lines.slice(index + 1).some(nextLine => /^\s+-\s*\S/u.test(nextLine));
-  }
-
-  return false;
-}
-
 function missingIntakeFields(ticketContent: string): string[] {
-  const body = frontmatterBody(ticketContent);
-  if (body === undefined) return [...REQUIRED_INTAKE_FIELDS];
-  return REQUIRED_INTAKE_FIELDS.filter(field => !frontmatterHasField(body, field));
+  const match = /^---\r?\n([\s\S]*?)\r?\n---/u.exec(ticketContent);
+  if (!match) return [...REQUIRED_INTAKE_FIELDS];
+  const meta = parseFrontmatter(match[1] ?? '');
+  return REQUIRED_INTAKE_FIELDS.filter(field => isEmptyFrontmatterValue(meta[field]));
 }
 
 function testDefinitionsTicketFolder(
