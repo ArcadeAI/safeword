@@ -1,6 +1,6 @@
 ## Verify Checklist
 
-**Test Suite:** ⚠️ Full local run: 718/719 files passed; 11,637 tests passed, one JavaScript dependency-install/ESLint test timed out, and 12 skipped. The isolated retry passed 1/1 with 10 filtered tests skipped, and the previously lock-blocked proof check passed 52/52. Focused verification: ✓ 95/95 tests pass. Both full Node CI jobs passed on 4c548cc99. No clean single full-local-run claim is made: the prescribed verification command exited 75 after shared test-lock contention, and the later successful retries do not erase that historical status.
+**Test Suite:** ✓ 171/171 focused tests pass after merging main through fd784a2fd as 4ea11f5e5. On November 13 the native Codex completion check passed every configured test and acceptance lane and changed this ticket to done. Full CI also passed on the preceding fix head c84ec834e. Historical full-local evidence remains qualified: 718/719 files passed, 11,637 tests passed, one dependency-install/ESLint timeout passed in isolation, and the aggregate command exited 75 after lock contention; that old run is not relabeled green.
 **Gherkin:** ✅ Acceptance lane passes — 599/599 package scenarios and 11,786 steps; scoped formatter acceptance passed 10/10. The final proof-tag check initially could not acquire the shared lock, then passed all 52 checks on retry. Root planning acceptance defects were separately reproduced on main, as described below.
 **Build:** ✅ Success — the prescribed full verification build lane completed, including CLI, relay, and collector builds.
 **Lint:** ✅ Clean — full root lint and Gherkin validation passed after the latest main merge.
@@ -13,7 +13,13 @@
 **Reconcile:** ✅ No pattern deviation — existing shared lint helper and host-toolchain resolution retained.
 **Experience:** ⚠️ Accepted formatting tradeoff — walked a developer through adding a pending import and using it in a second edit; worst step is the temporary unused-import warning; edit steps added = 0; formatting is deferred to an explicit command or commit tooling.
 **Surface Evidence:** ✅ 3/3 affected surfaces have recorded boundary proof, limited as noted below.
-**Evidence limits:** ⚠️ Local full-run timeout resolved on the one isolated retry; the original run remains recorded as non-green. Shared-lock misses were recovered by a queued proof retry. Root planning acceptance has baseline defects. Native interactive sessions were not rerun, so surface proof is bounded to installed hooks and packaged dispatch commands. Unfiltered local audits report existing advisories; the repository's CI dependency-audit check passed on the same source head, and this fix changes no dependency declarations.
+**Evidence limits:** ⚠️ Historical full-local timeout and lock misses remain recorded; the November 13 native completion run passed without a blocking verdict. Root planning acceptance had baseline defects as detailed below. Native interactive host sessions were not rerun; surface proof is bounded to installed hooks and packaged dispatch commands. Earlier unfiltered audit advisories remain historical findings; this fix changes no dependencies relative to merged main.
+
+## November 13 completion
+
+Merged origin/main through fd784a2fd as 4ea11f5e5. Conflicts were confined to six generated files; all five surfaces were regenerated and verified. The fix sources did not change. Installed pinned Bun 1.4.4 dependencies with the prescribed freshness acknowledgment. All 171 focused tests across seven suites, all package typechecks, parity, and the four scoped audit blocks passed (541 modules / 923 dependencies, no violations).
+
+Repeated the installed-hook walkthrough with real ESLint: the pending import and unrelated formatting survived both edits, the unused-import finding appeared before use, and cleared after use. The real source CLI Codex Stop command then returned an empty successful decision and changed status to done at 2026-11-13T14:43:35.433Z. This supersedes the earlier pending-proof and verify/in_progress state described in the historical follow-up below. No configured test lane was bypassed or replaced with an isolated retry.
 
 ## Surface proof
 

@@ -2,10 +2,10 @@
 id: 0FA865
 slug: preserve-intermediate-edits
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-11-08T23:27:33.769Z
-last_modified: 2026-11-08T23:27:33.769Z
+last_modified: 2026-11-13T14:43:35.433Z
 ---
 
 # Preserve unfinished edits for coding agents
@@ -64,3 +64,4 @@ Post-edit JS/TS checks become observational; explicit lint actions retain mutati
 - Baseline acceptance triage: the planning-review fixture in approve-coherent-implementation-plans.feature failed identically on untouched main e00ea1e65 and this branch; a baseline dry run also reproduced 1,786 undefined steps across six unchanged planning features. Those planning-suite problems are outside #2810/#2809 and are not represented as passing checks.
 - Final results on 4c548cc99: both Node CI jobs and every reported CI check passed. Local full CLI verification had 11,637 passes and one timeout; that single test passed on the one isolated retry. Package acceptance passed 599 scenarios and 11,786 steps; the lock-blocked proof-tag check passed 52/52 on retry. The aggregate verification exit 75 from shared-lock contention remains documented rather than overwritten. No product changes were needed after the main merge.
 - Scoped audit passed with disclosed coverage warnings: no dependency violations, config drift, or broken changed references. Corrected stale automatic-fix descriptions in the README and two website pages; the website built nine pages successfully. Clarified three existing test titles without changing callbacks or assertions. Final CI will validate this documentation/test-label-only follow-up.
+- 2026-11-13: Merged current main through fd784a2fd as 4ea11f5e5 and regenerated six conflicting generated files. Fix sources remained unchanged; 171 focused tests, types, parity, generated surfaces, scoped audit, and the repeated installed-hook walkthrough passed. After pinned dependency refresh, the real source CLI Codex Stop check passed every configured completion lane and changed this ticket to done at 14:43:35 UTC. Earlier lock-blocked attempts remain historical evidence, not a claim of success for those runs.
