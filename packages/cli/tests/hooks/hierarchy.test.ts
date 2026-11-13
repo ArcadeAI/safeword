@@ -17,6 +17,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   findNextWork,
+  isEmptyFrontmatterValue,
   readTicketFrontmatter,
   resolveTicketDirectory,
   updateTicketStatus,
@@ -324,3 +325,23 @@ describe('findNextWork', () => {
   });
 });
 /* eslint-enable unicorn/no-null */
+
+describe('isEmptyFrontmatterValue', () => {
+  it.each([
+    ['absent', undefined],
+    ['blank', '  '],
+    ['YAML null word', 'null'],
+    ['YAML null tilde', '~'],
+    ['empty list', []],
+    ['list of blanks', ['', '  ']],
+  ])('treats a %s value as empty', (_label, value) => {
+    expect(isEmptyFrontmatterValue(value)).toBe(true);
+  });
+
+  it.each([
+    ['scalar', 'auth only'],
+    ['list with one item', ['', 'auth only']],
+  ])('treats a %s as filled', (_label, value) => {
+    expect(isEmptyFrontmatterValue(value)).toBe(false);
+  });
+});

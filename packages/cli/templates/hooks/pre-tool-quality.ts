@@ -239,11 +239,6 @@ function deny(reason: string, remedy?: string, exposeReasonToUser = false): neve
   process.exit(0);
 }
 
-/**
- * A required frontmatter field counts as missing when it is absent, the literal
- * string `'null'`, or empty — including an empty block sequence (which parses to
- * `[]`) or a list of only blank items.
- */
 // Keep the host-provided spelling as the session identity: state files are keyed
 // by that exact string. Use the canonical form only for filesystem containment
 // and relative-path comparisons (`/var` and `/private/var` alias on macOS).

@@ -107,11 +107,6 @@ function childSpecIssues(
   return issues;
 }
 
-/**
- * A required frontmatter field counts as missing when it is absent, the literal
- * string `'null'`, or empty — including an empty block sequence (which parses to
- * `[]`) or a list of only blank items.
- */
 function addReadinessIssue(
   issues: FeatureTicketReadinessIssue[],
   item: string,
