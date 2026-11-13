@@ -6,7 +6,7 @@ folder supply their historical context. This snapshot intentionally includes
 rejected and superseded approaches and reviews of earlier packets.
 
 This change saves planning and evidence only. It does not implement a recovery
-mechanism, authorize CI execution, qualify models, change review routes, grant
+mechanism, authorize the proposed CI proof producer, qualify models, change review routes, grant
 completion eligibility or approve the current scenario packet. Earlier claims
 about available recovery code and qualification belong to their original
 branch/context; they are not verified statements about current main.
