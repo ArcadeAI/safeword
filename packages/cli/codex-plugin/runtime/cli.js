@@ -3460,7 +3460,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "32b7dc3cd73b8a0361625489238ce88bff32ce01ea27ffcec65d39ceafcb8fdb",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "42cfd3593cbe69d041b39d073476537fc196f53e38018e4acc1605d933c3859e",
+        ".safeword/hooks/pre-tool-quality.ts": "8e65ae5f95226aa0911178003799dfd96ee328d2b05fb5e2f57af5bc0381dcd2",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "9ab95529d1c7ca2ffc1a1303c4f08dc55e35e1e49bd951ca917dfbdf13a95a39",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -60063,7 +60063,10 @@ function parseFrontmatter(yaml) {
 function stripQuotes(value) {
   return value.replace(/^(['"])(.*)\1$/, "$2");
 }
-var init_hierarchy = () => {};
+var REQUIRED_INTAKE_FIELDS;
+var init_hierarchy = __esm(() => {
+  REQUIRED_INTAKE_FIELDS = ["scope", "out_of_scope", "done_when"];
+});
 
 // templates/hooks/lib/markdown-structure.ts
 function stripHtmlComments(content) {
@@ -85709,7 +85712,7 @@ async function codexHook(event, options = {}) {
   }
   await CODEX_HOOK_RUNNERS[normalized](projectDirectory);
 }
-var EXPLAIN_HINT = "Run `$explain` for a plain-English version of this block.", EXIT_CODE_DENY_MODE = "exit-code", PRE_TOOL_QUALITY_HOOK_PATH = "codex/pre-tool-quality.ts", REQUIRED_INTAKE_FIELDS, MODULE_DIRECTORY, TEMPLATE_DIRECTORIES, POST_TOOL_GUIDANCE_PATH = ".project/codex-post-tool-guidance.txt", PROMPT_CONTEXT_PATH = ".project/codex-prompt-context.txt", STOP_CONTINUATION_PATH = ".project/codex-stop-continuation.txt", CODEX_RUN_IDENTITY_CACHE2 = "codex-run-identity.json", CODEX_REVIEW_STAMP_IDENTITY_CACHE = "codex-review-stamp-identity.json", RECORD_SKILL_INVOCATION_SCRIPT = ".safeword/hooks/record-skill-invocation.ts", WRITE_REVIEW_STAMP_SCRIPT = ".safeword/hooks/write-review-stamp.ts", PACKAGED_RECORD_SKILL_INVOCATION = "project record-skill-invocation", PACKAGED_WRITE_REVIEW_STAMP = "project runtime write-review-stamp", REVIEW_STAMP_CACHE_KEY = "review-stamp", SKILL_NAME_PATTERN3, SHELL_SEPARATORS = ";&|", SHELL_WHITESPACE, SUPPORTED_CODEX_HOOK_EVENTS, stdinCache, INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE = 3, POST_TOOL_CONTEXT_HOOKS, CODEX_HOOK_RUNNERS;
+var EXPLAIN_HINT = "Run `$explain` for a plain-English version of this block.", EXIT_CODE_DENY_MODE = "exit-code", PRE_TOOL_QUALITY_HOOK_PATH = "codex/pre-tool-quality.ts", MODULE_DIRECTORY, TEMPLATE_DIRECTORIES, POST_TOOL_GUIDANCE_PATH = ".project/codex-post-tool-guidance.txt", PROMPT_CONTEXT_PATH = ".project/codex-prompt-context.txt", STOP_CONTINUATION_PATH = ".project/codex-stop-continuation.txt", CODEX_RUN_IDENTITY_CACHE2 = "codex-run-identity.json", CODEX_REVIEW_STAMP_IDENTITY_CACHE = "codex-review-stamp-identity.json", RECORD_SKILL_INVOCATION_SCRIPT = ".safeword/hooks/record-skill-invocation.ts", WRITE_REVIEW_STAMP_SCRIPT = ".safeword/hooks/write-review-stamp.ts", PACKAGED_RECORD_SKILL_INVOCATION = "project record-skill-invocation", PACKAGED_WRITE_REVIEW_STAMP = "project runtime write-review-stamp", REVIEW_STAMP_CACHE_KEY = "review-stamp", SKILL_NAME_PATTERN3, SHELL_SEPARATORS = ";&|", SHELL_WHITESPACE, SUPPORTED_CODEX_HOOK_EVENTS, stdinCache, INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE = 3, POST_TOOL_CONTEXT_HOOKS, CODEX_HOOK_RUNNERS;
 var init_codex_hook = __esm(() => {
   init_hierarchy();
   init_legacy_authority();
@@ -85718,7 +85721,6 @@ var init_codex_hook = __esm(() => {
   init_owned_paths();
   init_schema();
   init_configured_paths();
-  REQUIRED_INTAKE_FIELDS = ["scope", "out_of_scope", "done_when"];
   MODULE_DIRECTORY = import.meta.dirname;
   TEMPLATE_DIRECTORIES = [
     nodePath155.resolve(MODULE_DIRECTORY, "../resources"),

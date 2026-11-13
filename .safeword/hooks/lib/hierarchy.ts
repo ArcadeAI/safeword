@@ -32,6 +32,9 @@ export type NextAction =
 // Internal helpers
 // ---------------------------------------------------------------------------
 
+/** Ticket frontmatter fields that must carry content before scenarios are written. */
+export const REQUIRED_INTAKE_FIELDS = ['scope', 'out_of_scope', 'done_when'] as const;
+
 /**
  * True when a parsed frontmatter value carries no content: absent, blank, a YAML
  * null (`null` or `~`), or a list whose items are all blank.

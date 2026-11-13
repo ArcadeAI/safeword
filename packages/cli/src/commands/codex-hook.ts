@@ -14,7 +14,11 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import { isEmptyFrontmatterValue, parseFrontmatter } from '../../templates/hooks/lib/hierarchy.js';
+import {
+  isEmptyFrontmatterValue,
+  parseFrontmatter,
+  REQUIRED_INTAKE_FIELDS,
+} from '../../templates/hooks/lib/hierarchy.js';
 import { legacyCodexEventIsViable } from '../codex-plugin/legacy-authority.js';
 import {
   CODEX_PLUGIN_HOOK_EVENTS,
@@ -75,7 +79,6 @@ interface HookProcessResult {
 const EXPLAIN_HINT = 'Run `$explain` for a plain-English version of this block.';
 const EXIT_CODE_DENY_MODE = 'exit-code';
 const PRE_TOOL_QUALITY_HOOK_PATH = 'codex/pre-tool-quality.ts';
-const REQUIRED_INTAKE_FIELDS = ['scope', 'out_of_scope', 'done_when'] as const;
 const MODULE_DIRECTORY = import.meta.dirname;
 const TEMPLATE_DIRECTORIES = [
   nodePath.resolve(MODULE_DIRECTORY, '../resources'),

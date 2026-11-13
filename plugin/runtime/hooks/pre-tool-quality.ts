@@ -27,7 +27,11 @@ import { detectBroadProcessKill } from './lib/process-kill-guard.ts';
 import { evaluateBlockedOnGate } from './lib/blocked-on-gate.ts';
 import { isGitOperationInProgress } from './lib/git-operation.ts';
 import { applyUniqueEdit, collectNewTransitions } from './lib/checkbox-transitions.ts';
-import { isEmptyFrontmatterValue, parseFrontmatter } from './lib/hierarchy.ts';
+import {
+  isEmptyFrontmatterValue,
+  parseFrontmatter,
+  REQUIRED_INTAKE_FIELDS,
+} from './lib/hierarchy.ts';
 import { evaluateCriteriaGate, evaluateJtbdGate } from './lib/jtbd.ts';
 import { hasInspirationActivationCandidate } from './lib/inspiration.ts';
 import { classifyAnnotation, isValidSha, isValidSkipReason } from './lib/parse-annotation.ts';
@@ -657,8 +661,7 @@ if (
   }
 
   const meta = parseFrontmatter(frontmatterMatch![1] ?? '');
-  const required = ['scope', 'out_of_scope', 'done_when'] as const;
-  const missing = required.filter(field => isEmptyFrontmatterValue(meta[field]));
+  const missing = REQUIRED_INTAKE_FIELDS.filter(field => isEmptyFrontmatterValue(meta[field]));
 
   if (missing.length > 0) {
     deny(
