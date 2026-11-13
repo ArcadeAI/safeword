@@ -10,7 +10,7 @@ Verified: 2026-11-13 against `origin/main` merge base fd784a2fd on commit 5792d3
 **Lint:** ✅ Clean (ESLint, Prettier, `tsc --noEmit`)
 **Typecheck:** ✅ Clean
 **Scenarios:** ⏭️ Skipped — patch ticket has no test-definitions.md; the new scenario outline "A human decision binds only the approach it was shown" is proven by three mapped tests
-**Refactor:** ✅ Completed — extracted `presentedApproachDrift` / `presentedApproachRefusal` to keep `approve()` within the complexity limit
+**Refactor:** ✅ Completed — e60c0a1a1 shares one `PLAN_DIGEST` constant across the approval tests (47/47 pass); earlier extraction of `presentedApproachDrift` / `presentedApproachRefusal` kept `approve()` within the complexity limit
 **PR Scope:** ✅ Diff matches ticket scope (plan-approval.ts, its integration tests, feature + proof manifest, one docs sentence, regenerated plugin bundles, this ticket)
 **Dep Drift:** ✅ Clean (no dependencies changed; `uv audit` clean; `bun audit` reports 2 pre-existing Astro advisories in the website package already on main)
 **Parent Epic:** N/A
@@ -20,3 +20,5 @@ Verified: 2026-11-13 against `origin/main` merge base fd784a2fd on commit 5792d3
 **Evidence limits:** ⚠️ Local Go toolchain mismatch (GOROOT 1.25.14 vs go 1.27.1); affected Go failures are not product evidence and pass in CI
 
 Audit passed — 0 errors and 0 warnings. Diff-scoped sync-config is healthy; dependency-cruiser reports 0 violations; `@surface.safeword-cli` is defined; changed tests assert observable CLI output, ledger contents and phase. Knip, clone and dependency-freshness discovery are outside diff-audit scope.
+
+Quality review APPROVED by an independent Codex reviewer (cross-agent) on this PR's diff, with no findings. A first pass over the whole test file raised one error against the pre-existing `a completed Execution Plan …` tests (on main before this PR); it is outside this ticket's scope and left for a follow-up.

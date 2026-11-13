@@ -2,10 +2,10 @@
 id: Z18F7C
 slug: approve-plan-presented-bytes
 type: patch
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-11-13T23:26:42.371Z
-last_modified: 2026-11-13T23:26:42.371Z
+last_modified: 2026-11-13T23:31:00Z
 ---
 
 # Refuse a plan approval when the plan changes while the prompt is open
@@ -25,3 +25,4 @@ last_modified: 2026-11-13T23:26:42.371Z
 - 2026-11-13T23:26:42.371Z Started: Created ticket Z18F7C
 - 2026-11-13T23:30:00Z Found: Fix, tests, scenario outline and docs landed on branch `claude/kind-meninsky-46dfc8` (commit 5792d3656) before this ticket existed; ticket created to carry the readiness evidence for PR ArcadeAI/safeword#7215.
 - 2026-11-13T23:30:00Z Complete: Verify and audit recorded in verify.md; CI 15 pass / 9 skipped.
+- 2026-11-13T23:31:00Z Complete: Refactor e60c0a1a1; quality review approved (cross-agent Codex); closed at user's direction to merge.
