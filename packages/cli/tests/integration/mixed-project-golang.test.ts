@@ -17,6 +17,7 @@ import nodePath from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  assertLintHookSucceeded,
   createTemporaryDirectory,
   fileExists,
   initGitRepo,
@@ -163,14 +164,15 @@ func bad() {
   describe('Lint hook routes to correct linter', () => {
     it('preserves unfinished TypeScript edits', () => {
       const filePath = nodePath.join(projectDirectory, 'src/lint-ts.ts');
-      writeTestFile(projectDirectory, 'src/lint-ts.ts', 'const x=1\n');
+      const source = 'var unfinished=1\n';
+      writeTestFile(projectDirectory, 'src/lint-ts.ts', source);
 
       const result = runLintHook(projectDirectory, filePath);
-      expect(result.status).toBe(0);
+      expect(assertLintHookSucceeded(result)).toContain('no-var');
 
       // Post-edit diagnostics must preserve unfinished edits.
       const formatted = readTestFile(projectDirectory, 'src/lint-ts.ts');
-      expect(formatted).toBe('const x=1\n');
+      expect(formatted).toBe(source);
     });
 
     it.skipIf(!IS_GOLANGCI_LINT_AVAILABLE)('routes .go files to golangci-lint', () => {

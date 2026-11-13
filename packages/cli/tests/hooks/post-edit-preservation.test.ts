@@ -17,9 +17,11 @@ import { cursorEditedMarkerPath } from '../../templates/hooks/lib/cursor-state.t
 
 const hooks = path.resolve(__dirname, '../../templates/hooks');
 const directories: string[] = [];
+const markers: string[] = [];
 afterEach(() => {
   for (const directory of directories.splice(0))
     rmSync(directory, { recursive: true, force: true });
+  for (const marker of markers.splice(0)) rmSync(marker, { force: true });
 });
 
 describe.each(['claude', 'cursor'])('%s post-edit preservation', surface => {
@@ -28,6 +30,8 @@ describe.each(['claude', 'cursor'])('%s post-edit preservation', surface => {
     owner => {
       const root = mkdtempSync(path.join(tmpdir(), 'post-edit-preservation-'));
       directories.push(root);
+      const marker = cursorEditedMarkerPath({ conversation_id: path.basename(root) });
+      if (surface === 'cursor') markers.push(marker);
       const bin = path.join(root, 'node_modules', '.bin');
       mkdirSync(bin, { recursive: true });
       mkdirSync(path.join(root, '.safeword'));
@@ -43,9 +47,10 @@ describe.each(['claude', 'cursor'])('%s post-edit preservation', surface => {
       // Mock only the external tool process. Mutating invocations destroy the
       // fixture, so either hook forgetting check-only mode fails this test.
       const tool = path.join(bin, owner === 'eslint' ? 'bunx' : owner);
+      const witness = path.join(root, 'checker-ran');
       writeFileSync(
         tool,
-        '#!/bin/sh\ncase "$*" in *--fix*|*--write*|fix*) echo rewritten > pending.ts;; esac\necho pending-import-diagnostic\nexit 1\n',
+        '#!/bin/sh\nprintf "%s\\n" "$*" >> checker-ran\ncase "$*" in *--fix*|*--write*|fix*) echo rewritten > pending.ts;; esac\necho pending-import-diagnostic\nexit 1\n',
       );
       chmodSync(tool, 0o755);
       const result = spawnSync(
@@ -74,6 +79,8 @@ describe.each(['claude', 'cursor'])('%s post-edit preservation', surface => {
         },
       );
       expect(result.status, result.stderr).toBe(0);
+      expect(existsSync(witness)).toBe(true);
+      expect(readFileSync(witness, 'utf8')).toContain('pending.ts');
       expect(readFileSync(file, 'utf8')).toBe(original);
       if (surface === 'claude') {
         const output = JSON.parse(result.stdout) as {
@@ -81,9 +88,7 @@ describe.each(['claude', 'cursor'])('%s post-edit preservation', surface => {
         };
         expect(output.hookSpecificOutput.additionalContext).toContain('pending-import-diagnostic');
       } else {
-        const marker = cursorEditedMarkerPath({ conversation_id: path.basename(root) });
         expect(existsSync(marker)).toBe(true);
-        rmSync(marker);
       }
     },
   );
