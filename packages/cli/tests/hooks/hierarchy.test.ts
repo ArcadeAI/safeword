@@ -368,6 +368,10 @@ describe('parseFrontmatter comments', () => {
     ).toEqual({ scope: ['auth', 'billing'], phase: 'intake' });
   });
 
+  it('reads a bare hyphen as a blank item without ending the list', () => {
+    expect(parseFrontmatter('scope:\n  -\n  - auth')).toEqual({ scope: ['', 'auth'] });
+  });
+
   it('reads list items written without indentation', () => {
     expect(parseFrontmatter('scope:\n- auth\n- billing\nphase: intake')).toEqual({
       scope: ['auth', 'billing'],

@@ -60049,7 +60049,7 @@ function continuesPending(entry, line) {
       entry.lines.push(line.trim());
     return belongs;
   }
-  const listMatch = /^[ \t]*-[ \t]+(.*)$/.exec(line);
+  const listMatch = /^[ \t]*-(?:[ \t]+(.*))?$/.exec(line);
   if (listMatch)
     entry.lines.push(parseScalar(listMatch[1] ?? ""));
   return listMatch !== null;
