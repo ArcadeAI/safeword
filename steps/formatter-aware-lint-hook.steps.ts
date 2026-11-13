@@ -9,6 +9,7 @@ import { strict as assert } from 'node:assert';
 import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -52,7 +53,7 @@ function createProject(options: { safewordPrettier?: boolean; biome?: boolean } 
   mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
   writeFileSync(
     nodePath.join(directory, '.safeword/eslint.config.mjs'),
-    `export default [{ files: ['**/*.ts'], rules: { 'no-restricted-syntax': ['error', { selector: 'Program', message: 'fixture-diagnostic' }] } }];\n`,
+    `export default [{ files: ['**/*.ts'], rules: { 'no-restricted-syntax': ['error', { selector: 'Program', message: 'eslint-fixture-diagnostic' }] } }];\n`,
   );
   if (options.safewordPrettier !== false) {
     writeFileSync(nodePath.join(directory, '.safeword/.prettierrc'), SAFEWORD_PRETTIERRC);
@@ -69,7 +70,7 @@ function createProject(options: { safewordPrettier?: boolean; biome?: boolean } 
     const biome = nodePath.join(bin, 'biome');
     writeFileSync(
       biome,
-      '#!/bin/sh\nfor target in "$@"; do :; done\n[ -f "$target" ] || exit 2\ncase "$*" in *--write*|fix*) echo rewritten > "$target";; esac\necho fixture-diagnostic >&2\nexit 1\n',
+      '#!/bin/sh\nfor target in "$@"; do :; done\n[ -f "$target" ] || exit 2\ncase "$*" in *--write*|fix*) echo rewritten > "$target";; esac\necho biome-fixture-diagnostic >&2\nexit 1\n',
     );
     chmodSync(biome, 0o755);
   } else {
@@ -105,10 +106,13 @@ function runLintHookOn(world: FormatterWorld, name: string): void {
     const output = JSON.parse(result.stdout) as {
       hookSpecificOutput: { additionalContext: string };
     };
+    const expectedChecker = existsSync(nodePath.join(directory, 'biome.json'))
+      ? /biome-fixture-diagnostic/u
+      : /eslint-fixture-diagnostic/u;
     assert.match(
       output.hookSpecificOutput.additionalContext,
-      /fixture-diagnostic/,
-      'hook must return a diagnostic from the checker, not a missing-tool warning',
+      expectedChecker,
+      'hook must return the configured checker diagnostic, not a warning or another tool finding',
     );
   }
   world.result = {

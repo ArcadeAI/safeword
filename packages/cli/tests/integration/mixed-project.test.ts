@@ -143,11 +143,12 @@ dependencies = ["ruff", "mypy", "deadcode", "pip-audit"]
       writeTestFile(projectDirectory, 'src/lint-ts.ts', source);
 
       const result = runLintHook(projectDirectory, filePath);
-      expect(assertLintHookSucceeded(result)).toContain('no-var');
+      const output = assertLintHookSucceeded(result);
 
       // Post-edit diagnostics must preserve unfinished edits.
       const formatted = readTestFile(projectDirectory, 'src/lint-ts.ts');
       expect(formatted).toBe(source);
+      expect(output).toContain('no-var');
     });
 
     it.skipIf(!IS_RUFF_AVAILABLE)('routes .py files to Ruff', () => {

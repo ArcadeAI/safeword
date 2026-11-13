@@ -100,11 +100,12 @@ describe('E2E: Golden Path', () => {
 
     // Run the lint hook
     const hook = runLintHook(projectDirectory, filePath);
-    expect(assertLintHookSucceeded(hook)).toContain('no-var');
+    const output = assertLintHookSucceeded(hook);
 
     // Post-edit diagnostics preserve unfinished edits byte-for-byte.
     const result = readTestFile(projectDirectory, 'src/hook-test.ts');
     expect(result).toBe(source);
+    expect(output).toContain('no-var');
   });
 
   it('generated Gherkin lint script checks root and package feature files', () => {
@@ -313,10 +314,11 @@ describe('E2E: TypeScript Lint Hook Fallback', () => {
     // Opt out of repair so the hook must use the fallback path (ESLint without
     // --config), rather than reaching the registry in a test.
     const hook = runLintHook(projectDirectory, filePath, { SAFEWORD_NO_AUTO_UPGRADE: '1' });
-    expect(assertLintHookSucceeded(hook)).toContain('no-var');
+    const output = assertLintHookSucceeded(hook);
 
     // Fallback diagnostics must preserve unfinished edits.
     const result = readTestFile(projectDirectory, 'src/fallback.ts');
     expect(result).toBe(source);
+    expect(output).toContain('no-var');
   });
 });
