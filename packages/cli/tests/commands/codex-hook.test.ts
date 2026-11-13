@@ -722,6 +722,11 @@ describe('packagedNamespaceRootLabel', () => {
     ],
     ['an empty inline list', 'scope: []\nout_of_scope: y\ndone_when: z\n', 'scope.'],
     ['YAML nulls', 'scope: null\nout_of_scope: ~\ndone_when: z\n', 'scope, out_of_scope.'],
+    [
+      'quoted empty values',
+      'scope: \'\'\nout_of_scope: ""\ndone_when: z\n',
+      'scope, out_of_scope.',
+    ],
   ])('blocks test definitions in a custom namespace for %s', (_case, fields, expected) => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
     directories.push(projectDirectory);
@@ -748,30 +753,49 @@ describe('packagedNamespaceRootLabel', () => {
     expect(result.stderr).toContain(`until ticket.md declares ${expected}`);
   });
 
-  it('does not block test definitions in a custom namespace when every intake field has a block list', () => {
-    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
-    directories.push(projectDirectory);
-    markSafewordProject(projectDirectory, CUSTOM_NAMESPACE);
-    const ticketDirectory = nodePath.join(projectDirectory, 'knowledge/tickets/full-scope');
-    mkdirSync(ticketDirectory, { recursive: true });
-    writeFileSync(
-      nodePath.join(ticketDirectory, 'ticket.md'),
-      '---\nid: full-scope\ntype: task\nscope:\n  - x\nout_of_scope:\n  - y\ndone_when:\n  - z\n---\n',
-    );
+  it.each([
+    ['LF', '\n'],
+    ['CRLF', '\r\n'],
+  ])(
+    'allows test definitions in a custom namespace when every intake field has a block list (%s)',
+    (_case, eol) => {
+      const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
+      directories.push(projectDirectory);
+      markSafewordProject(projectDirectory, CUSTOM_NAMESPACE);
+      const ticketDirectory = nodePath.join(projectDirectory, 'knowledge/tickets/full-scope');
+      mkdirSync(ticketDirectory, { recursive: true });
+      writeFileSync(
+        nodePath.join(ticketDirectory, 'ticket.md'),
+        [
+          '---',
+          'id: full-scope',
+          'type: task',
+          'scope:',
+          '  - x',
+          'out_of_scope:',
+          '  - y',
+          'done_when:',
+          '  - z',
+          '---',
+          '',
+        ].join(eol),
+      );
 
-    const result = runCodexHook(
-      projectDirectory,
-      'pre-tool-use',
-      {
-        session_id: 'full-scope-session',
-        tool_name: 'Write',
-        tool_input: { file_path: nodePath.join(ticketDirectory, 'test-definitions.md') },
-      },
-      { CLAUDE_PROJECT_DIR: projectDirectory, SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
-    );
+      const result = runCodexHook(
+        projectDirectory,
+        'pre-tool-use',
+        {
+          session_id: 'full-scope-session',
+          tool_name: 'Write',
+          tool_input: { file_path: nodePath.join(ticketDirectory, 'test-definitions.md') },
+        },
+        { CLAUDE_PROJECT_DIR: projectDirectory, SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
+      );
 
-    expect(result.stderr).not.toContain('until ticket.md declares');
-  });
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(0);
+      expect(result.stderr).not.toContain('until ticket.md declares');
+    },
+  );
 
   it('defers a plugin event to an exact runnable legacy handler', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
