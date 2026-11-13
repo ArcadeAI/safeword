@@ -417,6 +417,26 @@ describe('Claude plugin dispatcher', () => {
     expect(result.stdout).not.toContain('PROJECT-LOCAL INSTRUCTIONS MUST NOT APPEAR');
   });
 
+  it('fails loudly without naming the project handbook when the plugin lacks its own', () => {
+    const projectDirectory = temporary('safeword-plugin-missing-handbook-project-');
+    const pluginData = temporary('safeword-plugin-missing-handbook-data-');
+    const pluginRoot = nodePath.join(temporary('safeword-plugin-missing-handbook-root-'), 'plugin');
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+    rmSync(nodePath.join(pluginRoot, 'resources', 'SAFEWORD.md'));
+    mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(projectDirectory, '.safeword', 'SAFEWORD.md'), '# Stale copy\n');
+
+    const result = dispatchEvent(projectDirectory, pluginData, undefined, 'missing-handbook', {
+      event: 'SessionStart',
+      hookInput: { source: 'startup' },
+      pluginRoot,
+    });
+
+    expect(result.stderr).toContain('resources/SAFEWORD.md');
+    expect(`${result.stdout}${result.stderr}`).not.toContain('.safeword/SAFEWORD.md');
+    expect(result.stdout).not.toMatch(/First, Read `/);
+  });
+
   it.each([
     { source: 'startup', instructsRead: true },
     { source: 'compact', instructsRead: true },

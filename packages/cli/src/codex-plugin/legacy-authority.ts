@@ -4,6 +4,7 @@ import nodePath from 'node:path';
 import { parse } from 'smol-toml';
 
 import { SAFEWORD_SCHEMA } from '../schema.js';
+import { LEGACY_SAFEWORD_ENROLLMENT_MARKER } from '../utils/configured-paths.js';
 import { CODEX_MIGRATION_SCHEMA } from './inventory.js';
 import { legacyCommandIdentity } from './legacy-command.js';
 
@@ -64,8 +65,9 @@ function commandIsViable(
   if (identity?.event !== event) return false;
   if (identity.kind === 'package') {
     return (
-      regularFile(nodePath.join(cwd, SAFEWORD_SCHEMA.codexMigration.projectMarker)) &&
-      packageRunnerIsAvailable(cwd, environment)
+      [SAFEWORD_SCHEMA.codexMigration.projectMarker, LEGACY_SAFEWORD_ENROLLMENT_MARKER].some(
+        marker => regularFile(nodePath.join(cwd, marker)),
+      ) && packageRunnerIsAvailable(cwd, environment)
     );
   }
   return (

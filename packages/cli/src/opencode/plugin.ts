@@ -70,11 +70,13 @@ async function classifyProject(directory) {
   const marker = (async () => {
     let candidate = path.resolve(directory);
     while (true) {
-      try {
-        await access(path.join(candidate, '.safeword', 'SAFEWORD.md'));
-        return { kind: 'marked', directory: candidate };
-      } catch (error) {
-        if (error?.code !== 'ENOENT') return { kind: 'uncertain' };
+      for (const marker of ['enrolled', 'SAFEWORD.md']) {
+        try {
+          await access(path.join(candidate, '.safeword', marker));
+          return { kind: 'marked', directory: candidate };
+        } catch (error) {
+          if (error?.code !== 'ENOENT') return { kind: 'uncertain' };
+        }
       }
       const parent = path.dirname(candidate);
       if (parent === candidate) return { kind: 'unmarked' };

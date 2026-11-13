@@ -45,6 +45,7 @@ import type {
 } from './packs/types.js';
 import { CURSOR_HOOKS, SETTINGS_HOOKS } from './templates/config.js';
 import { AGENTS_MD_LINK, CLAUDE_MD_IMPORT_BLOCK } from './templates/content.js';
+import { SAFEWORD_ENROLLMENT_MARKER_CONTENT } from './utils/configured-paths.js';
 import { getTemplatesDirectory, readFile, readFileSafe } from './utils/fs.js';
 import { filterOutEquivalentSafewordHooks, filterOutSafewordHooks } from './utils/hooks.js';
 import { MCP_SERVERS } from './utils/install.js';
@@ -788,7 +789,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
     // Core files
     '.safeword/AGENTS.md': { template: 'AGENTS.md' },
+    // Project handbook copy for project-delivered hosts (Cursor, legacy Claude/Codex
+    // hooks). Plugin-only projects drop it: see projectLifecycleSchema.
     '.safeword/SAFEWORD.md': { template: 'SAFEWORD.md' },
+    // Dedicated enrollment marker; host hooks run only in projects carrying it
+    // (or, until upgraded, the handbook copy above).
+    '.safeword/enrolled': { content: () => SAFEWORD_ENROLLMENT_MARKER_CONTENT },
     '.safeword/version': { content: () => VERSION },
     // config.json is created by packs system but needs to be registered for cleanup on uninstall
     // Generator returns undefined = never created/updated by schema, but still deleted on uninstall
