@@ -1006,10 +1006,30 @@ describe('an approval answers only the approach bytes it presented', () => {
       PTY_RUNNER_APPEND_BEFORE_ANSWER: planPath,
     });
 
+    expect(result.status).toBe(2);
     expect(result.stdout).toContain('Approve this reviewed Implementation Plan?');
     expect(readFileSync(planPath, 'utf8')).not.toBe(PLAN);
     expect(result.stdout).toContain('changed while the approval prompt was open');
     expect(result.stdout).toContain(presentedDigest);
+    expect(result.stdout).not.toContain('Approved approach:');
+    expect(approvalEvents(project.ledgerPath)).toHaveLength(0);
+    expect(phase(project.ticketPath)).toBe('plan-implementation');
+  });
+
+  it('refuses a yes when a reviewed planning dependency changes while the prompt is open', () => {
+    const project = fixture(true);
+    const planPath = nodePath.join(project.ticketDirectory, 'impl-plan.md');
+
+    const result = runApprovalInPty(project, 'y', {
+      PTY_RUNNER_APPEND_BEFORE_ANSWER: nodePath.join(project.ticketDirectory, 'spec.md'),
+    });
+
+    expect(result.status).toBe(2);
+    expect(result.stdout).toContain('Approve this reviewed Implementation Plan?');
+    expect(readFileSync(planPath, 'utf8')).toBe(PLAN);
+    expect(result.stdout).toContain(
+      'The Implementation Plan review stopped being current while the approval prompt was open',
+    );
     expect(result.stdout).not.toContain('Approved approach:');
     expect(approvalEvents(project.ledgerPath)).toHaveLength(0);
     expect(phase(project.ticketPath)).toBe('plan-implementation');
