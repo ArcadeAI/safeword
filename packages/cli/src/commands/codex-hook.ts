@@ -728,12 +728,14 @@ function maybeDenyTestDefinitionsWrite(projectDirectory: string, targetPath: str
   const ticketFolder = testDefinitionsTicketFolder(projectDirectory, targetPath);
   if (!ticketFolder) return false;
 
-  const ticketPath = nodePath.join(
+  const ticketDirectory = nodePath.join(
     resolveNamespaceRoot(projectDirectory),
     'tickets',
     ticketFolder,
-    'ticket.md',
   );
+  // Like the shared gate, only creation is gated; an existing ledger stays editable.
+  if (existsSync(nodePath.join(ticketDirectory, 'test-definitions.md'))) return false;
+  const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
   const ticketContent = existsSync(ticketPath) ? readFileSync(ticketPath, 'utf8') : '';
   const missing = missingIntakeFields(ticketContent);
   if (missing.length === 0) return false;

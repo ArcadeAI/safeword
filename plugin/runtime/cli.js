@@ -85547,7 +85547,10 @@ function maybeDenyTestDefinitionsWrite(projectDirectory, targetPath) {
   const ticketFolder = testDefinitionsTicketFolder(projectDirectory, targetPath);
   if (!ticketFolder)
     return false;
-  const ticketPath = nodePath155.join(resolveNamespaceRoot(projectDirectory), "tickets", ticketFolder, "ticket.md");
+  const ticketDirectory = nodePath155.join(resolveNamespaceRoot(projectDirectory), "tickets", ticketFolder);
+  if (existsSync76(nodePath155.join(ticketDirectory, "test-definitions.md")))
+    return false;
+  const ticketPath = nodePath155.join(ticketDirectory, "ticket.md");
   const ticketContent = existsSync76(ticketPath) ? readFileSync100(ticketPath, "utf8") : "";
   const missing = missingIntakeFields(ticketContent);
   if (missing.length === 0)

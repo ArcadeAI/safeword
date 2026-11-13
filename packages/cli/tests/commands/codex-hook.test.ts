@@ -820,6 +820,34 @@ describe('packagedNamespaceRootLabel', () => {
     },
   );
 
+  it('allows edits to existing test definitions in a custom namespace even when intake is incomplete', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
+    directories.push(projectDirectory);
+    markSafewordProject(projectDirectory, CUSTOM_NAMESPACE);
+    const ticketDirectory = nodePath.join(projectDirectory, 'knowledge/tickets/legacy-ledger');
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'ticket.md'),
+      '---\nid: legacy-ledger\ntype: task\nscope: ~\nout_of_scope: y\ndone_when: z\n---\n',
+    );
+    const ledgerPath = nodePath.join(ticketDirectory, 'test-definitions.md');
+    writeFileSync(ledgerPath, '# Test definitions\n');
+
+    const result = runCodexHook(
+      projectDirectory,
+      'pre-tool-use',
+      {
+        session_id: 'legacy-ledger-session',
+        tool_name: 'Edit',
+        tool_input: { file_path: ledgerPath },
+      },
+      { CLAUDE_PROJECT_DIR: projectDirectory, SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
+    );
+
+    expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(0);
+    expect(result.stderr).not.toContain('until ticket.md declares');
+  });
+
   it('defers a plugin event to an exact runnable legacy handler', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
     const binDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-bin-'));
