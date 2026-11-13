@@ -728,6 +728,11 @@ describe('packagedNamespaceRootLabel', () => {
       'scope, out_of_scope.',
     ],
     [
+      'empty values with trailing comments',
+      "scope: [] # TODO\nout_of_scope: null # pending\ndone_when: '' # pending\n",
+      'scope, out_of_scope, done_when.',
+    ],
+    [
       'quoted empty values',
       'scope: \'\'\nout_of_scope: ""\ndone_when: z\n',
       'scope, out_of_scope.',

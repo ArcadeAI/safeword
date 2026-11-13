@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "05d5f9fa84ed87d6d40d8bda27de0cd04769167e5b257f785262418f017ca494"
+      "sha256": "275d2bdb5a403cf82d1ed00f9056921075c0a98aa8ac6abf460926d93e3d46f8"
     },
     {
       "path": "runtime/dispatch.js",
@@ -255,7 +255,7 @@
     },
     {
       "path": "runtime/hooks/lib/hierarchy.ts",
-      "sha256": "95446fa373af7d2599ddc3b0ce8de825760dbab1363317905399dff98de9ff13"
+      "sha256": "63522beefc8f69d006dd3d464332169aa7090c280470790ba47551c8c04d4149"
     },
     {
       "path": "runtime/hooks/lib/host-toolchain.ts",
@@ -1251,7 +1251,7 @@
     },
     {
       "path": "templates/hooks/lib/hierarchy.ts",
-      "sha256": "95446fa373af7d2599ddc3b0ce8de825760dbab1363317905399dff98de9ff13"
+      "sha256": "63522beefc8f69d006dd3d464332169aa7090c280470790ba47551c8c04d4149"
     },
     {
       "path": "templates/hooks/lib/host-toolchain.ts",

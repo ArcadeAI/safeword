@@ -62,7 +62,7 @@ export function parseFrontmatter(yaml: string): Record<string, string | string[]
     // Block sequence item (e.g. "  - 013")
     const listMatch = line.match(/^[ \t]+-[ \t]+(.*)$/);
     if (listMatch) {
-      currentList?.push(stripQuotes(withoutWholeComment((listMatch[1] ?? '').trim())));
+      currentList?.push(stripQuotes(withoutComment((listMatch[1] ?? '').trim())));
       continue;
     }
 
@@ -77,7 +77,7 @@ export function parseFrontmatter(yaml: string): Record<string, string | string[]
     const pairMatch = line.match(/^(\w+):\s*(.*)$/);
     if (pairMatch) {
       const key = pairMatch[1] ?? '';
-      const raw = withoutWholeComment((pairMatch[2] ?? '').trim());
+      const raw = withoutComment((pairMatch[2] ?? '').trim());
       if (!key) continue;
       if (raw === '') {
         // Start of block sequence
@@ -102,12 +102,24 @@ export function parseFrontmatter(yaml: string): Record<string, string | string[]
 }
 
 /**
- * A value that is only a YAML comment (`# TODO`, or a bare `#`) carries no
- * content. `#` followed directly by text (`#563`) is kept, so issue references
- * written as list items survive; mid-value hashes (`Fix #123`) are untouched.
+ * Drop a YAML comment from a trimmed value, as a YAML parser would: a value that
+ * is only a comment (`# TODO`) becomes empty, and ` # note` after a quoted
+ * string, flow list or plain scalar is removed. A `#` inside quotes or attached
+ * to text (`Fix#123`) stays. One deliberate difference from YAML: a value that
+ * starts with `#` and text (`#563 cost gate`) is kept, so issue references
+ * written as list items are not silently dropped.
  */
-function withoutWholeComment(value: string): string {
-  return /^#(\s|$)/.test(value) ? '' : value;
+function withoutComment(value: string): string {
+  if (/^#(\s|$)/.test(value)) return '';
+  const quote = value[0];
+  if (quote === "'" || quote === '"') {
+    const close = value.indexOf(quote, 1);
+    return close > 0 && /^\s*(#.*)?$/.test(value.slice(close + 1))
+      ? value.slice(0, close + 1)
+      : value;
+  }
+  const comment = /\s+#/.exec(value);
+  return comment ? value.slice(0, comment.index) : value;
 }
 
 function stripQuotes(value: string): string {

@@ -60030,7 +60030,7 @@ function parseFrontmatter(yaml) {
   for (const line of lines) {
     const listMatch = line.match(/^[ \t]+-[ \t]+(.*)$/);
     if (listMatch) {
-      currentList?.push(stripQuotes(withoutWholeComment((listMatch[1] ?? "").trim())));
+      currentList?.push(stripQuotes(withoutComment((listMatch[1] ?? "").trim())));
       continue;
     }
     if (currentList !== null && currentKey !== null) {
@@ -60041,7 +60041,7 @@ function parseFrontmatter(yaml) {
     const pairMatch = line.match(/^(\w+):\s*(.*)$/);
     if (pairMatch) {
       const key = pairMatch[1] ?? "";
-      const raw = withoutWholeComment((pairMatch[2] ?? "").trim());
+      const raw = withoutComment((pairMatch[2] ?? "").trim());
       if (!key)
         continue;
       if (raw === "") {
@@ -60060,8 +60060,16 @@ function parseFrontmatter(yaml) {
   }
   return result;
 }
-function withoutWholeComment(value) {
-  return /^#(\s|$)/.test(value) ? "" : value;
+function withoutComment(value) {
+  if (/^#(\s|$)/.test(value))
+    return "";
+  const quote = value[0];
+  if (quote === "'" || quote === '"') {
+    const close = value.indexOf(quote, 1);
+    return close > 0 && /^\s*(#.*)?$/.test(value.slice(close + 1)) ? value.slice(0, close + 1) : value;
+  }
+  const comment = /\s+#/.exec(value);
+  return comment ? value.slice(0, comment.index) : value;
 }
 function stripQuotes(value) {
   return value.replace(/^(['"])(.*)\1$/, "$2");

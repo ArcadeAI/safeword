@@ -363,9 +363,20 @@ describe('parseFrontmatter comments', () => {
     expect(parseFrontmatter('scope:\n  - # later')).toEqual({ scope: [''] });
   });
 
-  it('keeps issue references and mid-value hashes as content', () => {
-    expect(parseFrontmatter('title: Fix #123\nscope:\n  - #563 cost gate')).toEqual({
-      title: 'Fix #123',
+  it.each([
+    ['a scalar', 'status: done # finished', { status: 'done' }],
+    ['an empty flow list', 'scope: [] # TODO', { scope: [] }],
+    ['a YAML null', 'scope: null # pending', { scope: 'null' }],
+    ['a quoted empty string', "scope: '' # pending", { scope: '' }],
+    ['a quoted hash', "title: 'a # b' # note", { title: 'a # b' }],
+    ['a list item', 'scope:\n  - auth # first', { scope: ['auth'] }],
+  ])('drops a trailing comment after %s', (_case, yaml, expected) => {
+    expect(parseFrontmatter(yaml)).toEqual(expected);
+  });
+
+  it('keeps issue references and attached hashes as content', () => {
+    expect(parseFrontmatter('title: Fix#123\nscope:\n  - #563 cost gate')).toEqual({
+      title: 'Fix#123',
       scope: ['#563 cost gate'],
     });
   });
