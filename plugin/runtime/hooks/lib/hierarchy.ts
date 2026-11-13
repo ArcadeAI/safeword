@@ -37,11 +37,11 @@ export const REQUIRED_INTAKE_FIELDS = ['scope', 'out_of_scope', 'done_when'] as 
 
 /**
  * True when a parsed frontmatter value carries no content: absent, blank, a YAML
- * null (`null`, `Null`, `NULL` or `~`), or a list whose items are all blank.
+ * null (`null`, `Null`, `NULL` or `~`), or a list whose items are all empty.
  */
 export function isEmptyFrontmatterValue(value: string | string[] | undefined): boolean {
   if (value === undefined) return true;
-  if (Array.isArray(value)) return value.every(item => item.trim() === '');
+  if (Array.isArray(value)) return value.every(item => isEmptyFrontmatterValue(item));
   const trimmed = value.trim();
   return trimmed === '' || trimmed === '~' || /^null$/i.test(trimmed);
 }
@@ -88,7 +88,7 @@ function continuesPending(entry: PendingEntry, line: string): boolean {
     if (belongs) entry.lines.push(line.trim());
     return belongs;
   }
-  const listMatch = /^[ \t]+-[ \t]+(.*)$/.exec(line);
+  const listMatch = /^[ \t]*-[ \t]+(.*)$/.exec(line);
   if (listMatch) entry.lines.push(parseScalar(listMatch[1] ?? ''));
   return listMatch !== null;
 }

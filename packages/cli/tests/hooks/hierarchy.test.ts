@@ -337,6 +337,7 @@ describe('isEmptyFrontmatterValue', () => {
     ['upper-case YAML null', 'NULL'],
     ['empty list', []],
     ['list of blanks', ['', '  ']],
+    ['list of YAML nulls', ['null', '~', 'NULL']],
   ])('treats a %s value as empty', (_label, value) => {
     expect(isEmptyFrontmatterValue(value)).toBe(true);
   });
@@ -365,6 +366,13 @@ describe('parseFrontmatter comments', () => {
     expect(
       parseFrontmatter('scope:\n  # included behavior\n  - auth\n\n  - billing\nphase: intake'),
     ).toEqual({ scope: ['auth', 'billing'], phase: 'intake' });
+  });
+
+  it('reads list items written without indentation', () => {
+    expect(parseFrontmatter('scope:\n- auth\n- billing\nphase: intake')).toEqual({
+      scope: ['auth', 'billing'],
+      phase: 'intake',
+    });
   });
 
   it('reads a comment-only list item as blank', () => {

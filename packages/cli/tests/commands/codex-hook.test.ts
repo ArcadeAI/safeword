@@ -738,6 +738,11 @@ describe('packagedNamespaceRootLabel', () => {
       'scope, out_of_scope, done_when.',
     ],
     [
+      'lists of YAML nulls',
+      'scope: [null]\nout_of_scope: [~]\ndone_when:\n  - NULL\n',
+      'scope, out_of_scope, done_when.',
+    ],
+    [
       'quoted empty values',
       'scope: \'\'\nout_of_scope: ""\ndone_when: z\n',
       'scope, out_of_scope.',
@@ -769,11 +774,12 @@ describe('packagedNamespaceRootLabel', () => {
   });
 
   it.each([
-    ['LF', '\n'],
-    ['CRLF', '\r\n'],
+    ['LF', '\n', '  '],
+    ['CRLF', '\r\n', '  '],
+    ['unindented items', '\n', ''],
   ])(
     'allows test definitions in a custom namespace when every intake field has a block list (%s)',
-    (_case, eol) => {
+    (_case, eol, indent) => {
       const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
       directories.push(projectDirectory);
       markSafewordProject(projectDirectory, CUSTOM_NAMESPACE);
@@ -787,12 +793,12 @@ describe('packagedNamespaceRootLabel', () => {
           'type: task',
           'scope:',
           '  # included behavior',
-          '  - x',
+          `${indent}- x`,
           '',
           'out_of_scope:',
-          '  - y',
+          `${indent}- y`,
           'done_when:',
-          '  - z',
+          `${indent}- z`,
           '---',
           '',
         ].join(eol),

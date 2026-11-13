@@ -60018,7 +60018,7 @@ function isEmptyFrontmatterValue(value) {
   if (value === undefined)
     return true;
   if (Array.isArray(value))
-    return value.every((item) => item.trim() === "");
+    return value.every((item) => isEmptyFrontmatterValue(item));
   const trimmed = value.trim();
   return trimmed === "" || trimmed === "~" || /^null$/i.test(trimmed);
 }
@@ -60049,7 +60049,7 @@ function continuesPending(entry, line) {
       entry.lines.push(line.trim());
     return belongs;
   }
-  const listMatch = /^[ \t]+-[ \t]+(.*)$/.exec(line);
+  const listMatch = /^[ \t]*-[ \t]+(.*)$/.exec(line);
   if (listMatch)
     entry.lines.push(parseScalar(listMatch[1] ?? ""));
   return listMatch !== null;
