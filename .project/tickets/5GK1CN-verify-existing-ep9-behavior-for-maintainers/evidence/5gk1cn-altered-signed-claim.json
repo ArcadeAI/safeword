@@ -1,0 +1,14 @@
+{
+  "synthetic_only": true,
+  "changed_claim": "observation started_at",
+  "signed_with_private_fixture_key": true,
+  "exit": 2,
+  "status": "blocked",
+  "findings": [
+    {
+      "code": "CURRENT_PROOF_REVIEW_INVALID",
+      "message": "No fresh independent dedicated approval covers this proof. Next: obtain a fresh qualified independent review.",
+      "severity": "warning"
+    }
+  ]
+}
