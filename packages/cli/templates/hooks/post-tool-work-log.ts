@@ -46,7 +46,7 @@ if (tool !== 'Edit' && tool !== 'MultiEdit') {
 }
 
 const filePath = input.tool_input?.file_path ?? '';
-if (!filePath.endsWith('/ticket.md') || !isNamespacePath(filePath, 'tickets/')) {
+if (!filePath.endsWith('/ticket.md') || !isNamespacePath(filePath, 'tickets/', projectDirectory)) {
   process.exit(0);
 }
 

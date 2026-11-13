@@ -6,7 +6,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import { getTicketInfo, type TicketDetails } from './active-ticket.js';
-import { resolveNamespaceRoot } from './namespace-root.js';
+import { configuredNamespaceRelativePath, resolveNamespaceRoot } from './namespace-root.js';
 import { getRunStorageKey, resolveRunIdentity, type RunIdentity } from './run-identity.js';
 import { captureGateEscalation } from './self-report.js';
 
@@ -73,7 +73,11 @@ export function isMetaPath(filePath: string, projectDirectory: string): boolean 
     : filePath;
   if (relative.startsWith('..')) return true; // outside the project — not ours to gate
   const normalized = relative.split(nodePath.sep).join('/');
-  return META_PATHS.some(meta => normalized.startsWith(meta) || normalized === meta.slice(0, -1));
+  if (META_PATHS.some(meta => normalized.startsWith(meta) || normalized === meta.slice(0, -1))) {
+    return true;
+  }
+  // A configured `paths.projectRoot` (e.g. `knowledge/`) is as meta as `.project/`.
+  return configuredNamespaceRelativePath(filePath, projectDirectory) !== undefined;
 }
 
 export interface FailureEntry {

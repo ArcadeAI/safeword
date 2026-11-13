@@ -26,6 +26,8 @@ import {
   NAMESPACE_ROOT_LEGACY,
   canonicalEditTarget,
   canonicalPathForGate,
+  configuredNamespaceRelativePath,
+  resolveNamespaceRoot,
   resolveToolProjectDirectory,
 } from './lib/namespace-root.ts';
 import { resolveRunIdentity } from './lib/run-identity.ts';
@@ -204,9 +206,18 @@ const TICKET_FOLDER_PATTERN = new RegExp(`(?:^|/)(?:${escapedNamespaceRoots})/ti
 
 function boundTicketFileForArtifact(filePath: string): string | undefined {
   const match = TICKET_FOLDER_PATTERN.exec(filePath);
-  if (!match) return undefined;
+  if (!match) return configuredRootTicketFile(filePath);
   const ticketFile = `${filePath.slice(0, match.index + match[0].length)}ticket.md`;
   return ticketFile.startsWith('/') ? ticketFile : nodePath.join(projectDirectory, ticketFile);
+}
+
+// Same mapping for a configured `paths.projectRoot`: the regex above only
+// knows the default and legacy roots.
+function configuredRootTicketFile(filePath: string): string | undefined {
+  const relative = configuredNamespaceRelativePath(filePath, projectDirectory);
+  const folder = /^tickets\/[^/]+\//.exec(relative ?? '')?.[0];
+  if (folder === undefined) return undefined;
+  return nodePath.join(resolveNamespaceRoot(projectDirectory), folder, 'ticket.md');
 }
 
 // One `field: value` line from ticket.md frontmatter (same shape getTicketInfo
@@ -240,7 +251,10 @@ function ticketStatusAtHead(ticketFile: string): string | undefined {
 }
 
 function completedTicketIdForVerifyArtifact(filePath: string): string | undefined {
-  if (!isNamespacePath(filePath, 'tickets/') || nodePath.basename(filePath) !== 'verify.md') {
+  if (
+    !isNamespacePath(filePath, 'tickets/', projectDirectory) ||
+    nodePath.basename(filePath) !== 'verify.md'
+  ) {
     return undefined;
   }
   const ticketFile = boundTicketFileForArtifact(filePath);
@@ -256,7 +270,7 @@ function completedTicketIdForVerifyArtifact(filePath: string): string | undefine
 // `sub-ticket.md` shadow the folder's canonical ticket.md and bind to a
 // stray/absent id instead of falling through to the artifact branch.
 if (
-  isNamespacePath(canonicalEditedFile, 'tickets/') &&
+  isNamespacePath(canonicalEditedFile, 'tickets/', projectDirectory) &&
   nodePath.basename(canonicalEditedFile) === 'ticket.md'
 ) {
   const fullPath = canonicalEditedFile.startsWith('/')
@@ -316,7 +330,7 @@ if (
     }
   }
 } else if (
-  isNamespacePath(canonicalEditedFile, 'tickets/') &&
+  isNamespacePath(canonicalEditedFile, 'tickets/', projectDirectory) &&
   canonicalEditedFile.endsWith('.md')
 ) {
   // Broadened binding write-site (#630): a session resuming an in_progress
@@ -329,8 +343,7 @@ if (
   // an explicit non-active status only clears a binding to that same ticket, so
   // annotating an archived ticket cannot unbind the session from its real one.
   // Epics never bind (the stamp helper's in_progress scan excludes them). The
-  // per-phase review trigger deliberately stays ticket.md-scoped, and a custom
-  // paths.projectRoot shares isNamespacePath's default/legacy-root-only limit.
+  // per-phase review trigger deliberately stays ticket.md-scoped.
   const ticketFile = boundTicketFileForArtifact(canonicalEditedFile);
   if (ticketFile !== undefined && existsSync(ticketFile)) {
     const content = readFileSync(ticketFile, 'utf8');
@@ -367,7 +380,7 @@ if (
 // pending set. Per-fingerprint dedup — if we've already armed for this file
 // this session (whether pending or acknowledged), don't re-arm. Monotonic
 // append-only state replaces the prior single-bit boolean (ticket 4N5Y28).
-if (isNamespacePath(editedFile, 'learnings/') && editedFile.endsWith('.md')) {
+if (isNamespacePath(editedFile, 'learnings/', projectDirectory) && editedFile.endsWith('.md')) {
   state.learningsNudgesPending ??= [];
   state.learningsNudgesAcknowledged ??= [];
   const alreadyArmed =

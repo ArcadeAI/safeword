@@ -82,13 +82,13 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/post-tool-lint.ts':
         'ca708ea4ff7d184441e8bc5e5d136c2a5f40ffc74bffb98b6d886451669df7d6',
       '.safeword/hooks/post-tool-quality.ts':
-        '21a850043772895828c0d75de6d7735bc5566da9711f2ed1eac6ecd8c8cbe5db',
+        '6948eac114dd5d841ccc8d0ff74598e9f77316e7a3bbba3ccb4e824345ee088e',
       '.safeword/hooks/post-tool-skill-nudge.ts':
         'a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4',
       '.safeword/hooks/post-tool-sync-learnings.ts':
         'de5f52c221b2f029841beded78d65af80217949072a99c2790d503f492528290',
       '.safeword/hooks/post-tool-work-log.ts':
-        'f8816f7799c564006aad2b6469fbd4d04a51ba2ca3d6f3bdbe93bb03d17b6978',
+        '84b90fb339f15d1e6e549e760740ed4d71c39f7224e74e42be0eafb12d113dc9',
       '.safeword/hooks/pre-tool-architecture-stage.ts':
         'e57bfeb13ccb403159fc8b115122937eaf3d9ca808f2ec6c8c39632fb3a4d679',
       '.safeword/hooks/pre-tool-config-guard.ts':
@@ -98,7 +98,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/pre-tool-git-bare-fix.sh':
         '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
       '.safeword/hooks/pre-tool-quality.ts':
-        '0182b1726ade1b7e0f035202d87fca254cb9b371e9b4b9830fdd740a1b834e8e',
+        '705e5e2ae802c0224f0cc6b8d1f508efe1b376277e6feb34a9af7139b7ab3760',
       '.safeword/hooks/pre-tool-stale-main.ts':
         'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
       '.safeword/hooks/prompt-questions.ts':
