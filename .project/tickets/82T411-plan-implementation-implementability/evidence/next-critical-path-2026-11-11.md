@@ -57,7 +57,7 @@ specific observations.
 Observed main: `e49310a749b89cccc73faeeb843273bb05c95f08`.
 This is a handoff, not a scope change, plan approval or completion receipt.
 
-## 1. Deliver the bounded catalogue-test repair
+## Historical catalogue repair follow-through — superseded by November 13
 
 [Main CI 43090952840](https://github.com/ArcadeAI/safeword/actions/runs/43090952840)
 failed both Node jobs on the same catalogue installation test:

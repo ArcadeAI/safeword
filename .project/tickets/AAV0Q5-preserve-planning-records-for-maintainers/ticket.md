@@ -2,7 +2,7 @@
 id: AAV0Q5
 slug: preserve-planning-records-for-maintainers
 type: patch
-phase: intake
+phase: implement
 status: in_progress
 scope:
   - preserve the existing unfinished 5GK1CN planning packet and its historical review evidence

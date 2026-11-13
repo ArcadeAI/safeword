@@ -1,4 +1,4 @@
-# Current proof mapping — updated 2026-11-11
+# Current proof mapping — updated 2026-11-13
 
 November 13: #7190 verified head `75d96de44` is admin-merged as `fd784a2fd`
 with explicit user authority; checked Ready promotion succeeded. The absent
@@ -6,6 +6,8 @@ human approval was bypassed, not fabricated. User chose to wait for upstream
 ESLint and leave converter dependencies unchanged. Its failed audit and native
 proof limitation remain; no original scenario, missing RED or deferred case is
 promoted. The earlier proposal below is diagnostic only and not authorized.
+
+## Historical observations — November 12 and earlier
 
 Historical observation, November 12: main `8daeec44c` includes #7201. Draft #7190
 integrated it at `f7081a0ea`; complete local verification, two full CLI passes
@@ -34,7 +36,7 @@ the permanent trial archive, `epic-followthrough-2026-11-09/`.
 These are automated mechanics, not measured user comprehension or native-host
 journeys. No original scenario completion or historical RED is inferred.
 
-Current main `e49310a74` includes both #7077 and #7078. Their final PR CI
+Observed main on November 11, `e49310a74`, includes both #7077 and #7078. Their final PR CI
 runs `43086247056` / `43083667144` passed, but later main run `43090952840`
 failed both Node jobs on the same 60s OpenCode catalogue installation timeout
 (`tests/opencode/catalogue.test.ts:86`). Each had 11,631 passing tests,
