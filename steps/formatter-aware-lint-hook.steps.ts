@@ -7,7 +7,15 @@
 
 import { strict as assert } from 'node:assert';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import nodeOs from 'node:os';
 import nodePath from 'node:path';
 
@@ -39,7 +47,7 @@ interface FormatterWorld extends SafewordWorld {
   contentsBefore?: string;
 }
 
-function createProject(options: { safewordPrettier?: boolean } = {}): string {
+function createProject(options: { safewordPrettier?: boolean; biome?: boolean } = {}): string {
   const directory = mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'safeword-fmt-'));
   mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
   writeFileSync(
@@ -49,7 +57,24 @@ function createProject(options: { safewordPrettier?: boolean } = {}): string {
   if (options.safewordPrettier !== false) {
     writeFileSync(nodePath.join(directory, '.safeword/.prettierrc'), SAFEWORD_PRETTIERRC);
   }
-  symlinkSync(REPO_NODE_MODULES, nodePath.join(directory, 'node_modules'), 'dir');
+  if (options.biome) {
+    // Isolate the external Biome process without writing into shared dependencies.
+    // The real hook must invoke this checker and return its diagnostic. Mutation
+    // flags intentionally destroy the source, just as in the hook-entry tests.
+    const bin = nodePath.join(directory, 'node_modules', '.bin');
+    mkdirSync(bin, { recursive: true });
+    for (const tool of ['eslint', 'prettier']) {
+      symlinkSync(nodePath.join(REPO_NODE_MODULES, '.bin', tool), nodePath.join(bin, tool));
+    }
+    const biome = nodePath.join(bin, 'biome');
+    writeFileSync(
+      biome,
+      '#!/bin/sh\nfor target in "$@"; do :; done\n[ -f "$target" ] || exit 2\ncase "$*" in *--write*|fix*) echo rewritten > "$target";; esac\necho fixture-diagnostic >&2\nexit 1\n',
+    );
+    chmodSync(biome, 0o755);
+  } else {
+    symlinkSync(REPO_NODE_MODULES, nodePath.join(directory, 'node_modules'), 'dir');
+  }
   return directory;
 }
 
@@ -75,12 +100,17 @@ function runLintHookOn(world: FormatterWorld, name: string): void {
   });
   assert.equal(result.error, undefined, 'hook process must start');
   assert.equal(result.status, 0, result.stderr);
-  if (name.endsWith('.ts'))
+  if (name.endsWith('.ts')) {
+    assert.match(result.stdout, /^\s*\{/u, 'hook must return structured diagnostics');
+    const output = JSON.parse(result.stdout) as {
+      hookSpecificOutput: { additionalContext: string };
+    };
     assert.match(
-      result.stdout,
-      /fixture-diagnostic|no project-local executable/,
-      'hook must produce an observable diagnostic',
+      output.hookSpecificOutput.additionalContext,
+      /fixture-diagnostic/,
+      'hook must return a diagnostic from the checker, not a missing-tool warning',
     );
+  }
   world.result = {
     stdout: result.stdout ?? '',
     stderr: result.stderr ?? '',
@@ -99,25 +129,25 @@ After(function (this: FormatterWorld) {
 // --- Given: alternative-formatter repos ---------------------------------------
 
 Given('a repo owned by {word} with no Prettier config', function (this: FormatterWorld, formatter) {
-  this.projectDirectory = createProject();
+  this.projectDirectory = createProject({ biome: formatter === 'Biome' });
   const config = FORMATTER_CONFIG_FILE[formatter as string];
   assert.ok(config, `unknown formatter: ${formatter}`);
   writeFile(this.projectDirectory, config, '{}\n');
 });
 
 Given('a Biome repo with no Prettier config', function (this: FormatterWorld) {
-  this.projectDirectory = createProject();
+  this.projectDirectory = createProject({ biome: true });
   writeFile(this.projectDirectory, 'biome.json', '{}\n');
 });
 
 Given('a repo with both a Biome config and a Prettier config', function (this: FormatterWorld) {
-  this.projectDirectory = createProject();
+  this.projectDirectory = createProject({ biome: true });
   writeFile(this.projectDirectory, 'biome.json', '{}\n');
   writeFile(this.projectDirectory, '.prettierrc', '{}\n');
 });
 
 Given('a repo whose formatting is owned by Biome', function (this: FormatterWorld) {
-  this.projectDirectory = createProject();
+  this.projectDirectory = createProject({ biome: true });
   writeFile(this.projectDirectory, 'biome.json', '{}\n');
 });
 
