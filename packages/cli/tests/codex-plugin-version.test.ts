@@ -113,7 +113,22 @@ function runtimeWithoutVerifiedAuthorCopies(
       }),
     );
   };
-  const identities = readLiteral(initializer);
+  // Bun 1.4 preserves the compile-time typeof guard around the inlined copy.
+  let inlinedCopies = initializer;
+  if (ts.isConditionalExpression(initializer)) {
+    const guard = initializer.condition;
+    if (
+      !ts.isBinaryExpression(guard) ||
+      !ts.isTypeOfExpression(guard.left) ||
+      !ts.isObjectLiteralExpression(guard.left.expression) ||
+      guard.operatorToken.kind !== ts.SyntaxKind.EqualsEqualsEqualsToken ||
+      !ts.isStringLiteral(guard.right) ||
+      guard.right.text !== 'object'
+    )
+      throw new Error('Host author identity guard must be statically true');
+    inlinedCopies = initializer.whenTrue;
+  }
+  const identities = readLiteral(inlinedCopies);
   // Independent delivery oracle: do not reuse the generator's phase/path map.
   const expected = Object.fromEntries(
     Object.entries({
@@ -291,7 +306,7 @@ describe('Codex plugin release contract', () => {
           { cwd: project, encoding: 'utf8' },
         );
         expect(install.status, `${install.stdout}${install.stderr}`).toBe(0);
-        expect(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md'))).toBe(true);
+        expect(existsSync(nodePath.join(project, '.safeword/enrolled'))).toBe(true);
         const sessionStart = spawnSync(
           'bun',
           [runtimePath, 'hook', 'codex', 'session-start', '--plugin-hook'],

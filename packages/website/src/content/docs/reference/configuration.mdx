@@ -369,7 +369,7 @@ Safeword has two types of files:
 
 **Partially updated** (your customizations preserved, safeword keys re-merged):
 
-- `AGENTS.md`, `CLAUDE.md` — cleanup only: install removes an obsolete Safeword link block left by older releases and never adds one; `.safeword/SAFEWORD.md` reaches agents through a SessionStart hook
+- `AGENTS.md`, `CLAUDE.md` — cleanup only: install removes an obsolete Safeword link block left by older releases and never adds one; the Safeword handbook (`SAFEWORD.md`) reaches agents through a SessionStart hook
 - `.cursor/hooks.json` — safeword hooks updated, your custom hooks preserved
 - `package.json` — lint/format/`test:bdd` scripts and devDependencies merged (every project; created minimal + private if missing)
 - `.mcp.json` (and `.cursor/mcp.json` with Cursor) — MCP server config merged

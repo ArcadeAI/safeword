@@ -346,13 +346,35 @@ function deny(reason: string): void {
   process.stdout.write(`${JSON.stringify(output)}\n`);
 }
 
-function readPackagedSafewordInstructions(): string | undefined {
+/**
+ * The handbook this bundle ships. When it is missing, return where it should be
+ * so the session hook reports the missing plugin file rather than falling back
+ * to a project copy.
+ */
+function packagedSafewordHandbookPath(): string {
+  return (
+    findPackagedTemplate('SAFEWORD.md') ??
+    nodePath.join(TEMPLATE_DIRECTORIES[0] ?? MODULE_DIRECTORY, 'SAFEWORD.md')
+  );
+}
+
+/** The bundled handbook when it exists and has content; otherwise undefined. */
+function usablePackagedHandbookPath(): string | undefined {
   const instructionsPath = findPackagedTemplate('SAFEWORD.md');
+  if (!instructionsPath || !readFileSync(instructionsPath, 'utf8').trim()) return undefined;
+  return instructionsPath;
+}
+
+function readPackagedSafewordInstructions(): string | undefined {
+  const instructionsPath = usablePackagedHandbookPath();
   if (!instructionsPath) return undefined;
-  if (!readFileSync(instructionsPath, 'utf8').trim()) return undefined;
+  const guidesPath = findPackagedTemplate('guides');
+  const guidesAuthority = guidesPath
+    ? `current workflow guides live under \`${nodePath.resolve(guidesPath)}\``
+    : 'the applicable Safeword guides provide the current workflows';
 
   return [
-    'Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.',
+    `Current Safeword authority: tickets and their user stories/test definitions live under \`.project/\` (or the configured namespace root), and ${guidesAuthority}.`,
     'These current paths supersede retired Safeword instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.',
     '',
     // Same one-line instruction as templates/hooks/lib/safeword-context.ts.
@@ -459,7 +481,7 @@ function runPackagedHook(
     // The copied dispatcher is observation-only and injects package-owned
     // instructions rather than project-local text.
     const packagedContextPath =
-      relativePath === 'session-codex-start.ts' ? (findPackagedTemplate('SAFEWORD.md') ?? '') : '';
+      relativePath === 'session-codex-start.ts' ? packagedSafewordHandbookPath() : '';
     return runHookFile(executableHookPath, rawInput, projectDirectory, packagedContextPath);
   } finally {
     if (temporaryHookDirectory) rmSync(temporaryHookDirectory, { recursive: true, force: true });
@@ -791,6 +813,15 @@ async function runSessionStart(projectDirectory: string): Promise<void> {
   const packagedResult = runPackagedHook('session-codex-start.ts', rawInput, projectDirectory);
   if (packagedResult.stdout.trim() !== '') {
     process.stdout.write(packagedResult.stdout);
+    return;
+  }
+  if (!usablePackagedHandbookPath()) {
+    // Surface the hook's missing-handbook error instead of starting silently.
+    process.stderr.write(
+      packagedResult.stderr ||
+        `Safeword's plugin is missing its packaged handbook at ${packagedSafewordHandbookPath()}. Reinstall or update the Safeword plugin; Safeword does not fall back to a project copy.\n`,
+    );
+    process.exitCode = 1;
     return;
   }
 

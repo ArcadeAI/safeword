@@ -127,7 +127,7 @@ legacy content is preserved and reported instead.
 
 **Result**: Your project now has:
 
-- `.safeword/SAFEWORD.md` - Global patterns and workflows, injected into each session by a SessionStart hook
+- `.safeword/enrolled` - Marks the project as enrolled; Safeword hooks run only in enrolled projects
 - `.safeword/config.json` - Project configuration and detected language packs
 - `.mcp.json` - context7 and Playwright MCP servers
 - `.safeword/guides/`, `.safeword/templates/`, `.safeword/skills/`, and `.safeword/hooks/` - Cursor's project-local workflow runtime (only with `--agents=cursor`)
@@ -146,7 +146,7 @@ legacy content is preserved and reported instead.
 
 **Stack-agnostic** — Safeword is a process layer, not a framework opinion. It works alongside any stack — Next, Elysia, Astro, Django, Gin, whatever you use. Your application code and runtime dependencies are never touched.
 
-**Your agent config stays yours** — Safeword-owned hooks load `.safeword/SAFEWORD.md` for Claude Code, Cursor, and Codex. Claude plugin installation defaults to project-scoped activation in `.claude/settings.json`, while `--scope user` remains available for profile-wide activation; explicit native-update opt-outs are preserved. Codex install merges only its marked SessionStart bootstrap into `.codex/config.toml` and preserves unrelated configuration. Install does not create or add imports to customer-owned `AGENTS.md` or `CLAUDE.md`; existing project instructions remain yours.
+**Your agent config stays yours** — Safeword-owned hooks point Claude Code, Cursor, and Codex at the Safeword handbook (`SAFEWORD.md`): the copy inside the plugin for native plugins, or `.safeword/SAFEWORD.md` for Cursor and older project-hook installs. Claude plugin installation defaults to project-scoped activation in `.claude/settings.json`, while `--scope user` remains available for profile-wide activation; explicit native-update opt-outs are preserved. Codex install merges only its marked SessionStart bootstrap into `.codex/config.toml` and preserves unrelated configuration. Install does not create or add imports to customer-owned `AGENTS.md` or `CLAUDE.md`; existing project instructions remain yours.
 
 **Dev-only tools** — Safeword installs ESLint, Prettier, supporting plugins, `jiti` for TypeScript config loading, plus the Gherkin acceptance lane (cucumber-js + tsx), as `devDependencies` — in every project. A pure Go/Python/Rust repo gets a minimal `private: true` package.json created to host them (the lane's step definitions are TypeScript and test your app from the outside). These are development tools — they never ship with your application or affect your runtime.
 
@@ -253,7 +253,8 @@ You direct in plain language; safeword keeps the agent honest. Auditing the code
 
 Key directories created in your project:
 
-- `.safeword/SAFEWORD.md` and `.safeword/config.json` - Shared project enrollment and configuration
+- `.safeword/enrolled` and `.safeword/config.json` - Shared project enrollment and configuration
+- `.safeword/SAFEWORD.md` - Project copy of the handbook, only when Cursor or an older project-hook install reads it; native plugins ship their own
 - `<namespace-root>/tickets/` - Tickets for complex/multi-step work (context anchors)
 - `.safeword/guides/`, `.safeword/templates/`, and `.safeword/hooks/` - Cursor's project-local workflow runtime, only when Cursor is selected
 - Safeword Claude, Codex, and OpenCode plugins - Profile-scoped workflow skills, hooks, guides, and templates
@@ -385,7 +386,7 @@ creates project-level SessionStart hooks for enrollment and dependency
 preparation, never an edit or shell-command interception hook. Startup remains
 advisory, while repository-owned composed commands require readiness. The plugin does not
 implicitly enroll repositories: until `safeword install` creates
-`.safeword/SAFEWORD.md`, project gates fail open and hooks do not create
+`.safeword/enrolled` (older installs: `.safeword/SAFEWORD.md`), project gates fail open and hooks do not create
 `.project/` or other project state. Codex visibly skips
 unreviewed or changed plugin hooks and directs the builder to Desktop
 Settings > Hooks or `/hooks` in the terminal TUI. Review changed hooks before
@@ -574,8 +575,9 @@ marketplace replacement behavior before users depend on it.
 
 ### How Guide Imports Work
 
-Safeword-owned session hooks load `.safeword/SAFEWORD.md`. SAFEWORD.md then
-routes agents to the relevant guides and templates. Customer `AGENTS.md` and
+Safeword-owned session hooks tell the agent to read the Safeword handbook,
+`SAFEWORD.md` (the plugin's copy for native plugins; `.safeword/SAFEWORD.md` for
+Cursor and older project-hook installs). SAFEWORD.md then routes agents to the relevant guides and templates. Customer `AGENTS.md` and
 `CLAUDE.md` remain independent project context and are never required to import
 Safeword.
 
@@ -733,7 +735,7 @@ Tickets and learnings derive from `paths.projectRoot`. Principles, personas, glo
 
 **How it works**:
 
-1. Safeword-owned host hooks inject `.safeword/SAFEWORD.md` at session boundaries.
+1. Safeword-owned host hooks point the agent at the handbook, `SAFEWORD.md`, at session boundaries (the plugin's copy for native plugins).
 2. SAFEWORD.md routes by work type to focused guides, skills, and templates.
 3. Customer `AGENTS.md` and `CLAUDE.md` add project-specific context without carrying framework bootstrap text.
 4. Learnings remain in `<namespace-root>/learnings/` and are indexed for discovery.

@@ -40,7 +40,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/elicit/SKILL.md':
         '2638c773ce241a886563d1db8abbee70d72edefa780f762c0ed095df0f65cee5',
       '.claude/skills/explain/SKILL.md':
-        '6673eccef3a9e68659c4e4b81b1e63bf9da03b1ae802dc7d22f419cb7c65472d',
+        '6e50852d12d72fa9cb606e68ec14775fdd9e0d41754674de8a48e89377f96ec3',
       '.claude/skills/figure-it-out/SKILL.md':
         '18e2b44e9a91562079b3e1f52fcd9f952b5f57a0f0e7647b0273809848a75c0d',
       '.claude/skills/finish-review/REVIEWER.md':
@@ -124,7 +124,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/session-reply-format.ts':
         '41f7578e93188d5efacdd9ecbf29f72753a6fe98bca71fe321c61f547aeb8532',
       '.safeword/hooks/session-safeword-context.ts':
-        '121d6a37737cde3e3d88793b15a06dfa61af27c7263725ebe487735b821e26b2',
+        '0c54231000694c482d4b2c92fa1bf55f4c6211910c310f2d29836cdb61719937',
       '.safeword/hooks/session-start-reentry.ts':
         'b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d',
       '.safeword/hooks/session-version.ts':
