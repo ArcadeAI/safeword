@@ -119,7 +119,8 @@ function flushPending(result: Record<string, string | string[]>, entry: PendingE
  */
 function parsePairValue(text: string): 'list' | 'block' | { content: string | string[] } {
   const raw = withoutComment(text.trim());
-  if (/^[|>][+-]?\d?$/.test(raw)) return 'block';
+  // `|` or `>`, optionally with a chomping (+/-) and indentation (1-9) indicator in either order
+  if (/^[|>](?:[+-]?[1-9]?|[1-9][+-])$/.test(raw)) return 'block';
   if (raw === '') return 'list';
   if (raw.startsWith('[') && raw.endsWith(']')) {
     const inner = raw.slice(1, -1).trim();

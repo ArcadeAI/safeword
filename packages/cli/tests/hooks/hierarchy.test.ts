@@ -414,6 +414,13 @@ describe('parseFrontmatter block scalars', () => {
     expect(parseFrontmatter('scope: >-\nphase: intake')).toEqual({ scope: '', phase: 'intake' });
   });
 
+  it.each(['|2-', '>-2', '|+', '>'])('reads an empty %s block as an empty value', indicator => {
+    expect(parseFrontmatter(`scope: ${indicator}\nphase: intake`)).toEqual({
+      scope: '',
+      phase: 'intake',
+    });
+  });
+
   it('keeps list-looking lines inside a block as text', () => {
     expect(parseFrontmatter('scope: |\n  - not a list')).toEqual({ scope: '- not a list' });
   });

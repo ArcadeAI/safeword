@@ -60070,7 +60070,7 @@ function flushPending(result, entry) {
 }
 function parsePairValue(text) {
   const raw = withoutComment(text.trim());
-  if (/^[|>][+-]?\d?$/.test(raw))
+  if (/^[|>](?:[+-]?[1-9]?|[1-9][+-])$/.test(raw))
     return "block";
   if (raw === "")
     return "list";
