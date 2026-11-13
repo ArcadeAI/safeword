@@ -361,6 +361,12 @@ describe('parseFrontmatter comments', () => {
     expect(parseFrontmatter('scope: # notes\n  - auth')).toEqual({ scope: ['auth'] });
   });
 
+  it('keeps a block list going across comment and blank lines', () => {
+    expect(
+      parseFrontmatter('scope:\n  # included behavior\n  - auth\n\n  - billing\nphase: intake'),
+    ).toEqual({ scope: ['auth', 'billing'], phase: 'intake' });
+  });
+
   it('reads a comment-only list item as blank', () => {
     expect(parseFrontmatter('scope:\n  - # later')).toEqual({ scope: [''] });
   });

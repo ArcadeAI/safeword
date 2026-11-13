@@ -79,6 +79,9 @@ export function parseFrontmatter(yaml: string): Record<string, string | string[]
       continue;
     }
 
+    // Blank and comment-only lines carry no data and do not end a pending list
+    if (/^\s*(#.*)?$/.test(line)) continue;
+
     // Flush pending list before next key
     if (currentList !== null && currentKey !== null) {
       result[currentKey] = currentList;

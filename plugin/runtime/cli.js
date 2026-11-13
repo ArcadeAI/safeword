@@ -60044,6 +60044,8 @@ function parseFrontmatter(yaml) {
       currentList?.push(stripQuotes(withoutComment((listMatch[1] ?? "").trim())));
       continue;
     }
+    if (/^\s*(#.*)?$/.test(line))
+      continue;
     if (currentList !== null && currentKey !== null) {
       result[currentKey] = currentList;
       currentList = null;
