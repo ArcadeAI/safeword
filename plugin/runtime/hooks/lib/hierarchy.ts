@@ -62,7 +62,7 @@ export function parseFrontmatter(yaml: string): Record<string, string | string[]
     // Block sequence item (e.g. "  - 013")
     const listMatch = line.match(/^[ \t]+-[ \t]+(.*)$/);
     if (listMatch) {
-      currentList?.push(stripQuotes((listMatch[1] ?? '').trim()));
+      currentList?.push(stripQuotes(withoutWholeComment((listMatch[1] ?? '').trim())));
       continue;
     }
 
@@ -77,7 +77,7 @@ export function parseFrontmatter(yaml: string): Record<string, string | string[]
     const pairMatch = line.match(/^(\w+):\s*(.*)$/);
     if (pairMatch) {
       const key = pairMatch[1] ?? '';
-      const raw = (pairMatch[2] ?? '').trim();
+      const raw = withoutWholeComment((pairMatch[2] ?? '').trim());
       if (!key) continue;
       if (raw === '') {
         // Start of block sequence
@@ -99,6 +99,15 @@ export function parseFrontmatter(yaml: string): Record<string, string | string[]
   }
 
   return result;
+}
+
+/**
+ * A value that is only a YAML comment (`# TODO`, or a bare `#`) carries no
+ * content. `#` followed directly by text (`#563`) is kept, so issue references
+ * written as list items survive; mid-value hashes (`Fix #123`) are untouched.
+ */
+function withoutWholeComment(value: string): string {
+  return /^#(\s|$)/.test(value) ? '' : value;
 }
 
 function stripQuotes(value: string): string {

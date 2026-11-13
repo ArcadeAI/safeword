@@ -60030,7 +60030,7 @@ function parseFrontmatter(yaml) {
   for (const line of lines) {
     const listMatch = line.match(/^[ \t]+-[ \t]+(.*)$/);
     if (listMatch) {
-      currentList?.push(stripQuotes((listMatch[1] ?? "").trim()));
+      currentList?.push(stripQuotes(withoutWholeComment((listMatch[1] ?? "").trim())));
       continue;
     }
     if (currentList !== null && currentKey !== null) {
@@ -60041,7 +60041,7 @@ function parseFrontmatter(yaml) {
     const pairMatch = line.match(/^(\w+):\s*(.*)$/);
     if (pairMatch) {
       const key = pairMatch[1] ?? "";
-      const raw = (pairMatch[2] ?? "").trim();
+      const raw = withoutWholeComment((pairMatch[2] ?? "").trim());
       if (!key)
         continue;
       if (raw === "") {
@@ -60059,6 +60059,9 @@ function parseFrontmatter(yaml) {
     result[currentKey] = currentList;
   }
   return result;
+}
+function withoutWholeComment(value) {
+  return /^#(\s|$)/.test(value) ? "" : value;
 }
 function stripQuotes(value) {
   return value.replace(/^(['"])(.*)\1$/, "$2");

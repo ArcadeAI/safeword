@@ -723,6 +723,11 @@ describe('packagedNamespaceRootLabel', () => {
     ['an empty inline list', 'scope: []\nout_of_scope: y\ndone_when: z\n', 'scope.'],
     ['YAML nulls', 'scope: null\nout_of_scope: ~\ndone_when: z\n', 'scope, out_of_scope.'],
     [
+      'comment-only values',
+      'scope: # TODO\nout_of_scope:\n  - # later\ndone_when: z\n',
+      'scope, out_of_scope.',
+    ],
+    [
       'quoted empty values',
       'scope: \'\'\nout_of_scope: ""\ndone_when: z\n',
       'scope, out_of_scope.',

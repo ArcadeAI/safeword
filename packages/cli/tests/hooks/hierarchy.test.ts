@@ -18,6 +18,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   findNextWork,
   isEmptyFrontmatterValue,
+  parseFrontmatter,
   readTicketFrontmatter,
   resolveTicketDirectory,
   updateTicketStatus,
@@ -343,5 +344,29 @@ describe('isEmptyFrontmatterValue', () => {
     ['list with one item', ['', 'auth only']],
   ])('treats a %s as filled', (_label, value) => {
     expect(isEmptyFrontmatterValue(value)).toBe(false);
+  });
+});
+
+describe('parseFrontmatter comments', () => {
+  it('reads a comment-only scalar as the start of an empty block sequence', () => {
+    expect(parseFrontmatter('scope: # TODO\nphase: intake')).toEqual({
+      scope: [],
+      phase: 'intake',
+    });
+  });
+
+  it('keeps list items under a commented key', () => {
+    expect(parseFrontmatter('scope: # notes\n  - auth')).toEqual({ scope: ['auth'] });
+  });
+
+  it('reads a comment-only list item as blank', () => {
+    expect(parseFrontmatter('scope:\n  - # later')).toEqual({ scope: [''] });
+  });
+
+  it('keeps issue references and mid-value hashes as content', () => {
+    expect(parseFrontmatter('title: Fix #123\nscope:\n  - #563 cost gate')).toEqual({
+      title: 'Fix #123',
+      scope: ['#563 cost gate'],
+    });
   });
 });
