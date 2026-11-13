@@ -60024,61 +60024,64 @@ function isEmptyFrontmatterValue(value) {
 }
 function parseFrontmatter(yaml) {
   const result = {};
-  const lines = yaml.split(/\r?\n/);
-  let currentKey = null;
-  let currentList = null;
-  let currentBlock = null;
-  for (const line of lines) {
-    if (currentBlock !== null && currentKey !== null) {
-      if (line.trim() === "" || /^[ \t]/.test(line)) {
-        currentBlock.push(line.trim());
-        continue;
-      }
-      result[currentKey] = currentBlock.join(`
-`).trim();
-      currentBlock = null;
-      currentKey = null;
-    }
-    const listMatch = line.match(/^[ \t]+-[ \t]+(.*)$/);
-    if (listMatch) {
-      currentList?.push(stripQuotes(withoutComment((listMatch[1] ?? "").trim())));
+  let pending;
+  for (const line of yaml.split(/\r?\n/)) {
+    if (pending && continuesPending(pending, line))
       continue;
-    }
-    if (/^\s*(#.*)?$/.test(line))
+    if (pending?.kind === "list" && isBlankOrComment(line))
       continue;
-    if (currentList !== null && currentKey !== null) {
-      result[currentKey] = currentList;
-      currentList = null;
-      currentKey = null;
-    }
-    const pairMatch = line.match(/^(\w+):\s*(.*)$/);
-    if (pairMatch) {
-      const key = pairMatch[1] ?? "";
-      const raw = withoutComment((pairMatch[2] ?? "").trim());
-      if (!key)
-        continue;
-      if (/^[|>][+-]?\d?$/.test(raw)) {
-        currentKey = key;
-        currentBlock = [];
-      } else if (raw === "") {
-        currentKey = key;
-        currentList = [];
-      } else if (raw.startsWith("[") && raw.endsWith("]")) {
-        const inner = raw.slice(1, -1).trim();
-        result[key] = inner === "" ? [] : inner.split(",").map((s) => stripQuotes(s.trim()));
-      } else {
-        result[key] = stripQuotes(raw);
-      }
-    }
+    if (pending)
+      flushPending(result, pending);
+    pending = readPair(line, result);
   }
-  if (currentList !== null && currentKey !== null) {
-    result[currentKey] = currentList;
-  }
-  if (currentBlock !== null && currentKey !== null) {
-    result[currentKey] = currentBlock.join(`
-`).trim();
-  }
+  if (pending)
+    flushPending(result, pending);
   return result;
+}
+function isBlankOrComment(line) {
+  const trimmed = line.trim();
+  return trimmed === "" || trimmed.startsWith("#");
+}
+function continuesPending(entry, line) {
+  if (entry.kind === "block") {
+    const belongs = line.trim() === "" || line.startsWith(" ") || line.startsWith("\t");
+    if (belongs)
+      entry.lines.push(line.trim());
+    return belongs;
+  }
+  const listMatch = /^[ \t]+-[ \t]+(.*)$/.exec(line);
+  if (listMatch)
+    entry.lines.push(parseScalar(listMatch[1] ?? ""));
+  return listMatch !== null;
+}
+function readPair(line, result) {
+  const pairMatch = /^(\w+):\s*(.*)$/.exec(line);
+  if (!pairMatch?.[1])
+    return;
+  const value = parsePairValue(pairMatch[2] ?? "");
+  if (value === "list" || value === "block")
+    return { key: pairMatch[1], kind: value, lines: [] };
+  result[pairMatch[1]] = value.content;
+  return;
+}
+function flushPending(result, entry) {
+  result[entry.key] = entry.kind === "list" ? entry.lines : entry.lines.join(`
+`).trim();
+}
+function parsePairValue(text) {
+  const raw = withoutComment(text.trim());
+  if (/^[|>][+-]?\d?$/.test(raw))
+    return "block";
+  if (raw === "")
+    return "list";
+  if (raw.startsWith("[") && raw.endsWith("]")) {
+    const inner = raw.slice(1, -1).trim();
+    return { content: inner === "" ? [] : inner.split(",").map((item) => stripQuotes(item.trim())) };
+  }
+  return { content: stripQuotes(raw) };
+}
+function parseScalar(text) {
+  return stripQuotes(withoutComment(text.trim()));
 }
 function withoutComment(value) {
   if (/^#(\s|$)/.test(value))
@@ -64587,7 +64590,7 @@ import nodePath76 from "path";
 function parseType(content) {
   return /^type:\s*(\S+)/m.exec(content)?.[1] ?? "task";
 }
-function parseScalar(content, field) {
+function parseScalar2(content, field) {
   const prefix = `${field}:`;
   const line = content.split(`
 `).find((candidate) => candidate.startsWith(prefix));
@@ -64625,8 +64628,8 @@ function readCorpus(cwd, repo) {
     const ticketPath = nodePath76.join(cwd, entry.relativePath, "ticket.md");
     const content = existsSync33(ticketPath) ? readFileSync53(ticketPath, "utf8") : undefined;
     return toTicketInput(entry, parseType(content ?? ""), repo, content, {
-      parent: parseScalar(content ?? "", "parent"),
-      slug: parseScalar(content ?? "", "slug")
+      parent: parseScalar2(content ?? "", "parent"),
+      slug: parseScalar2(content ?? "", "slug")
     });
   });
 }

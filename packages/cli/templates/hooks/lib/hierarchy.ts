@@ -55,73 +55,81 @@ export function isEmptyFrontmatterValue(value: string | string[] | undefined): b
  */
 export function parseFrontmatter(yaml: string): Record<string, string | string[]> {
   const result: Record<string, string | string[]> = {};
-  const lines = yaml.split(/\r?\n/);
-  let currentKey: string | null = null;
-  let currentList: string[] | null = null;
-  let currentBlock: string[] | null = null;
+  let pending: PendingEntry | undefined;
 
-  for (const line of lines) {
-    // Block scalar body: indented or blank lines under `key: |` / `key: >`
-    if (currentBlock !== null && currentKey !== null) {
-      if (line.trim() === '' || /^[ \t]/.test(line)) {
-        currentBlock.push(line.trim());
-        continue;
-      }
-      result[currentKey] = currentBlock.join('\n').trim();
-      currentBlock = null;
-      currentKey = null;
-    }
-
-    // Block sequence item (e.g. "  - 013")
-    const listMatch = line.match(/^[ \t]+-[ \t]+(.*)$/);
-    if (listMatch) {
-      currentList?.push(stripQuotes(withoutComment((listMatch[1] ?? '').trim())));
-      continue;
-    }
-
-    // Blank and comment-only lines carry no data and do not end a pending list
-    if (/^\s*(#.*)?$/.test(line)) continue;
-
-    // Flush pending list before next key
-    if (currentList !== null && currentKey !== null) {
-      result[currentKey] = currentList;
-      currentList = null;
-      currentKey = null;
-    }
-
-    // Key: value pair
-    const pairMatch = line.match(/^(\w+):\s*(.*)$/);
-    if (pairMatch) {
-      const key = pairMatch[1] ?? '';
-      const raw = withoutComment((pairMatch[2] ?? '').trim());
-      if (!key) continue;
-      if (/^[|>][+-]?\d?$/.test(raw)) {
-        // Start of block scalar
-        currentKey = key;
-        currentBlock = [];
-      } else if (raw === '') {
-        // Start of block sequence
-        currentKey = key;
-        currentList = [];
-      } else if (raw.startsWith('[') && raw.endsWith(']')) {
-        // Flow-style array: [item1, item2] or ['013a', '013b']
-        const inner = raw.slice(1, -1).trim();
-        result[key] = inner === '' ? [] : inner.split(',').map(s => stripQuotes(s.trim()));
-      } else {
-        result[key] = stripQuotes(raw);
-      }
-    }
+  for (const line of yaml.split(/\r?\n/)) {
+    if (pending && continuesPending(pending, line)) continue;
+    // Blank and comment-only lines inside a list neither add an item nor end it
+    if (pending?.kind === 'list' && isBlankOrComment(line)) continue;
+    if (pending) flushPending(result, pending);
+    pending = readPair(line, result);
   }
 
-  // Flush trailing list or block scalar
-  if (currentList !== null && currentKey !== null) {
-    result[currentKey] = currentList;
-  }
-  if (currentBlock !== null && currentKey !== null) {
-    result[currentKey] = currentBlock.join('\n').trim();
-  }
-
+  if (pending) flushPending(result, pending);
   return result;
+}
+
+/** A key whose value continues on the following lines. */
+interface PendingEntry {
+  key: string;
+  kind: 'list' | 'block';
+  lines: string[];
+}
+
+function isBlankOrComment(line: string): boolean {
+  const trimmed = line.trim();
+  return trimmed === '' || trimmed.startsWith('#');
+}
+
+/** Add `line` to the pending list or block scalar when it belongs there. */
+function continuesPending(entry: PendingEntry, line: string): boolean {
+  if (entry.kind === 'block') {
+    const belongs = line.trim() === '' || line.startsWith(' ') || line.startsWith('\t');
+    if (belongs) entry.lines.push(line.trim());
+    return belongs;
+  }
+  const listMatch = /^[ \t]+-[ \t]+(.*)$/.exec(line);
+  if (listMatch) entry.lines.push(parseScalar(listMatch[1] ?? ''));
+  return listMatch !== null;
+}
+
+/**
+ * Read a `key: value` line into `result`, or return the entry it starts when its
+ * value continues on the following lines (a block sequence or block scalar).
+ */
+function readPair(
+  line: string,
+  result: Record<string, string | string[]>,
+): PendingEntry | undefined {
+  const pairMatch = /^(\w+):\s*(.*)$/.exec(line);
+  if (!pairMatch?.[1]) return undefined;
+  const value = parsePairValue(pairMatch[2] ?? '');
+  if (value === 'list' || value === 'block') return { key: pairMatch[1], kind: value, lines: [] };
+  result[pairMatch[1]] = value.content;
+  return undefined;
+}
+
+function flushPending(result: Record<string, string | string[]>, entry: PendingEntry): void {
+  result[entry.key] = entry.kind === 'list' ? entry.lines : entry.lines.join('\n').trim();
+}
+
+/**
+ * Classify the text after `key:` — the start of a block scalar (`|` / `>`), the
+ * start of a block sequence (nothing), a flow list (`[a, b]`), or a scalar.
+ */
+function parsePairValue(text: string): 'list' | 'block' | { content: string | string[] } {
+  const raw = withoutComment(text.trim());
+  if (/^[|>][+-]?\d?$/.test(raw)) return 'block';
+  if (raw === '') return 'list';
+  if (raw.startsWith('[') && raw.endsWith(']')) {
+    const inner = raw.slice(1, -1).trim();
+    return { content: inner === '' ? [] : inner.split(',').map(item => stripQuotes(item.trim())) };
+  }
+  return { content: stripQuotes(raw) };
+}
+
+function parseScalar(text: string): string {
+  return stripQuotes(withoutComment(text.trim()));
 }
 
 /**
