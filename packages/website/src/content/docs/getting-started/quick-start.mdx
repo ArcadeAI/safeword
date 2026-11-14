@@ -37,7 +37,7 @@ You use Claude Code, Codex, Cursor, or OpenCode the same way you always have. Ty
 
     **Your agent gets namespaced Safeword workflows.** Native skills use names such as `/safeword:bdd`, `/safeword:verify`, and `/safeword:explain` instead of project-local Safeword skill files.
 
-    **Every edit gets linted automatically.** After your agent writes or modifies a file, Safeword runs your linter. If there are issues, your agent sees them immediately and fixes them—before you even notice.
+    **Every edit gets linted automatically.** After your agent writes or modifies a file, Safeword runs the configured checker. JavaScript and TypeScript checks report problems without rewriting unfinished edits. Claude Code sends those findings back to your agent to address.
 
     **Every phase exit gets an independent review.** When a ticket moves between phases, Safeword requires a review stamp from a fresh-context reviewer (another agent CLI when available) before the move lands. Catches things like missing error handling, security issues, or code that doesn't match the codebase style. An end-of-session review prompt is available as an opt-in (`stopQualityReview: true`).
 
@@ -74,8 +74,8 @@ Open your project and ask your agent to build something real:
 
     1. Run `/reload-plugins` in Claude Code after the default install
     2. Your agent follows namespaced workflows such as `/safeword:bdd`
-    3. Lint runs automatically on new code, auto-fixing what it can
-    4. If there are issues, your agent fixes them before you even see the code
+    3. Lint checks new code automatically, preserving unfinished JavaScript and TypeScript edits
+    4. Your agent receives findings; apply formatting and fixes explicitly or through commit tooling
     5. When the ticket moves to its next phase, an independent review runs first
 
   </TabItem>

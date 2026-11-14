@@ -48,6 +48,35 @@ describe('host JavaScript toolchain resolution', () => {
     directories.length = 0;
   });
 
+  it.each(['biome', 'ultracite'])(
+    'preserves intermediate imports and unrelated formatting with %s post-edit checks',
+    async owner => {
+      const projectRoot = mkdtempSync(path.join(tmpdir(), 'host-check-only-'));
+      directories.push(projectRoot);
+      const file = path.join(projectRoot, 'source.ts');
+      const executable = path.join(projectRoot, 'node_modules', '.bin', owner);
+      mkdirSync(path.dirname(executable), { recursive: true });
+      writeFileSync(
+        path.join(projectRoot, 'biome.json'),
+        owner === 'ultracite' ? '{"extends":["ultracite/core"]}' : '{}',
+      );
+      const original = 'import { pending } from "./pending";\nexport const unrelated={ x:1 };\n';
+      writeFileSync(file, original);
+      writeFileSync(
+        executable,
+        '#!/bin/sh\ncase "$*" in *--write*|fix*) echo rewritten > source.ts;; esac\necho unused-import >&2\nexit 1\n',
+      );
+      chmodSync(executable, 0o755);
+      const script = `const { lintFile } = await import(${JSON.stringify(LINT_MODULE)}); console.log(JSON.stringify(await lintFile(${JSON.stringify(file)}, ${JSON.stringify(projectRoot)}, { fix: false })));`;
+      const { stdout } = await execFileAsync('bun', ['-e', script], {
+        cwd: projectRoot,
+        env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot },
+      });
+      expect(readFileSync(file, 'utf8')).toBe(original);
+      expect(JSON.parse(stdout).errors).toContain('unused-import');
+    },
+  );
+
   it('uses a nested Biome owner with a root-hoisted local executable', () => {
     const projectRoot = mkdtempSync(path.join(tmpdir(), 'host-toolchain-'));
     directories.push(projectRoot);

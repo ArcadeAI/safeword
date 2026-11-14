@@ -133,17 +133,17 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
 After your agent writes or modifies a file, the right linter runs:
 
-| File type               | Linter        |
-| ----------------------- | ------------- |
-| TypeScript / JavaScript | ESLint        |
-| Python                  | Ruff          |
-| Go                      | golangci-lint |
-| Rust                    | clippy        |
-| SQL / dbt               | SQLFluff      |
+| File type               | Linter                                                 |
+| ----------------------- | ------------------------------------------------------ |
+| TypeScript / JavaScript | ESLint, or project-local Biome / Biome-based Ultracite |
+| Python                  | Ruff                                                   |
+| Go                      | golangci-lint                                          |
+| Rust                    | clippy                                                 |
+| SQL / dbt               | SQLFluff                                               |
 
-If a linter isn't installed, it's silently skipped.
+When a required checker is unavailable, Safeword reports a warning where the host supports hook feedback.
 
-**What you see:** Usually nothing — the linter auto-fixes quietly. If problems remain, your agent sees them and fixes them immediately.
+**What you see:** JavaScript and TypeScript checks leave files unchanged while you edit. Where the host supports hook feedback, your agent receives findings to address. Apply formatting and automatic fixes explicitly or through commit tooling. Other languages retain their formatting and fix behavior.
 
 For Go, Safeword formats only the edited file and runs check-only lint on its complete package from that file's directory. Go lint findings are not auto-fixed. Where hook feedback is supported, findings identify their source files and may include issues that predate the edit.
 

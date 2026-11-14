@@ -17,6 +17,7 @@ import nodePath from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  assertLintHookSucceeded,
   createTemporaryDirectory,
   createTypeScriptPackageJson,
   fileExists,
@@ -92,16 +93,19 @@ describe('E2E: Golden Path', () => {
     expect(formatted).toContain('const x = 1');
   });
 
-  it('post-tool-lint hook processes files', () => {
+  it('post-tool-lint hook preserves unfinished TypeScript edits', () => {
     const filePath = nodePath.join(projectDirectory, 'src/hook-test.ts');
-    writeTestFile(projectDirectory, 'src/hook-test.ts', 'const x=1\n');
+    const source = 'var unfinished=1\n';
+    writeTestFile(projectDirectory, 'src/hook-test.ts', source);
 
     // Run the lint hook
-    runLintHook(projectDirectory, filePath);
+    const hook = runLintHook(projectDirectory, filePath);
+    const output = assertLintHookSucceeded(hook);
 
-    // File should be formatted (Prettier adds semicolon and spaces)
+    // Post-edit diagnostics preserve unfinished edits byte-for-byte.
     const result = readTestFile(projectDirectory, 'src/hook-test.ts');
-    expect(result.trim()).toBe('const x = 1;');
+    expect(result).toBe(source);
+    expect(output).toContain('no-var');
   });
 
   it('generated Gherkin lint script checks root and package feature files', () => {
@@ -169,7 +173,7 @@ describe('E2E: Golden Path', () => {
     try {
       expect(result.status).toBe(0);
       expect(result.stdout).toContain('hookSpecificOutput');
-      expect(result.stdout).toContain('Lint errors remain after auto-fix');
+      expect(result.stdout).toContain('Lint diagnostics for');
       expect(result.stdout).toContain('Invalid Gherkin syntax');
     } finally {
       unlinkSync(filePath);
@@ -188,7 +192,7 @@ describe('E2E: Golden Path', () => {
       // preserved byte-for-byte, and the failure is surfaced, not swallowed.
       expect(result.status).toBe(0);
       expect(readTestFile(projectDirectory, 'src/syntax-error.ts')).toBe(unparseable);
-      expect(result.stdout).toContain('Lint errors remain after auto-fix');
+      expect(result.stdout).toContain('Lint diagnostics for');
     });
 
     it('exits cleanly and silently on a non-existent file', () => {
@@ -302,16 +306,19 @@ describe('E2E: TypeScript Lint Hook Fallback', () => {
     }
   });
 
-  it('lint hook formats files without safeword ESLint config', () => {
-    writeTestFile(projectDirectory, 'src/fallback.ts', 'const x=1\n');
+  it('lint hook preserves files without safeword ESLint config', () => {
+    const source = 'var unfinished=1\n';
+    writeTestFile(projectDirectory, 'src/fallback.ts', source);
     const filePath = nodePath.join(projectDirectory, 'src/fallback.ts');
 
     // Opt out of repair so the hook must use the fallback path (ESLint without
-    // --config, then Prettier), rather than reaching the registry in a test.
-    runLintHook(projectDirectory, filePath, { SAFEWORD_NO_AUTO_UPGRADE: '1' });
+    // --config), rather than reaching the registry in a test.
+    const hook = runLintHook(projectDirectory, filePath, { SAFEWORD_NO_AUTO_UPGRADE: '1' });
+    const output = assertLintHookSucceeded(hook);
 
-    // File should still be formatted by Prettier
+    // Fallback diagnostics must preserve unfinished edits.
     const result = readTestFile(projectDirectory, 'src/fallback.ts');
-    expect(result).toContain('const x = 1');
+    expect(result).toBe(source);
+    expect(output).toContain('no-var');
   });
 });
