@@ -14,6 +14,11 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
+import {
+  isEmptyFrontmatterValue,
+  parseFrontmatter,
+  REQUIRED_INTAKE_FIELDS,
+} from '../../templates/hooks/lib/hierarchy.js';
 import { legacyCodexEventIsViable } from '../codex-plugin/legacy-authority.js';
 import {
   CODEX_PLUGIN_HOOK_EVENTS,
@@ -74,7 +79,6 @@ interface HookProcessResult {
 const EXPLAIN_HINT = 'Run `$explain` for a plain-English version of this block.';
 const EXIT_CODE_DENY_MODE = 'exit-code';
 const PRE_TOOL_QUALITY_HOOK_PATH = 'codex/pre-tool-quality.ts';
-const REQUIRED_INTAKE_FIELDS = ['scope', 'out_of_scope', 'done_when'] as const;
 const MODULE_DIRECTORY = import.meta.dirname;
 const TEMPLATE_DIRECTORIES = [
   nodePath.resolve(MODULE_DIRECTORY, '../resources'),
@@ -285,33 +289,11 @@ function extractTargetPaths(input: CodexHookInput): string[] {
   return filePath ? [filePath] : [];
 }
 
-function frontmatterBody(content: string): string | undefined {
-  const normalized = content.replaceAll('\r\n', '\n');
-  if (!normalized.startsWith('---\n')) return undefined;
-  const end = normalized.indexOf('\n---', 4);
-  return end === -1 ? undefined : normalized.slice(4, end);
-}
-
-function frontmatterHasField(body: string, field: string): boolean {
-  const lines = body.split('\n');
-  const fieldPrefix = `${field}:`;
-
-  for (const [index, line] of lines.entries()) {
-    if (!line.startsWith(fieldPrefix)) continue;
-
-    const afterColon = line.slice(fieldPrefix.length).trim();
-    if (afterColon.length > 0) return true;
-
-    return lines.slice(index + 1).some(nextLine => /^\s+-\s*\S/u.test(nextLine));
-  }
-
-  return false;
-}
-
 function missingIntakeFields(ticketContent: string): string[] {
-  const body = frontmatterBody(ticketContent);
-  if (body === undefined) return [...REQUIRED_INTAKE_FIELDS];
-  return REQUIRED_INTAKE_FIELDS.filter(field => !frontmatterHasField(body, field));
+  const match = /^---\r?\n([\s\S]*?)\r?\n---/u.exec(ticketContent);
+  if (!match) return [...REQUIRED_INTAKE_FIELDS];
+  const meta = parseFrontmatter(match[1] ?? '');
+  return REQUIRED_INTAKE_FIELDS.filter(field => isEmptyFrontmatterValue(meta[field]));
 }
 
 function testDefinitionsTicketFolder(
@@ -746,12 +728,14 @@ function maybeDenyTestDefinitionsWrite(projectDirectory: string, targetPath: str
   const ticketFolder = testDefinitionsTicketFolder(projectDirectory, targetPath);
   if (!ticketFolder) return false;
 
-  const ticketPath = nodePath.join(
+  const ticketDirectory = nodePath.join(
     resolveNamespaceRoot(projectDirectory),
     'tickets',
     ticketFolder,
-    'ticket.md',
   );
+  // Like the shared gate, only creation is gated; an existing ledger stays editable.
+  if (existsSync(nodePath.join(ticketDirectory, 'test-definitions.md'))) return false;
+  const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
   const ticketContent = existsSync(ticketPath) ? readFileSync(ticketPath, 'utf8') : '';
   const missing = missingIntakeFields(ticketContent);
   if (missing.length === 0) return false;

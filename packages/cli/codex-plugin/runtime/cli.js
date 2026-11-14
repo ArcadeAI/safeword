@@ -3460,7 +3460,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "32b7dc3cd73b8a0361625489238ce88bff32ce01ea27ffcec65d39ceafcb8fdb",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "705e5e2ae802c0224f0cc6b8d1f508efe1b376277e6feb34a9af7139b7ab3760",
+        ".safeword/hooks/pre-tool-quality.ts": "f824073f88425cf52c9d93e0b16d2f152bacbf9a73024fba06d424829206441a",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "9ab95529d1c7ca2ffc1a1303c4f08dc55e35e1e49bd951ca917dfbdf13a95a39",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -60014,48 +60014,93 @@ var init_job = __esm(() => {
 });
 
 // templates/hooks/lib/hierarchy.ts
+function isEmptyFrontmatterValue(value) {
+  if (value === undefined)
+    return true;
+  if (Array.isArray(value))
+    return value.every((item) => isEmptyFrontmatterValue(item));
+  const trimmed = value.trim();
+  return trimmed === "" || trimmed === "~" || /^null$/i.test(trimmed);
+}
 function parseFrontmatter(yaml) {
   const result = {};
-  const lines = yaml.split(/\r?\n/);
-  let currentKey = null;
-  let currentList = null;
-  for (const line of lines) {
-    const listMatch = line.match(/^[ \t]+-[ \t]+(.*)$/);
-    if (listMatch) {
-      currentList?.push(stripQuotes((listMatch[1] ?? "").trim()));
+  let pending;
+  for (const line of yaml.split(/\r?\n/)) {
+    if (pending && continuesPending(pending, line))
       continue;
-    }
-    if (currentList !== null && currentKey !== null) {
-      result[currentKey] = currentList;
-      currentList = null;
-      currentKey = null;
-    }
-    const pairMatch = line.match(/^(\w+):\s*(.*)$/);
-    if (pairMatch) {
-      const key = pairMatch[1] ?? "";
-      const raw = (pairMatch[2] ?? "").trim();
-      if (!key)
-        continue;
-      if (raw === "") {
-        currentKey = key;
-        currentList = [];
-      } else if (raw.startsWith("[") && raw.endsWith("]")) {
-        const inner = raw.slice(1, -1).trim();
-        result[key] = inner === "" ? [] : inner.split(",").map((s) => stripQuotes(s.trim()));
-      } else {
-        result[key] = stripQuotes(raw);
-      }
-    }
+    if (pending?.kind === "list" && isBlankOrComment(line))
+      continue;
+    if (pending)
+      flushPending(result, pending);
+    pending = readPair(line, result);
   }
-  if (currentList !== null && currentKey !== null) {
-    result[currentKey] = currentList;
-  }
+  if (pending)
+    flushPending(result, pending);
   return result;
+}
+function isBlankOrComment(line) {
+  const trimmed = line.trim();
+  return trimmed === "" || trimmed.startsWith("#");
+}
+function continuesPending(entry, line) {
+  if (entry.kind === "block") {
+    const belongs = line.trim() === "" || line.startsWith(" ") || line.startsWith("\t");
+    if (belongs)
+      entry.lines.push(line.trim());
+    return belongs;
+  }
+  const listMatch = /^[ \t]*-(?:[ \t]+(.*))?$/.exec(line);
+  if (listMatch)
+    entry.lines.push(parseScalar(listMatch[1] ?? ""));
+  return listMatch !== null;
+}
+function readPair(line, result) {
+  const pairMatch = /^(\w+):\s*(.*)$/.exec(line);
+  if (!pairMatch?.[1])
+    return;
+  const value = parsePairValue(pairMatch[2] ?? "");
+  if (value === "list" || value === "block")
+    return { key: pairMatch[1], kind: value, lines: [] };
+  result[pairMatch[1]] = value.content;
+  return;
+}
+function flushPending(result, entry) {
+  result[entry.key] = entry.kind === "list" ? entry.lines : entry.lines.join(`
+`).trim();
+}
+function parsePairValue(text) {
+  const raw = withoutComment(text.trim());
+  if (/^[|>](?:[+-]?[1-9]?|[1-9][+-])$/.test(raw))
+    return "block";
+  if (raw === "")
+    return "list";
+  if (raw.startsWith("[") && raw.endsWith("]")) {
+    const inner = raw.slice(1, -1).trim();
+    return { content: inner === "" ? [] : inner.split(",").map((item) => stripQuotes(item.trim())) };
+  }
+  return { content: stripQuotes(raw) };
+}
+function parseScalar(text) {
+  return stripQuotes(withoutComment(text.trim()));
+}
+function withoutComment(value) {
+  if (/^#(\s|$)/.test(value))
+    return "";
+  const quote = value[0];
+  if (quote === "'" || quote === '"') {
+    const close = value.indexOf(quote, 1);
+    return close > 0 && /^\s*(#.*)?$/.test(value.slice(close + 1)) ? value.slice(0, close + 1) : value;
+  }
+  const comment = /\s+#/.exec(value);
+  return comment ? value.slice(0, comment.index) : value;
 }
 function stripQuotes(value) {
   return value.replace(/^(['"])(.*)\1$/, "$2");
 }
-var init_hierarchy = () => {};
+var REQUIRED_INTAKE_FIELDS;
+var init_hierarchy = __esm(() => {
+  REQUIRED_INTAKE_FIELDS = ["scope", "out_of_scope", "done_when"];
+});
 
 // templates/hooks/lib/markdown-structure.ts
 function stripHtmlComments(content) {
@@ -64545,7 +64590,7 @@ import nodePath76 from "path";
 function parseType(content) {
   return /^type:\s*(\S+)/m.exec(content)?.[1] ?? "task";
 }
-function parseScalar(content, field) {
+function parseScalar2(content, field) {
   const prefix = `${field}:`;
   const line = content.split(`
 `).find((candidate) => candidate.startsWith(prefix));
@@ -64583,8 +64628,8 @@ function readCorpus(cwd, repo) {
     const ticketPath = nodePath76.join(cwd, entry.relativePath, "ticket.md");
     const content = existsSync33(ticketPath) ? readFileSync53(ticketPath, "utf8") : undefined;
     return toTicketInput(entry, parseType(content ?? ""), repo, content, {
-      parent: parseScalar(content ?? "", "parent"),
-      slug: parseScalar(content ?? "", "slug")
+      parent: parseScalar2(content ?? "", "parent"),
+      slug: parseScalar2(content ?? "", "slug")
     });
   });
 }
@@ -85226,36 +85271,12 @@ function extractTargetPaths(input) {
   const filePath = input.tool_input?.file_path ?? input.tool_input?.notebook_path;
   return filePath ? [filePath] : [];
 }
-function frontmatterBody2(content) {
-  const normalized = content.replaceAll(`\r
-`, `
-`);
-  if (!normalized.startsWith(`---
-`))
-    return;
-  const end = normalized.indexOf(`
----`, 4);
-  return end === -1 ? undefined : normalized.slice(4, end);
-}
-function frontmatterHasField(body, field) {
-  const lines = body.split(`
-`);
-  const fieldPrefix = `${field}:`;
-  for (const [index, line] of lines.entries()) {
-    if (!line.startsWith(fieldPrefix))
-      continue;
-    const afterColon = line.slice(fieldPrefix.length).trim();
-    if (afterColon.length > 0)
-      return true;
-    return lines.slice(index + 1).some((nextLine) => /^\s+-\s*\S/u.test(nextLine));
-  }
-  return false;
-}
 function missingIntakeFields(ticketContent) {
-  const body = frontmatterBody2(ticketContent);
-  if (body === undefined)
+  const match = /^---\r?\n([\s\S]*?)\r?\n---/u.exec(ticketContent);
+  if (!match)
     return [...REQUIRED_INTAKE_FIELDS];
-  return REQUIRED_INTAKE_FIELDS.filter((field) => !frontmatterHasField(body, field));
+  const meta = parseFrontmatter(match[1] ?? "");
+  return REQUIRED_INTAKE_FIELDS.filter((field) => isEmptyFrontmatterValue(meta[field]));
 }
 function testDefinitionsTicketFolder(projectDirectory, targetPath) {
   const ticketsDirectory = nodePath155.join(resolveNamespaceRoot(projectDirectory), "tickets");
@@ -85551,7 +85572,10 @@ function maybeDenyTestDefinitionsWrite(projectDirectory, targetPath) {
   const ticketFolder = testDefinitionsTicketFolder(projectDirectory, targetPath);
   if (!ticketFolder)
     return false;
-  const ticketPath = nodePath155.join(resolveNamespaceRoot(projectDirectory), "tickets", ticketFolder, "ticket.md");
+  const ticketDirectory = nodePath155.join(resolveNamespaceRoot(projectDirectory), "tickets", ticketFolder);
+  if (existsSync76(nodePath155.join(ticketDirectory, "test-definitions.md")))
+    return false;
+  const ticketPath = nodePath155.join(ticketDirectory, "ticket.md");
   const ticketContent = existsSync76(ticketPath) ? readFileSync100(ticketPath, "utf8") : "";
   const missing = missingIntakeFields(ticketContent);
   if (missing.length === 0)
@@ -85750,15 +85774,15 @@ async function codexHook(event, options = {}) {
   }
   await CODEX_HOOK_RUNNERS[normalized](projectDirectory);
 }
-var EXPLAIN_HINT = "Run `$explain` for a plain-English version of this block.", EXIT_CODE_DENY_MODE = "exit-code", PRE_TOOL_QUALITY_HOOK_PATH = "codex/pre-tool-quality.ts", REQUIRED_INTAKE_FIELDS, MODULE_DIRECTORY, TEMPLATE_DIRECTORIES, POST_TOOL_GUIDANCE_PATH = ".project/codex-post-tool-guidance.txt", PROMPT_CONTEXT_PATH = ".project/codex-prompt-context.txt", STOP_CONTINUATION_PATH = ".project/codex-stop-continuation.txt", CODEX_RUN_IDENTITY_CACHE2 = "codex-run-identity.json", CODEX_REVIEW_STAMP_IDENTITY_CACHE = "codex-review-stamp-identity.json", RECORD_SKILL_INVOCATION_SCRIPT = ".safeword/hooks/record-skill-invocation.ts", WRITE_REVIEW_STAMP_SCRIPT = ".safeword/hooks/write-review-stamp.ts", PACKAGED_RECORD_SKILL_INVOCATION = "project record-skill-invocation", PACKAGED_WRITE_REVIEW_STAMP = "project runtime write-review-stamp", REVIEW_STAMP_CACHE_KEY = "review-stamp", SKILL_NAME_PATTERN3, SHELL_SEPARATORS = ";&|", SHELL_WHITESPACE, SUPPORTED_CODEX_HOOK_EVENTS, stdinCache, INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE = 3, POST_TOOL_CONTEXT_HOOKS, CODEX_HOOK_RUNNERS;
+var EXPLAIN_HINT = "Run `$explain` for a plain-English version of this block.", EXIT_CODE_DENY_MODE = "exit-code", PRE_TOOL_QUALITY_HOOK_PATH = "codex/pre-tool-quality.ts", MODULE_DIRECTORY, TEMPLATE_DIRECTORIES, POST_TOOL_GUIDANCE_PATH = ".project/codex-post-tool-guidance.txt", PROMPT_CONTEXT_PATH = ".project/codex-prompt-context.txt", STOP_CONTINUATION_PATH = ".project/codex-stop-continuation.txt", CODEX_RUN_IDENTITY_CACHE2 = "codex-run-identity.json", CODEX_REVIEW_STAMP_IDENTITY_CACHE = "codex-review-stamp-identity.json", RECORD_SKILL_INVOCATION_SCRIPT = ".safeword/hooks/record-skill-invocation.ts", WRITE_REVIEW_STAMP_SCRIPT = ".safeword/hooks/write-review-stamp.ts", PACKAGED_RECORD_SKILL_INVOCATION = "project record-skill-invocation", PACKAGED_WRITE_REVIEW_STAMP = "project runtime write-review-stamp", REVIEW_STAMP_CACHE_KEY = "review-stamp", SKILL_NAME_PATTERN3, SHELL_SEPARATORS = ";&|", SHELL_WHITESPACE, SUPPORTED_CODEX_HOOK_EVENTS, stdinCache, INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE = 3, POST_TOOL_CONTEXT_HOOKS, CODEX_HOOK_RUNNERS;
 var init_codex_hook = __esm(() => {
+  init_hierarchy();
   init_legacy_authority();
   init_profile_proof();
   init_project_directory();
   init_owned_paths();
   init_schema();
   init_configured_paths();
-  REQUIRED_INTAKE_FIELDS = ["scope", "out_of_scope", "done_when"];
   MODULE_DIRECTORY = import.meta.dirname;
   TEMPLATE_DIRECTORIES = [
     nodePath155.resolve(MODULE_DIRECTORY, "../resources"),

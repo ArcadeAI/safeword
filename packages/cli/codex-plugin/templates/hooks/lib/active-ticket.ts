@@ -9,7 +9,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import { parseFrontmatter } from './hierarchy.js';
+import { isEmptyFrontmatterValue, parseFrontmatter, REQUIRED_INTAKE_FIELDS } from './hierarchy.js';
 import { inspirationContractProvenance } from './feature-provenance.js';
 import { evaluateProductInspiration } from './inspiration.js';
 import { evaluateCriteriaGate, evaluateJtbdGate } from './jtbd.js';
@@ -58,8 +58,6 @@ export interface FeatureTicketReadiness {
   issues: FeatureTicketReadinessIssue[];
 }
 
-const REQUIRED_READINESS_FRONTMATTER = ['scope', 'out_of_scope', 'done_when'] as const;
-
 function frontmatterScalar(
   meta: Record<string, string | string[]>,
   field: string,
@@ -105,16 +103,6 @@ function childSpecIssues(
     );
   }
   return issues;
-}
-
-/**
- * A required frontmatter field counts as missing when it is absent, the literal
- * string `'null'`, or empty — including an empty block sequence (which parses to
- * `[]`) or a list of only blank items.
- */
-function isMissingReadinessFrontmatterField(value: string | string[] | undefined): boolean {
-  if (value === undefined || value === 'null') return true;
-  return Array.isArray(value) ? value.every(item => item.trim() === '') : value.trim() === '';
 }
 
 function addReadinessIssue(
@@ -177,9 +165,7 @@ export function evaluateFeatureTicketReadiness(
   } else {
     const meta = parseFrontmatter(frontmatterMatch[1] ?? '');
     ticketMeta = meta;
-    const missing = REQUIRED_READINESS_FRONTMATTER.filter(field =>
-      isMissingReadinessFrontmatterField(meta[field]),
-    );
+    const missing = REQUIRED_INTAKE_FIELDS.filter(field => isEmptyFrontmatterValue(meta[field]));
     if (missing.length > 0) {
       addReadinessIssue(
         issues,
