@@ -2,10 +2,10 @@
 id: 0FA865
 slug: preserve-intermediate-edits
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-11-08T23:27:33.769Z
-last_modified: 2026-11-13T23:19:22.000Z
+last_modified: 2026-11-14T00:32:00.987Z
 ---
 
 # Preserve unfinished edits for coding agents
@@ -40,7 +40,7 @@ Post-edit JS/TS checks become observational; explicit lint actions retain mutati
 
 User-authorized test-quality follow-up (November 13): strengthen the four installed-hook preservation tests to require successful startup and a real ESLint no-var diagnostic; require checker execution evidence for both Claude and Cursor hook subprocess tests; replace the Biome BDD missing-tool allowance with an executable fixture checker and required diagnostic. Validate the strengthened assertions against both skipped checking and restored mutating entrypoints, then restore production sources and rerun GREEN. This is present-day regression validation, not historical RED evidence for the original implementation.
 
-- Focused GREEN: 34 tests passed across host-toolchain and post-edit-preservation suites.
+- Historical focused GREEN before this follow-up: 34 tests passed across host-toolchain and post-edit-preservation suites; the current follow-up passes 38/38 surrounding tests.
 - Tests mock external tool processes only and assert preserved bytes and diagnostic delivery.
 - Initial implementation preceded recorded RED evidence; no historical RED commit is claimed.
 - Project-wide typecheck passed after a frozen-lockfile forced reinstall repaired missing AJV files.
