@@ -5,7 +5,7 @@ type: task
 phase: done
 status: done
 created: 2026-11-08T23:27:33.769Z
-last_modified: 2026-11-14T00:32:00.987Z
+last_modified: 2026-11-14T15:32:32.131Z
 ---
 
 # Preserve unfinished edits for coding agents
@@ -58,6 +58,12 @@ User-authorized test-quality follow-up (November 13): strengthen the four instal
 - Changing Python, Rust, SQL, shell, or document post-edit mutation policy.
 - Installing or activating global Claude/Codex profiles.
 - Unrelated UTF-8 diagnostic truncation behavior.
+
+## November 14 delivery refresh
+
+The user authorized proceeding through publication and readiness. Publishing the two completed evaluation commits exposed conflicts with newer main. Merged origin/main through 07d01d3fe as 8a280a919; only generated plugin identity/inventory conflicted, and all five delivery surfaces were regenerated from combined sources. The five production preservation hook/helper files and the evaluation source are byte-identical to pre-merge 69f7e7f53. Incoming dependency-security and plan-approval changes are main ancestry, not this fix's authored scope. The related opt-in evaluation is the separately completed 3J0QCR task.
+
+Frozen dependency installation completed and its readiness marker was refreshed through the supported post-install writer. Post-merge targeted verification passed 172 tests in nine files, including the incoming plan-approval regression. Full lint/Gherkin validation, all-package typechecks, and generated-surface checks passed. Scoped audit found no dependency violations across 545 modules and 925 edges; learning/domain checks passed. The initial domain audit extraction truncated a four-backtick shell block and failed to parse; the complete verbatim block then passed. Principle trace remains N/A for this task without an implementation plan. The native source CLI completion passed and closed this ticket at 2026-11-14T15:32:32.131Z; a fresh no-model hook probe also passed on the merged dependencies, while final-head hosted CI awaits publication; the intentionally cancelled stale-head CI is not a passing result. No additional paid eval run is needed because its exercised production and experiment source did not change.
 
 ## Work Log
 

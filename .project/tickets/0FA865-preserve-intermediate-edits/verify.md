@@ -1,10 +1,18 @@
+## November 14 post-main delivery verification
+
+Reopened verification after the user authorized publication. New main through 07d01d3fe was merged as 8a280a919. Only generated plugin metadata conflicted; the complete source generators resolved the conflict and all five surfaces verified. Production preservation helpers and the evaluation source are byte-identical to 69f7e7f53. Main's dependency and plan-approval changes are inherited baseline, not additional authored work for this PR.
+
+Current checks: 172 targeted tests passed across nine files, including the incoming plan-approval regression and 14-case grader calibration. Root lint/Gherkin validation, all three package typechecks, and generated-surface checks passed. The scoped audit found no dependency violations across 545 modules / 925 dependencies; learning and domain checks passed. A truncated extraction of the domain shell block first failed to parse; running the complete verbatim block passed. Principle trace is N/A because this task has no impl-plan.md. Frozen dependencies were refreshed successfully; no new model run was made or is required for unchanged evaluated source.
+
+Native completion passed on the merged code: the actual source CLI Codex Stop returned {} and changed this ticket to done at 2026-11-14T15:32:32.131Z. Its proof lane waited behind another worktree before completion; no lock was removed or test policy changed. A fresh no-model experiment probe also passed on the merged dependency tree, preserving bytes and returning structured expected diagnostics. The new-head hosted CI is pending publication. CI 43608698981 on the superseded head was intentionally cancelled after GitHub reported merge conflicts. Historical results below remain attributed to their original runs and do not stand in for the pending hosted check.
+
 ## Verify Checklist
 
 **Test Suite:** ✓ 38/38 surrounding Vitest tests pass after the test-quality follow-up, with no filtered or skipped tests in that run. All 10 targeted preservation checks rejected both controlled broken behaviors by assertion failures. Earlier broader proof remains recorded: 171 focused tests and native completion passed on November 13 morning; full CI passed on af56551c2, including 726 CLI files and 11,661 tests. Historical local timeout and lock-blocked runs remain non-green historical evidence, not relabeled successes.
 **Gherkin:** ✅ Scoped formatter acceptance passes 10/10 scenarios and 476 executed steps after restoring production code. The old mutating behavior caused the five affected scenarios to fail; skipping the checker caused all eight TypeScript scenarios to fail. Earlier full package acceptance passed 599 scenarios and 11,786 steps, and all 52 proof-tag checks passed. Root planning acceptance defects were separately reproduced on main, as described below.
 **Build:** ✅ Success — the prescribed full verification build lane completed, including CLI, relay, and collector builds.
-**Lint:** ✅ Clean — full root lint, Gherkin validation, and CLI typecheck reran successfully on the final test-quality code at f59300103, after all test edits.
-**Typecheck:** ✅ Clean — the root typecheck reran successfully for all three packages on the final test-quality code at f59300103.
+**Lint:** ✅ Clean — full root lint, Gherkin validation, and CLI typecheck passed after merging main as 8a280a919.
+**Typecheck:** ✅ Clean — root typecheck passed for all three packages after merging main as 8a280a919.
 **Scenarios:** All 10 scoped formatter scenarios marked complete by execution; task hook-entry tests cover pending imports, unchanged bytes, diagnostics, markers, and explicit fix-mode compatibility.
 **Refactor:** ✅ No change warranted — one optional check-only mode fixes both failure classes without new state or scheduling.
 **PR Scope:** ✅ Diff matches ticket scope — post-edit JS/TS preservation, supporting tests, generated mirrors, and evidence only; main's planning changes are merged ancestry rather than this fix's scope.
