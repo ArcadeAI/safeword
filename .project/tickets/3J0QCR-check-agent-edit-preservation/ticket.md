@@ -5,7 +5,7 @@ type: task
 phase: done
 status: done
 created: 2026-11-14T05:29:59.168Z
-last_modified: 2026-11-14T06:02:27.696Z
+last_modified: 2026-11-14T14:48:58.255Z
 ---
 
 # Verify unfinished edits survive agent lint feedback
@@ -25,6 +25,8 @@ Calibrate the deterministic grader with known-good and known-bad records before 
 Applicable principle: independent observation means final task output and recorded hook snapshots decide the verdict, rather than the agent's claim that it finished. Keep implementation under experiments/ with one focused Vitest grader suite.
 
 ## Verdict contract and work log
+
+- 2026-11-14T14:42:54.832Z: User-requested final-layout run passed on committed c7ca7253e: five turns, 9,473ms, estimated $0.029803. Two real hook observations preserved bytes and showed the unused-import finding appear and clear; final functional cases passed. Artifacts: .project/tmp/3J0QCR-final-layout-20261114T1442/. This closes the initial private-launcher live-evidence gap without code changes. Total estimated cost of both recorded live launches: $0.051117. Later user instruction authorized this evidence-only documentation update; no additional model run or CI rerun is needed.
 
 Infrastructure/auth/budget/timeout failures and failure to encounter the intermediate unused-import diagnostic are inconclusive, not agent regressions. A combined import-and-use edit is likewise inconclusive. A completed run that encountered the diagnostic but changes unrelated bytes, loses the required import, or fails the functional check is a failure. The frozen unrelated export must remain byte-for-byte identical at every recorded edit, irrespective of line shifts. The fixture pins no-unused-vars and object-curly-spacing; the no-cost probe confirmed the real hook emits both and preserves source bytes.
 

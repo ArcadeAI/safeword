@@ -76,4 +76,20 @@ at production HEAD `5454818bf9cc184e81969e2d7e388d0b21b057b7`; the experiment wa
 uncommitted at launch. No claim is made that this commit contains the experiment.
 The initial observation used a dependency-directory symlink; afterward that was
 replaced with the private launcher and validated by the no-cost real-hook probe.
-The model was not rerun after that fixture-isolation change.
+No additional model run was made during that initial build; the later final-layout
+observation below closes that evidence gap.
+
+## Final-layout observation
+
+2026-11-14T14:42:54Z: **pass** on the committed private-launcher fixture at
+`c7ca7253eceabeeefe0b9344794492019f9c2fff`. The user requested this separate
+observation; it was not an automatic retry. The pinned Haiku model completed in
+five turns and 9,473ms, with estimated cost **$0.029803**. Both real hook
+observations preserved bytes; the first reported the unused import and formatting,
+and the second reported only formatting. The final task passed all three frozen
+functional inputs and left the unrelated export unchanged.
+
+Artifacts: `.project/tmp/3J0QCR-final-layout-20261114T1442/`. CLI version and hook
+hash match the first observation. Total estimated cost across the two recorded
+live runs is **$0.051117** (about 5.1 cents). Neither observation establishes a
+reliability rate or coverage for another host/model. Live calls remain manual.
