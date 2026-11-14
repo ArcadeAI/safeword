@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "c1adeadd52e2f436a788c81b274a15b79c40ff1b99d765ee4d086ef3ac092024"
+      "sha256": "1716ef9a5f4df7b4b78c7e81cd2db6d62788288041e04fe7545d4a568d64e493"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "7b070a8b471c6d2623ead2af8037522a994b03ae0e7fb21c50d400f5a7e5c085"
+      "sha256": "452ec76ef5217d02a98f500ee4f5869972e4270fa5c0dbcbd75bbe80622ab8a7"
     },
     {
       "path": "runtime/event-groups.json",
@@ -175,7 +175,7 @@
     },
     {
       "path": "runtime/hooks/lib/active-ticket.ts",
-      "sha256": "43d2aeee793d07aec225b05b0785ae9c12dc68602cbc8d5911b9ab868ae52edb"
+      "sha256": "630eecd3222688d6a8ae74ab60f31ba40a30b5a768565d4f68502098ce0f01f7"
     },
     {
       "path": "runtime/hooks/lib/architecture-document-nudge.ts",
@@ -255,7 +255,7 @@
     },
     {
       "path": "runtime/hooks/lib/hierarchy.ts",
-      "sha256": "9360e404e80d0f324fe697c4af9326acc3f09a47ceab2471b315d4ef4445b4f1"
+      "sha256": "ca626f6c0efd0cb552244083fad03db20306b445f6b0e44f2f88da9c61d22f2c"
     },
     {
       "path": "runtime/hooks/lib/host-toolchain.ts",
@@ -523,7 +523,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "c6b88411d36fc928e057adf745f2b620cb1160272b1a9f4ce16cada4ae277307"
+      "sha256": "22cfcfea5cdb906fa8fec1391f390d0eff7263339234576ccfc63b699cdd6fee"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -1171,7 +1171,7 @@
     },
     {
       "path": "templates/hooks/lib/active-ticket.ts",
-      "sha256": "43d2aeee793d07aec225b05b0785ae9c12dc68602cbc8d5911b9ab868ae52edb"
+      "sha256": "630eecd3222688d6a8ae74ab60f31ba40a30b5a768565d4f68502098ce0f01f7"
     },
     {
       "path": "templates/hooks/lib/architecture-document-nudge.ts",
@@ -1251,7 +1251,7 @@
     },
     {
       "path": "templates/hooks/lib/hierarchy.ts",
-      "sha256": "9360e404e80d0f324fe697c4af9326acc3f09a47ceab2471b315d4ef4445b4f1"
+      "sha256": "ca626f6c0efd0cb552244083fad03db20306b445f6b0e44f2f88da9c61d22f2c"
     },
     {
       "path": "templates/hooks/lib/host-toolchain.ts",
@@ -1515,7 +1515,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "0182b1726ade1b7e0f035202d87fca254cb9b371e9b4b9830fdd740a1b834e8e"
+      "sha256": "8e65ae5f95226aa0911178003799dfd96ee328d2b05fb5e2f57af5bc0381dcd2"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",

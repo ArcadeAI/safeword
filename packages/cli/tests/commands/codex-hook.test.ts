@@ -710,6 +710,144 @@ describe('packagedNamespaceRootLabel', () => {
     expect(result.stderr).toContain('scope, out_of_scope, done_when');
   });
 
+  // The shared quality gate only recognises the default ticket roots, so a
+  // configured namespace is where Codex's own intake check is the one that blocks.
+  const CUSTOM_NAMESPACE = { paths: { projectRoot: 'knowledge' } };
+
+  it.each([
+    [
+      'an empty scope followed by a later list field',
+      'scope:\nout_of_scope:\n  - y\ndone_when:\n  - z\n',
+      'scope.',
+    ],
+    ['an empty inline list', 'scope: []\nout_of_scope: y\ndone_when: z\n', 'scope.'],
+    ['YAML nulls', 'scope: null\nout_of_scope: ~\ndone_when: z\n', 'scope, out_of_scope.'],
+    [
+      'comment-only values',
+      'scope: # TODO\nout_of_scope:\n  - # later\ndone_when: z\n',
+      'scope, out_of_scope.',
+    ],
+    [
+      'empty values with trailing comments',
+      "scope: [] # TODO\nout_of_scope: null # pending\ndone_when: '' # pending\n",
+      'scope, out_of_scope, done_when.',
+    ],
+    [
+      'capitalised nulls and empty block scalars',
+      'scope: NULL\nout_of_scope: |\ndone_when: >-\n',
+      'scope, out_of_scope, done_when.',
+    ],
+    [
+      'lists of YAML nulls',
+      'scope: [null]\nout_of_scope: [~]\ndone_when:\n  - NULL\n',
+      'scope, out_of_scope, done_when.',
+    ],
+    [
+      'quoted empty values',
+      'scope: \'\'\nout_of_scope: ""\ndone_when: z\n',
+      'scope, out_of_scope.',
+    ],
+  ])('blocks test definitions in a custom namespace for %s', (_case, fields, expected) => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
+    directories.push(projectDirectory);
+    markSafewordProject(projectDirectory, CUSTOM_NAMESPACE);
+    const ticketDirectory = nodePath.join(projectDirectory, 'knowledge/tickets/empty-scope');
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'ticket.md'),
+      `---\nid: empty-scope\ntype: task\n${fields}---\n`,
+    );
+
+    const result = runCodexHook(
+      projectDirectory,
+      'pre-tool-use',
+      {
+        session_id: 'empty-scope-session',
+        tool_name: 'Write',
+        tool_input: { file_path: nodePath.join(ticketDirectory, 'test-definitions.md') },
+      },
+      { CLAUDE_PROJECT_DIR: projectDirectory, SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
+    );
+
+    expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(2);
+    expect(result.stderr).toContain(`until ticket.md declares ${expected}`);
+  });
+
+  it.each([
+    ['LF', '\n', '  '],
+    ['CRLF', '\r\n', '  '],
+    ['unindented items', '\n', ''],
+  ])(
+    'allows test definitions in a custom namespace when every intake field has a block list (%s)',
+    (_case, eol, indent) => {
+      const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
+      directories.push(projectDirectory);
+      markSafewordProject(projectDirectory, CUSTOM_NAMESPACE);
+      const ticketDirectory = nodePath.join(projectDirectory, 'knowledge/tickets/full-scope');
+      mkdirSync(ticketDirectory, { recursive: true });
+      writeFileSync(
+        nodePath.join(ticketDirectory, 'ticket.md'),
+        [
+          '---',
+          'id: full-scope',
+          'type: task',
+          'scope:',
+          '  # included behavior',
+          `${indent}- x`,
+          '',
+          'out_of_scope:',
+          `${indent}- y`,
+          'done_when:',
+          `${indent}- z`,
+          '---',
+          '',
+        ].join(eol),
+      );
+
+      const result = runCodexHook(
+        projectDirectory,
+        'pre-tool-use',
+        {
+          session_id: 'full-scope-session',
+          tool_name: 'Write',
+          tool_input: { file_path: nodePath.join(ticketDirectory, 'test-definitions.md') },
+        },
+        { CLAUDE_PROJECT_DIR: projectDirectory, SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
+      );
+
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(0);
+      expect(result.stderr).not.toContain('until ticket.md declares');
+    },
+  );
+
+  it('allows edits to existing test definitions in a custom namespace even when intake is incomplete', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
+    directories.push(projectDirectory);
+    markSafewordProject(projectDirectory, CUSTOM_NAMESPACE);
+    const ticketDirectory = nodePath.join(projectDirectory, 'knowledge/tickets/legacy-ledger');
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'ticket.md'),
+      '---\nid: legacy-ledger\ntype: task\nscope: ~\nout_of_scope: y\ndone_when: z\n---\n',
+    );
+    const ledgerPath = nodePath.join(ticketDirectory, 'test-definitions.md');
+    writeFileSync(ledgerPath, '# Test definitions\n');
+
+    const result = runCodexHook(
+      projectDirectory,
+      'pre-tool-use',
+      {
+        session_id: 'legacy-ledger-session',
+        tool_name: 'Edit',
+        tool_input: { file_path: ledgerPath },
+      },
+      { CLAUDE_PROJECT_DIR: projectDirectory, SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
+    );
+
+    expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(0);
+    expect(result.stderr).not.toContain('until ticket.md declares');
+  });
+
   it('defers a plugin event to an exact runnable legacy handler', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
     const binDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-bin-'));
