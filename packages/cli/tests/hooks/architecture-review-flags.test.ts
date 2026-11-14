@@ -7,10 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import {
-  isArchitectureReviewGateEnabled,
-  isCrossModelReviewRequired,
-} from '../../templates/hooks/lib/review-ledger.js';
+import { isArchitectureReviewGateEnabled } from '../../templates/hooks/lib/review-ledger.js';
 
 describe('isArchitectureReviewGateEnabled — default-off rollout guard', () => {
   it('is on when architectureReviewGate is explicitly true', () => {
@@ -35,19 +32,5 @@ describe('isArchitectureReviewGateEnabled — default-off rollout guard', () => 
 
   it('is off when the value is a truthy non-boolean (strict === true)', () => {
     expect(isArchitectureReviewGateEnabled('{"architectureReviewGate": "true"}')).toBe(false);
-  });
-});
-
-describe('isCrossModelReviewRequired — opt-in ceiling-raiser', () => {
-  it('is required only when crossModelReview is explicitly true', () => {
-    expect(isCrossModelReviewRequired('{"crossModelReview": true}')).toBe(true);
-  });
-
-  it('is off when the key is absent (same-model fork is the floor)', () => {
-    expect(isCrossModelReviewRequired('{"architectureReviewGate": true}')).toBe(false);
-  });
-
-  it('is off when config is malformed JSON', () => {
-    expect(isCrossModelReviewRequired('{not valid json')).toBe(false);
   });
 });

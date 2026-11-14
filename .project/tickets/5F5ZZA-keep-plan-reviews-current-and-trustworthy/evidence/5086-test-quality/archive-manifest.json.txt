@@ -1,0 +1,182 @@
+[
+  {
+    "file": "oracle-red.log.gz",
+    "uncompressed_sha256": "2542a3e08ec23645f940ef5f589ef31a9c4fce7ec0c8186d59856d37c644a91e",
+    "uncompressed_bytes": 3303
+  },
+  {
+    "file": "oracle-red-queued.log.gz",
+    "uncompressed_sha256": "f2acb63bfbf3e79dc46f5f01dc1a1822709d2cd417f1df5d4cf5dc6a5f5cc741",
+    "uncompressed_bytes": 1291
+  },
+  {
+    "file": "oracle-direct-red.log.gz",
+    "uncompressed_sha256": "5d1399fa652112b285996c0a26f7ef6e7435857cccfd30062503cc77c5e14330",
+    "uncompressed_bytes": 864
+  },
+  {
+    "file": "oracle-direct-green.log.gz",
+    "uncompressed_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "uncompressed_bytes": 0
+  },
+  {
+    "file": "near-miss-red.log.gz",
+    "uncompressed_sha256": "b52ebb7d9e4ca2acacb1b910fc1a1fd0e02f665cdcca13103e2e2db027ea92cc",
+    "uncompressed_bytes": 937
+  },
+  {
+    "file": "targeted.log.gz",
+    "uncompressed_sha256": "4ad5e171e52a4b2317b4557ac0a2af73228d696812b298e104747113a1daa555",
+    "uncompressed_bytes": 24674
+  },
+  {
+    "file": "targeted-repaired.log.gz",
+    "uncompressed_sha256": "e13844883d53517fb974e06920db51c65e72c94a2cddddfb7fc45fdd9ad84800",
+    "uncompressed_bytes": 22270
+  },
+  {
+    "file": "bdd-initial.log.gz",
+    "uncompressed_sha256": "0cbcc3ae6012bced2b08ee6ccb6a20b1ea02d4125d4543970fc133395847395c",
+    "uncompressed_bytes": 4344
+  },
+  {
+    "file": "bdd-diagnostic.log.gz",
+    "uncompressed_sha256": "8e3482290c33391c355e6bb6b76f909b7ebc3f545c8d7fed1c6d90434bfe5e8b",
+    "uncompressed_bytes": 8968
+  },
+  {
+    "file": "bdd-fixture.log.gz",
+    "uncompressed_sha256": "9d0be2a2279f2dd6e6d05de1dfff2de01b86f04af6bc7612622f9eac0a09bbfa",
+    "uncompressed_bytes": 2130
+  },
+  {
+    "file": "bdd-green-fixed.log.gz",
+    "uncompressed_sha256": "9900df7a153f9f49aa35ee5c22576a7f5acbe99bf3e5127bea5a193798d21ad0",
+    "uncompressed_bytes": 112
+  },
+  {
+    "file": "bdd-packets.log.gz",
+    "uncompressed_sha256": "bb7bd2a8da44bde94c03cdce4a4bbfa36c8a5552dc38cc91836affad29000ab0",
+    "uncompressed_bytes": 112
+  },
+  {
+    "file": "generated.log.gz",
+    "uncompressed_sha256": "8be8bf061d30933d56a7189995aaccf193680d42fdf58335d16c2326dab217b3",
+    "uncompressed_bytes": 2637
+  },
+  {
+    "file": "rescore.log.gz",
+    "uncompressed_sha256": "26142983b02faf179f8479c608ffe2dd1f580e51065a2056d27a2bc44c694c25",
+    "uncompressed_bytes": 288
+  },
+  {
+    "file": "rescore-final.log.gz",
+    "uncompressed_sha256": "26142983b02faf179f8479c608ffe2dd1f580e51065a2056d27a2bc44c694c25",
+    "uncompressed_bytes": 288
+  },
+  {
+    "file": "typecheck.log.gz",
+    "uncompressed_sha256": "8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92",
+    "uncompressed_bytes": 15
+  },
+  {
+    "file": "typecheck-final.log.gz",
+    "uncompressed_sha256": "8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92",
+    "uncompressed_bytes": 15
+  },
+  {
+    "file": "lint-initial.log.gz",
+    "uncompressed_sha256": "606fd28afcc07d9534cfb587ca8ca055d205a1c7b25c29f8a11ebe42e95f6c69",
+    "uncompressed_bytes": 834
+  },
+  {
+    "file": "lint-final.log.gz",
+    "uncompressed_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "uncompressed_bytes": 0
+  },
+  {
+    "file": "mutation-order.log.gz",
+    "uncompressed_sha256": "f737489ef31dba7bf371aa0cbf6aad400b321a2475d1e8b2f42bc8ecd945e49b",
+    "uncompressed_bytes": 918
+  },
+  {
+    "file": "mutation-order-observed.log.gz",
+    "uncompressed_sha256": "f9837a60bcd93739d2abf38b6016571d2650e392ee785bb086711c99b8e5ec42",
+    "uncompressed_bytes": 10482
+  },
+  {
+    "file": "mutation-order-bound.log.gz",
+    "uncompressed_sha256": "079d5e2236714cdf7c1333fbcfb470c54077f71dedecee7e3fa62c5f81265ecd",
+    "uncompressed_bytes": 10410
+  },
+  {
+    "file": "mutation-order-final.log.gz",
+    "uncompressed_sha256": "1e26b03987928143a5134fd5b793ccad9a42ec8f7334b58bb8091e093d575597",
+    "uncompressed_bytes": 878
+  },
+  {
+    "file": "mutation-direct.log.gz",
+    "uncompressed_sha256": "be16ea1714bef8567129745f5d91d62e7f4c61f756c1dbffe5fa6c6e60a45d37",
+    "uncompressed_bytes": 313
+  },
+  {
+    "file": "verify-generated-fix.log.gz",
+    "uncompressed_sha256": "506dac0919d9ab9c5664597d6e152fa5a2b41fddf0658ccf4317474a36e015d1",
+    "uncompressed_bytes": 256
+  },
+  {
+    "file": "verify-full.log.gz",
+    "uncompressed_sha256": "8e7104e00a2f2d4c2133fcd0429ce4cb483e2695fc225bbf714cb7799864e863",
+    "uncompressed_bytes": 25982
+  },
+  {
+    "file": "verify-release.log.gz",
+    "uncompressed_sha256": "3c3f25dd2553cbc551572d915de32896c3a698eeaa8d45a8518222f787534b91",
+    "uncompressed_bytes": 22521
+  },
+  {
+    "file": "verify-bdd.log.gz",
+    "uncompressed_sha256": "0ed278b514087c2d7bf8cabec6b0886bbcc3f91a1cd778b8f44bcb4f5eaaaa47",
+    "uncompressed_bytes": 2607
+  },
+  {
+    "file": "verify-lint.log.gz",
+    "uncompressed_sha256": "57d5f8367b5a58bba4b4cbada9293f039cf55e9aea854237c06c4f0f8274df90",
+    "uncompressed_bytes": 161
+  },
+  {
+    "file": "verify-typecheck.log.gz",
+    "uncompressed_sha256": "336611721df5e258f1f63cfc3b7eb5afb028d2ac5940177b9818058a2081d7b2",
+    "uncompressed_bytes": 184
+  },
+  {
+    "file": "verify-parity.log.gz",
+    "uncompressed_sha256": "65107e673c739342f5b1fea27450dfeac02286ae9bbb9b47e5ca601f16ac0f4d",
+    "uncompressed_bytes": 110
+  },
+  {
+    "file": "verify-generated-check.log.gz",
+    "uncompressed_sha256": "b14948a65d3e1915acfab0f60e2cc2b2b827aa96bfcf7e1d505dbd53eaf51a00",
+    "uncompressed_bytes": 34
+  },
+  {
+    "file": "verify-cli-contract.log.gz",
+    "uncompressed_sha256": "61d14f844e04a16932d144ea07c4ee2cd82d5c8de164032962d9c7da6b5804ac",
+    "uncompressed_bytes": 340
+  },
+  {
+    "file": "release-final.log.gz",
+    "uncompressed_sha256": "2b0fd046ce33261685303cd0a3454fdd572a8748a860fa22ab955b7c1b95ec53",
+    "uncompressed_bytes": 25432
+  },
+  {
+    "file": "release-test-final-lint.log.gz",
+    "uncompressed_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "uncompressed_bytes": 0
+  },
+  {
+    "file": "final-typecheck.log.gz",
+    "uncompressed_sha256": "8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92",
+    "uncompressed_bytes": 15
+  }
+]

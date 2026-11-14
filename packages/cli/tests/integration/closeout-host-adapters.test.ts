@@ -1503,7 +1503,8 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
         ],
         {
           cwd: pluginRoot,
-          env: { ...process.env, CLAUDE_PLUGIN_ROOT: pluginRoot },
+          // This asserts closeout's own lookup, so drop the test-wide CLI override.
+          env: { ...process.env, CLAUDE_PLUGIN_ROOT: pluginRoot, SAFEWORD_CLI: '' },
           encoding: 'utf8',
         },
       );

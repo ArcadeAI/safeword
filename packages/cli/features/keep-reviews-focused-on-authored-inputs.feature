@@ -216,7 +216,7 @@ Feature: Keep reviews focused on authored changes
       And the command exits successfully with no errors
 
   @focused-review.TBU1.R2
-  Rule: focused-review.TBU1.R2 — An oversized target without an explicit generated marker still prevents the review from running
+  Rule: focused-review.TBU1.R2 — An oversized target without a generated marker or a complete bounded lockfile representation prevents review
 
     @rejection
     Scenario: A nested project does not inherit an unrelated root marker

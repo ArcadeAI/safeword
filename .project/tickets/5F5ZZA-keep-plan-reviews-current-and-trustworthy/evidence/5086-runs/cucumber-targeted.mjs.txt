@@ -1,0 +1,9 @@
+import base from '/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/cucumber.mjs';
+export default {
+  ...base,
+  import: ['/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/features/steps/**/*.ts'],
+  paths: [
+    '/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/features/review-with-the-best-available-agent.feature',
+    '/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/features/clarify-review-coverage.feature',
+  ],
+};

@@ -17,10 +17,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   findNextWork,
+  isEmptyFrontmatterValue,
+  parseFrontmatter,
   readTicketFrontmatter,
   resolveTicketDirectory,
   updateTicketStatus,
-} from '../../../../.safeword/hooks/lib/hierarchy';
+} from '../../templates/hooks/lib/hierarchy';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers';
 
 /* eslint-disable unicorn/no-null -- Ticket frontmatter uses null values */
@@ -324,3 +326,102 @@ describe('findNextWork', () => {
   });
 });
 /* eslint-enable unicorn/no-null */
+
+describe('isEmptyFrontmatterValue', () => {
+  it.each([
+    ['absent', undefined],
+    ['blank', '  '],
+    ['YAML null word', 'null'],
+    ['YAML null tilde', '~'],
+    ['capitalised YAML null', 'Null'],
+    ['upper-case YAML null', 'NULL'],
+    ['empty list', []],
+    ['list of blanks', ['', '  ']],
+    ['list of YAML nulls', ['null', '~', 'NULL']],
+  ])('treats a %s value as empty', (_label, value) => {
+    expect(isEmptyFrontmatterValue(value)).toBe(true);
+  });
+
+  it.each([
+    ['scalar', 'auth only'],
+    ['list with one item', ['', 'auth only']],
+  ])('treats a %s as filled', (_label, value) => {
+    expect(isEmptyFrontmatterValue(value)).toBe(false);
+  });
+});
+
+describe('parseFrontmatter comments', () => {
+  it('reads a comment-only scalar as the start of an empty block sequence', () => {
+    expect(parseFrontmatter('scope: # TODO\nphase: intake')).toEqual({
+      scope: [],
+      phase: 'intake',
+    });
+  });
+
+  it('keeps list items under a commented key', () => {
+    expect(parseFrontmatter('scope: # notes\n  - auth')).toEqual({ scope: ['auth'] });
+  });
+
+  it('keeps a block list going across comment and blank lines', () => {
+    expect(
+      parseFrontmatter('scope:\n  # included behavior\n  - auth\n\n  - billing\nphase: intake'),
+    ).toEqual({ scope: ['auth', 'billing'], phase: 'intake' });
+  });
+
+  it('reads a bare hyphen as a blank item without ending the list', () => {
+    expect(parseFrontmatter('scope:\n  -\n  - auth')).toEqual({ scope: ['', 'auth'] });
+  });
+
+  it('reads list items written without indentation', () => {
+    expect(parseFrontmatter('scope:\n- auth\n- billing\nphase: intake')).toEqual({
+      scope: ['auth', 'billing'],
+      phase: 'intake',
+    });
+  });
+
+  it('reads a comment-only list item as blank', () => {
+    expect(parseFrontmatter('scope:\n  - # later')).toEqual({ scope: [''] });
+  });
+
+  it.each([
+    ['a scalar', 'status: done # finished', { status: 'done' }],
+    ['an empty flow list', 'scope: [] # TODO', { scope: [] }],
+    ['a YAML null', 'scope: null # pending', { scope: 'null' }],
+    ['a quoted empty string', "scope: '' # pending", { scope: '' }],
+    ['a quoted hash', "title: 'a # b' # note", { title: 'a # b' }],
+    ['a list item', 'scope:\n  - auth # first', { scope: ['auth'] }],
+  ])('drops a trailing comment after %s', (_case, yaml, expected) => {
+    expect(parseFrontmatter(yaml)).toEqual(expected);
+  });
+
+  it('keeps issue references and attached hashes as content', () => {
+    expect(parseFrontmatter('title: Fix#123\nscope:\n  - #563 cost gate')).toEqual({
+      title: 'Fix#123',
+      scope: ['#563 cost gate'],
+    });
+  });
+});
+
+describe('parseFrontmatter block scalars', () => {
+  it('reads indented lines under a literal block as one value', () => {
+    expect(parseFrontmatter('scope: |\n  line one\n  line two\nphase: intake')).toEqual({
+      scope: 'line one\nline two',
+      phase: 'intake',
+    });
+  });
+
+  it('reads an empty folded block as an empty value', () => {
+    expect(parseFrontmatter('scope: >-\nphase: intake')).toEqual({ scope: '', phase: 'intake' });
+  });
+
+  it.each(['|2-', '>-2', '|+', '>'])('reads an empty %s block as an empty value', indicator => {
+    expect(parseFrontmatter(`scope: ${indicator}\nphase: intake`)).toEqual({
+      scope: '',
+      phase: 'intake',
+    });
+  });
+
+  it('keeps list-looking lines inside a block as text', () => {
+    expect(parseFrontmatter('scope: |\n  - not a list')).toEqual({ scope: '- not a list' });
+  });
+});

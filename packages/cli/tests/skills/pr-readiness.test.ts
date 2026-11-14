@@ -21,6 +21,15 @@ const canonicalPath = 'packages/cli/templates/skills/pr-readiness/SKILL.md';
 const templatesRoot = nodePath.join(repoRoot, 'packages/cli/templates');
 
 describe('reviewer-as-customer PR readiness (#3579)', () => {
+  it('routes Codex promotion through the checked worktree command', () => {
+    for (const path of [canonicalPath, 'packages/cli/codex-plugin/skills/pr-readiness/SKILL.md']) {
+      const content = readRepoFile(path);
+      expect(content).toContain('project pr-ready [pull] --cwd <delivery-worktree>');
+      expect(content).toContain('use its bundled runtime');
+      expect(content).toContain('explicit user authorization below still applies');
+    }
+  });
+
   it('ships one canonical readiness workflow to every agent host', () => {
     expect(existsSync(nodePath.join(repoRoot, canonicalPath))).toBe(true);
     expect(SAFEWORD_SCHEMA.ownedFiles['.claude/skills/pr-readiness/SKILL.md']).toEqual({

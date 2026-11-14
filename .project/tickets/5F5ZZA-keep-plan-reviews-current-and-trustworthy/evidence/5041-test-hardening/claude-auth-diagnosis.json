@@ -1,0 +1,13 @@
+{
+  "source": "Claude result envelope captured through a temporary diagnostic wrapper on the normal coordinator route",
+  "is_error": true,
+  "result": "Failed to authenticate: OAuth session expired and could not be refreshed",
+  "degraded_review_ids": [
+    "5bcf9a26-0653-495b-acee-ab5592f9304f",
+    "a6daec1b-b7b9-4acb-bc8e-4da39408b500",
+    "436190fe-4ccd-4887-bf7e-b5d0e3a7b663"
+  ],
+  "actual_reviewer": "codex",
+  "independence": "degraded",
+  "note": "These results do not satisfy independent Claude review. Login URLs, OAuth state and credentials are intentionally excluded."
+}

@@ -8,6 +8,8 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import nodePath from 'node:path';
+
+import { safewordCli } from './lib/safeword-cli.ts';
 import process from 'node:process';
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
@@ -17,17 +19,10 @@ if (!existsSync(nodePath.join(projectDir, '.safeword'))) {
   process.exit(0);
 }
 
-// Prefer local source in dev/dogfood, fall back to the published CLI.
-const localCli = nodePath.join(projectDir, 'packages/cli/src/cli.ts');
-const pluginCli = process.env.SAFEWORD_PLUGIN_CLI;
-const [command, args] =
-  pluginCli === undefined
-    ? existsSync(localCli)
-      ? ['bun', [localCli, 'architecture']]
-      : ['bunx', ['safeword@latest', 'architecture']]
-    : ['bun', [pluginCli, 'architecture']];
+const cli = safewordCli(projectDir);
+if (cli === undefined) process.exit(0);
 
-spawnSync(command as string, args as string[], {
+spawnSync(cli.command, [...cli.args, 'architecture'], {
   cwd: projectDir,
   stdio: 'inherit',
   timeout: 30_000,

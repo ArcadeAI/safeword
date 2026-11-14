@@ -1,0 +1,8 @@
+{
+  "package.json": "61d6e54e858ba2b9227244691b5ef0e002879f06a2c5e3d944092108314638f5",
+  "packages/cli/templates/hooks/lib/test-runner.ts": "598a2121d4f04c45c89e1dee4fd15fbf208c256e822aecf1ab5989de48a70e25",
+  "packages/cli/tests/hooks/test-runner.test.ts": "96eaac171d95c987c9bd9aa35bd2c1a29b6d81c48549a077246724c4f3f73306",
+  "packages/cli/tests/hooks/test-runner-timeout.test.ts": "d90f137c7c198ac4cb417775608ae211636b32a60954a8b2767e536f4591ed61",
+  "packages/cli/tests/test-plan/dogfood-bdd.test.ts": "7f49f5de486a185101516f355d3ff8329c0c06b1a57f63c7707364c6e8a56e62",
+  "packages/cli/tests/cucumber-config.test.ts": "b67be980b5b601ea6498964dac12c853c6196e020b8deef95df4851b85b30f6d"
+}

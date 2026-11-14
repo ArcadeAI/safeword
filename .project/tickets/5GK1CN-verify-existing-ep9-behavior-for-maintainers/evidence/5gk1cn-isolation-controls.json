@@ -1,0 +1,45 @@
+{
+  "synthetic_only": true,
+  "image_id": "sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8",
+  "controls": [
+    {
+      "control": "sealed",
+      "expected_exit": 42,
+      "actual_exit": 42,
+      "matches": true,
+      "controller_success": false
+    },
+    {
+      "control": "exposed-environment-control",
+      "expected_exit": 92,
+      "actual_exit": 92,
+      "matches": true,
+      "controller_success": false
+    },
+    {
+      "control": "exposed-path-control",
+      "expected_exit": 91,
+      "actual_exit": 91,
+      "matches": true,
+      "controller_success": false
+    },
+    {
+      "control": "writable-root-control",
+      "expected_exit": 93,
+      "actual_exit": 93,
+      "matches": true,
+      "controller_success": false
+    },
+    {
+      "control": "successful-command-control",
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "matches": true,
+      "controller_success": true
+    }
+  ],
+  "all_controls_match": true,
+  "trusted_canary_unchanged": true,
+  "cleanup": "All probe containers auto-removed and temporary roots deleted. OrbStack remains running.",
+  "limit": "No GitHub execution, OIDC attestation, full runner-escape proof or native host qualification."
+}

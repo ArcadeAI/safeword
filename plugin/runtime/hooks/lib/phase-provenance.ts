@@ -20,6 +20,7 @@ export const CANONICAL_PHASES = [
   'define-behavior',
   'scenario-gate',
   'plan-implementation',
+  'plan-execution',
   'implement',
   'verify',
   'done',
@@ -400,11 +401,17 @@ const ANCHOR_KINDS = {
   },
   'scenario-gate': FEATURE_SOURCE_ANCHOR,
   'plan-implementation': FEATURE_SOURCE_ANCHOR,
-  implement: {
+  'plan-execution': {
     label: 'impl-plan.md',
     example: '<ticket-folder>/impl-plan.md',
     matches: relpath => basenameOf(relpath) === 'impl-plan.md',
     shapeOk: (_relpath, content) => parseImplPlan(content).errors.length === 0,
+  },
+  implement: {
+    label: 'execution-plan.md',
+    example: '<ticket-folder>/execution-plan.md',
+    matches: relpath => basenameOf(relpath) === 'execution-plan.md',
+    shapeOk: (_relpath, content) => hasSubstance(content),
   },
   verify: {
     label: 'test-definitions.md (the R/G/R ledger)',

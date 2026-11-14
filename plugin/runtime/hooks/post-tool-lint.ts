@@ -46,10 +46,18 @@ if (result.warnings.length > 0) {
 
 // Surface remaining lint errors via additionalContext so Claude can fix them
 if (result.errors) {
+  const heading = result.diagnosticContext ?? `Lint errors remain after auto-fix in ${file}:`;
+  const text = [heading, ...parts, result.errors].join('\n');
+  const bytes = Buffer.from(text);
+  const notice = '\n[Additional lint output truncated; these are not all findings.]';
+  const additionalContext =
+    bytes.length > 16 * 1024
+      ? `${bytes.subarray(0, 16 * 1024 - Buffer.byteLength(notice) - 3).toString('utf8')}${notice}`
+      : text;
   const output = {
     hookSpecificOutput: {
       hookEventName: 'PostToolUse',
-      additionalContext: `Lint errors remain after auto-fix in ${file}:\n${result.errors}`,
+      additionalContext,
     },
   };
   console.log(JSON.stringify(output));

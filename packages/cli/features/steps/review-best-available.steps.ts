@@ -120,7 +120,7 @@ When('its shipped fallback wiring is inspected', function (this: SafewordWorld) 
 Then('it points to the shared finish-review contract', function (this: SafewordWorld) {
   const wiring = reviewWiring(this);
   assert.match(wiring.entryPoint, /(?:\/|\$safeword:)finish-review/u);
-  assert.match(wiring.contract, /Finish Review After Route Exhaustion/u);
+  assert.match(wiring.contract, /Finish a Review After Route Exhaustion/u);
 });
 
 Then(
@@ -146,22 +146,39 @@ Then(
   },
 );
 
-Then('it enters that contract only for REVIEW_ROUTES_EXHAUSTED', function (this: SafewordWorld) {
+Then(
+  'it enters that contract only for typed planning continuation or non-planning exhaustion',
+  function (this: SafewordWorld) {
+    const wiring = reviewWiring(this);
+    const entry = wiring.entryPoint.replaceAll(/\s+/gu, ' ');
+    assert.match(entry, /REVIEW_CONTINUATION_REQUIRED[^.]*sealed packet/u);
+    assert.match(
+      entry,
+      /non-planning work, only typed `REVIEW_ROUTES_EXHAUSTED` without reviewer findings/u,
+    );
+    assert.match(
+      wiring.contract,
+      /planning receipt path applies only[^.]*REVIEW_CONTINUATION_REQUIRED/u,
+    );
+    assert.match(
+      wiring.contract,
+      /legacy non-planning supplemental path[^.]*REVIEW_ROUTES_EXHAUSTED/u,
+    );
+    assert.match(
+      wiring.contract,
+      /planning\s+`REVIEW_ROUTES_EXHAUSTED` result does not authorize fallback/u,
+    );
+  },
+);
+
+Then('it preserves every other coordinator result unchanged', function (this: SafewordWorld) {
   const wiring = reviewWiring(this);
   assert.match(
     wiring.entryPoint.replaceAll(/\s+/gu, ' '),
-    /Only when[^.]{0,240}REVIEW_ROUTES_EXHAUSTED/u,
+    /For every other result, return it unchanged/u,
   );
-  assert.match(wiring.contract, /Continue only when.*REVIEW_ROUTES_EXHAUSTED/su);
-  assert.match(wiring.contract, /For every other result[\s\S]*return the original/u);
+  assert.match(
+    wiring.contract.replaceAll(/\s+/gu, ' '),
+    /For every other result, return the coordinator result unchanged/u,
+  );
 });
-
-Then(
-  'it preserves every non-exhaustion coordinator result unchanged',
-  function (this: SafewordWorld) {
-    const wiring = reviewWiring(this);
-    const normalized = `${wiring.entryPoint} ${wiring.contract}`.replaceAll(/\s+/gu, ' ');
-    assert.match(normalized, /For every other result[^.]*return the original[^.]*unchanged/iu);
-    assert.match(normalized, /Do not delegate or self-review/iu);
-  },
-);

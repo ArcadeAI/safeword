@@ -45,6 +45,16 @@ function registerInternalCommands(program: Command): void {
   const hook = program
     .command(hookFamily.route, { hidden: hookFamily.visibility === 'hidden' })
     .description(hookFamily.description);
+  const goLintDefinition = findCommandDefinition('hook go-lint');
+  const goLintHook = hook.command(goLintDefinition.registration.syntax, { hidden: true });
+  addDefinitionOptions(goLintHook, goLintDefinition);
+  goLintHook.action(
+    async (options: { file?: string; projectRoot?: string; originalCwd?: string }) => {
+      const { goLint } = await import('../commands/go-lint.js');
+      console.log(JSON.stringify(await goLint(options)));
+    },
+  );
+
   const hookCodex = hook
     .command(hookDefinition.registration.syntax, { hidden: true })
     .description(hookDefinition.description);

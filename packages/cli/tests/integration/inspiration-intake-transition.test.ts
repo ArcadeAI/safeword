@@ -216,10 +216,36 @@ describe('activated intake inspiration transition wiring', () => {
     const specFile = nodePath.join(ticketDirectory, 'spec.md');
     writeFileSync(specFile, spec(false));
 
-    expectHookDeny(
-      bashThroughHook(`sed -i 's/inspiration_contract[^[:space:]]*//' ${ticketFile} ${specFile}`),
-      'inspiration activation artifacts',
+    const result = bashThroughHook(
+      `sed -i 's/inspiration_contract[^[:space:]]*//' ${ticketFile} ${specFile}`,
     );
+    expectHookDeny(result, 'Edit or Write tool');
+    // Plain language that names the allowed tools on every host (#5760).
+    const reason = (
+      JSON.parse(result.stdout) as { hookSpecificOutput: { permissionDecisionReason: string } }
+    ).hookSpecificOutput.permissionDecisionReason;
+    expect(reason).toContain('apply_patch');
+    expect(reason).not.toMatch(/activation artifact|downgrade/i);
+  });
+
+  it('carries the remedy through exit-code mode, which keeps only the reason (OpenCode)', () => {
+    const result = spawnSync('bun', [CODEX_HOOK_PATH], {
+      cwd: projectRoot,
+      input: JSON.stringify({
+        session_id: 'exit-code-remedy',
+        tool_name: 'Bash',
+        tool_input: { command: `echo x >> ${ticketFile}` },
+      }),
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: projectRoot,
+        SAFEWORD_CODEX_DENY_MODE: 'exit-code',
+      },
+    });
+
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('Edit or Write tool (apply_patch in Codex)');
   });
 
   it('denies silent signal removal after an activated scaffold was committed', () => {

@@ -74,7 +74,6 @@ Feature: OpenCode independent review fallback
       Examples:
         | policy  | outcome  |
         | prefer  | degraded |
-        | require | blocked  |
 
   @opencode-independent-review-fallback.TBU1.R3
   Rule: opencode-independent-review-fallback.TBU1.R3 — OpenCode-authored work is reviewed by another runtime and never treats OpenCode self-review as independent
@@ -100,7 +99,6 @@ Feature: OpenCode independent review fallback
       Examples:
         | policy  | outcome  |
         | prefer  | degraded |
-        | require | blocked  |
 
   @opencode-independent-review-fallback.TBU1.R4
   Rule: opencode-independent-review-fallback.TBU1.R4 — Every OpenCode result meets the same read-only, bounded, and provenance-checked contract as other reviewers

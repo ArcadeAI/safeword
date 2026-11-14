@@ -45,7 +45,6 @@ const EXEMPT_HOOKS: Record<string, string> = {
   'session-auto-upgrade.ts': SESSION_STARTUP,
   'session-cleanup-quality.ts': SESSION_STARTUP,
   'session-start-reentry.ts': SESSION_STARTUP,
-  'session-author-model.ts': SESSION_STARTUP,
   'session-architecture-heal.ts':
     'session hook; shells to `safeword architecture` whose selfHeal is covered by tests/utils/architecture-document.test.ts and tests/commands/architecture.test.ts',
   'session-dependency-readiness.ts':

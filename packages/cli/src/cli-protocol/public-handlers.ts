@@ -29,6 +29,7 @@ import {
   retrospectiveCloseGateHandler,
   retrospectiveGateHandler,
   reviewCancelHandler,
+  reviewContinueHandler,
   reviewPrInspectHandler,
   reviewPrPublicationHandler,
   reviewPrReadinessHandler,
@@ -347,6 +348,116 @@ async function namespaceRootHandler(invocation: CommandInvocation): Promise<CliR
   return observeNamespaceRoot(invocation.cwd, invocation.options);
 }
 
+async function ticketApprovePlanHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const ticket = invocation.operands[0];
+  if (typeof ticket !== 'string' || ticket === '') {
+    return invalidOperand('ticket approve-plan', 'ticket id must be non-empty text.');
+  }
+  const { approvePlanResult } = await import('../commands/plan-approval.js');
+  return approvePlanResult(invocation.cwd, ticket, { noInput: invocation.noInput });
+}
+
+async function recordReviewDispositionHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const [ticketId, reviewId, findingNumber] = invocation.operands;
+  const reason = stringOption(invocation.options, 'reason');
+  if (
+    [ticketId, reviewId, findingNumber].some(value => typeof value !== 'string' || value === '') ||
+    reason === undefined ||
+    reason.trim() === ''
+  ) {
+    return invalidOperand(
+      'ticket record-review-disposition',
+      'Supply a ticket id, review id, one-based finding number, and --reason.',
+    );
+  }
+  const { recordReviewDisposition } = await import('../commands/review-disposition.js');
+  return recordReviewDisposition({
+    cwd: invocation.cwd,
+    ticketId: ticketId as string,
+    reviewId: reviewId as string,
+    findingNumber: findingNumber as string,
+    reason,
+    noInput: invocation.noInput,
+  });
+}
+
+async function planningContractCheckHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const ticket = invocation.operands[0];
+  const phase = invocation.operands[1];
+  if (
+    typeof ticket !== 'string' ||
+    ticket === '' ||
+    (phase !== 'product-plan' && phase !== 'plan-implementation' && phase !== 'plan-execution')
+  ) {
+    return invalidOperand(
+      'ticket planning-contract-check',
+      'Supply a ticket id and a canonical planning phase.',
+    );
+  }
+  const { checkPlanningContractCopy } = await import('../commands/planning-contract-check.js');
+  return checkPlanningContractCopy(invocation.cwd, ticket, phase);
+}
+
+async function deliveryChecklistHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const ticket = invocation.operands[0];
+  if (typeof ticket !== 'string' || ticket === '') {
+    return invalidOperand('ticket delivery-checklist', 'ticket id must be non-empty text.');
+  }
+  const { observeDeliveryChecklist } = await import('../commands/delivery-checklist.js');
+  return observeDeliveryChecklist(invocation.cwd, ticket);
+}
+
+async function executionPrerequisiteHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const ticket = invocation.operands[0];
+  if (typeof ticket !== 'string' || ticket === '') {
+    return invalidOperand('ticket execution-prerequisite', 'ticket id must be non-empty text.');
+  }
+  const { evaluateExecutionPrerequisite } = await import('../commands/execution-prerequisite.js');
+  return evaluateExecutionPrerequisite(invocation.cwd, ticket);
+}
+
+async function codingAuthorizationHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const ticket = invocation.operands[0];
+  if (typeof ticket !== 'string' || ticket === '') {
+    return invalidOperand('ticket coding-authorization', 'ticket id must be non-empty text.');
+  }
+  const { evaluateCodingAuthorization } = await import('../commands/coding-authorization.js');
+  return evaluateCodingAuthorization(invocation.cwd, ticket);
+}
+
+async function recordDeliveryProofHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const [ticket, item, proof] = invocation.operands;
+  if ([ticket, item, proof].some(value => typeof value !== 'string' || value === '')) {
+    return invalidOperand(
+      'ticket record-delivery-proof',
+      'ticket id, checklist item id, and proof id must be non-empty text.',
+    );
+  }
+  const receipt = stringOption(invocation.options, 'receipt');
+  const compatibleReason = stringOption(invocation.options, 'compatibleReason');
+  if ((receipt === undefined) !== (compatibleReason === undefined)) {
+    return invalidOperand(
+      'ticket record-delivery-proof',
+      '--receipt and --compatible-reason must be supplied together.',
+    );
+  }
+  if (invocation.offline) return onlineRequired('ticket record-delivery-proof');
+  if (receipt !== undefined && compatibleReason !== undefined) {
+    const { reuseEarlierDeliveryProof } = await import('../commands/delivery-checklist.js');
+    return reuseEarlierDeliveryProof({
+      cwd: invocation.cwd,
+      ticketId: ticket as string,
+      itemId: item as string,
+      proofId: proof as string,
+      receipt,
+      reason: compatibleReason,
+      confirmEgress: invocation.options.confirmEgress === true,
+    });
+  }
+  const { recordDeliveryProof } = await import('../commands/delivery-checklist.js');
+  return recordDeliveryProof(invocation.cwd, ticket as string, item as string, proof as string);
+}
+
 async function reviewKnowledgeHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { observeReviewKnowledge } = await import('../commands/review-knowledge.js');
   return observeReviewKnowledge(invocation.cwd);
@@ -366,6 +477,15 @@ async function recordSkillInvocationHandler(invocation: CommandInvocation): Prom
     typeof skill === 'string' ? skill : undefined,
     typeof sessionId === 'string' && sessionId.length > 0 ? sessionId : undefined,
   );
+}
+
+async function projectPrReadyHandler(invocation: CommandInvocation): Promise<CliResult> {
+  if (invocation.offline) return onlineRequired('project pr-ready');
+  const pull = invocation.operands[0];
+  if (pull !== undefined && typeof pull !== 'string')
+    return invalidOperand('project pr-ready', 'Pull request number must be text.');
+  const { runProjectPrReady } = await import('../commands/project-pr-ready.js');
+  return runProjectPrReady(invocation.cwd, pull);
 }
 
 async function projectRuntimeHandler(invocation: CommandInvocation): Promise<CliResult> {
@@ -457,6 +577,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'project test-plan': testPlanHandler,
   'project namespace-root': namespaceRootHandler,
   'project audit-scope': auditScopeHandler,
+  'project pr-ready': projectPrReadyHandler,
   'project record-skill-invocation': recordSkillInvocationHandler,
   'project runtime': projectRuntimeHandler,
   'project review-knowledge': reviewKnowledgeHandler,
@@ -483,6 +604,13 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'ticket list': ticketListHandler,
   'ticket new': ticketNewHandler,
   'ticket reconcile-parent': ticketReconcileParentHandler,
+  'ticket approve-plan': ticketApprovePlanHandler,
+  'ticket record-review-disposition': recordReviewDispositionHandler,
+  'ticket planning-contract-check': planningContractCheckHandler,
+  'ticket delivery-checklist': deliveryChecklistHandler,
+  'ticket execution-prerequisite': executionPrerequisiteHandler,
+  'ticket coding-authorization': codingAuthorizationHandler,
+  'ticket record-delivery-proof': recordDeliveryProofHandler,
   'review run': reviewRunHandler,
   'review gate executable-red': executableRedGateHandler,
   'review gate retrospective': retrospectiveGateHandler,
@@ -490,6 +618,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'review attest retrospective-close': retrospectiveCloseAttestHandler,
   'review gate retrospective-close': retrospectiveCloseGateHandler,
   'review status': reviewStatusHandler,
+  'review continue': reviewContinueHandler,
   'review routes set': reviewRoutesSetHandler,
   'review routes list': reviewRoutesListHandler,
   'review routes reset': reviewRoutesResetHandler,
@@ -506,6 +635,10 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   boundary: () =>
     Promise.resolve(
       createResult({ state: 'healthy', data: { command: 'boundary', internal: true } }),
+    ),
+  'hook go-lint': () =>
+    Promise.resolve(
+      createResult({ state: 'healthy', data: { command: 'hook go-lint', internal: true } }),
     ),
   'hook codex': () =>
     Promise.resolve(

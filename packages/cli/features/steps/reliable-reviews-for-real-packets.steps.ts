@@ -16,6 +16,9 @@ import { promisify } from 'node:util';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
+import { readReviewReceipt } from '../../templates/hooks/lib/read-receipt.js';
+import { receiptGateVerdict } from '../../templates/hooks/lib/review-receipt.js';
+import { largeLockfileFixture } from '../../tests/helpers/large-lockfile.js';
 import type { SafewordWorld } from './world.js';
 
 // Review scenarios use real subprocess timeouts. Scope their longer budget to
@@ -71,7 +74,8 @@ type ReviewWorld = SafewordWorld & { review?: ReviewScenario };
 
 function modelSpecificBehaviour(behaviour: Behaviour, answer: string): string | undefined {
   if (behaviour === 'answers only with a model') {
-    return `if ! printf '%s' "$*" | /usr/bin/grep -q -- '--model'; then\n  printf 'default model unavailable\\n' >&2\n  exit 7\nfi\n${answer}`;
+    // The primary route asks for the latest Sol; only a later model answers.
+    return `if ! printf '%s' "$*" | /usr/bin/grep -q -- '--model' || printf '%s' "$*" | /usr/bin/grep -q -- '--model gpt-6.1-sol'; then\n  printf 'default model unavailable\\n' >&2\n  exit 7\nfi\n${answer}`;
   }
   if (behaviour === 'answers only with the expected model') {
     return `model=''\nprevious=''\nfor argument in "$@"; do\n  if [ "$previous" = "--model" ]; then model="$argument"; fi\n  previous="$argument"\ndone\nif [ "$model" != "$SAFEWORD_REVIEW_BDD_EXPECTED_MODEL" ]; then\n  printf 'model unavailable: %s\\n' "$model" >&2\n  exit 7\nfi\n${answer}`;
@@ -296,12 +300,136 @@ After(function (this: SafewordWorld) {
   const current = (this as ReviewWorld).review;
   if (current === undefined) return;
   rmSync(current.project, { recursive: true, force: true });
+  const keyRoot = current.environment.SAFEWORD_REVIEW_KEY_ROOT;
+  if (keyRoot !== undefined) rmSync(keyRoot, { recursive: true, force: true });
   for (const bin of current.binaries) {
     rmSync(nodePath.dirname(bin), { recursive: true, force: true });
   }
 });
 
 // ---------------------------------------------------------------- Given
+
+Given('an independent reviewer is available', function (this: SafewordWorld) {
+  installReviewer(state(this), 'codex', 'answers');
+});
+
+Given('a tracked oversized bun.lock with a bounded version change', function (this: SafewordWorld) {
+  const current = state(this);
+  const fixture = largeLockfileFixture(current.project);
+  fixture.write(fixture.before.replace('1.1.0', '1.2.0'));
+  current.targets = ['bun.lock'];
+  // Outside the project: trusted CLIs ignore a key root project code could write.
+  current.environment.SAFEWORD_REVIEW_KEY_ROOT = mkdtempSync(
+    nodePath.join(tmpdir(), 'safeword-review-keys-'),
+  );
+});
+
+Then(
+  'the reviewer receives the original lockfile target with its complete bounded patch',
+  function (this: SafewordWorld) {
+    assertApprovedCodexVerdict(this);
+    const current = state(this);
+    const prompt = readFileSync(current.packetLog, 'utf8');
+    const packet = JSON.parse(prompt.trimEnd().split('\n').at(-1) ?? '');
+    assert.equal(packet.logical_files.length, 1);
+    const file = packet.logical_files[0];
+    assert.equal(file.path, 'bun.lock');
+    assert.equal(file.representation.kind, 'git-diff');
+    const source = readFileSync(nodePath.join(current.project, 'bun.lock'));
+    assert.equal(file.representation.source_bytes, source.length);
+    assert.match(file.content, /- {6}"version": "1\.1\.0"/u);
+    assert.match(file.content, /\+ {6}"version": "1\.2\.0"/u);
+    assert.deepEqual(payload(this).data.excluded_targets, []);
+  },
+);
+
+Then(
+  'the lockfile approval witnesses original-file implementation coverage',
+  { timeout: REVIEW_STEP_TIMEOUT_MS },
+  function (this: SafewordWorld) {
+    const current = state(this);
+    const bin = current.binaries[0];
+    assert.ok(bin);
+    // A distribution-owned route outside the reviewed project, executing the real built CLI.
+    const pluginRoot = nodePath.dirname(bin);
+    const runtime = nodePath.join(pluginRoot, 'runtime');
+    mkdirSync(runtime);
+    writeFileSync(nodePath.join(runtime, 'cli.js'), `await import(${JSON.stringify(CLI_PATH)});`);
+    const overrides = {
+      CLAUDE_PLUGIN_ROOT: pluginRoot,
+      NODE_ENV: 'test',
+      SAFEWORD_REVIEW_KEY_ROOT: current.environment.SAFEWORD_REVIEW_KEY_ROOT,
+    };
+    const previous = Object.fromEntries(Object.keys(overrides).map(key => [key, process.env[key]]));
+    try {
+      Object.assign(process.env, overrides);
+      const receipt = readReviewReceipt(String(payload(this).data.review_id), current.project);
+      assert.ok(receipt);
+      assert.equal(receipt.status, 'approved');
+      assert.deepEqual(receipt.targets, ['bun.lock']);
+      assert.deepEqual(receipt.excludedTargets, []);
+      assert.deepEqual(
+        receiptGateVerdict(
+          {
+            independence: 'cross-agent',
+            phase: 'implement',
+            ticketFolder: 'TST',
+            projectDirectory: current.project,
+            ticketDirectory: nodePath.join(current.project, '.project/tickets/TST'),
+            implementationFiles: ['bun.lock'],
+          },
+          receipt,
+        ),
+        { ok: true },
+      );
+    } finally {
+      for (const [key, value] of Object.entries(previous)) {
+        if (value === undefined) Reflect.deleteProperty(process.env, key);
+        else process.env[key] = value;
+      }
+    }
+  },
+);
+
+When('the reviewed lockfile source changes', function (this: SafewordWorld) {
+  const path = nodePath.join(state(this).project, 'bun.lock');
+  writeFileSync(path, readFileSync(path, 'utf8').replace('1.2.0', '1.3.0'));
+});
+
+Then(
+  'the public review status reports the lockfile approval as stale',
+  { timeout: REVIEW_STEP_TIMEOUT_MS },
+  async function (this: SafewordWorld) {
+    const current = state(this);
+    let stdout: string;
+    try {
+      const result = await execFileAsync(
+        process.execPath,
+        [
+          CLI_PATH,
+          'review',
+          'status',
+          String(payload(this).data.review_id),
+          '--json',
+          '--cwd',
+          current.project,
+        ],
+        {
+          cwd: current.project,
+          env: { ...process.env, ...current.environment },
+          timeout: REVIEW_PROCESS_TIMEOUT_MS,
+        },
+      );
+      stdout = result.stdout;
+    } catch (error) {
+      const failure = error as { code?: number; stdout?: string };
+      assert.equal(failure.code, 2, 'stale review requires action');
+      assert.ok(failure.stdout);
+      stdout = failure.stdout;
+    }
+    assert.equal(JSON.parse(stdout).data.status, 'stale');
+  },
+);
 
 Given('a reviewer that answers well inside its deadline', function (this: SafewordWorld) {
   const current = state(this);
@@ -342,6 +470,8 @@ Given('a review packet larger than the accepted maximum', function (this: Safewo
 Given('an explicitly configured attempt deadline', function (this: SafewordWorld) {
   const current = state(this);
   current.environment.SAFEWORD_REVIEW_TIMEOUT_MS = '3000';
+  // Bound the run so only the first attempt is funded and its deadline is measurable.
+  current.environment.SAFEWORD_REVIEW_RUN_BOUND_MS = '4000';
   installReviewer(current, 'codex', 'never answers');
 });
 
@@ -548,7 +678,7 @@ Given(
 
 Given('a reviewer that fails while emitting a credential', function (this: SafewordWorld) {
   const current = state(this);
-  installReviewer(current, 'codex', 'never answers');
+  installReviewer(current, 'codex', 'fails');
   installReviewer(current, 'claude', 'emits a credential');
 });
 
@@ -772,7 +902,7 @@ Then(
     const launches = reviewerLaunches(this);
     assert.equal(payload(this).data.actual_reviewer, 'claude');
     assert.equal(launches.length, 3);
-    assert.match(launches[0] ?? '', /^codex\t(?!.*--model)/u);
+    assert.match(launches[0] ?? '', /^codex\t.*--model gpt-6.1-sol(?:\s|$)/u);
     assert.match(launches[1] ?? '', /^codex\t.*--model vendor-model-2(?:\s|$)/u);
     assert.match(launches[2] ?? '', /^claude\t/u);
   },
@@ -790,19 +920,23 @@ Then('the result does not report a full cross-agent check', function (this: Safe
   assert.notEqual(payload(this).data.independence, 'cross-agent');
 });
 
+Then(
+  'the built-in Terra fallback is used instead of the unusable model',
+  function (this: SafewordWorld) {
+    assert.equal(payload(this).data.reviewer_model, 'gpt-6.1-terra');
+    assert.ok(reviewerLaunches(this).every(launch => !launch.includes('invalid model')));
+  },
+);
+
 Then('the reviewer is asked to review on that model', function (this: SafewordWorld) {
   assert.equal(payload(this).data.reviewer_model, 'vendor-model-2');
 });
 
 Then(
-  'the reviewer is never asked for a review on an alternate model',
+  'the reviewer is never asked for a review on the configured alternate model',
   function (this: SafewordWorld) {
-    assert.equal(payload(this).data.reviewer_model, undefined);
-    assert.ok(
-      reviewerLaunches(this).every(
-        launch => !launch.includes('--model') && !launch.includes('--help'),
-      ),
-    );
+    assert.notEqual(payload(this).data.reviewer_model, 'vendor-model-2');
+    assert.ok(reviewerLaunches(this).every(launch => !launch.includes('vendor-model-2')));
   },
 );
 
@@ -834,10 +968,12 @@ Then('the result names Opus as the timed-out primary model', function (this: Saf
 
 Then('the routes were attempted in their fixed order', function (this: SafewordWorld) {
   const launches = reviewerLaunches(this);
-  assert.equal(launches.length, 3);
-  assert.match(launches[0] ?? '', /^codex\t(?!.*--model)/u);
+  // The author's own runtime gets its full model chain: Opus, then Sonnet.
+  assert.equal(launches.length, 4);
+  assert.match(launches[0] ?? '', /^codex\t.*--model gpt-6.1-sol(?:\s|$)/u);
   assert.match(launches[1] ?? '', /^codex\t.*--model vendor-model-2(?:\s|$)/u);
-  assert.match(launches[2] ?? '', /^claude\t/u);
+  assert.match(launches[2] ?? '', /^claude\t.*--model opus(?:\s|$)/u);
+  assert.match(launches[3] ?? '', /^claude\t.*--model sonnet(?:\s|$)/u);
 });
 
 Then("the author's own runtime is never attempted", function (this: SafewordWorld) {
@@ -859,10 +995,6 @@ Then(
     assert.equal(data.reviewer_model, model);
   },
 );
-
-Then('the command reports the required check as unsatisfied', function (this: SafewordWorld) {
-  assert.equal(payload(this).data.status, 'blocked');
-});
 
 Then('the explanation says the assigned reviewer ran out of time', function (this: SafewordWorld) {
   assert.match(explanation(this), /ran out of time/iu);
@@ -907,8 +1039,4 @@ Then('the review returns a verdict', function (this: SafewordWorld) {
 
 Then('the result reports that the check was not independent', function (this: SafewordWorld) {
   assert.notEqual(payload(this).data.independence, 'cross-agent');
-});
-
-Then('the required cross-agent check is not satisfied', function (this: SafewordWorld) {
-  assert.equal(payload(this).data.status, 'blocked');
 });

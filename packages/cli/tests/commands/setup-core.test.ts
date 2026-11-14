@@ -60,7 +60,9 @@ describe('Test Suite 2: Setup - Core Files', () => {
 
       // Core structure
       expect(fileExists(temporaryDirectory, '.safeword')).toBe(true);
-      expect(fileExists(temporaryDirectory, '.safeword/SAFEWORD.md')).toBe(true);
+      expect(fileExists(temporaryDirectory, '.safeword/enrolled')).toBe(true);
+      // No selected host reads a project handbook copy; native plugins ship their own.
+      expect(fileExists(temporaryDirectory, '.safeword/SAFEWORD.md')).toBe(false);
       expect(fileExists(temporaryDirectory, '.safeword/version')).toBe(true);
 
       // Subdirectories

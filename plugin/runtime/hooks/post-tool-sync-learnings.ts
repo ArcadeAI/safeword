@@ -3,9 +3,10 @@
 // Ticket #130. Verification-stamp warning added in ticket XV72DT.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { safewordCli } from './lib/safeword-cli.ts';
 import { hasVerificationStamp } from './lib/learning-verification-stamps.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 
@@ -37,21 +38,16 @@ if (!resolvedFile.startsWith(`${nodePath.resolve(learningsDirectory)}${nodePath.
 }
 if (!resolvedFile.endsWith('.md')) process.exit(0);
 
-// Prefer local source in dev/dogfood, fall back to published CLI.
 // Best-effort: never block an edit.
-const localCli = nodePath.join(projectDir, 'packages/cli/src/cli.ts');
-const pluginCli = process.env.SAFEWORD_PLUGIN_CLI;
-const [command, args] =
-  pluginCli === undefined
-    ? existsSync(localCli)
-      ? ['bun', [localCli, 'sync-learnings', '--quiet']]
-      : ['bun', [process.env.SAFEWORD_PLUGIN_CLI ?? localCli, 'sync-learnings', '--quiet']]
-    : ['bun', [pluginCli, 'sync-learnings', '--quiet']];
-spawnSync(command as string, args as string[], {
-  cwd: projectDir,
-  stdio: 'inherit',
-  timeout: 30_000,
-});
+// Index regeneration needs the CLI; the stamp scan below does not.
+const cli = safewordCli(projectDir);
+if (cli !== undefined) {
+  spawnSync(cli.command, [...cli.args, 'sync-learnings', '--quiet'], {
+    cwd: projectDir,
+    stdio: 'inherit',
+    timeout: 30_000,
+  });
+}
 
 // Scan the just-written file for fabricated verification stamps and emit a
 // PostToolUse `additionalContext` warning. See lib/learning-verification-stamps.ts

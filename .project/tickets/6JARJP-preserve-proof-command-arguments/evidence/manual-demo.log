@@ -1,0 +1,2 @@
+PASS: Markdown JSON -> delivery definition -> trusted validation -> real node subprocess preserves repeated flags, empty/whitespace operands, backslash and pipe.
+["--test","one","--test","two",""," ","\\d","a|b"]

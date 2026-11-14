@@ -20,6 +20,7 @@ import {
 } from '../../src/claude-plugin/profile.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 import { createTemporaryDirectory } from '../helpers.js';
+import { normalizeClaudeSkillHeader } from '../helpers/claude-skill-header.js';
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 // The fake host must expect the same prerelease-aware marketplace ref as
@@ -456,6 +457,45 @@ describe('Claude marketplace update enrollment', () => {
       installations: [{ scope: 'project', health: 'current' }],
     });
   });
+
+  it('reports healthy after desktop sync normalizes skill front matter', () => {
+    const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, undefined, { cacheMetadata: true });
+    const skillPath = nodePath.join(
+      nodePath.dirname(project),
+      'cached-plugin/skills/audit/SKILL.md',
+    );
+    const original = readFileSync(skillPath, 'utf8');
+    const normalized = normalizeClaudeSkillHeader(original);
+    expect(normalized).not.toBe(original);
+    writeFileSync(skillPath, normalized);
+
+    expect(observeApplicableClaudePlugins(project)).toMatchObject({
+      status: 'observed',
+      installations: [{ scope: 'project', health: 'current' }],
+    });
+  });
+
+  it.each(['name: changed', 'name: audit\nallowed-tools: Bash', 'name: audit\nname: duplicate'])(
+    'reports damaged skills when metadata changes: %s',
+    replacement => {
+      const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, undefined, {
+        cacheMetadata: true,
+      });
+      const skillPath = nodePath.join(
+        nodePath.dirname(project),
+        'cached-plugin/skills/audit/SKILL.md',
+      );
+      writeFileSync(
+        skillPath,
+        readFileSync(skillPath, 'utf8').replace('name: audit', () => replacement),
+      );
+
+      expect(observeApplicableClaudePlugins(project)).toMatchObject({
+        status: 'observed',
+        installations: [{ health: 'errored' }],
+      });
+    },
+  );
 
   it('treats an omitted Claude plugin scope as the default user scope', () => {
     const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, undefined, {

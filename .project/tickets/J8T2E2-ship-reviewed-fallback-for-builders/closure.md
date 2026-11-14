@@ -1,0 +1,13 @@
+# Scoped local delivery closure
+
+Independent verification review `fce04419-7c9f-41c4-9d75-7a2605ebe5b1` approved with no errors. The authenticated verify-phase stamp was earned before the task advanced to done. Its raw envelope is preserved in the adjacent parent evidence archive.
+
+Review `db8bc487-7bae-441a-961f-20d0b16fcc76` also approved. Applying its ticket wording suggestion made its context stale, so the stamp helper correctly refused that receipt. The final review above rechecked the corrected context; no stale receipt was used.
+
+Remaining warnings are retained: the native walkthrough demonstrates rejection and replay refusal, while positive admission uses real collaborators with fake external executables. There is no live-provider positive-admission or isolation claim. Self-review is author observation, not independent review of the base integration; #5996 was separately delivered and final-head CI must cover the integration. No parent completion, new advisory exception or unchanged paid qualification is claimed.
+
+An extra completion-helper rerun failed the installed pinned-CLI marker assertion because this invocation explicitly injected `SAFEWORD_PLUGIN_CLI`. The CLI resolver gives that override precedence over the fixture's installed executable. The ordinary full suite had passed without it; the focused normal-environment test rerun passed all 18 tests unchanged. The failure is preserved, and the complete helper was rerun through the ordinary resolver without this invocation-only override. An attempted backward phase edit was refused by the phase-review hook; no gate/configuration bypass was used and no completion was reported while tests remained pending.
+
+The normal-environment canonical `runTests` completion helper subsequently returned `passed: true`, `skipped: false`, exit 0. It resolved and executed the test and full BDD plans; its bounded output ends with all 51 proof-tag tests passing. The earlier complete untruncated acceptance log establishes the 601 scenarios /11,821 steps. The helper's own bounded terminal output is archived separately as `5086-quality-done-gate-normal.log.gz`; it is not presented as an untruncated full log.
+
+All 166 product paths and two dependency files were rehashed against the committed `5a7f3c6eec014cb7308182a5c1ba0fb57271363c` bytes. All 43 compressed artifacts matched their recorded decompressed SHA256. Final evidence-only changes preserve these product bytes. Current-head green CI and the checked Ready command remain mandatory before the user's authorized admin merge. No branch or worktree deletion is authorized.

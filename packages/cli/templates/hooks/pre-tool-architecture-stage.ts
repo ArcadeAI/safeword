@@ -12,6 +12,8 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
+
+import { safewordCli } from './lib/safeword-cli.ts';
 import process from 'node:process';
 
 import { stagedChangeAffectsArchitecture } from './lib/architecture-staged-scope.ts';
@@ -514,18 +516,11 @@ function runArchitectureHook(projectDir: string, plan: GitCommitPlan): void {
       return;
     }
 
-    // Prefer local source in dev/dogfood, fall back to the published CLI. The CLI
-    // owns the regenerate-and-stage logic (and the opt-out check); this hook is glue.
-    const localCli = nodePath.join(projectDir, 'packages/cli/src/cli.ts');
-    const pluginCli = process.env.SAFEWORD_PLUGIN_CLI;
-    const [command, args] =
-      pluginCli === undefined
-        ? existsSync(localCli)
-          ? ['bun', [localCli, 'architecture', '--from-index', '--stage-output']]
-          : ['bunx', ['safeword@latest', 'architecture', '--from-index', '--stage-output']]
-        : ['bun', [pluginCli, 'architecture', '--from-index', '--stage-output']];
+    // The CLI owns the regenerate-and-stage logic (and the opt-out check); this hook is glue.
+    const cli = safewordCli(projectDir);
+    if (cli === undefined) return;
 
-    spawnSync(command as string, args as string[], {
+    spawnSync(cli.command, [...cli.args, 'architecture', '--from-index', '--stage-output'], {
       cwd: projectDir,
       env: {
         ...process.env,

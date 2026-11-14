@@ -1,0 +1,238 @@
+{
+  "purpose": "Two regression tests authorized after the #4200/#5170 quality assessment. This is current coverage evidence, never reconstruction of historical RED.",
+  "base_head": "18e8321a7f1a473a4e2df4cc337898d8446c7adb",
+  "test_tree_head": "8c80abf64616f367baa8c137c12ce1f09c088c1a",
+  "scope": [
+    "Capture real spawned reviewer stdin and assert the canonical executable-RED refusal rubric is in the instruction prefix, outside the serialized packet.",
+    "Exercise the real signed-record gate with an approving fixture worker. Keep exit_code=1 and expected_failure.matched=true; timed_out=true must block GREEN. A retry with timed_out=false must approve."
+  ],
+  "boundaries": {
+    "dispatch": "Real runHeadlessReviewer and spawned shim; only external reviewer process is faked. This is wiring evidence, not semantic model evaluation.",
+    "timeout": "Real startReviewJob, record signing, freshness and executableRedGate; only detached external worker is faked. This is gate evidence, not real timeout observation or proof that the reviewer rejects it."
+  },
+  "production_changes": false,
+  "historical_evidence_changes": false,
+  "proof_mapping": "Unchanged in final diff. An attempted supplemental mapping was removed after independent review found it could overstate gate evidence as proof of reviewer rejection.",
+  "tests": {
+    "characterization": {
+      "passed": 2,
+      "filtered": 149,
+      "log": "/tmp/4200-regression/baseline.log"
+    },
+    "rubric_removal_mutation": {
+      "exit_code": 1,
+      "failed": 1,
+      "failure": "Canonical RED rubric absent from real reviewer stdin.",
+      "log": "/tmp/4200-regression/mutation-rubric.log"
+    },
+    "timeout_check_removal_mutation": {
+      "exit_code": 1,
+      "failed": 1,
+      "failure": "Gate returned healthy/approved for timed-out evidence.",
+      "log": "/tmp/4200-regression/mutation-timeout.log"
+    },
+    "focused": {
+      "files": 6,
+      "passed": 221,
+      "skipped": 2,
+      "log": "/tmp/4200-regression/focused.log"
+    },
+    "mutations_restored": true,
+    "full_cli": {
+      "files": 671,
+      "passed": 11083,
+      "skipped": 14,
+      "duration_seconds": 764.96,
+      "result": "passed",
+      "log": "/tmp/4200-regression/verify.log"
+    },
+    "other_root_suites": {
+      "relay": {
+        "passed": 198,
+        "skipped": 1
+      },
+      "collector": {
+        "passed": 153
+      },
+      "duplicate_collector": {
+        "passed": 153,
+        "note": "Repeated by resolver; not additional distinct coverage."
+      }
+    },
+    "smoke": {
+      "files": 103,
+      "passed": 2174,
+      "result": "passed",
+      "log": "/tmp/4200-regression/smoke.log",
+      "note": "Overlaps the default CLI suite; not additional distinct test cases."
+    },
+    "package_acceptance": {
+      "passed_scenarios": 596,
+      "passed_steps": 11118,
+      "passed_hooks": 2,
+      "duration_seconds": 351.178,
+      "result": "passed",
+      "lane": "CLI-package harness, not broad workspace acceptance",
+      "log": "/tmp/4200-regression/verify.log"
+    }
+  },
+  "static_checks": {
+    "full_lint_and_cli_typecheck": "passed after moving prior disposable probe fixtures out of repository",
+    "initial_lint_failure": {
+      "errors": 229,
+      "cause": "Earlier disposable probe sources under packages/cli/.test-tmp were included by full lint. Preserved and moved to /tmp/4200-regression/prior-probe-fixtures, with no lint suppression or tracked-source edit.",
+      "log": "/tmp/4200-regression/lint.log"
+    },
+    "clean_lint_log": "/tmp/4200-regression/lint-clean.log",
+    "generated_surfaces": "All 5 current.",
+    "parity": "All 276 pairs and 11 contracts in sync; no unregistered templates."
+  },
+  "independent_reviews": [
+    {
+      "id": "1ce25e6f-2ee1-4acc-9cd6-f58f2e3961c2",
+      "reviewer": "Claude Opus",
+      "independence": "cross-agent",
+      "verdict": "approve",
+      "targets": [
+        "packages/cli/tests/review/runtime.test.ts",
+        "packages/cli/tests/review/job.test.ts"
+      ],
+      "findings_disposition": [
+        "Background-run-bound lower-only assertion warning concerns unchanged test; outside this surgical addition. Retained as warning.",
+        "Courtesy-wait exact ps-count coupling info concerns unchanged test; outside this addition.",
+        "Codex flag insulation tripwire limit is explicitly documented in existing test; no change required."
+      ]
+    },
+    {
+      "id": "f610c45a-66f0-46a1-afb5-d3c614cea33a",
+      "reviewer": "Claude Opus",
+      "independence": "cross-agent",
+      "verdict": "request_changes",
+      "targets": [
+        "packages/cli/features/review-executable-red-before-implementation.bdd-proof.json"
+      ],
+      "findings_disposition": [
+        "Accepted for the attempted timeout mapping: gate refusal is not reviewer rejection. Removed this mapping edit; original scenario and manifest preserved.",
+        "Distinct-proof executor observation gap: unchanged pre-existing mapping; retained open, outside authorized two-test addition.",
+        "Tampered-attestation proof gap: unchanged pre-existing mapping; retained open, outside this addition.",
+        "Approved-to-stale transition proof gap: unchanged pre-existing mapping; retained open, outside this addition.",
+        "Unavailable-reviewer recovery wording gap: unchanged pre-existing mapping; retained open, outside this addition.",
+        "Passing-evidence reviewer-rejection mapping gap: unchanged pre-existing mapping; retained open, outside this addition.",
+        "Similar-target, incomplete-packet, fabricated-receipt, host/cloud parity and rubric-only proof warnings remain limitations; no scenario weakened and no broad semantic certification claimed."
+      ]
+    }
+  ],
+  "verify": {
+    "status": "completed with nonzero aggregate; not an all-green invocation",
+    "command": "SAFEWORD_TEST_LOCK_MAX_WAIT_MS=1800000 scripts/dev bash /tmp/4200-regression/verify-2.sh",
+    "script": "Verbatim automated-check block extracted from packaged verify/SKILL.md; run through pinned scripts/dev toolchain.",
+    "log": "/tmp/4200-regression/verify.log",
+    "ticket_resolution": "No active local ticket resolved; historical ticket artifacts and statuses remain untouched. verify/audit current-run skill invocations were logged successfully.",
+    "duplicate_cli": {
+      "status": "interrupted",
+      "exit_code": 130,
+      "reason": "Resolver repeated the same CLI suite already covered by the successful root suite. SIGINT sent only to redundant runner PID 68112; wrapper cleaned up and released the lock. Remaining verify lanes continued. This partial repeat is not a passing suite and the aggregate invocation cannot be called green."
+    },
+    "go_checker": "go test ./... exited successfully with [no test files]; compilation only, no test coverage.",
+    "aggregate_exit_code": 130,
+    "duplicates": [
+      {
+        "leg": "second collector suite",
+        "status": "passed",
+        "note": "153 repeated tests; not distinct additional coverage."
+      },
+      {
+        "leg": "second full CLI suite",
+        "status": "interrupted",
+        "exit_code": 130,
+        "pid": 68112
+      },
+      {
+        "leg": "queued package provenance wrapper",
+        "status": "interrupted while waiting; no tests started",
+        "exit_code": 130,
+        "pid": 10028,
+        "substitute_evidence": "All 50 provenance tests passed in the 221-test focused run and successful full CLI suite on unchanged test sources."
+      },
+      {
+        "leg": "second identical package acceptance",
+        "status": "interrupted",
+        "exit_code": 130,
+        "pid": 10550,
+        "substitute_evidence": "First complete package acceptance passed 596 scenarios and 11118 steps."
+      }
+    ],
+    "build": {
+      "result": "passed",
+      "coverage": [
+        "root CLI/relay/collector build",
+        "collector build",
+        "website Astro build",
+        "CLI build",
+        "Go checker build"
+      ]
+    },
+    "typecheck": {
+      "result": "passed",
+      "coverage": [
+        "root CLI/relay/collector tsc",
+        "collector tsc",
+        "CLI tsc",
+        "website Astro check (3 files, no errors/warnings/hints)",
+        "locked root mypy (5 source files)"
+      ]
+    },
+    "dependencies": {
+      "result": "failed advisories; dependencies and lockfiles unchanged",
+      "bun_audit": {
+        "records": 8,
+        "high": 2,
+        "moderate": 3,
+        "low": 3
+      },
+      "root_uv_audit": {
+        "records": 6,
+        "package": "urllib3 2.7.0",
+        "distinct_cves": [
+          "CVE-2026-97687",
+          "CVE-2026-97688",
+          "CVE-2026-97689"
+        ],
+        "note": "Six scanner records include GHSA/PYSEC aliases of three CVEs."
+      },
+      "gepa_pip_audit": "No known vulnerabilities found in experiment requirements scan.",
+      "go_govulncheck": {
+        "reachable_symbol_vulnerabilities": 0,
+        "imported_package_vulnerabilities_not_called": 1,
+        "required_module_vulnerabilities_not_called": 12
+      },
+      "log": "/tmp/4200-regression/verify.log"
+    }
+  },
+  "audit": {
+    "scope": "Diff against origin/main merge base, including working tree; no repository-wide widening.",
+    "automated_code": "No dependency violations: 480 modules, 834 dependencies; sync-config check Healthy.",
+    "agent_config": "No changed AGENTS/CLAUDE/managed Cursor-rule claims requiring repair. Template/mirror guidance reviewed; parity and generated checks current.",
+    "learnings_principles_domain": "Verbatim packaged blocks produced no findings. No changed project learnings, specs or domain documents, and no active ticket principle trace.",
+    "docs": "Configured local README.md and packages/website/src/content/docs inventory. Direct executable-red documentation checked; no new public behavior or undocumented runtime change. Runtime dependency choices unchanged and documented in ARCHITECTURE.md. Generated package map matches narrative package roles.",
+    "test_quality": "Four changed test files inspected. Added tests discriminate their intended mutations; generated-rubric/document tests remain text contracts. Their broader semantic scenario mapping limitations remain open, as recorded in the earlier quality assessment and expanded independent review.",
+    "excluded_discovery": "Knip, clone totals and outdated-package discovery intentionally skipped by the diff-audit workflow. No whole-repository cleanliness claim.",
+    "status": "Automated/static pass; broader semantic proof-mapping gaps remain open. No clean overall BDD-quality verdict.",
+    "verdict": "Audit failed: existing semantic proof-mapping errors remain open. No blocking finding in the two added tests; static/architecture checks passed.",
+    "next": "Keep PR Draft; retain the open semantic-proof findings for separately scoped follow-up. Do not weaken scenarios or reinterpret these gate tests as model qualification."
+  },
+  "unrelated_bdd_failures": "Previously observed evidence-budget mismatch and two plugin-command-prefix assertions are outside this ticket. Left unchanged per user instruction. The previous broad run and 585 undefined scenarios remain historical observations, not current behavioral RED.",
+  "readiness": "Draft only. Functional checks passed as recorded; duplicate legs were intentionally interrupted, dependency scans reported advisories, and broader semantic-proof gaps remain open. No merge or promotion authorized.",
+  "evidence_limits": [
+    "No new installed-host or cloud walkthrough; these test-only changes add no user flow.",
+    "No new live semantic evaluation in this follow-up. Earlier 18 real reviewer/gate observations remain limited synthetic observations in the prior assessment.",
+    "No broad workspace acceptance rerun; earlier 3 failed, 3 skipped and 585 undefined scenarios remain retained. User explicitly excluded repairing the three unrelated failures.",
+    "No historical RED or GREEN/REFACTOR evidence is reconstructed or repaired."
+  ],
+  "evidence_archive": {
+    "path": "/tmp/4200-red-regression-evidence.zip",
+    "bytes": 83600,
+    "sha256": "a3cc503a26233b73d9f6164e0617945544d2034fa37fd7036376826e055908a1",
+    "contents": "Verbatim workflow scripts, commands/plans, logs, mutation evidence, final test diff and two signed review records. No integrity key or account credentials. Earlier probe fixture directories remain separately preserved and are not included."
+  }
+}

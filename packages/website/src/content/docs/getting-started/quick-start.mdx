@@ -53,7 +53,7 @@ You use Claude Code, Codex, Cursor, or OpenCode the same way you always have. Ty
   <TabItem label="Codex">
     **Your agent gets scoped safeword plugin skills.** The Safeword Codex plugin exposes names such as `safeword:bdd`, `safeword:verify`, and `safeword:explain` instead of installing Safeword workflow files into your repo.
 
-    **Install enrolls each repository.** Installing a profile plugin does not enroll every repository you open. Until `safeword install` creates `.safeword/SAFEWORD.md`, project gates fail open and plugin hooks do not create `.project/` or other project state.
+    **Install enrolls each repository.** Installing a profile plugin does not enroll every repository you open. Until `safeword install` creates `.safeword/enrolled`, project gates fail open and plugin hooks do not create `.project/` or other project state.
 
     **Native gates run through the plugin.** Project SessionStart hooks enroll each developer's profile and prepare missing dependencies in trusted fresh worktrees; `safeword install --agents=codex` is available when you want to enroll immediately. Review changed hooks in Desktop Settings > Hooks (or `/hooks` in the terminal TUI), fully restart Codex, then resume this task to load one coherent skills-and-hooks catalogue. Startup warnings remain advisory. Native plugin hooks use the CLI bundled with the installed plugin version, so hook dispatch does not depend on Bunx package resolution.
 
@@ -108,7 +108,7 @@ Safeword added a few folders to your project:
 
 | Folder / surface                                            | What's in it                                                                 |
 | ----------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `.safeword/`                                                | `SAFEWORD.md` and `config.json` — project enrollment and configuration       |
+| `.safeword/`                                                | `enrolled` and `config.json` — project enrollment and configuration          |
 | Safeword Claude plugin                                      | Skills, hooks, agents, guides, and templates; project-scoped by default      |
 | Safeword Codex plugin                                       | Project bootstrap plus profile-scoped workflow skills and hooks              |
 | Safeword OpenCode delivery                                  | Profile plugin, commands, agents, and skills (only with `--agents=opencode`) |

@@ -367,6 +367,11 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('project lint-gherkin', 'Validate executable feature files', 'observe', {
     syntax: 'lint-gherkin [files...]',
   }),
+  command('project pr-ready', 'Promote the PR verified in the selected worktree', 'mutate', {
+    syntax: 'pr-ready [pull]',
+    networkPolicy: 'declared',
+    fixture: { argv: ['project', 'pr-ready', '--offline'], environment: MACHINE_ENVIRONMENT },
+  }),
   command('project audit-scope', 'Print the packaged audit scope shell contract', 'observe', {
     syntax: 'audit-scope',
   }),
@@ -567,6 +572,93 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     ],
   }),
   command(
+    'ticket approve-plan',
+    'Record human authority for the current reviewed Implementation Plan',
+    'mutate',
+    {
+      promptPolicy: 'confirm',
+      syntax: 'approve-plan <ticketId>',
+      fixture: {
+        argv: ['ticket', 'approve-plan', 'fixture', '--no-input'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
+  command(
+    'ticket record-review-disposition',
+    'Decline one optional reviewed suggestion',
+    'mutate',
+    {
+      promptPolicy: 'confirm',
+      syntax: 'record-review-disposition <ticketId> <reviewId> <findingNumber>',
+      commandOptions: [
+        { flags: '--reason <reason>', description: 'Explain why the suggestion is declined' },
+      ],
+    },
+  ),
+  command(
+    'ticket planning-contract-check',
+    'Check active planning author-copy integrity',
+    'observe',
+    {
+      syntax: 'planning-contract-check <ticketId> <phase>',
+      fixture: {
+        argv: ['ticket', 'planning-contract-check', 'fixture', 'plan-implementation'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
+  command('ticket delivery-checklist', 'Report feature delivery readiness', 'observe', {
+    syntax: 'delivery-checklist <ticketId>',
+    fixture: {
+      argv: ['ticket', 'delivery-checklist', 'fixture'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command(
+    'ticket execution-prerequisite',
+    'Check whether feature execution planning is admitted',
+    'observe',
+    {
+      syntax: 'execution-prerequisite <ticketId>',
+      fixture: {
+        argv: ['ticket', 'execution-prerequisite', 'fixture'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
+  command(
+    'ticket coding-authorization',
+    'Check whether current reviewed plans authorize coding',
+    'observe',
+    {
+      syntax: 'coding-authorization <ticketId>',
+      fixture: {
+        argv: ['ticket', 'coding-authorization', 'fixture'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
+  command('ticket record-delivery-proof', 'Run and retain one reviewed delivery proof', 'mutate', {
+    networkPolicy: 'declared',
+    syntax: 'record-delivery-proof <ticketId> <itemId> <proofId>',
+    commandOptions: [
+      { flags: '--receipt <id>', description: 'Reuse an earlier delivery-proof receipt' },
+      {
+        flags: '--compatible-reason <reason>',
+        description: 'Explain why the earlier proof remains compatible',
+      },
+      {
+        flags: '--confirm-egress',
+        description: 'Confirm sending the complete contribution diff to the configured reviewer',
+      },
+    ],
+    fixture: {
+      argv: ['ticket', 'record-delivery-proof', 'fixture', 'item', 'proof'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command(
     'review run',
     'Run an independent adversarial review; report data.excluded_targets and REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE or REVIEW_NO_ELIGIBLE_TARGETS errors',
     'mutate',
@@ -627,6 +719,29 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     syntax: 'status [review-id]',
     fixture: {
       argv: ['review', 'status'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command('review continue', 'Complete a sealed planning review continuation', 'mutate', {
+    syntax: 'continue <review-id>',
+    commandOptions: [
+      { flags: '--tier <tier>', description: 'Pending fresh-context or self-review tier' },
+      { flags: '--output <path>', description: 'JSON reviewer result for the sealed packet' },
+      {
+        flags: '--failure <kind>',
+        description: 'Typed host failure when no reviewer result exists',
+      },
+    ],
+    fixture: {
+      argv: [
+        'review',
+        'continue',
+        'missing-review',
+        '--tier',
+        'fresh-context',
+        '--output',
+        'missing.json',
+      ],
       environment: MACHINE_ENVIRONMENT,
     },
   }),
@@ -1035,6 +1150,16 @@ const HIDDEN_COMMANDS: readonly CommandDefinition[] = [
     ...hidden('codex-hook', { syntax: 'codex-hook <event>' }),
     fixture: { argv: ['codex-hook', 'SessionStart'], environment: MACHINE_ENVIRONMENT },
   },
+  hidden('hook go-lint', {
+    commandOptions: [
+      { flags: '--file <path>', description: 'Edited Go file' },
+      { flags: '--project-root <path>', description: 'Canonical Safeword project root' },
+      {
+        flags: '--original-cwd <path>',
+        description: 'Configuration working directory before package loading',
+      },
+    ],
+  }),
   hidden('feature-directories'),
 ];
 

@@ -42,7 +42,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
     | When                  | What happens |
     | --------------------- | ------------ |
-    | Session starts        | Checks Bun, prepares missing dependencies, injects `SAFEWORD.md` and the reply format, reports the version, checks lint config, heals generated architecture docs, records the session model, and loads the re-entry brief; re-injects context after compaction |
+    | Session starts        | Checks Bun, prepares missing dependencies, tells the agent to read `SAFEWORD.md` first (again after compaction), injects the reply format, reports the version, checks lint config, heals generated architecture docs, records the session model, and loads the re-entry brief; re-injects context after compaction |
     | You submit a prompt   | Adds a timestamp, reminds the agent to ask questions, and nudges pending retro filing |
     | Before a file edit    | Enforces phase, TDD, LOC, review, and done gates; asks before changing protected quality config |
     | Before a Bash command | Enforces the same gates plus dependency readiness; repairs a flipped `core.bare`, restages a stale architecture doc on commit, and warns before switching to a stale branch |
@@ -63,7 +63,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
     | When                    | What happens                    |
     | ----------------------- | ------------------------------- |
-    | Session starts          | Injects `SAFEWORD.md` and checks for Safeword upgrades |
+    | Session starts          | Tells the agent to read `SAFEWORD.md` first and checks for Safeword upgrades |
     | Before a file write     | Enforces phase, LOC, and done gates (Cursor's `stop` cannot block, so closing a ticket is gated here) |
     | Before a shell command  | Blocks a REFACTOR commit that touches test files |
     | Agent edits a file      | Runs the appropriate linter and updates quality state |
@@ -106,13 +106,13 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
   <TabItem label="Codex">
     Safeword's Codex support is plugin-backed. Install writes project SessionStart hooks that enroll each active Codex profile and prepare missing dependencies in trusted fresh worktrees; `safeword install --agents=codex` remains available for immediate manual enrollment. Review changed hooks in Desktop Settings > Hooks (or `/hooks` in the terminal TUI), fully restart Codex, then resume this task to load the plugin. If the restart completes without current lifecycle hook proof, status reports that the Codex surface remains unprotected instead of asking for another restart. Install writes no repository workflow tree or mutation-event hook.
 
-| When                            | What happens                                                                           |
-| ------------------------------- | -------------------------------------------------------------------------------------- |
-| Session starts                  | Loads a compact bootstrap pointing to packaged Safeword instructions                   |
-| Before supported tools          | Runs the packaged `safeword hook codex pre-tool-use` gate                              |
-| Agent finishes a supported tool | Surfaces queued Safeword post-tool context                                             |
-| You submit a prompt             | Surfaces queued Safeword prompt context                                                |
-| You stop the session            | Evaluates ticket evidence and corrects an incomplete substantive terminal handoff once |
+| When                            | What happens                                                                             |
+| ------------------------------- | ---------------------------------------------------------------------------------------- |
+| Session starts                  | Tells the agent to read the packaged Safeword instructions first, again after compaction |
+| Before supported tools          | Runs the packaged `safeword hook codex pre-tool-use` gate                                |
+| Agent finishes a supported tool | Surfaces queued Safeword post-tool context                                               |
+| You submit a prompt             | Surfaces queued Safeword prompt context                                                  |
+| You stop the session            | Evaluates ticket evidence and corrects an incomplete substantive terminal handoff once   |
 
     Safeword's Codex edit-gate command covers the documented PreToolUse paths it configures: `Bash`, `apply_patch` edit payloads, and file-editing tools. Live Codex runs can also report `file_change` execution items; Safeword records that as a Codex runtime boundary, not as a PreToolUse path it claims to guard. The Codex Stop command is separate: for a session-bound, in-progress done-phase ticket, it reuses shared evidence checks and marks the ticket done only when they pass. Otherwise it uses continuation output for exact evidence remediation and done-phase advisories such as ARCHITECTURE.md drift. Under the shared `terminal-handoff/v1` contract, a substantive `Next` or `Need` decision must name the choice, recommendation, controlling reason, material impact, and exact reply; a no-decision handoff names one concrete action and at most one essential reason. Codex requests one rewrite when that terminal paragraph is incomplete and fails open when the final reply or current-turn evidence cannot be read. It never stages, commits, or opens a PR.
 
@@ -144,6 +144,8 @@ After your agent writes or modifies a file, the right linter runs:
 If a linter isn't installed, it's silently skipped.
 
 **What you see:** Usually nothing — the linter auto-fixes quietly. If problems remain, your agent sees them and fixes them immediately.
+
+For Go, Safeword formats only the edited file and runs check-only lint on its complete package from that file's directory. Go lint findings are not auto-fixed. Where hook feedback is supported, findings identify their source files and may include issues that predate the edit.
 
 ---
 
@@ -232,13 +234,13 @@ rejects stale, malformed, dirty-state, or wrong-head proof.
 
 ### BDD Orchestration
 
-Full feature workflow: **Discovery** → **Scenarios** → **Scenario Gate** → **Plan Implementation** → **TDD** → **Verify** → **Audit** → **Done**. Includes TDD (RED/GREEN/REFACTOR) inline. After a successful GREEN, the agent continues through refactor and the next incomplete scenario without a routine handoff. After the final scenario, it continues through whole-ticket review, plan reconciliation, verification, audit, and recorded ticket closure, stopping only at a real authority, safety, dependency, or scope boundary. Large features can be split at any checkpoint.
+Full feature workflow: **Discovery** → **Scenarios** → **Scenario Gate** → **Plan Implementation** → **Plan Execution** → **TDD** → **Verify** → **Audit** → **Done**. Includes TDD (RED/GREEN/REFACTOR) inline. After a successful GREEN, the agent continues through refactor and the next incomplete scenario without a routine handoff. After the final scenario, it continues through whole-ticket review, plan reconciliation, verification, audit, and recorded ticket closure, stopping only at a real authority, safety, dependency, or scope boundary. Large features can be split at any checkpoint.
 
 Draft pull requests remain available for CI or review evidence during delivery. Claude Code, Codex, and Cursor deny first-class GitHub CLI Ready creation or promotion until the ticket is verified done. Reaching that state starts PR-readiness classification; it does not grant authority to promote the pull request, approve it, or merge it.
 
 **Example:** "Add user authentication to the API"
 
-Your agent will discover requirements, ask who solves the confirmed customer job exceptionally well, and capture the transferable product principle before writing Rules. After scenarios are validated, it repeats the comparison at the technical level using current, comparable, version-matched sources before selecting the implementation plan. Both stages save evidence—or a specific unsuccessful-search record—in the ordinary BDD artifacts, then implementation proceeds scenario by scenario with TDD.
+Your agent will discover requirements, ask who solves the confirmed customer job exceptionally well, and capture the transferable product principle before writing Rules. After scenarios are validated, it repeats the comparison at the technical level using current, comparable, version-matched sources before selecting the Implementation Plan. Both stages save evidence—or a specific unsuccessful-search record—in the ordinary BDD artifacts. A reviewed Execution Plan then orders concrete proof and build steps before implementation proceeds scenario by scenario with TDD.
 
 New feature scaffolds carry a versioned inspiration contract. The existing intake and plan transition hooks validate exact Markdown records, current dates, and version fit; signal-free older tickets remain grandfathered. Research quality stays a review judgment. External pages, repositories, images, and documents are untrusted evidence: the workflow forbids following embedded instructions, exposing private context, executing retrieved code, or copying without a compatible license and attribution.
 

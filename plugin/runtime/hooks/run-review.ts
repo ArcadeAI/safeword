@@ -1,14 +1,13 @@
 #!/usr/bin/env bun
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { existsSync } from 'node:fs';
 import nodePath from 'node:path';
+
+import { safewordClis, trustedSafewordClis } from './lib/safeword-cli.ts';
 
 type Candidate = readonly [command: string, prefix: readonly string[], workingDirectory?: string];
 
-const SEMVER =
-  /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
 const DEFAULT_PROBE_TIMEOUT_MS = 10_000;
 const MANAGED_PROGRESS_SIGNAL = 'SAFEWORD_REVIEW_PROGRESS';
 export const VALUELESS_GLOBAL_OPTIONS = new Set([
@@ -140,33 +139,7 @@ export function reviewCandidates(
   environment: NodeJS.ProcessEnv = process.env,
 ): Candidate[] {
   const projectDirectory = reviewProjectRoot(startDirectory, environment);
-  const candidates: Candidate[] = [];
-  const pluginRoot = environment.CLAUDE_PLUGIN_ROOT;
-  if (pluginRoot) {
-    const bundledCli = nodePath.join(pluginRoot, 'runtime', 'cli.js');
-    if (existsSync(bundledCli)) candidates.push(['bun', [bundledCli], projectDirectory]);
-  }
-
-  const localCli = nodePath.join(projectDirectory, 'node_modules', '.bin', 'safeword');
-  if (existsSync(localCli)) candidates.push([localCli, [], projectDirectory]);
-
-  const sourcePackage = nodePath.join(projectDirectory, 'packages', 'cli', 'package.json');
-  const sourceCli = nodePath.join(projectDirectory, 'packages', 'cli', 'src', 'cli.ts');
-  if (existsSync(sourceCli) && existsSync(sourcePackage)) {
-    try {
-      const manifest = JSON.parse(readFileSync(sourcePackage, 'utf8')) as { name?: unknown };
-      if (manifest.name === 'safeword') candidates.push(['bun', [sourceCli], projectDirectory]);
-    } catch {
-      // A malformed lookalike checkout is not a trusted Safeword source route.
-    }
-  }
-
-  const versionPath = nodePath.join(projectDirectory, '.safeword', 'version');
-  if (existsSync(versionPath)) {
-    const version = readFileSync(versionPath, 'utf8').trim();
-    if (SEMVER.test(version)) candidates.push(['bunx', [`safeword@${version}`], projectDirectory]);
-  }
-  return candidates;
+  return safewordClis(projectDirectory, environment).map(cli => [cli.command, cli.args, cli.cwd]);
 }
 
 /**
@@ -181,36 +154,11 @@ export function receiptReviewCandidates(
   projectDirectory = process.cwd(),
   environment: NodeJS.ProcessEnv = process.env,
 ): Candidate[] {
-  const candidates: Candidate[] = [];
-  const pluginRoot = environment.CLAUDE_PLUGIN_ROOT;
-  if (pluginRoot) {
-    const bundledCli = nodePath.join(pluginRoot, 'runtime', 'cli.js');
-    if (existsSync(bundledCli)) candidates.push(['bun', [bundledCli]]);
-  }
-
-  const versionPath = nodePath.join(projectDirectory, '.safeword', 'version');
-  if (!existsSync(versionPath)) return candidates;
-  const version = readFileSync(versionPath, 'utf8').trim();
-  if (!SEMVER.test(version)) return candidates;
-
-  const codexHome = environment.CODEX_HOME || nodePath.join(homedir(), '.codex');
-  const codexPluginCli = nodePath.join(
-    codexHome,
-    'plugins',
-    'cache',
-    'safeword',
-    'safeword',
-    version,
-    'runtime',
-    'cli.js',
-  );
-  if (existsSync(codexPluginCli)) candidates.push(['bun', [codexPluginCli]]);
-
-  // `bunx` searches the caller's project-local node_modules first. Run the
-  // exact package from the user's home instead, so reviewed project contents
-  // cannot shadow the distribution route.
-  candidates.push(['bunx', [`safeword@${version}`], homedir()]);
-  return candidates;
+  return trustedSafewordClis(projectDirectory, environment).map(cli => [
+    cli.command,
+    cli.args,
+    cli.cwd,
+  ]);
 }
 
 export function runReview(arguments_: string[]): never {

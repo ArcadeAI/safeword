@@ -1411,6 +1411,9 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
 
   it('resolves the project-local SafeWord CLI before the package runner fallback', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-cli-'));
+    // This asserts closeout's own lookup, so drop the test-wide CLI override.
+    const previousCli = process.env.SAFEWORD_CLI;
+    delete process.env.SAFEWORD_CLI;
     try {
       const installed = nodePath.join(root, 'node_modules', 'safeword', 'dist');
       mkdirSync(installed, { recursive: true });
@@ -1420,6 +1423,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       rmSync(nodePath.join(root, 'node_modules'), { recursive: true, force: true });
       expect(safewordCliCommand(root)).toEqual(['bunx', 'safeword']);
     } finally {
+      if (previousCli !== undefined) process.env.SAFEWORD_CLI = previousCli;
       rmSync(root, { recursive: true, force: true });
     }
   });

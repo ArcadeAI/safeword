@@ -4,28 +4,28 @@ Feature: plan-implementation phase before TDD
   authoring; a transition gate keeps TDD RED from starting before a valid plan.
 
   @plan-implementation-phase.TB1.R1
-  Rule: plan-implementation-phase.TB1.R1 — a new-flow feature cannot enter implement without a valid implementation plan
+  Rule: plan-implementation-phase.TB1.R1 — a new-flow feature cannot enter Execution Planning without a valid implementation plan
 
     @surface.claude-code
-    Scenario: Feature with a valid plan advances into implement
+    Scenario: Feature with a valid plan advances into Execution Planning
       Given a new-flow feature ticket at the plan-implementation phase
       And its impl-plan.md is valid with status planned
-      When the agent sets the ticket phase to implement
+      When the agent sets the ticket phase to plan-execution
       Then the phase change is accepted
 
     @rejection @surface.claude-code
-    Scenario: Feature without a plan is denied entry to implement
+    Scenario: Feature without a plan is denied entry to Execution Planning
       Given a new-flow feature ticket at the plan-implementation phase
       And no impl-plan.md exists in the ticket folder
-      When the agent sets the ticket phase to implement
+      When the agent sets the ticket phase to plan-execution
       Then the phase change is denied
       And the denial names the missing implementation plan
 
     @rejection @surface.claude-code
-    Scenario: Feature with an incomplete plan is denied entry to implement
+    Scenario: Feature with an incomplete plan is denied entry to Execution Planning
       Given a new-flow feature ticket at the plan-implementation phase
       And its impl-plan.md is missing a required section
-      When the agent sets the ticket phase to implement
+      When the agent sets the ticket phase to plan-execution
       Then the phase change is denied
       And the denial names the missing plan section
 
@@ -33,14 +33,14 @@ Feature: plan-implementation phase before TDD
     Scenario: Plan still marked implemented from a replan loop is denied entry
       Given a new-flow feature ticket at the plan-implementation phase
       And its impl-plan.md is valid but its status line reads implemented
-      When the agent sets the ticket phase to implement
+      When the agent sets the ticket phase to plan-execution
       Then the phase change is denied
       And the denial names the stale plan status
 
     Scenario: Legacy feature without spec.md is grandfathered past the plan gate
       Given a feature ticket with no spec.md at the plan-implementation phase
       And no impl-plan.md exists in the ticket folder
-      When the agent sets the ticket phase to implement
+      When the agent sets the ticket phase to plan-execution
       Then the phase change is accepted
 
     Scenario: Task tickets reach implement without a plan requirement
@@ -107,10 +107,11 @@ Feature: plan-implementation phase before TDD
       Then it bounds the ADR offer to decisions affecting structure, key quality attributes, or ones difficult to reverse
       And it directs recording routine choices in the plan's decisions table alone
 
-    Scenario: Emitted ADRs use the configured record location
+    Scenario: Emitted ADRs scaffold from the shipped template into the configured record location
       Given the shipped bdd skill documents
       When PLAN_IMPLEMENTATION.md is read
       Then it directs writing them to the location resolved from paths.architecture, appending to a file or adding a date-prefixed file to a directory
+      And it directs scaffolding new ADRs from the shipped ADR template
 
     @rejection
     Scenario: Generated architecture state docs never receive ADRs
@@ -129,7 +130,7 @@ Feature: plan-implementation phase before TDD
     Scenario: Customer-visible changes enumerate their doc impact in the plan
       Given the shipped bdd skill documents and the impl-plan template
       When the Doc impact section is read
-      Then it directs enumerating which configured documentation sources the feature's customer-visible changes touch, as build-order tasks or an explicit skip with a reason
+      Then it identifies affected documentation sources and required outcomes or a reasoned skip, leaving documentation tasks and build order to Execution Planning
 
     Scenario: Legacy five-section plans keep passing their gates
       Given a feature ticket whose impl-plan.md has the original five sections and no Doc impact section
@@ -162,7 +163,7 @@ Feature: plan-implementation phase before TDD
     Scenario: Planning stores only the plan and qualifying ADRs
       Given the shipped bdd skill documents
       When PLAN_IMPLEMENTATION.md is read
-      Then it directs storing impl-plan.md and qualifying ADRs, routing deeper design to the existing design-doc lane rather than novel artifact kinds
+      Then it keeps impl-plan.md as the single design plan, links qualifying ADRs, and permits only subordinate supporting detail
 
   @plan-implementation-phase.TB2.R2
   Rule: plan-implementation-phase.TB2.R2 — ADRs stay lean
@@ -204,7 +205,7 @@ Feature: plan-implementation phase before TDD
     Scenario: Deep technical and data design routes through the existing lanes
       Given the shipped bdd skill documents
       When PLAN_IMPLEMENTATION.md is read
-      Then it routes component and data-model design to the design-doc template and the data-architecture guide rather than new plan sections
+      Then it keeps component and data-model decisions in impl-plan.md and loads the data-architecture guide for applicable concerns
 
   @plan-implementation-phase.TB3.R3
   Rule: plan-implementation-phase.TB3.R3 — each load-bearing design choice gets a figure-it-out pass
@@ -255,13 +256,13 @@ Feature: plan-implementation phase before TDD
     Scenario: Design approval defaults to autonomous
       Given the shipped bdd skill documents
       When PLAN_IMPLEMENTATION.md is read
-      Then it states the reviewed plan advances to implement without human approval when designApprovalGate is absent or off
+      Then it states the reviewed plan advances to Execution Planning without human approval when designApprovalGate is absent or off
 
     @rejection
     Scenario: Enabled design approval waits for the user after the review
       Given the shipped bdd skill documents
       When PLAN_IMPLEMENTATION.md is read
-      Then it states that with designApprovalGate enabled the reviewed plan is presented for user approval before implement
+      Then it states that with designApprovalGate enabled the reviewed plan requires user approval before Execution Planning
 
     Scenario: The config reference documents the approval toggle
       Given the shipped website configuration reference
@@ -301,7 +302,7 @@ Feature: plan-implementation phase before TDD
     Scenario: Transition denial explains what is missing and what to do next
       Given a new-flow feature ticket at the plan-implementation phase
       And no impl-plan.md exists in the ticket folder
-      When the agent sets the ticket phase to implement
+      When the agent sets the ticket phase to plan-execution
       Then the denial names impl-plan.md as the missing artifact
       And the denial names the scaffold template to author the plan from
 
@@ -311,7 +312,7 @@ Feature: plan-implementation phase before TDD
     Scenario: Canonical phase order places plan-implementation between scenario-gate and implement
       Given the canonical phase list
       When the phase order is inspected
-      Then it reads intake, define-behavior, scenario-gate, plan-implementation, implement, verify, done
+      Then it reads intake, define-behavior, scenario-gate, plan-implementation, plan-execution, implement, verify, done
 
     @surface.claude-code
     Scenario: A feature at scenario-gate advances one step into plan-implementation
@@ -325,21 +326,21 @@ Feature: plan-implementation phase before TDD
       And the ticket carries no phase_skips justification for plan-implementation
       When the agent sets the ticket phase to implement
       Then the phase change is denied
-      And the denial names plan-implementation as the skipped phase
+      And the denial names plan-implementation and plan-execution as the skipped phases
 
     @surface.claude-code
     Scenario: A justified skip past plan-implementation is accepted
       Given a feature ticket at the scenario-gate phase
       And the ticket carries a phase_skips justification for plan-implementation
-      When the agent sets the ticket phase to implement
+      When the agent sets the ticket phase to plan-execution
       Then the phase change is accepted
 
     @rejection @surface.claude-code
-    Scenario: A jump from intake to done names all five skipped phases
+    Scenario: A jump from intake to done names all six skipped phases
       Given a feature ticket at the intake phase
       When the agent sets the ticket phase to done
       Then the phase change is denied
-      And the denial names define-behavior, scenario-gate, plan-implementation, implement, and verify as the skipped phases
+      And the denial names define-behavior, scenario-gate, plan-implementation, plan-execution, implement, and verify as the skipped phases
 
     @rejection @surface.claude-code
     Scenario: Stopping at plan-implementation without the scenario ledger is blocked

@@ -1,0 +1,3 @@
+fbdfc28c1daaf84fc15ab288213bd2874c96a03357b9c76441357c812a13559b  packages/cli/src/commands/plan-approval.ts
+68c4aea40d862d42a4dfbafcf376c61d4be8f340efa60bfb11ef3e9299da1824  packages/cli/tests/integration/plan-design-approval.test.ts
+08163a0c0128c0f301913e69b8a0fa6ab3d56f6d357c20eed105437b4ecba650  .safeword/state/reviews/4200-first-group-proposal-proof/reentry-red.log

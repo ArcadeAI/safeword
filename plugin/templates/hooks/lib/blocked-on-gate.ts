@@ -27,7 +27,7 @@ export type BlockerLookup = (id: string) => BlockerStatus;
 
 export interface GateDenial {
   reason: string;
-  additionalContext: string;
+  remedy: string;
 }
 
 // Reasons too trivial to count as a real override — rejected like an empty one.
@@ -98,7 +98,7 @@ export function evaluateBlockedOnGate(
   const label = first.status ?? 'unreadable';
   return {
     reason: `BLOCKED on ${first.id} (status: ${label})`,
-    additionalContext:
+    remedy:
       `Advancing out of intake is denied while a blocked_on target is not done. ` +
       `Finish ${first.id}, or — if it is intentionally abandoned — set ` +
       '`blocked_on_override: <a real reason proceeding is safe>` to override.',

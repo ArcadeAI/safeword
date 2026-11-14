@@ -1,0 +1,18 @@
+Command: scripts/dev bun audit --audit-level high --ignore GHSA-vfj7-8cjw-p6xm --ignore GHSA-ch52-4w7c-c8xp
+ea9b8288c2a7e6893e0dbd54c569f67fff8fa14d
+f4ec5a840d9469ef611c4b0d23572d228f69580c8aeda6e1ec8e956045969c02  bun.lock
+[0m[1mbun audit [0m[2mv1.3.14 (0d9b296a)[0m
+vite  >=8.2.0 <=8.2.3
+  workspace:@safeword/website › astro
+  workspace:safeword › vitest
+  high: launch-editor: `fs.existsSync()` existence check can be bypassed on Windows - https://github.com/advisories/GHSA-587h-7wmj-h5pm
+
+1 vulnerabilities (1 high)
+
+To update all dependencies to the latest compatible versions:
+  bun update
+
+To update all dependencies to the latest versions (including breaking changes):
+  bun update --latest
+
+exit=1

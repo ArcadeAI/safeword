@@ -363,7 +363,7 @@ function stripFormatting(value: string): string {
   return stripped;
 }
 
-function surfaceSlug(name: string): string {
+export function surfaceSlug(name: string): string {
   let slug = '';
   let previousWasDash = false;
   for (const character of name.trim().toLowerCase()) {

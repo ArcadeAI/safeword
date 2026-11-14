@@ -24,6 +24,7 @@ import {
 import { claudeWatchedSettingsDigest } from '../../src/claude-plugin/migration-state.js';
 import { claudeProofDirectory } from '../../src/claude-plugin/plugin-data.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
+import { normalizeClaudeSkillHeader } from '../helpers/claude-skill-header.js';
 import { readHistoricalTemplate, requireHistoricalReleaseTags } from '../helpers/git-history.js';
 import { blockChildren } from '../helpers/io-failure.js';
 
@@ -214,6 +215,103 @@ describe('Claude plugin dispatcher', () => {
     requireHistoricalReleaseTags(FIXTURE_VERSIONS);
   });
 
+  it('runs prompt hooks after desktop sync normalizes skill front matter', () => {
+    const projectDirectory = temporary('safeword-plugin-desktop-project-');
+    const pluginData = temporary('safeword-plugin-desktop-data-');
+    const configDirectory = temporary('safeword-plugin-desktop-config-');
+    const pluginRoot = nodePath.join(temporary('safeword-plugin-desktop-root-'), 'plugin');
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+    const skillPath = nodePath.join(pluginRoot, 'skills/audit/SKILL.md');
+    const original = readFileSync(skillPath, 'utf8');
+    const normalized = normalizeClaudeSkillHeader(original);
+    expect(normalized).not.toBe(original);
+    writeFileSync(skillPath, normalized);
+
+    const result = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'desktop', {
+      pluginRoot,
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stderr).not.toContain('damaged native plugin cache');
+    expect(result.stdout).not.toContain('No Safeword hook result was applied');
+    const digest = createHash('sha256').update(realpathSync(projectDirectory)).digest('hex');
+    const proofPath = nodePath.join(pluginData, 'execution-proofs-v2', `${digest}.json`);
+    const identity = JSON.parse(readFileSync(nodePath.join(pluginRoot, 'identity.json'), 'utf8'));
+    const proof = JSON.parse(readFileSync(proofPath, 'utf8'));
+    expect(proof).toEqual({
+      schema_version: 2,
+      project_root: realpathSync(projectDirectory),
+      plugin_version: SAFEWORD_SCHEMA.version,
+      hook_manifest_sha256: identity.hook_manifest_sha256,
+      canonical_plugin_root: realpathSync(pluginRoot),
+      event: 'UserPromptSubmit',
+      session_id: 'desktop',
+      recorded_at: expect.any(String),
+    });
+    expect(new Date(proof.recorded_at).toISOString()).toBe(proof.recorded_at);
+  });
+
+  it.each(['metadata', 'body', 'runtime', 'malformed-metadata'])(
+    'rejects changed %s after desktop sync normalizes a skill',
+    mutation => {
+      const projectDirectory = temporary('safeword-plugin-desktop-damage-project-');
+      const pluginData = temporary('safeword-plugin-desktop-damage-data-');
+      const configDirectory = temporary('safeword-plugin-desktop-damage-config-');
+      const pluginRoot = nodePath.join(temporary('safeword-plugin-desktop-damage-root-'), 'plugin');
+      cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+      const skillPath = nodePath.join(pluginRoot, 'skills/audit/SKILL.md');
+      let normalized = normalizeClaudeSkillHeader(readFileSync(skillPath, 'utf8'));
+      switch (mutation) {
+        case 'metadata': {
+          normalized = normalized.replace('name: audit', 'name: changed');
+          break;
+        }
+        case 'malformed-metadata': {
+          normalized = normalized.replace('name: audit', 'name: audit\nname: duplicate');
+          break;
+        }
+        case 'body': {
+          normalized += '\nChanged instructions.\n';
+          break;
+        }
+        case 'runtime': {
+          break;
+        }
+        default: {
+          throw new Error(`Unexpected test mutation: ${mutation}`);
+        }
+      }
+      writeFileSync(skillPath, normalized);
+      if (mutation === 'runtime') {
+        writeFileSync(nodePath.join(pluginRoot, 'runtime/cli.js'), '// changed runtime\n');
+      }
+
+      const result = dispatchEvent(
+        projectDirectory,
+        pluginData,
+        configDirectory,
+        'desktop-damage',
+        {
+          event: 'PreToolUse',
+          pluginRoot,
+        },
+      );
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        hookSpecificOutput: {
+          permissionDecision: 'ask',
+          permissionDecisionReason: expect.stringContaining(
+            mutation === 'malformed-metadata'
+              ? 'Skill front matter is invalid'
+              : 'asset failed integrity validation',
+          ),
+        },
+      });
+      expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);
+    },
+  );
+
   it('passes the bundled CLI path to aggregate child hooks', () => {
     const projectDirectory = temporary('safeword-plugin-project-');
     const pluginData = temporary('safeword-plugin-data-');
@@ -311,12 +409,58 @@ describe('Claude plugin dispatcher', () => {
     );
 
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain('the packaged Safeword handbook');
-    expect(result.stdout).toContain('the packaged Safeword guides');
+    expect(result.stdout).toMatch(
+      /First, Read `\/[^`]*\/(?:templates|resources)\/SAFEWORD\.md` in full, even for trivial requests or right after compaction; a summary or earlier read does not count\./,
+    );
     expect(result.stdout).not.toContain('.safeword/SAFEWORD.md');
     expect(result.stdout).not.toContain('.safeword/guides/');
     expect(result.stdout).not.toContain('PROJECT-LOCAL INSTRUCTIONS MUST NOT APPEAR');
   });
+
+  it('fails loudly without naming the project handbook when the plugin lacks its own', () => {
+    const projectDirectory = temporary('safeword-plugin-missing-handbook-project-');
+    const pluginData = temporary('safeword-plugin-missing-handbook-data-');
+    const pluginRoot = nodePath.join(temporary('safeword-plugin-missing-handbook-root-'), 'plugin');
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+    rmSync(nodePath.join(pluginRoot, 'resources', 'SAFEWORD.md'));
+    mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(projectDirectory, '.safeword', 'SAFEWORD.md'), '# Stale copy\n');
+
+    const result = dispatchEvent(projectDirectory, pluginData, undefined, 'missing-handbook', {
+      event: 'SessionStart',
+      hookInput: { source: 'startup' },
+      pluginRoot,
+    });
+
+    expect(result.stderr).toContain('resources/SAFEWORD.md');
+    expect(`${result.stdout}${result.stderr}`).not.toContain('.safeword/SAFEWORD.md');
+    expect(result.stdout).not.toMatch(/First, Read `/);
+  });
+
+  it.each([
+    { source: 'startup', instructsRead: true },
+    { source: 'compact', instructsRead: true },
+    { source: 'resume', instructsRead: false },
+  ])(
+    'the installed SessionStart event group instructs the handbook read on $source: $instructsRead',
+    ({ source, instructsRead }) => {
+      const projectDirectory = temporary(`safeword-plugin-session-${source}-project-`);
+      const pluginData = temporary(`safeword-plugin-session-${source}-data-`);
+      mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+      writeFileSync(nodePath.join(projectDirectory, '.safeword', 'SAFEWORD.md'), '# Handbook\n');
+
+      const result = dispatchEvent(projectDirectory, pluginData, undefined, `session-${source}`, {
+        event: 'SessionStart',
+        hookInput: { source },
+      });
+
+      expect(result.status, result.stderr).toBe(0);
+      const readLine =
+        /First, Read `\/[^`]*\/resources\/SAFEWORD\.md` in full, even for trivial requests or right after compaction; a summary or earlier read does not count\./;
+      if (instructsRead) expect(result.stdout).toMatch(readLine);
+      else expect(result.stdout).not.toMatch(/First, Read `/);
+    },
+  );
 
   it('does not let stale Setup metadata suppress SessionStart proof', () => {
     const projectDirectory = temporary('safeword-plugin-stale-smoke-project-');
