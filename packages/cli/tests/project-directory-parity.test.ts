@@ -54,6 +54,10 @@ function choosesProject(node: ts.Node): boolean {
 
 function readsLaunchVariable(node: ts.Node): boolean {
   if (ts.isBindingElement(node)) return namesLaunchVariable(node.propertyName ?? node.name);
+  if (ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node)) {
+    // `({ CLAUDE_PROJECT_DIR: launch } = process.env)` destructures by assignment.
+    return namesLaunchVariable(node.name) && isWriteTarget(node.parent);
+  }
   if (ts.isPropertyAccessExpression(node)) {
     return namesLaunchVariable(node.name) && !isWriteTarget(node);
   }
@@ -165,6 +169,7 @@ describe('project directory parity (#5467)', () => {
     'const { CLAUDE_PROJECT_DIR } = process.env;',
     'const { HOME, CLAUDE_PROJECT_DIR: launch } = process.env;',
     'const env = process.env; use(env.CLAUDE_PROJECT_DIR);',
+    '({ CLAUDE_PROJECT_DIR: launch } = process.env);',
     "spawnSync('git', ['rev-parse', '--show-toplevel']);",
     'run(`git rev-parse --show-toplevel`);',
   ])('counts %s as a project choice', source => {

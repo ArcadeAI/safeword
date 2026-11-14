@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "debe7046e32f72e894af7b1bc00431850023ec8b22ed414f4ef741d63047dd01"
+      "sha256": "618be31787063c577e91b17ea2a0f88e509c95cf74b7cacec6b08b74e39cc328"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "da7e1361b6ba7ccf89471db9c84687bb7e8922c2fd0255b5ebe32954d3f84011"
+      "sha256": "7345b6fbf28a4132eeb1f957451f9797794064edc8108ff50a02855fa3f3110f"
     },
     {
       "path": "runtime/event-groups.json",
@@ -507,7 +507,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-work-log.ts",
-      "sha256": "f1b284a8eb4d70892ed555814e5bf5e4a586a1d9a6e32a41c348023ba09fd170"
+      "sha256": "b4f93d1fb06c7165d21ea73e8fc00edfe662b623ce368487ee233206d14aa76e"
     },
     {
       "path": "runtime/hooks/pre-tool-architecture-stage.ts",
@@ -1503,7 +1503,7 @@
     },
     {
       "path": "templates/hooks/post-tool-work-log.ts",
-      "sha256": "f1b284a8eb4d70892ed555814e5bf5e4a586a1d9a6e32a41c348023ba09fd170"
+      "sha256": "b4f93d1fb06c7165d21ea73e8fc00edfe662b623ce368487ee233206d14aa76e"
     },
     {
       "path": "templates/hooks/pre-tool-architecture-stage.ts",
