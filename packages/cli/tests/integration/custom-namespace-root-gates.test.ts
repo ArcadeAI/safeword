@@ -8,7 +8,7 @@
  */
 
 import { execSync, spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, symlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -330,5 +330,55 @@ describe('configured-root edge cases', () => {
 
     expect(readTestFile(worktree, relativeTicket)).toContain('Phase: intake → define-behavior');
     expect(readTestFile(projectDirectory, relativeTicket)).toBe(launchContent);
+  });
+
+  it('a symlinked configured root is excluded from the LOC count by its real path', () => {
+    projectDirectory = createTemporaryDirectory();
+    writeGateConfig(projectDirectory, { reviewGate: false, paths: { projectRoot: ROOT } });
+    initGitRepo(projectDirectory);
+    writeTestFile(projectDirectory, '.safeword/SAFEWORD.md', '# enrolled\n');
+    mkdirSync(nodePath.join(projectDirectory, 'docs'));
+    symlinkSync('docs', nodePath.join(projectDirectory, ROOT));
+    writeTestFile(projectDirectory, 'docs/tickets/099-test/notes.md', '# Notes\n');
+    execSync('git add . && git commit -m "init"', { cwd: projectDirectory, stdio: 'pipe' });
+    writeTestFile(
+      projectDirectory,
+      'docs/tickets/099-test/notes.md',
+      `# Notes\n${'line\n'.repeat(450)}`,
+    );
+
+    runHook(
+      POST_TOOL_QUALITY,
+      projectDirectory,
+      'Edit',
+      nodePath.join(projectDirectory, `${ROOT}/tickets/099-test/notes.md`),
+    );
+
+    const state = JSON.parse(readTestFile(projectDirectory, `docs/quality-state-${SESSION}.json`));
+    expect(state.locSinceCommit).toBe(0);
+  });
+
+  it('arms the learnings nudge for a relative edit made from inside the configured root', () => {
+    projectDirectory = createProject();
+    writeTestFile(projectDirectory, `${ROOT}/learnings/caching.md`, '# Caching\n');
+
+    spawnSync('bun', [POST_TOOL_QUALITY], {
+      input: JSON.stringify({
+        session_id: SESSION,
+        hook_event_name: 'PostToolUse',
+        tool_name: 'Edit',
+        cwd: nodePath.join(projectDirectory, ROOT),
+        tool_input: { file_path: 'learnings/caching.md' },
+      }),
+      cwd: projectDirectory,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+      encoding: 'utf8',
+      timeout: TIMEOUT_QUICK,
+    });
+
+    const state = JSON.parse(
+      readTestFile(projectDirectory, `${ROOT}/quality-state-${SESSION}.json`),
+    );
+    expect(state.learningsNudgesPending).toEqual(['learnings/caching.md']);
   });
 });

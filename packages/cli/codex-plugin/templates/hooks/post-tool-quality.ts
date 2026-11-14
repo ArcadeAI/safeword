@@ -380,7 +380,10 @@ if (
 // pending set. Per-fingerprint dedup — if we've already armed for this file
 // this session (whether pending or acknowledged), don't re-arm. Monotonic
 // append-only state replaces the prior single-bit boolean (ticket 4N5Y28).
-if (isNamespacePath(editedFile, 'learnings/', projectDirectory) && editedFile.endsWith('.md')) {
+if (
+  isNamespacePath(canonicalEditedFile, 'learnings/', projectDirectory) &&
+  editedFile.endsWith('.md')
+) {
   state.learningsNudgesPending ??= [];
   state.learningsNudgesAcknowledged ??= [];
   const alreadyArmed =
