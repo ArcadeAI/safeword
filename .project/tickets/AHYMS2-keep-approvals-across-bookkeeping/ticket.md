@@ -2,8 +2,8 @@
 id: AHYMS2
 slug: keep-approvals-across-bookkeeping
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 scope:
   - Ticket identity ignores Work Log journal entries, its heading and phase_anchors
   - Stale planning receipts name changed, added or removed sources
@@ -67,3 +67,5 @@ Main's 920BVH treats everything under the Work Log as history, which includes th
 - Full-coverage implement review 421a4873 found the opposite failure: stripping every stamp-shaped line also hid a changed stamp-shaped example inside the contract. The strip now removes only the trailing run of stamp lines (and a bare trailing hook-created heading), since the hook only appends at end of file. A stamp is counted once real content follows it, and that content is itself a change. Unit and review-status tests cover a stamp-shaped contract example.
 - Earlier final re-review 17b53142 raised one error, in `phaseIn` false transition detection from unindented fenced examples. It is unchanged by this ticket and identical on main, and it no longer stales approvals because stamps are ignored. Answered as out of scope and split into a separate task.
 - Review e9a7df7e flagged the remaining gap (a stamp-shaped last line inside an unclosed fence). The user accepted it as a documented limitation on 2026-11-14, recorded in Scope and in the `withoutPhaseStamps` comment.
+- 2026-11-14T15:08:21.888Z Phase: implement → verify
+- 2026-11-14T15:08:41.890Z Phase: verify → done
