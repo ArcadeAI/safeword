@@ -1,0 +1,242 @@
+{
+  "full_suite_exit": 0,
+  "test_files": 728,
+  "passed": 11839,
+  "skipped": 12,
+  "duration_seconds": 963.14,
+  "traced_hooks": 38,
+  "largest_hook_ms": 8057,
+  "original_scenario_1_3_ms": 5704,
+  "original_stall_cause": "unproved",
+  "instrumentation": "external preload and bunx wrapper; unchanged repository tests and budgets",
+  "hooks": [
+    {
+      "file": "hook-92321-1792982357577.jsonl",
+      "elapsed": 228,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-67053-1792982274643.jsonl",
+      "elapsed": 430,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-67053-1792982275073.jsonl",
+      "elapsed": 252,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-67053-1792982286584.jsonl",
+      "elapsed": 636,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-58667-1792982489596.jsonl",
+      "elapsed": 194,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-51270-1792982248600.jsonl",
+      "elapsed": 438,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-50939-1792982263072.jsonl",
+      "elapsed": 330,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-58667-1792982489360.jsonl",
+      "elapsed": 236,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-50939-1792982262248.jsonl",
+      "elapsed": 246,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-25432-1792982459591.jsonl",
+      "elapsed": 283,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-92321-1792982352008.jsonl",
+      "elapsed": 2767,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-5846-1792982444119.jsonl",
+      "elapsed": 859,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-5846-1792982437644.jsonl",
+      "elapsed": 6475,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-92321-1792982358050.jsonl",
+      "elapsed": 218,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-51270-1792982253564.jsonl",
+      "elapsed": 313,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-51270-1792982249039.jsonl",
+      "elapsed": 4525,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-50939-1792982262733.jsonl",
+      "elapsed": 338,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-51270-1792982261139.jsonl",
+      "elapsed": 6734,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-92321-1792982339364.jsonl",
+      "elapsed": 6064,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-67053-1792982273792.jsonl",
+      "elapsed": 504,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-67053-1792982269346.jsonl",
+      "elapsed": 434,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-25432-1792982468531.jsonl",
+      "elapsed": 1267,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-51270-1792982240741.jsonl",
+      "elapsed": 6873,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-41918-1792982488201.jsonl",
+      "elapsed": 227,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-25432-1792982457242.jsonl",
+      "elapsed": 1066,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-41918-1792982481425.jsonl",
+      "elapsed": 6775,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-25432-1792982458373.jsonl",
+      "elapsed": 1153,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-92321-1792982357116.jsonl",
+      "elapsed": 226,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-92321-1792982355887.jsonl",
+      "elapsed": 216,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-92321-1792982345654.jsonl",
+      "elapsed": 5704,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-92321-1792982331072.jsonl",
+      "elapsed": 8057,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-92321-1792982355413.jsonl",
+      "elapsed": 242,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-92321-1792982356331.jsonl",
+      "elapsed": 219,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-67053-1792982296987.jsonl",
+      "elapsed": 628,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-58667-1792982489131.jsonl",
+      "elapsed": 228,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-67053-1792982297616.jsonl",
+      "elapsed": 376,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-50939-1792982262494.jsonl",
+      "elapsed": 239,
+      "error": null,
+      "complete": true
+    },
+    {
+      "file": "hook-58667-1792982497821.jsonl",
+      "elapsed": 346,
+      "error": null,
+      "complete": true
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "error": "spawnSync /Users/alex/.local/share/mise/installs/node/24.18.1/bin/node ETIMEDOUT",
+  "code": "ETIMEDOUT",
+  "status": null,
+  "signal": "SIGKILL",
+  "stdout": "completed ESLint fix\n",
+  "stderr": "checking remaining errors\n"
+}

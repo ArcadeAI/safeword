@@ -1,0 +1,16 @@
+const { spawnSync } = require('node:child_process');
+module.exports = function sampleTree(pid) {
+  const result = spawnSync('/bin/ps', ['-axo', 'pid=,ppid=,etime=,time=,rss=,state=,comm='], { encoding: 'utf8', timeout: 1000 });
+  if (result.status !== 0) return { sampleError: result.error?.message ?? `ps status ${result.status}` };
+  const rows = result.stdout.split('\n').map(line => {
+    const match = /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(line);
+    return match ? { pid: Number(match[1]), parent: Number(match[2]), details: match[3] } : undefined;
+  }).filter(Boolean);
+  const owned = new Set([pid]);
+  while (true) {
+    const before = owned.size;
+    for (const row of rows) if (owned.has(row.parent)) owned.add(row.pid);
+    if (owned.size === before) break;
+  }
+  return { fields: 'etime cpu-time rss state executable (no arguments)', processes: rows.filter(row => owned.has(row.pid)) };
+};

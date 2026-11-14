@@ -1,0 +1,105 @@
+=== three-file-trace.log — last 10 lines, verbatim ===
+DTS dist/opencode/dispatcher.d.ts      13.00 B
+
+ RUN  v5.0.3 /Users/alex/.codex/worktrees/lint-failure-evidence/safeword/packages/cli
+
+
+ Test Files  3 passed (3)
+      Tests  47 passed (47)
+   Start at  20:55:19
+   Duration  21.60s (tests 99%, import 1%)
+
+
+=== full-trace.log — last 65 lines, verbatim ===
+Cloning into '/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-test-wtN03z/packages/shared'...
+done.
+Cloning into '/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-test-XZa3pd/packages/shared'...
+done.
+Switched to a new branch 'feature/verify-ticket'
+Switched to a new branch 'feature/verify-ticket'
+Switched to a new branch 'feature/subproject-ticket'
+Switched to a new branch 'feature/verify-ticket'
+Switched to a new branch 'feature/verify-ticket'
+Switched to a new branch 'feature/verify-ticket'
+Switched to a new branch 'feature/verify-ticket'
+Switched to a new branch 'feature/verify-ticket'
+Switched to a new branch 'feature/delete-ticket'
+Switched to a new branch 'feature/delete-ticket'
+Switched to a new branch 'feature/delete-ticket'
+The legacy raw JSON format for `project test-plan` remains available; use global `--json` for the canonical versioned envelope.
+Switched to a new branch 'main'
+To /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-test-BjUbkn
+ * [new branch]      main -> main
+Switched to a new branch 'main'
+To /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-test-hF5Zet
+ * [new branch]      main -> main
+Cloning into '.'...
+done.
+To /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-test-hF5Zet
+   9c376e2..f593bd4  main -> main
+From /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-test-hF5Zet
+   9c376e2..f593bd4  main       -> origin/main
+Switched to a new branch 'main'
+To /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-test-Z6zkoO
+ * [new branch]      main -> main
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/integration/native-planning-copy-dispatch.test.ts > Complete native planning author-copy dispatch > uses final generated claude/product-plan assets and blocks outside-rubric drift before reviewer launch
+AssertionError: 
+: expected null to be +0 // Object.is equality
+
+- Expected:
+0
+
++ Received:
+null
+
+ ❯ tests/integration/native-planning-copy-dispatch.test.ts:224:76
+    222|         );
+    223|       const canonical = run();
+    224|       expect(canonical.status, `${canonical.stdout}\n${canonical.stder…
+       |                                                                            ^
+    225|       expect(JSON.parse(canonical.stdout)).toMatchObject({
+    226|         data: {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 727 passed (728)
+      Tests  1 failed | 11839 passed | 14 skipped (11854)
+   Start at  20:57:54
+   Duration  1022.17s (tests 99%, import 1%)
+
+    Isolate  728 workers spawned · ~49ms startup each (spawn + environment, per file)
+             at least ~11.88s faster with isolate: false — reuses workers across files instead of one per file
+
+error: script "test" exited with code 1
+error: script "test" exited with code 1
+
+=== native-focused-uninstrumented.log — last 10 lines, verbatim ===
+DTS dist/opencode/dispatcher.d.ts      13.00 B
+
+ RUN  v5.0.3 /Users/alex/.codex/worktrees/require-scenario-red-before-code/safeword/packages/cli
+
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  21:16:37
+   Duration  26.27s (tests 100%)
+
+
+=== Native case duration, verbatim full-run line ===
+     × uses final generated claude/product-plan assets and blocks outside-rubric drift before reviewer launch 24405ms
+
+=== v2-focused.log, last 10 lines, verbatim ===
+DTS dist/opencode/dispatcher.d.ts      13.00 B
+
+ RUN  v5.0.3 /Users/alex/.codex/worktrees/require-scenario-red-before-code/safeword/packages/cli
+
+
+ Test Files  1 passed (1)
+      Tests  18 passed (18)
+   Start at  21:28:24
+   Duration  18.53s (tests 99%, import 1%)
+

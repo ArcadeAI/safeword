@@ -1,0 +1,13 @@
+Observed wrapper exit: 0
+To /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-test-PAkQM0
+ * [new branch]      main -> main
+The legacy raw JSON format for `project test-plan` remains available; use global `--json` for the canonical versioned envelope.
+
+ Test Files  728 passed (728)
+      Tests  11840 passed | 14 skipped (11854)
+   Start at  21:55:56
+   Duration  992.23s (tests 99%, import 1%)
+
+    Isolate  728 workers spawned · ~47ms startup each (spawn + environment, per file)
+             at least ~11.40s faster with isolate: false — reuses workers across files instead of one per file
+

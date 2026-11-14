@@ -1,0 +1,25 @@
+{
+  "provenance": "Transcribed from observed exec tool completion metadata, not a signed machine attestation or a new command execution. Command stdout logs are retained separately.",
+  "results": [
+    {
+      "command": "stacked root lint",
+      "exec_session_id": 26149,
+      "exit_code": 0
+    },
+    {
+      "command": "isolated root lint",
+      "exec_session_id": 36317,
+      "exit_code": 0
+    },
+    {
+      "command": "stacked generated surfaces",
+      "exec_session_id": 26668,
+      "exit_code": 0
+    },
+    {
+      "command": "stacked parity",
+      "exec_chunk_id": "f92831",
+      "exit_code": 0
+    }
+  ]
+}
