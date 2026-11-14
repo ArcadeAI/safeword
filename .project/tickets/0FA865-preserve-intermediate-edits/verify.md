@@ -1,3 +1,33 @@
+## Latest delivery baseline: intake-field sync
+
+Main advanced again to b96304887 while the first refresh ran. Merged it as
+379d6f9d3. This adds upstream YAML intake-field handling and Codex parsing; it is
+main ancestry rather than authored scope for this PR. Generated identity,
+inventory and lifecycle fixtures conflicted and were regenerated from source.
+The first generator attempt exited 75 on its one-minute shared-lock wait without
+starting a test, and pre-commit blocked stale fixtures. The supported longer-wait
+retry completed update and verification of all five generated surfaces before
+the merge was committed. No lifecycle behavior-result change was reported.
+
+On the combined code, 129 tests passed across five files: Codex commands,
+hierarchy, active-ticket lookup, post-edit preservation, and the eval grader.
+Root lint/Gherkin validation and all package typechecks passed. The audit was
+repeated with explicit base b96304887: no dependency violations across 545
+modules / 925 dependencies; learning and domain checks passed. Principle trace
+remains N/A for this task without an implementation plan. A fresh no-model
+experiment probe passed. The five preservation helpers and three evaluation
+source files are unchanged from 69f7e7f53; no paid eval rerun is warranted.
+
+Native completion passed on this baseline: the actual source CLI Codex Stop
+returned {} and marked the ticket done. The first preflight waited twenty
+minutes without starting tests; the later completion attempt passed 52 proof
+tests but blocked on test:done's 60-second timeout. The unchanged retry returned
+the successful empty decision. Both attempts remain recorded; no lock was
+removed or test policy changed. The reviewed source comparison is captured in
+.project/tmp/7158-intake-sync/source-comparison.json. Hosted CI remains pending
+publication of the final evidence commit. The earlier verification below is
+historical proof for its named baseline, not a substitute for final-head CI.
+
 ## November 14 post-main delivery verification
 
 Reopened verification after the user authorized publication. New main through 07d01d3fe was merged as 8a280a919. Only generated plugin metadata conflicted; the complete source generators resolved the conflict and all five surfaces verified. Production preservation helpers and the evaluation source are byte-identical to 69f7e7f53. Main's dependency and plan-approval changes are inherited baseline, not additional authored work for this PR.
@@ -11,8 +41,8 @@ Native completion passed on the merged code: the actual source CLI Codex Stop re
 **Test Suite:** ✓ 38/38 surrounding Vitest tests pass after the test-quality follow-up, with no filtered or skipped tests in that run. All 10 targeted preservation checks rejected both controlled broken behaviors by assertion failures. Earlier broader proof remains recorded: 171 focused tests and native completion passed on November 13 morning; full CI passed on af56551c2, including 726 CLI files and 11,661 tests. Historical local timeout and lock-blocked runs remain non-green historical evidence, not relabeled successes.
 **Gherkin:** ✅ Scoped formatter acceptance passes 10/10 scenarios and 476 executed steps after restoring production code. The old mutating behavior caused the five affected scenarios to fail; skipping the checker caused all eight TypeScript scenarios to fail. Earlier full package acceptance passed 599 scenarios and 11,786 steps, and all 52 proof-tag checks passed. Root planning acceptance defects were separately reproduced on main, as described below.
 **Build:** ✅ Success — the prescribed full verification build lane completed, including CLI, relay, and collector builds.
-**Lint:** ✅ Clean — full root lint, Gherkin validation, and CLI typecheck passed after merging main as 8a280a919.
-**Typecheck:** ✅ Clean — root typecheck passed for all three packages after merging main as 8a280a919.
+**Lint:** ✅ Clean — full root lint and Gherkin validation passed after merging main as 379d6f9d3.
+**Typecheck:** ✅ Clean — root typecheck passed for all three packages after merging main as 379d6f9d3.
 **Scenarios:** All 10 scoped formatter scenarios marked complete by execution; task hook-entry tests cover pending imports, unchanged bytes, diagnostics, markers, and explicit fix-mode compatibility.
 **Refactor:** ✅ No change warranted — one optional check-only mode fixes both failure classes without new state or scheduling.
 **PR Scope:** ✅ Diff matches ticket scope — post-edit JS/TS preservation, supporting tests, generated mirrors, and evidence only; main's planning changes are merged ancestry rather than this fix's scope.

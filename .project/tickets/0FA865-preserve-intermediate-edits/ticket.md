@@ -2,10 +2,10 @@
 id: 0FA865
 slug: preserve-intermediate-edits
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-11-08T23:27:33.769Z
-last_modified: 2026-11-14T15:32:32.131Z
+last_modified: 2026-11-14T16:29:02.920Z
 ---
 
 # Preserve unfinished edits for coding agents
@@ -64,6 +64,10 @@ User-authorized test-quality follow-up (November 13): strengthen the four instal
 The user authorized proceeding through publication and readiness. Publishing the two completed evaluation commits exposed conflicts with newer main. Merged origin/main through 07d01d3fe as 8a280a919; only generated plugin identity/inventory conflicted, and all five delivery surfaces were regenerated from combined sources. The five production preservation hook/helper files and the evaluation source are byte-identical to pre-merge 69f7e7f53. Incoming dependency-security and plan-approval changes are main ancestry, not this fix's authored scope. The related opt-in evaluation is the separately completed 3J0QCR task.
 
 Frozen dependency installation completed and its readiness marker was refreshed through the supported post-install writer. Post-merge targeted verification passed 172 tests in nine files, including the incoming plan-approval regression. Full lint/Gherkin validation, all-package typechecks, and generated-surface checks passed. Scoped audit found no dependency violations across 545 modules and 925 edges; learning/domain checks passed. The initial domain audit extraction truncated a four-backtick shell block and failed to parse; the complete verbatim block then passed. Principle trace remains N/A for this task without an implementation plan. The native source CLI completion passed and closed this ticket at 2026-11-14T15:32:32.131Z; a fresh no-model hook probe also passed on the merged dependencies, while final-head hosted CI awaits publication; the intentionally cancelled stale-head CI is not a passing result. No additional paid eval run is needed because its exercised production and experiment source did not change.
+
+## Additional intake-field sync
+
+Before publication, main advanced to b96304887. Merged as 379d6f9d3, including upstream YAML intake validation and Codex parsing. All generated conflicts were resolved through the source generators. The first lifecycle generation attempt exited 75 on shared-lock contention without starting a test, and pre-commit refused the stale fixtures. The longer-wait generator retry completed update and verification of all five surfaces before the merge commit. Post-sync Codex/hierarchy/lookup/preservation/grader checks passed 129 tests across five files; root lint/Gherkin and all package types passed. Audit against b96304887 found no dependency violations (545 modules / 925 edges), and learning/domain checks passed. A fresh no-cost probe passed; the preservation/evaluation source remains unchanged. Native completion returned {} and marked this ticket done at 2026-11-14T16:29:02.920Z on the unchanged retry. The prior preflight expired after twenty minutes without starting tests; the next completion passed its 52 proof tests but blocked on the unit lane's 60-second timeout. These remain non-green history. No lock was removed or policy changed. Final-head hosted CI remains pending publication.
 
 ## Work Log
 
