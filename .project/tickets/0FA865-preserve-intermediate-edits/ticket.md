@@ -2,8 +2,8 @@
 id: 0FA865
 slug: preserve-intermediate-edits
 type: task
-phase: done
-status: done
+phase: verify
+status: in_progress
 created: 2026-11-08T23:27:33.769Z
 last_modified: 2026-11-14T15:32:32.131Z
 ---
