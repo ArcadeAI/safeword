@@ -19,7 +19,7 @@ import {
   writeDependencyReadinessState,
   writeInstallMarker,
 } from './lib/dependency-readiness.ts';
-import { resolveToolProjectDirectory } from './lib/namespace-root.ts';
+import { resolveLaunchDirectory, resolveToolProjectDirectory } from './lib/project-directory.ts';
 
 interface BashResult {
   exit_code?: number;
@@ -48,10 +48,11 @@ try {
 if (input.tool_name !== 'Bash') process.exit(0);
 
 // Stamp the tree the install ran in, not the launch checkout (see the pre-tool gate).
-const projectDirectory = resolveToolProjectDirectory(
-  process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
-  { tool: 'Bash', editedFile: '', cwd: input.cwd },
-);
+const projectDirectory = resolveToolProjectDirectory(resolveLaunchDirectory(), {
+  tool: 'Bash',
+  editedFile: '',
+  cwd: input.cwd,
+});
 if (!existsSync(`${projectDirectory}/.safeword`)) process.exit(0);
 
 const command = input.tool_input?.command;

@@ -24,10 +24,13 @@ import {
   isNamespacePath,
   NAMESPACE_ROOT_DEFAULT,
   NAMESPACE_ROOT_LEGACY,
-  canonicalEditTarget,
   canonicalPathForGate,
-  resolveToolProjectDirectory,
 } from './lib/namespace-root.ts';
+import {
+  canonicalEditTarget,
+  resolveLaunchDirectory,
+  resolveToolProjectDirectory,
+} from './lib/project-directory.ts';
 import { resolveRunIdentity } from './lib/run-identity.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 
@@ -47,7 +50,7 @@ interface HookInput {
   };
 }
 
-const launchProjectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const launchProjectDirectory = resolveLaunchDirectory();
 
 // Read hook input from stdin
 let input: HookInput;
@@ -62,13 +65,13 @@ const editedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_pat
 // symlink into a worktree's ticket folder) is owned and recognized by where it
 // lands. Learnings tracking keeps the host spelling, which Stop matches against
 // git status paths.
-const canonicalEditedFile = canonicalEditTarget(editedFile, input.cwd);
+const canonicalEditedFile = canonicalEditTarget(launchProjectDirectory, editedFile, input.cwd);
 // Same resolution as pre-tool-quality: state and the readiness receipt land in
 // the enrolled worktree the session is working in, which is where the
 // PR-readiness gate reads them (not the launch checkout).
 const projectDirectory = resolveToolProjectDirectory(launchProjectDirectory, {
   tool: input.tool_name ?? '',
-  editedFile: canonicalEditedFile,
+  editedFile,
   cwd: input.cwd,
 });
 

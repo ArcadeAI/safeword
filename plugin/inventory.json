@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "a3f186688571afeff9e1e7dacf9daf478a0483deb2202f07e8de32ffeeab88d0"
+      "sha256": "e0600151b1b9434d0a6d6de28344f38c50a8714c58e132e1b492708afe78311f"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "452ec76ef5217d02a98f500ee4f5869972e4270fa5c0dbcbd75bbe80622ab8a7"
+      "sha256": "0578bfa8ef1ba7fb16a340e7eb1b5e6403232795577c2cf0f44f5d9fc92f9063"
     },
     {
       "path": "runtime/event-groups.json",
@@ -303,7 +303,7 @@
     },
     {
       "path": "runtime/hooks/lib/namespace-root.ts",
-      "sha256": "84abcfdfc5118d5e7b9826c95118590ea394aeb84aab6e0d19c60e2154d064d1"
+      "sha256": "347750c9b3f2fa38092b515268dbfb972d263bab6fcbb2702b73e900a0bfd529"
     },
     {
       "path": "runtime/hooks/lib/owned-paths.ts",
@@ -336,6 +336,10 @@
     {
       "path": "runtime/hooks/lib/product-plan-contract.ts",
       "sha256": "ff2a3b27aca5fff94ac146e5313a619c8fbf3b1867597ec49cc70ce1f11b1f34"
+    },
+    {
+      "path": "runtime/hooks/lib/project-directory.ts",
+      "sha256": "f7533d5b345e9fece908432aa38630672a05544114f4499d80347e659c3dcc0f"
     },
     {
       "path": "runtime/hooks/lib/project-knowledge.ts",
@@ -483,7 +487,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-dependency-readiness.ts",
-      "sha256": "0142957ea227b630a5ab17d0cee2d6ff2c6df24e7ca3f4bd7a57dbf6940060be"
+      "sha256": "6418539671ace93e5df04b4ee4d74b9f28b241ec81bbcf2588017702d3b092f6"
     },
     {
       "path": "runtime/hooks/post-tool-lint.ts",
@@ -491,7 +495,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-quality.ts",
-      "sha256": "21a850043772895828c0d75de6d7735bc5566da9711f2ed1eac6ecd8c8cbe5db"
+      "sha256": "0d21cb061022ded18cfed0b995b5c6dc5d880d628ebe0d403ee4f0fb0af0b360"
     },
     {
       "path": "runtime/hooks/post-tool-skill-nudge.ts",
@@ -515,7 +519,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-dependency-readiness.ts",
-      "sha256": "32b7dc3cd73b8a0361625489238ce88bff32ce01ea27ffcec65d39ceafcb8fdb"
+      "sha256": "83d1369a1db26474ce498565e1f67711834137276234ca697de3be0f1abbafff"
     },
     {
       "path": "runtime/hooks/pre-tool-git-bare-fix.sh",
@@ -523,7 +527,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "22cfcfea5cdb906fa8fec1391f390d0eff7263339234576ccfc63b699cdd6fee"
+      "sha256": "c359e40062e190f63d5f5d07380b48fe67d3d767acf35eb94f33f1c4997610f9"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -635,7 +639,7 @@
     },
     {
       "path": "runtime/hooks/write-review-stamp.ts",
-      "sha256": "38f47423d4a7e5db3be0df7e7dd7e5d15bfaf5ca4b4185930eaf345fda8cf567"
+      "sha256": "1bf998e80eb2a29241d2605fc5ae798341a70bd7f893256f113adb4c0b57ee05"
     },
     {
       "path": "skills/audit/SKILL.md",
@@ -1299,7 +1303,7 @@
     },
     {
       "path": "templates/hooks/lib/namespace-root.ts",
-      "sha256": "84abcfdfc5118d5e7b9826c95118590ea394aeb84aab6e0d19c60e2154d064d1"
+      "sha256": "347750c9b3f2fa38092b515268dbfb972d263bab6fcbb2702b73e900a0bfd529"
     },
     {
       "path": "templates/hooks/lib/parse-annotation.ts",
@@ -1328,6 +1332,10 @@
     {
       "path": "templates/hooks/lib/product-plan-contract.ts",
       "sha256": "ff2a3b27aca5fff94ac146e5313a619c8fbf3b1867597ec49cc70ce1f11b1f34"
+    },
+    {
+      "path": "templates/hooks/lib/project-directory.ts",
+      "sha256": "f7533d5b345e9fece908432aa38630672a05544114f4499d80347e659c3dcc0f"
     },
     {
       "path": "templates/hooks/lib/project-knowledge.ts",
@@ -1475,7 +1483,7 @@
     },
     {
       "path": "templates/hooks/post-tool-dependency-readiness.ts",
-      "sha256": "0142957ea227b630a5ab17d0cee2d6ff2c6df24e7ca3f4bd7a57dbf6940060be"
+      "sha256": "6418539671ace93e5df04b4ee4d74b9f28b241ec81bbcf2588017702d3b092f6"
     },
     {
       "path": "templates/hooks/post-tool-lint.ts",
@@ -1483,7 +1491,7 @@
     },
     {
       "path": "templates/hooks/post-tool-quality.ts",
-      "sha256": "21a850043772895828c0d75de6d7735bc5566da9711f2ed1eac6ecd8c8cbe5db"
+      "sha256": "0d21cb061022ded18cfed0b995b5c6dc5d880d628ebe0d403ee4f0fb0af0b360"
     },
     {
       "path": "templates/hooks/post-tool-skill-nudge.ts",
@@ -1507,7 +1515,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-dependency-readiness.ts",
-      "sha256": "32b7dc3cd73b8a0361625489238ce88bff32ce01ea27ffcec65d39ceafcb8fdb"
+      "sha256": "83d1369a1db26474ce498565e1f67711834137276234ca697de3be0f1abbafff"
     },
     {
       "path": "templates/hooks/pre-tool-git-bare-fix.sh",
@@ -1515,7 +1523,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "8e65ae5f95226aa0911178003799dfd96ee328d2b05fb5e2f57af5bc0381dcd2"
+      "sha256": "ea380445a34875d470260d981f0e285d36a06805307edcbef0f032e7851cd1bc"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",
@@ -1627,7 +1635,7 @@
     },
     {
       "path": "templates/hooks/write-review-stamp.ts",
-      "sha256": "38f47423d4a7e5db3be0df7e7dd7e5d15bfaf5ca4b4185930eaf345fda8cf567"
+      "sha256": "1bf998e80eb2a29241d2605fc5ae798341a70bd7f893256f113adb4c0b57ee05"
     },
     {
       "path": "templates/personas-template.md",
