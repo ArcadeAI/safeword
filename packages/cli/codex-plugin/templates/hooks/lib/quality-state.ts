@@ -76,7 +76,11 @@ export function isMetaPath(filePath: string, projectDirectory: string): boolean 
   if (META_PATHS.some(meta => normalized.startsWith(meta) || normalized === meta.slice(0, -1))) {
     return true;
   }
-  // A configured `paths.projectRoot` (e.g. `knowledge/`) is as meta as `.project/`.
+  // A configured `paths.projectRoot` (e.g. `knowledge/`) is as meta as `.project/`
+  // — unless it is the project itself (`.`), which would exempt every file.
+  if (nodePath.relative(projectDirectory, resolveNamespaceRoot(projectDirectory)) === '') {
+    return false;
+  }
   return configuredNamespaceRelativePath(filePath, projectDirectory) !== undefined;
 }
 

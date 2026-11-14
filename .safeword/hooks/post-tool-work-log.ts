@@ -8,8 +8,9 @@
 // anything that isn't a tickets-namespace ticket.md phase transition.
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import nodePath from 'node:path';
 
-import { isNamespacePath } from './lib/namespace-root.ts';
+import { isNamespacePath, resolveOwningProjectDirectory } from './lib/namespace-root.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 import {
   appendWorkLogEntry,
@@ -46,7 +47,12 @@ if (tool !== 'Edit' && tool !== 'MultiEdit') {
 }
 
 const filePath = input.tool_input?.file_path ?? '';
-if (!filePath.endsWith('/ticket.md') || !isNamespacePath(filePath, 'tickets/', projectDirectory)) {
+// A ticket inside a nested worktree reads that worktree's configured root.
+const ownerDirectory = resolveOwningProjectDirectory(
+  projectDirectory,
+  nodePath.resolve(projectDirectory, filePath),
+);
+if (!filePath.endsWith('/ticket.md') || !isNamespacePath(filePath, 'tickets/', ownerDirectory)) {
   process.exit(0);
 }
 

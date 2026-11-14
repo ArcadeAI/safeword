@@ -8,6 +8,7 @@
  */
 
 import { execSync, spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -26,17 +27,24 @@ import {
 const PACKAGE_ROOT = nodePath.resolve(import.meta.dirname, '../..');
 const POST_TOOL_QUALITY = nodePath.join(PACKAGE_ROOT, 'templates/hooks/post-tool-quality.ts');
 const PRE_TOOL_QUALITY = nodePath.join(PACKAGE_ROOT, 'templates/hooks/pre-tool-quality.ts');
+const POST_TOOL_WORK_LOG = nodePath.join(PACKAGE_ROOT, 'templates/hooks/post-tool-work-log.ts');
 
 const ROOT = 'knowledge';
 const SESSION = 'custom-root-session';
 
-function runHook(script: string, event: string, cwd: string, toolName: string, filePath: string) {
+function runHook(
+  script: string,
+  cwd: string,
+  toolName: string,
+  filePath: string,
+  extraInput: Record<string, unknown> = {},
+) {
   return spawnSync('bun', [script], {
     input: JSON.stringify({
       session_id: SESSION,
-      hook_event_name: event,
+      hook_event_name: script === PRE_TOOL_QUALITY ? 'PreToolUse' : 'PostToolUse',
       tool_name: toolName,
-      tool_input: { file_path: filePath },
+      tool_input: { file_path: filePath, ...extraInput },
     }),
     cwd,
     env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
@@ -75,7 +83,6 @@ describe('ticket gates under a custom paths.projectRoot', () => {
 
     const result = runHook(
       PRE_TOOL_QUALITY,
-      'PreToolUse',
       projectDirectory,
       'Write',
       nodePath.join(projectDirectory, `${ROOT}/tickets/099-test/test-definitions.md`),
@@ -93,7 +100,6 @@ describe('ticket gates under a custom paths.projectRoot', () => {
   it('intake gate also resolves a project-relative ticket path', () => {
     const result = runHook(
       PRE_TOOL_QUALITY,
-      'PreToolUse',
       projectDirectory,
       'Write',
       `${ROOT}/tickets/099-test/test-definitions.md`,
@@ -109,7 +115,6 @@ describe('ticket gates under a custom paths.projectRoot', () => {
   it('a lookalike directory outside the configured root is not gated', () => {
     const result = runHook(
       PRE_TOOL_QUALITY,
-      'PreToolUse',
       projectDirectory,
       'Write',
       nodePath.join(projectDirectory, `not-${ROOT}/tickets/099-test/test-definitions.md`),
@@ -129,7 +134,6 @@ describe('ticket gates under a custom paths.projectRoot', () => {
 
     const result = runHook(
       POST_TOOL_QUALITY,
-      'PostToolUse',
       projectDirectory,
       'Edit',
       nodePath.join(projectDirectory, `${ROOT}/tickets/099-test/spec.md`),
@@ -160,7 +164,6 @@ describe('ticket gates under a custom paths.projectRoot', () => {
 
     const ticketEdit = runHook(
       PRE_TOOL_QUALITY,
-      'PreToolUse',
       projectDirectory,
       'Edit',
       nodePath.join(projectDirectory, `${ROOT}/tickets/099-test/notes.md`),
@@ -170,11 +173,113 @@ describe('ticket gates under a custom paths.projectRoot', () => {
 
     const codeEdit = runHook(
       PRE_TOOL_QUALITY,
-      'PreToolUse',
       projectDirectory,
       'Edit',
       nodePath.join(projectDirectory, 'src/app.ts'),
     );
     expect(JSON.parse(codeEdit.stdout).hookSpecificOutput.permissionDecision).toBe('deny');
+  });
+
+  it('ledger gate refuses a NotebookEdit of test-definitions.md', () => {
+    const ledger = `${ROOT}/tickets/099-test/test-definitions.md`;
+    writeTestFile(projectDirectory, ledger, '# Test definitions\n');
+
+    const result = runHook(
+      PRE_TOOL_QUALITY,
+      projectDirectory,
+      'NotebookEdit',
+      nodePath.join(projectDirectory, ledger),
+    );
+
+    const output = JSON.parse(result.stdout);
+    expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+    expect(output.hookSpecificOutput.permissionDecisionReason).toContain(
+      'R/G/R ledger through NotebookEdit',
+    );
+  });
+
+  it('a phase edit to ticket.md is stamped in its work log', () => {
+    const ticket = `${ROOT}/tickets/099-test/ticket.md`;
+    writeTestFile(projectDirectory, ticket, '---\nid: 099\nphase: define-behavior\n---\n# Test\n');
+
+    const result = runHook(
+      POST_TOOL_WORK_LOG,
+      projectDirectory,
+      'Edit',
+      nodePath.join(projectDirectory, ticket),
+      { old_string: 'phase: intake', new_string: 'phase: define-behavior' },
+    );
+
+    expect(result.status).toBe(0);
+    expect(readTestFile(projectDirectory, ticket)).toContain('Phase: intake → define-behavior');
+  });
+
+  it('editing a learning under the configured root arms the novel-claim nudge', () => {
+    const learning = nodePath.join(projectDirectory, `${ROOT}/learnings/caching.md`);
+    writeTestFile(projectDirectory, `${ROOT}/learnings/caching.md`, '# Caching\n');
+
+    runHook(POST_TOOL_QUALITY, projectDirectory, 'Edit', learning);
+
+    const state = JSON.parse(
+      readTestFile(projectDirectory, `${ROOT}/quality-state-${SESSION}.json`),
+    );
+    expect(state.learningsNudgesPending).toEqual([learning]);
+  });
+});
+
+describe('configured-root edge cases', () => {
+  let projectDirectory: string;
+
+  afterEach(() => {
+    removeTemporaryDirectory(projectDirectory);
+  });
+
+  it('a repo-root paths.projectRoot does not exempt code from the LOC gate', () => {
+    projectDirectory = createTemporaryDirectory();
+    writeGateConfig(projectDirectory, { reviewGate: false, paths: { projectRoot: '.' } });
+    initGitRepo(projectDirectory);
+    writeTestFile(projectDirectory, '.safeword/SAFEWORD.md', '# enrolled\n');
+    execSync('git add . && git commit -m "init"', { cwd: projectDirectory, stdio: 'pipe' });
+    const head = execSync('git rev-parse --short HEAD', {
+      cwd: projectDirectory,
+      encoding: 'utf8',
+    }).trim();
+    writeTestFile(
+      projectDirectory,
+      `quality-state-${SESSION}.json`,
+      JSON.stringify({ locSinceCommit: 500, lastCommitHash: head, gate: 'loc' }),
+    );
+
+    const codeEdit = runHook(
+      PRE_TOOL_QUALITY,
+      projectDirectory,
+      'Edit',
+      nodePath.join(projectDirectory, 'src/app.ts'),
+    );
+
+    expect(JSON.parse(codeEdit.stdout).hookSpecificOutput.permissionDecision).toBe('deny');
+  });
+
+  it('stamps the work log of a custom-root ticket inside a nested worktree', () => {
+    projectDirectory = createProject();
+    // The launch checkout uses the default root; only the worktree configures one.
+    writeGateConfig(projectDirectory, { reviewGate: false, paths: {} });
+    const worktree = nodePath.join(projectDirectory, '.claude/worktrees/w');
+    writeTestFile(worktree, '.git', 'gitdir: elsewhere\n');
+    writeTestFile(worktree, '.safeword/SAFEWORD.md', '# enrolled\n');
+    writeGateConfig(worktree, { paths: { projectRoot: ROOT } });
+    const ticket = nodePath.join(worktree, `${ROOT}/tickets/099-test/ticket.md`);
+    writeTestFile(
+      worktree,
+      `${ROOT}/tickets/099-test/ticket.md`,
+      '---\nphase: define-behavior\n---\n',
+    );
+
+    runHook(POST_TOOL_WORK_LOG, projectDirectory, 'Edit', ticket, {
+      old_string: 'phase: intake',
+      new_string: 'phase: define-behavior',
+    });
+
+    expect(readFileSync(ticket, 'utf8')).toContain('Phase: intake → define-behavior');
   });
 });
