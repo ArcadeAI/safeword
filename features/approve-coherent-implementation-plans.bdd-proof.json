@@ -102,6 +102,20 @@
         "requires a new decision after the approach bytes change"
       ]
     ],
+    "A human decision binds only the approach it was shown": [
+      [
+        "packages/cli/tests/integration/plan-design-approval.test.ts",
+        "refuses a yes when the approach changes while the prompt is open"
+      ],
+      [
+        "packages/cli/tests/integration/plan-design-approval.test.ts",
+        "refuses a yes when a reviewed planning dependency changes while the prompt is open"
+      ],
+      [
+        "packages/cli/tests/integration/plan-design-approval.test.ts",
+        "approves when the approach is unchanged after the prompt"
+      ]
+    ],
     "Concurrent design decisions do not overwrite each other": [
       "packages/cli/tests/integration/plan-design-approval.test.ts",
       "serializes two installed CLI writers in one project ledger"
