@@ -104,7 +104,7 @@ describe.skipIf(!available)('Go post-edit package context (real Go and golangci-
     const file = write(
       root,
       'apps/engine/value_test.go',
-      'package engine\n\nimport "testing"\n\nfunc TestValue(t *testing.T) { if Value()!=42 { t.Fatal("bad value") } }\n',
+      'package engine\n\nimport "testing"\n\nfunc TestValue(t *testing.T) {\n\tif Value() != 42 {\n\t\tt.Fatal("bad value")\n\t}\n}\n',
     );
     await execute(GO, ['test', '.'], { cwd: path.dirname(file), env: environment(root) });
     expect(await hook(root, file)).toBe('');
@@ -222,7 +222,7 @@ describe.skipIf(!available)('Go post-edit package context (real Go and golangci-
     expect(readFileSync(sibling, 'utf8')).toBe(before);
   });
 
-  it('formats the edited file while leaving fixable lint findings for the user', async () => {
+  it('preserves the edited file while reporting formatting and lint findings', async () => {
     const root = fixture();
     write(
       root,
@@ -230,6 +230,7 @@ describe.skipIf(!available)('Go post-edit package context (real Go and golangci-
       JSON.stringify({
         version: '2',
         linters: { default: 'none', enable: ['misspell'] },
+        issues: { fix: true },
         formatters: { enable: ['gofmt'] },
       }),
     );
@@ -238,9 +239,18 @@ describe.skipIf(!available)('Go post-edit package context (real Go and golangci-
       'apps/engine/value.go',
       'package engine\n\n// Value returns teh value.\nfunc Value()int{return 42}\n',
     );
-    expect(context(await hook(root, file))).toContain('misspell');
-    expect(readFileSync(file, 'utf8')).toContain('func Value() int { return 42 }');
-    expect(readFileSync(file, 'utf8')).toContain('teh');
+    const before = readFileSync(file, 'utf8');
+    const sibling = write(
+      root,
+      'apps/engine/sibling.go',
+      'package engine\n\n// Sibling has teh typo.\nfunc Sibling()int{return 1}\n',
+    );
+    const siblingBefore = readFileSync(sibling, 'utf8');
+    const feedback = context(await hook(root, file));
+    expect(feedback).toContain('misspell');
+    expect(feedback).toContain('func Value() int { return 42 }');
+    expect(readFileSync(file, 'utf8')).toBe(before);
+    expect(readFileSync(sibling, 'utf8')).toBe(siblingBefore);
   });
 
   it('warns on malformed policy without formatting or hiding the failure', async () => {

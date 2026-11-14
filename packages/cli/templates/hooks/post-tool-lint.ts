@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // Safeword: Auto-lint changed files (PostToolUse)
-// JS/TS checks preserve unfinished edits; diagnostics reach Claude via additionalContext.
+// Post-edit checks preserve unfinished source; diagnostics reach Claude via additionalContext.
 // Also surfaces missing tool warnings via plain stdout.
 
 import { lintFile } from './lib/lint.ts';

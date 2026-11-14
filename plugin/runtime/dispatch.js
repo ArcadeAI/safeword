@@ -9344,7 +9344,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/post-tool-dependency-readiness.ts':
         '0142957ea227b630a5ab17d0cee2d6ff2c6df24e7ca3f4bd7a57dbf6940060be',
       '.safeword/hooks/post-tool-lint.ts':
-        '70cc0df515e09ca0f786e758f6649c6339fd1f0ee52c74431ec59bb50e422abb',
+        'b469fbb75df70e9493fd5c5e117ef9ab0d129bf10fed3045c57f09eefb259d47',
       '.safeword/hooks/post-tool-quality.ts':
         '21a850043772895828c0d75de6d7735bc5566da9711f2ed1eac6ecd8c8cbe5db',
       '.safeword/hooks/post-tool-skill-nudge.ts':

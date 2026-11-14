@@ -1152,6 +1152,10 @@ const HIDDEN_COMMANDS: readonly CommandDefinition[] = [
   },
   hidden('hook go-lint', {
     commandOptions: [
+      {
+        flags: '--no-fix',
+        description: 'Report formatting differences and disable configured source fixes',
+      },
       { flags: '--file <path>', description: 'Edited Go file' },
       { flags: '--project-root <path>', description: 'Canonical Safeword project root' },
       {

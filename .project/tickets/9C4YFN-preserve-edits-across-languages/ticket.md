@@ -1,0 +1,118 @@
+---
+id: 9C4YFN
+slug: preserve-edits-across-languages
+type: task
+phase: implement
+status: in_progress
+scope: Check-only post-edit linting across all supported language branches
+out_of_scope: Explicit fix defaults, new hosts, dependencies, scheduling and live model evals
+done_when: Hook checks preserve edited and sibling source bytes and retain diagnostics; explicit fix mode still writes
+created: 2026-11-14T20:25:14.311Z
+last_modified: 2026-11-14T20:25:14.311Z
+---
+
+# Preserve unfinished edits across supported languages
+
+**Goal:** Make automatic post-edit checks non-mutating for Python, Go, Rust, SQL, shell and remaining formatted files while retaining explicit fix behavior
+
+**Why:** The same pending-import loss and unrelated rewrite risks fixed for JS/TS remain in other language branches
+
+## Delivery plan
+
+## Scope and completion
+
+Extend the existing lintFile fix:false contract across Python, Go, Rust, SQL,
+shell and Prettier-supported formats. Post-edit hooks must preserve edited and
+sibling source bytes while retaining actionable diagnostics. Explicit helper
+fix mode keeps its default behavior; SQL fix opt-in applies only in fix mode.
+No new scheduling, state, dependencies, model evals or host adapters.
+
+Delivery base is e40f35db01396677042079c698ee9f2f671b4ae3 from the existing
+Draft PR #7158. This follow-up lives on codex/preserve-language-edits; earlier
+JS preservation and opt-in eval files are reviewed stack ancestry, not new
+scope. The implementation stamp checks the full branch against main, so its
+required review packet also includes that ancestry; the audit uses e40f35db0
+to isolate this follow-up's authored changes.
+
+## Root Cause
+
+The shared hook already passes fix:false, but only its JS/TS branch observes it.
+Python unconditionally invokes Ruff fixes and formatting; Rust invokes package
+Clippy fixes and rustfmt; Go's bundled helper always formats; SQL and generic
+format branches write independently of the option. This rules out host-specific
+dispatch and tool installation as causes: every affected branch directly
+requests mutation after the shared entry point has selected check-only mode.
+
+## Inline test plan
+
+Use real hook/helper processes with external-tool process doubles that destroy
+source on write requests and return distinct diagnostics on checks. Require
+unchanged edited/sibling bytes and positive checker output, so skipping checks
+cannot pass. Exercise Python, Rust, Go, SQL default/opt-in/host-Prettier, shell,
+and a generic formatting file. Keep explicit-fix characterization coverage.
+Run one new regression RED before each implementation group, then targeted
+surrounding tests. Check lint/types/parity/generated surfaces and independently
+review the combined diff before completion. No historical RED will be inferred.
+
+Applicable principle: preserve user work through explicit mode selection at the
+existing boundary; no edit-range guessing or automatic repair of source bytes.
+
+Shell also invokes the shared Prettier writer when configured. Check mode must
+retain formatting feedback: Ruff format --check, rustfmt --check, Go fmt --diff,
+and Prettier --check, alongside lint diagnostics. Explicit fix mode retains Ruff
+fixes/format, package-wide Clippy fixes and rustfmt, edited-file Go formatting,
+SQL's configured fix opt-in or host Prettier, and generic/shell Prettier writes.
+These explicit commands are deliberately allowed to change source.
+
+## Work Log
+
+- 2026-11-14T20:25:14.311Z Started: Created ticket 9C4YFN.
+- User explicitly approved updating existing language/formatting tests while
+  retaining explicit-fix coverage. Fresh intake review c26ab12a approved and
+  earned the intake stamp before advancing to implementation.
+- Python RED: canonical Vitest regression failed by source equality: the tool
+  rewrote the pending import fixture. Initial exit 75 was lock contention with
+  no tests started; the longer-wait run executed and failed as intended.
+- Real Ruff 0.16.5 before/after proof: the original hook deleted import os and
+  reformatted an unrelated line with fix=true and fix-only=true. The new branch
+  passes --no-fix and --no-fix-only, checks formatting without writes, preserves
+  exact bytes and returns both F401 and formatting feedback. The first manual
+  after-proof assertion expected older formatting wording; the observed output
+  said "would be reformatted" instead, and the corrected probe passed without
+  any production change. Canonical GREEN is still queued behind another run.
+  That canonical Python run subsequently passed 1/1.
+- Remaining-language RED: all 20 Claude/Cursor preservation cases failed on
+  original writers; the explicit Rust fix characterization passed. The first
+  combined GREEN attempt passed 76/77, including the full new matrix. Its one
+  failure was a package-context test expecting silence for an unformatted Go
+  fixture; that fixture is now formatted while keeping the original sibling
+  resolution assertion. A complete six-file rerun is pending.
+- Go also honors issues.fix=true from configuration without a --fix argument.
+  Check mode explicitly supplies --fix=false, with real-Go and process-boundary
+  tests protecting edited and sibling files. The Go helper was split into
+  package checking and configuration/lifetime handling to satisfy existing
+  complexity limits; focused lint passes without suppressions.
+- Real Rust/Clippy and rustfmt preserved both edited and sibling source while
+  surfacing exit-zero warnings and formatting diffs. Real installed Prettier
+  preserved JSON bytes and reported its formatting diagnostic through a private
+  launcher, without downloads. SQLFluff is not installed locally; its dispatch
+  and SQL-host fallback are covered at the external-process boundary.
+- Source reviews f69928bb and ce311e89 approved; the partial supplemental review
+  was correctly refused as whole-phase evidence. Complete review db687e4e
+  requested distinct Python lint/format witnesses. The regression now asserts
+  both independent markers. Isolated hook copies with either check removed are
+  rejected while unchanged source passes; the original template hash remained
+  unchanged throughout (.project/tmp/9C4YFN/python-sensitivity.json).
+- Review's shell-parser warning was reproduced with real Prettier. Its native
+  --ignore-unknown check option avoids unsupported-shell noise while retaining
+  ShellCheck feedback and supported-format diagnostics. A real-Prettier test
+  asserts the exact helper result; Go formatting-only cases cover clean lint
+  with a formatting diff on both hosts. These final cases await canonical GREEN.
+- Closing rerun hit a twenty-minute shared-lock limit without starting tests;
+  a longer supported wait now sequences targeted checks, mirror generation,
+  and the complete verbatim verification plan. No lock was removed or test
+  execution policy changed. Current full lint/Gherkin and all package types pass.
+- Intake review fc3d5664 approved with warnings; clarified shell's writer,
+  formatting diagnostics and explicit-fix compatibility. Frontmatter scope was
+  added while that review ran, so its receipt was correctly rejected as stale;
+  a fresh review is required before advancing.
