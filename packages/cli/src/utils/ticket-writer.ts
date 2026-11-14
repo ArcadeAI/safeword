@@ -276,6 +276,8 @@ ${motivation}
 
 ## Work Log
 
+<!-- Progress history, not part of the accepted contract: record scope and decisions above. -->
+
 - ${now} Started: Created ticket ${id}
 `;
 }
