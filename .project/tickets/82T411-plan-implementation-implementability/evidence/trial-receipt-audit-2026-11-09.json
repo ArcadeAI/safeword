@@ -1,0 +1,139 @@
+{
+  "audit_date": "2026-11-09",
+  "method": "Read retained job records; hashes identify archived bytes. No fresh HMAC verification or current approval claim.",
+  "records": [
+    {
+      "id": "827f4999-d14e-4f3a-8e8e-cd671c71cd13",
+      "sha256": "e348c5e229694e38dde73e46e1b932b72c8c5ba9bfceddab679bcf9ab4a71da3",
+      "kind": "plan-implementation",
+      "started_at": "2026-11-09T00:50:23.593Z",
+      "status": "approved",
+      "independence": "cross-agent",
+      "actual_reviewer": "codex",
+      "reviewer_model": "gpt-6.1-sol",
+      "summary": "The approach covers the accepted behavior, affected CLI surface, failure contracts, data handling, and proof boundaries. Focused reviewability: pass. Ready for Execution Planning; this approval establishes no implementation or verification completion.",
+      "has_canonical_contract_digest": true,
+      "routes": [
+        {
+          "reviewer": "codex",
+          "model": "gpt-6.1-sol",
+          "independence": "cross-agent",
+          "status": "attempted"
+        }
+      ]
+    },
+    {
+      "id": "d3303769-4d9e-42a5-acf1-a3910dfcdb38",
+      "sha256": "26cd0600293abb17eb38c12a5318d6982e4b91e2d22943135d37358da5d84d54",
+      "kind": "plan-execution",
+      "started_at": "2026-11-09T01:26:07.540Z",
+      "status": "approved",
+      "independence": "cross-agent",
+      "actual_reviewer": "codex",
+      "reviewer_model": "gpt-6.1-sol",
+      "summary": "The single-PR sequence preserves the accepted approach and scenarios, provides startable tasks and concrete boundary proofs, and keeps implementation and verification obligations open.",
+      "has_canonical_contract_digest": true,
+      "routes": [
+        {
+          "reviewer": "codex",
+          "model": "gpt-6.1-sol",
+          "independence": "cross-agent",
+          "status": "attempted"
+        }
+      ]
+    },
+    {
+      "id": "683e7af9-d32b-461e-b9f2-ad598ac1a5ec",
+      "sha256": "162b4bf99eb4b86778c40b7a992a2f80879906693a96c935c0d8c9db573483ec",
+      "kind": "plan-implementation",
+      "started_at": "2026-11-09T04:55:53.622Z",
+      "status": "approved",
+      "independence": "cross-agent",
+      "actual_reviewer": "codex",
+      "reviewer_model": "gpt-6.1-sol",
+      "summary": "The approach covers the accepted scenarios, CLI surface, persona needs, failure contracts, data consequences, and proof boundaries. Load-bearing choices include alternatives, evidence, and reversibility. Focused reviewability: pass. Approval establishes readiness for Execution Planning only; implementation and verification claims were not independently checked.",
+      "has_canonical_contract_digest": true,
+      "routes": [
+        {
+          "reviewer": "codex",
+          "model": "gpt-6.1-sol",
+          "independence": "cross-agent",
+          "status": "attempted"
+        }
+      ]
+    },
+    {
+      "id": "ed2b2cd7-507d-40c9-ba35-e3e27ecac1a5",
+      "sha256": "8ae8405ba5ee7fadefe8132613d9bfad97b5b5cbd1e96b3365385b9d3f90543e",
+      "kind": "plan-execution",
+      "started_at": "2026-11-09T03:41:38.721Z",
+      "status": "approved",
+      "independence": "reduced",
+      "actual_reviewer": "claude",
+      "reviewer_model": "opus",
+      "summary": "I'm approving this Execution Plan. It keeps the accepted Implementation Plan's approach. It plans one pull request with one slice, justified by cohesion: conversion and invalid-row handling share one entry point, and a conversion-only pull request would mishandle invalid rows. It separates completed steps 0\u20137 from the remaining target steps 7a\u201312. The known lone-CR defect and its fix (step 8) are kept separate from the riskiest-assumption check (step 7a), which shows the line-number test catches index-based numbering. bdd-tempconv covers every accepted scenario, and every other accepted proof maps to a step. The proof table and checklist match the trusted delivery definition, and every item is honestly marked open because current proof is missing. All five Recorded Decisions are listed as unchanged. Only nonblocking warnings remain.",
+      "has_canonical_contract_digest": true,
+      "routes": [
+        {
+          "reviewer": "codex",
+          "model": "gpt-6.1-sol",
+          "independence": "cross-agent",
+          "status": "attempted",
+          "failure": "invalid_output"
+        },
+        {
+          "reviewer": "codex",
+          "model": "gpt-6.1-terra",
+          "independence": "cross-agent",
+          "status": "attempted",
+          "failure": "process_failed"
+        },
+        {
+          "reviewer": "opencode",
+          "independence": "cross-agent",
+          "status": "attempted",
+          "failure": "timed_out"
+        },
+        {
+          "reviewer": "claude",
+          "model": "opus",
+          "independence": "degraded",
+          "status": "attempted"
+        },
+        {
+          "reviewer": "claude",
+          "model": "sonnet",
+          "independence": "degraded",
+          "status": "skipped"
+        }
+      ]
+    },
+    {
+      "id": "a4d80f5d-b48f-479d-9986-2591425dbd96",
+      "sha256": "078a764b909c109853c29cb87e44a95cf8e4dbbf650c396383a3cc00f7fe51f2",
+      "kind": "plan-execution",
+      "started_at": "2026-11-09T04:55:53.640Z",
+      "status": "approved",
+      "independence": "cross-agent",
+      "actual_reviewer": "codex",
+      "reviewer_model": "gpt-6.1-terra",
+      "summary": "The execution plan preserves the accepted scenarios and implementation approach, with one independently provable delivery slice and current-revision verification.",
+      "has_canonical_contract_digest": true,
+      "routes": [
+        {
+          "reviewer": "codex",
+          "model": "gpt-6.1-sol",
+          "independence": "cross-agent",
+          "status": "attempted",
+          "failure": "invalid_output"
+        },
+        {
+          "reviewer": "codex",
+          "model": "gpt-6.1-terra",
+          "independence": "cross-agent",
+          "status": "attempted"
+        }
+      ]
+    }
+  ]
+}

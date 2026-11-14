@@ -1,0 +1,24 @@
+{
+  "synthetic_only": true,
+  "image_id": "sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8",
+  "container_removed": true,
+  "candidate_claim": {
+    "claimed_success": true
+  },
+  "trusted_observation": {
+    "actual_exit": 42,
+    "success": false
+  },
+  "canary_unchanged": true,
+  "checks": {
+    "host_docker_socket_absent": true,
+    "trusted_path_absent": true,
+    "signing_env_not_inherited": true,
+    "rootfs_not_writable": true
+  },
+  "stdout_untrusted": "{\"claimed_success\":true}\n",
+  "limits": [
+    "Local Docker boundary only; not GitHub OIDC or attestation validation.",
+    "No real credentials, provider calls, CI runs or installed-host proof."
+  ]
+}
