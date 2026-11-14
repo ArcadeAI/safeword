@@ -206,7 +206,8 @@ function currentExecutionDiscovery(context: ApprovalContext): ExecutionDiscovery
   );
 }
 
-function executionDiscoveryNotice(
+/** The ticket notice that forces a fresh Implementation Plan review after a discovery. */
+export function executionDiscoveryNotice(
   discovery: Exclude<ExecutionDiscovery, { destination: 'invalid' }>,
 ): string {
   const messages = [
@@ -214,7 +215,9 @@ function executionDiscoveryNotice(
     ...discovery.findings,
   ];
   const quoted = messages.flatMap(message => message.split(/\r?\n/u).map(line => `> ${line}`));
-  return `\n\n${EXECUTION_DISCOVERY_HEADING}\n\n${quoted.join('\n')}\n`;
+  // The trailing blank line ends the quote, so a later note cannot become a
+  // lazy continuation of this binding notice.
+  return `\n\n${EXECUTION_DISCOVERY_HEADING}\n\n${quoted.join('\n')}\n\n`;
 }
 
 function applyExecutionDiscovery(

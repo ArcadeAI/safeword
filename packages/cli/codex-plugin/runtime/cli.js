@@ -53087,38 +53087,64 @@ function semanticMarkdownIdentity(content) {
   const nodes = parseMarkdown(content);
   return identity2(normalizeNodes(nodes));
 }
-function ticketContractNodes(body) {
-  const nodes = parseMarkdown(body);
+function nestedDefinitions(node) {
+  if (node.type === "definition")
+    return [node];
+  return (node.children ?? []).flatMap((child) => nestedDefinitions(child));
+}
+function withoutPhaseStamps(body) {
+  const lines = body.trimEnd().split(`
+`);
+  while (lines.length > 0 && PHASE_STAMP_LINE.test(lines.at(-1) ?? "")) {
+    lines.pop();
+    while (lines.length > 0 && (lines.at(-1) ?? "").trim() === "")
+      lines.pop();
+  }
+  if (lines.at(-1) === HOOK_WORK_LOG_HEADING)
+    lines.pop();
+  return `${lines.join(`
+`).trimEnd()}
+`;
+}
+function isWorkLogHeading(node) {
+  return node.type === "heading" && node.depth === 2 && normalizedText(node) === "Work Log";
+}
+function withoutJournal(nodes) {
   let inWorkLog = false;
   const retained = nodes.filter((node) => {
     if (node.type === "heading" && (node.depth ?? 0) <= 2) {
-      inWorkLog = node.depth === 2 && headingText(node) === "Work Log";
+      inWorkLog = isWorkLogHeading(node);
+      if (inWorkLog)
+        return false;
     }
-    return !inWorkLog;
+    return !inWorkLog || !JOURNAL_NODE_TYPES.has(node.type);
   });
-  const definitions = referencedDefinitions(nodes, retained, false).filter((node) => !retained.includes(node));
+  const definitions = referencedDefinitions(nodes.flatMap((node) => nestedDefinitions(node)), retained, false).filter((node) => !retained.includes(node));
   return [...retained, ...definitions];
 }
 function semanticTicketIdentity(content, reviewKind) {
   const { metadata, body } = parseTicketMetadata(content);
-  const retained = Object.fromEntries(Object.entries(metadata).filter(([key]) => !["phase", "status", "last_modified", "review_dispositions"].includes(key)));
+  const retained = Object.fromEntries(Object.entries(metadata).filter(([key]) => !TICKET_BOOKKEEPING_KEYS.has(key)));
   if (reviewKind !== undefined && Array.isArray(metadata.review_dispositions)) {
     const matching = metadata.review_dispositions.filter((value) => value !== null && typeof value === "object" && !Array.isArray(value) && value.review_kind === reviewKind);
     if (matching.length > 0)
       retained.review_dispositions = matching;
   }
-  const nodes = ticketContractNodes(body);
+  const nodes = withoutJournal(parseMarkdown(withoutPhaseStamps(`${body}
+`)));
   return identity2({ version: 1, metadata: retained, body: normalizeNodes(nodes) });
 }
 function headingText(node) {
   return node.value ?? node.children?.map((child) => headingText(child)).join("") ?? "";
 }
+function normalizedText(node) {
+  return normalizeChildren(node).map((child) => headingText(child)).join("");
+}
 function requiredSection(nodes, depth, key, identifier = false) {
   const matches = nodes.flatMap((node, index) => {
     if (node.type !== "heading" || node.depth !== depth)
       return [];
-    const children = normalizeChildren(node);
-    const text = children.map((child) => headingText(child)).join("");
+    const text = normalizedText(node);
     const label = identifier ? text.split(/\s+/u, 1)[0] : text;
     return label === key ? [index] : [];
   });
@@ -53221,7 +53247,7 @@ function validatePlanningProductFrame(content) {
   const counts = new Map;
   const visit = (node, parent) => {
     if (node.type === "paragraph") {
-      const text = normalizeChildren(node).map((child) => headingText(child)).join("");
+      const text = normalizedText(node);
       const colon = text.indexOf(":");
       const label = text.slice(0, colon);
       if (productFrameFields.includes(label)) {
@@ -53512,7 +53538,7 @@ function createPlanningReviewIdentity(packet) {
     canonical_contract_digest: contractDigest
   };
 }
-var nodeTypes, productFrameFields;
+var nodeTypes, TICKET_BOOKKEEPING_KEYS, JOURNAL_NODE_TYPES, PHASE_STAMP_LINE, HOOK_WORK_LOG_HEADING = "## Work Log", productFrameFields;
 var init_planning_context_identity = __esm(() => {
   init_markdown();
   init_gherkin_feature();
@@ -53548,6 +53574,15 @@ var init_planning_context_identity = __esm(() => {
     "tableRow",
     "tableCell"
   ]);
+  TICKET_BOOKKEEPING_KEYS = new Set([
+    "phase",
+    "status",
+    "last_modified",
+    "review_dispositions",
+    "phase_anchors"
+  ]);
+  JOURNAL_NODE_TYPES = new Set(["list", "paragraph", "definition"]);
+  PHASE_STAMP_LINE = /^- \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[.\d]{0,10}Z Phase: [\w-]+ \u2192 [\w-]+$/u;
   productFrameFields = [
     "Expected outcome",
     "Persona outcome inventory",
@@ -59113,13 +59148,29 @@ function shellQuote4(value) {
 function reviewStatusCommand(id) {
   return `${shellQuote4(process.execPath)} ${shellQuote4(cliEntrypoint())} review status ${id}`;
 }
-function staleResult(record) {
+function changedPlanningSources(recorded, current) {
+  if (recorded === undefined || current === undefined)
+    return [];
+  const before = planningSourceDigests(recorded);
+  const after = planningSourceDigests(current);
+  return [...new Set([...before.keys(), ...after.keys()])].filter((key) => before.get(key) !== after.get(key));
+}
+function planningSourceDigests(identity) {
+  return new Map([
+    ...identity.targets.map((target) => [`target ${target.path}`, target.digest]),
+    ...identity.dependencies.map((source) => [`${source.role} ${source.path}`, source.semantic_digest])
+  ]);
+}
+function staleMessage(changed) {
+  return changed.length === 0 ? "The reviewed source changed after this review started; run a fresh review." : `The reviewed source changed after this review started (${changed.join(", ")}); run a fresh review.`;
+}
+function staleResult(record, changed = []) {
   return createResult({
     state: "action_required",
     findings: [
       {
         code: "REVIEW_STALE",
-        message: "The reviewed source changed after this review started; run a fresh review.",
+        message: staleMessage(changed),
         severity: "warning"
       }
     ],
@@ -59206,8 +59257,9 @@ function terminalResult(cwd, record) {
       execution: record.execution,
       planningContractUse: "currency"
     });
-    if (current.fingerprint !== record.source_fingerprint)
-      return staleResult(record);
+    if (current.fingerprint !== record.source_fingerprint) {
+      return staleResult(record, changedPlanningSources(record.review_identity, current.reviewIdentity));
+    }
     if (record.result !== undefined)
       return withReviewProvenance(cwd, record, record.result, current.excludedTargets);
   } catch {
@@ -65088,6 +65140,8 @@ last_modified: ${now}
 ${motivation}
 
 ## Work Log
+
+<!-- Progress history, not part of the accepted contract: record scope and decisions above. -->
 
 - ${now} Started: Created ticket ${id}
 `;
@@ -80865,6 +80919,7 @@ ${EXECUTION_DISCOVERY_HEADING}
 
 ${quoted.join(`
 `)}
+
 `;
 }
 function applyExecutionDiscovery(context, discovery) {

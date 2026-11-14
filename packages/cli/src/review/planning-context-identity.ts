@@ -153,28 +153,85 @@ export function semanticMarkdownIdentity(content: string): string {
   return identity(normalizeNodes(nodes));
 }
 
-function ticketContractNodes(body: string): readonly MarkdownNode[] {
-  const nodes = parseMarkdown(body);
+/** Ticket progress bookkeeping that never changes the accepted contract. */
+const TICKET_BOOKKEEPING_KEYS = new Set([
+  'phase',
+  'status',
+  'last_modified',
+  'review_dispositions',
+  'phase_anchors',
+]);
+
+/** Journal node types dropped from the Work Log; every other node type is retained. */
+const JOURNAL_NODE_TYPES = new Set(['list', 'paragraph', 'definition']);
+
+function nestedDefinitions(node: MarkdownNode): MarkdownNode[] {
+  if (node.type === 'definition') return [node];
+  return (node.children ?? []).flatMap(child => nestedDefinitions(child));
+}
+
+/** The exact line the work-log hook appends: `- <ISO time>Z Phase: <from> → <to>`. */
+const PHASE_STAMP_LINE =
+  /^- \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[.\d]{0,10}Z Phase: [\w-]+ → [\w-]+$/u;
+
+const HOOK_WORK_LOG_HEADING = '## Work Log';
+
+/**
+ * Removes the hook's trailing bookkeeping before parsing (#5766). The hook only
+ * ever appends whole stamp lines at end of file (creating a `## Work Log` first
+ * on a ticket without one), so stripping the trailing run of stamp lines, then
+ * a bare trailing heading, restores the prior text whatever Markdown surrounds
+ * it. A stamp-shaped line anywhere else is content and stays bound.
+ *
+ * Accepted limitation: a ticket whose final lines are stamp-shaped text inside
+ * an unclosed code fence loses those lines from its identity, so editing them
+ * does not stale approvals. No surveyed ticket has that shape, and a hook
+ * marker could not close it for tickets already holding unmarked stamps.
+ */
+function withoutPhaseStamps(body: string): string {
+  const lines = body.trimEnd().split('\n');
+  while (lines.length > 0 && PHASE_STAMP_LINE.test(lines.at(-1) ?? '')) {
+    lines.pop();
+    while (lines.length > 0 && (lines.at(-1) ?? '').trim() === '') lines.pop();
+  }
+  if (lines.at(-1) === HOOK_WORK_LOG_HEADING) lines.pop();
+  return `${lines.join('\n').trimEnd()}\n`;
+}
+
+function isWorkLogHeading(node: MarkdownNode): boolean {
+  return node.type === 'heading' && node.depth === 2 && normalizedText(node) === 'Work Log';
+}
+
+/**
+ * Drops the Work Log heading and its journal entries (top-level lists, paragraphs
+ * and definitions) while keeping every other node in it — headings, blockquotes
+ * such as the execution-discovery notice, and any unknown type — plus each
+ * definition that retained text references, wherever it is nested.
+ */
+function withoutJournal(nodes: readonly MarkdownNode[]): MarkdownNode[] {
   let inWorkLog = false;
   const retained = nodes.filter(node => {
     if (node.type === 'heading' && (node.depth ?? 0) <= 2) {
-      inWorkLog = node.depth === 2 && headingText(node) === 'Work Log';
+      inWorkLog = isWorkLogHeading(node);
+      // The hook creates the heading on a ticket's first entry; it carries no contract.
+      if (inWorkLog) return false;
     }
-    return !inWorkLog;
+    return !inWorkLog || !JOURNAL_NODE_TYPES.has(node.type);
   });
-  // Contract references retain their destinations even when defined in history.
-  const definitions = referencedDefinitions(nodes, retained, false).filter(
-    node => !retained.includes(node),
-  );
+  // Contract references keep their destinations even when defined in history,
+  // nested or not; tickets follow Markdown, so the first definition wins.
+  const definitions = referencedDefinitions(
+    nodes.flatMap(node => nestedDefinitions(node)),
+    retained,
+    false,
+  ).filter(node => !retained.includes(node));
   return [...retained, ...definitions];
 }
 
 export function semanticTicketIdentity(content: string, reviewKind?: string): string {
   const { metadata, body } = parseTicketMetadata(content);
   const retained = Object.fromEntries(
-    Object.entries(metadata).filter(
-      ([key]) => !['phase', 'status', 'last_modified', 'review_dispositions'].includes(key),
-    ),
+    Object.entries(metadata).filter(([key]) => !TICKET_BOOKKEEPING_KEYS.has(key)),
   );
   if (reviewKind !== undefined && Array.isArray(metadata.review_dispositions)) {
     const matching = metadata.review_dispositions.filter(
@@ -186,13 +243,19 @@ export function semanticTicketIdentity(content: string, reviewKind?: string): st
     );
     if (matching.length > 0) retained.review_dispositions = matching;
   }
-  // Work Log is progress history, not accepted scope or decision authority.
-  const nodes = ticketContractNodes(body);
+  const nodes = withoutJournal(parseMarkdown(withoutPhaseStamps(`${body}\n`)));
   return identity({ version: 1, metadata: retained, body: normalizeNodes(nodes) });
 }
 
 function headingText(node: MarkdownNode): string {
   return node.value ?? node.children?.map(child => headingText(child)).join('') ?? '';
+}
+
+/** A heading's or paragraph's text after whitespace normalization. */
+function normalizedText(node: MarkdownNode): string {
+  return normalizeChildren(node)
+    .map(child => headingText(child))
+    .join('');
 }
 
 function requiredSection(
@@ -203,8 +266,7 @@ function requiredSection(
 ): readonly MarkdownNode[] {
   const matches = nodes.flatMap((node, index) => {
     if (node.type !== 'heading' || node.depth !== depth) return [];
-    const children = normalizeChildren(node);
-    const text = children.map(child => headingText(child)).join('');
+    const text = normalizedText(node);
     const label = identifier ? text.split(/\s+/u, 1)[0] : text;
     return label === key ? [index] : [];
   });
@@ -373,9 +435,7 @@ export function validatePlanningProductFrame(content: string): void {
   const counts = new Map<string, number>();
   const visit = (node: MarkdownNode, parent?: MarkdownNode): void => {
     if (node.type === 'paragraph') {
-      const text = normalizeChildren(node)
-        .map(child => headingText(child))
-        .join('');
+      const text = normalizedText(node);
       const colon = text.indexOf(':');
       const label = text.slice(0, colon);
       if (productFrameFields.includes(label)) {
