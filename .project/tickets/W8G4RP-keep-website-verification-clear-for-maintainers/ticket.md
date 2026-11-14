@@ -2,8 +2,8 @@
 id: W8G4RP
 slug: keep-website-verification-clear-for-maintainers
 type: patch
-phase: implement
-status: in_progress
+phase: done
+status: done
 scope:
   - update website Astro to 7.4.7 and align root Vite 8.3.5 and Zod 4.6.7 pins with its declared requirements
   - retain the generated lockfile graph and verify audit, website and workspace compatibility
