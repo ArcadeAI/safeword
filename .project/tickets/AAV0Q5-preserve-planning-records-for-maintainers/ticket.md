@@ -2,7 +2,7 @@
 id: AAV0Q5
 slug: preserve-planning-records-for-maintainers
 type: patch
-phase: implement
+phase: verify
 status: in_progress
 scope:
   - preserve the existing unfinished 5GK1CN planning packet and its historical review evidence
@@ -27,5 +27,9 @@ last_modified: 2026-11-13T23:02:11.526Z
 **Why:** User asked to push and merge the separately saved records before closing the session
 
 ## Work Log
+
+- Preservation packet pushed as Draft PR #7368 on a fresh main-based branch, excluding the old implementation. Source packet byte comparison, 13 JSON parses, @wip and all 52 unchecked rows are verified. Historical/current handoff labels were clarified; no original evidence verdict changed.
+- Independent reviews 9bf71921 and b705e3de approved bounded preservation; intake stamp earned. Partial review 899409db could not earn implement coverage, so full 33-file review 80de6945 was run and approved; its actual cross-agent Claude/opus receipt earned the implement stamp. No 5GK1CN scenario approval or completion granted.
+- Complete local verification exited 1: both CLI passes (724 files / 11648 passed / 14 skipped), 599 acceptance scenarios, 52 proof checks, builds/typechecks pass, but raw Bun audit reports two inherited Astro advisories. The initial two-file Astro candidate was rejected for root Vite/Zod pins below its declared minima. A corrected, unpublished three-file candidate (Astro 7.4.7, Vite 8.3.5, Zod 4.6.7 and lock) passes audit, website build/typecheck, workspace typechecks and a Vitest compatibility smoke; generated surfaces remain current and independent review c59ee74c approves. It is not included here. Keep verify/in_progress, no Ready or merge while blocked. Converter dependencies unchanged; all missing RED, failures and 33 deferred cases retained.
 
 - 2026-11-13T23:02:11.526Z Started: Created ticket AAV0Q5
