@@ -13,7 +13,7 @@ import { isNamespacePath } from './lib/namespace-root.ts';
 import {
   canonicalEditTarget,
   resolveLaunchDirectory,
-  resolveProjectDirectory,
+  resolveToolProjectDirectory,
 } from './lib/project-directory.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 import {
@@ -52,18 +52,14 @@ if (tool !== 'Edit' && tool !== 'MultiEdit') {
 }
 
 // A relative target is relative to the session's cwd (maybe a worktree), and a
-// ticket inside a nested worktree reads that worktree's configured root. A
-// ticket outside every git tree (an absolute configured root) belongs to the
-// launch checkout whose config names that root, not to the session's cwd.
-const filePath = canonicalEditTarget(
-  projectDirectory,
-  input.tool_input?.file_path ?? '',
-  input.cwd,
-);
-const ownerDirectory = resolveProjectDirectory({
-  launchDirectory: projectDirectory,
-  editedFile: filePath,
-  cwd: undefined,
+// ticket inside a nested worktree reads that worktree's configured root; the
+// shared resolver gives a ticket outside every git tree to the launch checkout.
+const requestedFile = input.tool_input?.file_path ?? '';
+const filePath = canonicalEditTarget(projectDirectory, requestedFile, input.cwd);
+const ownerDirectory = resolveToolProjectDirectory(projectDirectory, {
+  tool,
+  editedFile: requestedFile,
+  cwd: input.cwd,
 });
 if (!filePath.endsWith('/ticket.md') || !isNamespacePath(filePath, 'tickets/', ownerDirectory)) {
   process.exit(0);

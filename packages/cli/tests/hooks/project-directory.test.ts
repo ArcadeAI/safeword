@@ -117,6 +117,19 @@ describe('resolveProjectDirectory (#5467)', () => {
       ).toBe(launch);
     });
 
+    it('outside any git tree belongs to the launch checkout even from a worktree cwd', () => {
+      // An absolute configured namespace root lives outside git; only the
+      // launch checkout's config can name it, so the cwd must not claim it.
+      const worktree = tree(nodePath.join(launch, '.claude/worktrees/w'), { enrolled: true });
+      expect(
+        resolveProjectDirectory({
+          launchDirectory: launch,
+          editedFile: nodePath.join(root, 'notes/tickets/T1/ticket.md'),
+          cwd: worktree,
+        }),
+      ).toBe(launch);
+    });
+
     it('resolves through a symlink to the tree the file really lives in', () => {
       const target = tree(nodePath.join(root, 'target'), { enrolled: true });
       mkdirSync(nodePath.join(target, 'src'), { recursive: true });

@@ -5,7 +5,9 @@
 // session. Every hook, script and CLI command picks its project here, in this
 // order:
 //
-//   1. the edited file's enrolled git working tree;
+//   1. the edited file's enrolled git working tree; a file outside every git
+//      tree (an absolute configured namespace root) has no owner by location,
+//      so it belongs to the launch checkout, whose config can name that root;
 //   2. the cwd's enrolled git working tree — a hook passes the host-reported
 //      `cwd`, a helper or CLI command passes its own `process.cwd()`;
 //   3. the launch checkout.
@@ -50,8 +52,10 @@ export function resolveProjectDirectory(input: {
 
   if (input.editedFile) {
     const file = nodePath.resolve(baseDirectory(launchDirectory, input.cwd), input.editedFile);
-    const fileOwner = owner(nodePath.dirname(file), nodePath.dirname(canonicalPathForGate(file)));
+    const realDirectory = nodePath.dirname(canonicalPathForGate(file));
+    const fileOwner = owner(nodePath.dirname(file), realDirectory);
     if (fileOwner !== undefined) return fileOwner;
+    if (!insideGitTree(realDirectory)) return launchDirectory;
   }
 
   if (!input.cwd) return launchDirectory;
@@ -110,6 +114,13 @@ function enrolledWorkingTree(launchDirectory: string, start: string): string | u
     const parent = nodePath.dirname(directory);
     if (parent === directory) return undefined;
     directory = parent;
+  }
+}
+
+function insideGitTree(start: string): boolean {
+  for (let directory = start; ; directory = nodePath.dirname(directory)) {
+    if (existsSync(nodePath.join(directory, '.git'))) return true;
+    if (nodePath.dirname(directory) === directory) return false;
   }
 }
 
