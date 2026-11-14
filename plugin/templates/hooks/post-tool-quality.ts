@@ -196,7 +196,8 @@ if (state.locSinceCommit >= LOC_THRESHOLD && !isGitOperationInProgress(projectDi
 let reviewMessage: string | null = null;
 
 // `<namespace root>/tickets/<folder>/…` → absolute path of that folder's
-// ticket.md. Anchored on the same roots isNamespacePath accepts; a file not
+// ticket.md. The regex covers the default and legacy roots; a configured
+// `paths.projectRoot` falls through to configuredRootTicketFile. A file not
 // nested inside a ticket folder (e.g. `tickets/foo.md`) yields undefined, and
 // `tickets/completed/<f>/…` resolves to the absent `tickets/completed/ticket.md`.
 const escapedNamespaceRoots = [NAMESPACE_ROOT_DEFAULT, NAMESPACE_ROOT_LEGACY]

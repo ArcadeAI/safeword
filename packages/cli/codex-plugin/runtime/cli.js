@@ -3452,7 +3452,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/post-tool-bypass-warn.ts": "f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a",
         ".safeword/hooks/post-tool-dependency-readiness.ts": "0142957ea227b630a5ab17d0cee2d6ff2c6df24e7ca3f4bd7a57dbf6940060be",
         ".safeword/hooks/post-tool-lint.ts": "ca708ea4ff7d184441e8bc5e5d136c2a5f40ffc74bffb98b6d886451669df7d6",
-        ".safeword/hooks/post-tool-quality.ts": "293af486465e6c829d6c5b96bdd021bde5cadf6da9eb1da8020e189af1fd2407",
+        ".safeword/hooks/post-tool-quality.ts": "a17e84c74644205067de301800981186d97158829ee0d876ce4ec18e0fd9b17f",
         ".safeword/hooks/post-tool-skill-nudge.ts": "a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4",
         ".safeword/hooks/post-tool-sync-learnings.ts": "de5f52c221b2f029841beded78d65af80217949072a99c2790d503f492528290",
         ".safeword/hooks/post-tool-work-log.ts": "f7d42a576cb979a4ab33366eec51922ca202d1edfe6a1404bd039bcd183cbb6c",
