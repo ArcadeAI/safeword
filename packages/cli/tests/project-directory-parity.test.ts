@@ -12,17 +12,70 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '..');
 const SCANNED = ['templates/hooks', 'templates/scripts', 'src'];
 const RESOLVER = 'templates/hooks/lib/project-directory.ts';
+const LAUNCH_VARIABLE = 'CLAUDE_PROJECT_DIR';
+const GIT_TOPLEVEL = '--show-toplevel';
 
-// A read of the launch-checkout variable (assignment into a child env is not a
-// read), or git's toplevel, which is the launch checkout's view of a worktree
-// only by accident.
-const PROJECT_CHOICE =
-  /\.CLAUDE_PROJECT_DIR\b(?!\s*=[^=])|\[['"]CLAUDE_PROJECT_DIR['"]\]|--show-toplevel/;
+/**
+ * Whether `source` picks a project on its own: it reads the launch-checkout
+ * variable (property, element or destructuring access; writing a child
+ * environment is not a read), or asks git for its toplevel, which is the
+ * launch checkout's view of a worktree only by accident. Parsed, not matched
+ * as text, so comments never count. A tripwire, not a sandbox: a computed key
+ * built at runtime can still slip past.
+ */
+function readsProjectChoice(source: string, fileName = 'scan.ts'): boolean {
+  const scriptKind = /\.[cm]?js$/.test(fileName) ? ts.ScriptKind.JS : ts.ScriptKind.TS;
+  const file = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, scriptKind);
+  let found = false;
+  const visit = (node: ts.Node): void => {
+    if (found) return;
+    if (choosesProject(node)) {
+      found = true;
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  return found;
+}
+
+function choosesProject(node: ts.Node): boolean {
+  if (ts.isStringLiteralLike(node) || ts.isTemplateLiteralToken(node)) {
+    return node.text.includes(GIT_TOPLEVEL);
+  }
+  return readsLaunchVariable(node);
+}
+
+function readsLaunchVariable(node: ts.Node): boolean {
+  if (ts.isBindingElement(node)) return namesLaunchVariable(node.propertyName ?? node.name);
+  if (ts.isPropertyAccessExpression(node)) {
+    return namesLaunchVariable(node.name) && !isWriteTarget(node);
+  }
+  if (ts.isElementAccessExpression(node)) {
+    return namesLaunchVariable(node.argumentExpression) && !isWriteTarget(node);
+  }
+  return false;
+}
+
+function namesLaunchVariable(key: ts.Node): boolean {
+  return (ts.isIdentifier(key) || ts.isStringLiteralLike(key)) && key.text === LAUNCH_VARIABLE;
+}
+
+function isWriteTarget(node: ts.Expression): boolean {
+  const parent = node.parent;
+  if (ts.isDeleteExpression(parent)) return true;
+  return (
+    ts.isBinaryExpression(parent) &&
+    parent.left === node &&
+    parent.operatorToken.kind === ts.SyntaxKind.EqualsToken
+  );
+}
 
 const LEGITIMATE: Record<string, string> = {
   'src/utils/git.ts': 'gitToplevel() serves git operations, not project choice',
@@ -46,7 +99,6 @@ const PENDING: Record<string, string> = {
   'templates/hooks/post-tool-bypass-warn.ts': 'PR 2',
   'templates/hooks/post-tool-lint.ts': 'PR 2',
   'templates/hooks/post-tool-sync-learnings.ts': 'PR 2',
-  'templates/hooks/post-tool-work-log.ts': 'PR 2',
   'templates/hooks/pre-tool-architecture-stage.ts': 'PR 2',
   'templates/hooks/pre-tool-config-guard.ts': 'PR 2',
   'templates/hooks/pre-tool-stale-main.ts': 'PR 2',
@@ -60,7 +112,6 @@ const PENDING: Record<string, string> = {
   'templates/hooks/lib/lint.ts': 'PR 2',
   'templates/hooks/lib/test-runner.ts': 'PR 2',
   'templates/hooks/lib/self-report.ts': 'PR 2',
-  'templates/hooks/lib/re-entry.ts': 'PR 2',
   'templates/hooks/lib/safeword-context.ts': 'PR 2',
   // Retro spool and closeout binding (#5467 PR 3).
   'templates/hooks/stop-retro.ts': 'PR 3',
@@ -97,7 +148,7 @@ function sourceFiles(directory: string): string[] {
 
 const choosers = SCANNED.flatMap(sourceFiles)
   .filter(path => path !== RESOLVER)
-  .filter(path => PROJECT_CHOICE.test(readFileSync(nodePath.join(packageRoot, path), 'utf8')))
+  .filter(path => readsProjectChoice(readFileSync(nodePath.join(packageRoot, path), 'utf8'), path))
   .toSorted((left, right) => left.localeCompare(right));
 const allowlisted = new Set([...Object.keys(LEGITIMATE), ...Object.keys(PENDING)]);
 
@@ -105,6 +156,29 @@ describe('project directory parity (#5467)', () => {
   it('picks the project only through project-directory.ts', () => {
     const unexplained = choosers.filter(path => !allowlisted.has(path));
     expect(unexplained, 'resolve the project with resolveProjectDirectory()').toEqual([]);
+  });
+
+  it.each([
+    'const launch = process.env.CLAUDE_PROJECT_DIR;',
+    'const launch = process.env?.CLAUDE_PROJECT_DIR ?? cwd;',
+    "const launch = process.env['CLAUDE_PROJECT_DIR'];",
+    'const { CLAUDE_PROJECT_DIR } = process.env;',
+    'const { HOME, CLAUDE_PROJECT_DIR: launch } = process.env;',
+    'const env = process.env; use(env.CLAUDE_PROJECT_DIR);',
+    "spawnSync('git', ['rev-parse', '--show-toplevel']);",
+    'run(`git rev-parse --show-toplevel`);',
+  ])('counts %s as a project choice', source => {
+    expect(readsProjectChoice(source)).toBe(true);
+  });
+
+  it.each([
+    'env.CLAUDE_PROJECT_DIR = workspace;',
+    'delete env.CLAUDE_PROJECT_DIR;',
+    'spawn(cmd, { env: { ...process.env, CLAUDE_PROJECT_DIR: workspace } });',
+    '// git rev-parse --show-toplevel picks the launch checkout',
+    '/* process.env.CLAUDE_PROJECT_DIR stays at the launch checkout */',
+  ])('does not count %s', source => {
+    expect(readsProjectChoice(source)).toBe(false);
   });
 
   it('keeps the allowlists current', () => {
