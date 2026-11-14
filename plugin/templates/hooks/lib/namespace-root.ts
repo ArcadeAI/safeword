@@ -181,17 +181,52 @@ function readConfiguredProjectRoot(projectDirectory: string): string | undefined
 }
 
 /**
- * True when `filePath` lies under `<namespace root>/<subpath>` for either
- * the default or the legacy root. String-level check for hook filters that
- * receive edited-file paths in unknown (absolute or relative) form.
+ * True when `filePath` lies under `<namespace root>/<subpath>` for the
+ * default or the legacy root (string-level, for paths in unknown absolute or
+ * relative form), or — given `projectDirectory` — under the root configured
+ * by its `paths.projectRoot`. Relative paths resolve against that directory.
  */
-export function isNamespacePath(filePath: string, subpath: string): boolean {
-  return [NAMESPACE_ROOT_DEFAULT, NAMESPACE_ROOT_LEGACY].some(root => {
+export function isNamespacePath(
+  filePath: string,
+  subpath: string,
+  projectDirectory?: string,
+): boolean {
+  const matchesBuiltInRoot = [NAMESPACE_ROOT_DEFAULT, NAMESPACE_ROOT_LEGACY].some(root => {
     const needle = `${root}/${subpath}`;
     // Boundary-anchored: the root must start the path or follow a separator,
     // so `foo.project/…` never matches the `.project/` root.
     return filePath.startsWith(needle) || filePath.includes(`/${needle}`);
   });
+  if (matchesBuiltInRoot || projectDirectory === undefined || filePath === '') {
+    return matchesBuiltInRoot;
+  }
+  return configuredNamespaceRelativePath(filePath, projectDirectory)?.startsWith(subpath) ?? false;
+}
+
+/**
+ * `filePath` relative to the configured `paths.projectRoot` (POSIX
+ * separators, trailing `/` kept), or `undefined` when no root is configured
+ * or the path lies outside it. Both sides are compared lexically and
+ * canonically, so a macOS `/var` ↔ `/private/var` alias still matches.
+ */
+export function configuredNamespaceRelativePath(
+  filePath: string,
+  projectDirectory: string,
+): string | undefined {
+  const configured = readConfiguredProjectRoot(projectDirectory);
+  if (configured === undefined) return undefined;
+  const root = nodePath.resolve(projectDirectory, configured);
+  const target = nodePath.resolve(projectDirectory, filePath);
+  for (const [base, candidate] of [
+    [root, target],
+    [canonicalPathForGate(root), canonicalPathForGate(target)],
+  ] as const) {
+    const relative = nodePath.relative(base, candidate);
+    if (relative === '' || relative.startsWith('..') || nodePath.isAbsolute(relative)) continue;
+    const posix = relative.split(nodePath.sep).join('/');
+    return filePath.endsWith('/') ? `${posix}/` : posix;
+  }
+  return undefined;
 }
 
 /** True when `path` exists and is a directory (a stray file is not a root). */

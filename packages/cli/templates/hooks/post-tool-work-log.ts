@@ -9,7 +9,11 @@
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
-import { isNamespacePath } from './lib/namespace-root.ts';
+import {
+  canonicalEditTarget,
+  isNamespacePath,
+  resolveOwningProjectDirectory,
+} from './lib/namespace-root.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 import {
   appendWorkLogEntry,
@@ -22,6 +26,7 @@ installCrashCapture('post-tool-work-log');
 interface HookInput {
   tool_name?: string;
   tool_input?: EditToolInput;
+  cwd?: string;
 }
 
 const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
@@ -45,8 +50,11 @@ if (tool !== 'Edit' && tool !== 'MultiEdit') {
   process.exit(0);
 }
 
-const filePath = input.tool_input?.file_path ?? '';
-if (!filePath.endsWith('/ticket.md') || !isNamespacePath(filePath, 'tickets/')) {
+// A relative target is relative to the session's cwd (maybe a worktree), and a
+// ticket inside a nested worktree reads that worktree's configured root.
+const filePath = canonicalEditTarget(input.tool_input?.file_path ?? '', input.cwd);
+const ownerDirectory = resolveOwningProjectDirectory(projectDirectory, filePath);
+if (!filePath.endsWith('/ticket.md') || !isNamespacePath(filePath, 'tickets/', ownerDirectory)) {
   process.exit(0);
 }
 

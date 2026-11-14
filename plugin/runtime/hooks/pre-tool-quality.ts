@@ -637,7 +637,7 @@ if (!EDIT_TOOLS.includes(tool)) {
 
 if (
   nodePath.basename(editedFile) === 'test-definitions.md' &&
-  isNamespacePath(editedFile, 'tickets/') &&
+  isNamespacePath(editedFile, 'tickets/', projectDirectory) &&
   !existsSync(editedFile) // Only gate creation, not edits to existing files
 ) {
   const ticketDirectory = nodePath.dirname(editedFile);
@@ -862,9 +862,11 @@ function frontmatterFromContent(content: string): Record<string, string | string
 // (#673): a suffix check would let decoys like `sub-ticket.md` take the
 // canonical-ticket branches and be judged on their own frontmatter.
 const isCanonicalTicketEdit =
-  nodePath.basename(editedFile) === 'ticket.md' && isNamespacePath(editedFile, 'tickets/');
+  nodePath.basename(editedFile) === 'ticket.md' &&
+  isNamespacePath(editedFile, 'tickets/', projectDirectory);
 const isCanonicalSpecEdit =
-  nodePath.basename(editedFile) === 'spec.md' && isNamespacePath(editedFile, 'tickets/');
+  nodePath.basename(editedFile) === 'spec.md' &&
+  isNamespacePath(editedFile, 'tickets/', projectDirectory);
 
 // Some hosts report a ticket/spec save without exposing either complete content
 // or an applicable edit delta. There is no proposed state to validate in that
@@ -1172,7 +1174,7 @@ if (isCanonicalTicketEdit) {
 
 if (
   nodePath.basename(editedFile) === 'test-definitions.md' &&
-  isNamespacePath(editedFile, 'tickets/')
+  isNamespacePath(editedFile, 'tickets/', projectDirectory)
 ) {
   if (input.tool_name === 'NotebookEdit') {
     deny(
