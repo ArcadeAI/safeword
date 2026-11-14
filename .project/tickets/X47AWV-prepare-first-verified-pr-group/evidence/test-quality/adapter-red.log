@@ -1,0 +1,31 @@
+
+Failed scenarios:
+  1) Implementation-time replanning preserves valid progress and refreshes the affected plans # features/turn-decisions-into-startable-work.feature:428
+       Given implementation has completed proof that remains valid under a change to the accepted authorization approach # steps/turn-decisions-into-startable-work.steps.ts:413
+           AssertionError [ERR_ASSERTION]: Implementation-time replanning preserves valid progress and refreshes the affected plans selected 7 passing tests; expected 2
+           
+           7 !== 2
+           
+           + actual - expected
+           
+           + 'ERR_ASSERTION'
+           - 0
+           
+               at SafewordWorld.<anonymous> (/Users/alex/.codex/worktrees/4200-first-merge-group/safeword/steps/turn-decisions-into-startable-work.steps.ts:414:12)
+  2) Implementation-time replanning preserves valid progress and refreshes the affected plans # features/turn-decisions-into-startable-work.feature:429
+       Given implementation has completed proof that remains valid under a change only to the order of two independent build tasks # steps/turn-decisions-into-startable-work.steps.ts:413
+           AssertionError [ERR_ASSERTION]: Implementation-time replanning preserves valid progress and refreshes the affected plans selected 7 passing tests; expected 2
+           
+           7 !== 2
+           
+           + actual - expected
+           
+           + 'ERR_ASSERTION'
+           - 0
+           
+               at SafewordWorld.<anonymous> (/Users/alex/.codex/worktrees/4200-first-merge-group/safeword/steps/turn-decisions-into-startable-work.steps.ts:414:12)
+
+2 hooks (2 passed)
+2 scenarios (2 failed)
+98 steps (88 passed, 8 skipped, 2 failed)
+0m 26.704s (0m 26.603s executing your code)

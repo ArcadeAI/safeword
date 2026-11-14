@@ -104,7 +104,56 @@ The same principle applies beyond linting: CLAUDE.md content is appended, never 
 
 ---
 
-## 4. Contribute, then converge
+## 4. Discover decisions before prescribing work
+
+A request rarely arrives with its whole decision surface visible. The user
+usually knows the outcome they want, but not every policy, boundary, trade-off,
+or failure case that must be settled to produce it. Safeword's first job is to
+make those hidden decisions visible — not to rush from a plausible request to a
+plan or code.
+
+Reuse the same decision-discovery loop at every layer:
+
+1. Frame the desired outcome and its boundary.
+2. Within the accepted scope boundary, derive the dimensions along which
+   materially different outcomes or designs are possible.
+3. Make those dimensions concrete with representative examples, alternatives,
+   and failure cases.
+4. Expose the consequences and trade-offs of each unresolved choice.
+5. Converge on explicit decisions, then carry those decisions into the next
+   layer without silently reopening or expanding them.
+
+In product discovery, this produces jobs, Rules, dimensions, and scenarios. In
+implementation planning, it produces architecture, data, interface, risk, and
+proof decisions. Execution planning consumes those accepted decisions and turns
+them into startable work.
+
+Discovery is complete in two directions: ask what material decision is missing,
+and what candidate goes past the agreed boundary. Domain knowledge, research,
+guides, and reviewers may reveal an idea outside that boundary; drop it when it
+is irrelevant, or surface it as an explicit scope decision when excluding it
+would change the accepted outcome. Completeness means resolving what the agreed
+work requires, not absorbing every plausible concern in the domain.
+
+**Prefer:** Questions and examples that reveal a consequential choice the user
+did not know to ask about; explicit decisions with visible trade-offs; and a
+clear boundary between deciding and executing. Keep the current scope,
+out-of-scope choices, inherited parent boundaries, and project or milestone
+non-goals visible while discovering decisions.
+
+**Avoid:** Treating the user's first framing as complete, brainstorming without
+converging, presenting a menu without consequences, or pushing an unresolved
+decision into a later phase where it becomes an implementer's guess. Do not
+mistake broader coverage for completeness or let research and review silently
+expand accepted scope.
+
+**Evidence:** Start with an ambiguous but real request and show that the process
+surfaces the material decisions and trade-offs, records the accepted choices,
+and leaves the next layer able to proceed without inventing one.
+
+---
+
+## 5. Contribute, then converge
 
 Questions feel collaborative when they follow a contribution, adversarial when they precede one. The agent restates what it heard, offers a perspective or sketch, and embeds open questions inside that contribution. Reviewing a concrete proposal costs less cognitive effort than answering an abstract question.
 
@@ -118,7 +167,7 @@ Authority is earned through progressive specificity. Each proposal should be che
 
 ---
 
-## 5. Correct and safe; then clear; then simple
+## 6. Correct and safe; then clear; then simple
 
 _"The most successful implementations weren't using complex frameworks. They were building with simple, composable patterns." — [Building Effective Agents](https://www.anthropic.com/engineering/building-effective-agents)_
 
@@ -140,6 +189,6 @@ The deeper research backing these principles lives in `<namespace-root>/learning
 - `natural-vs-self-report-gates.md` — the natural/self-report gate distinction
 - `procedural-gates-generalize-beyond-tdd.md` — why verbose procedures hurt quality
 - `dogfooding-enforcement-session.md` — real hook fire counts, 97% noise finding
-- `propose-and-converge-research.md` — HCI and grounding theory behind principle 4
+- `propose-and-converge-research.md` — HCI and grounding theory behind principle 5
 - `instruction-attention-hierarchy.md` — where instructions live determines compliance (prompt hook > skill file > cross-file)
 - `anthropic-research-feb-apr-2026.md` — three-agent architecture, self-evaluation unreliability

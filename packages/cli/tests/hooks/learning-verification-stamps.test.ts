@@ -15,6 +15,11 @@
  * file must change too.
  */
 
+import { spawnSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import nodePath from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { hasVerificationStamp } from '../../templates/hooks/lib/learning-verification-stamps.js';
@@ -68,5 +73,42 @@ describe('hasVerificationStamp — frontmatter is skipped', () => {
       'verified: true (in body — should flag)',
     ].join('\n');
     expect(hasVerificationStamp(both)).toBe(true);
+  });
+});
+
+// 8VG20K: the stamp warning does not depend on the index regeneration CLI.
+describe('post-tool-sync-learnings hook', () => {
+  it('still warns about a verification stamp when no Safeword CLI resolves', () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'learning-stamp-'));
+    try {
+      mkdirSync(nodePath.join(project, '.project', 'learnings'), { recursive: true });
+      const learning = nodePath.join(project, '.project', 'learnings', 'astro.md');
+      writeFileSync(learning, '# Astro\n\nCovers: content config\n\n✅ Verified by build\n');
+      const result = spawnSync(
+        'bun',
+        [
+          nodePath.resolve(
+            import.meta.dirname,
+            '../../templates/hooks/post-tool-sync-learnings.ts',
+          ),
+        ],
+        {
+          input: JSON.stringify({ tool_input: { file_path: learning } }),
+          cwd: project,
+          env: {
+            ...process.env,
+            CLAUDE_PROJECT_DIR: project,
+            CLAUDE_PLUGIN_ROOT: '',
+            SAFEWORD_PLUGIN_CLI: '',
+          },
+          encoding: 'utf8',
+        },
+      );
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain('Verification stamp detected in .project/learnings/astro.md');
+    } finally {
+      rmSync(project, { recursive: true, force: true });
+    }
   });
 });

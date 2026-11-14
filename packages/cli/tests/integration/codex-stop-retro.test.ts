@@ -36,6 +36,7 @@ import {
   readJsonlFile,
   removeTemporaryDirectory,
   retroDraft,
+  sourceHookEnvironment,
   TIMEOUT_QUICK,
   writeSelfReportConfig as writeConfig,
   writeTestFile,
@@ -91,6 +92,8 @@ function installFakeLocalCli(directory: string, options: { exitCode?: number } =
   const exitCode = options.exitCode ?? 0;
   const cliPath = nodePath.join(directory, 'packages/cli/src/cli.ts');
   mkdirSync(nodePath.dirname(cliPath), { recursive: true });
+  // A real source checkout: the shared CLI lookup trusts only the safeword package.
+  writeFileSync(nodePath.join(directory, 'packages/cli/package.json'), '{"name":"safeword"}\n');
   writeFileSync(
     cliPath,
     `#!/usr/bin/env bun
@@ -159,7 +162,7 @@ function runHook(directory: string, input: unknown, env: Record<string, string |
   return spawnSync('bun', [HOOK], {
     input: typeof input === 'string' ? input : JSON.stringify(input),
     cwd: directory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: directory, ...env },
+    env: sourceHookEnvironment(directory, env),
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
   });
@@ -173,7 +176,7 @@ function runPostToolHook(
   return spawnSync('bun', [POST_TOOL_HOOK], {
     input: JSON.stringify(input),
     cwd: directory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: directory, ...env },
+    env: sourceHookEnvironment(directory, env),
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
   });

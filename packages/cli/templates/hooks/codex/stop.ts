@@ -18,6 +18,8 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import nodePath from 'node:path';
+
+import { safewordCli } from '../lib/safeword-cli.ts';
 import process from 'node:process';
 
 import { getActiveTicket } from '../lib/active-ticket.ts';
@@ -138,19 +140,16 @@ function completeSessionDoneTicket(
 }
 
 /**
- * The command that runs the extraction CLI. Prefer the dogfood local CLI, else
- * `bunx safeword@latest`; the spawned CLI then launches `codex exec` through the
- * shared auto-extract boundary.
+ * The command that runs the extraction CLI, from the shared Safeword CLI lookup;
+ * the spawned CLI then launches `codex exec` through the shared auto-extract
+ * boundary. Undefined when the project has no CLI to run.
  */
 function resolveExtractCommand(
   projectDirectory: string,
   decision: { transcriptPath: string; windowStart: number; sessionId: string },
-): [string, string[]] {
-  const retroArgs = retroChildArgs(decision);
-  const localCli = nodePath.join(projectDirectory, 'packages/cli/src/cli.ts');
-  return existsSync(localCli)
-    ? ['bun', [localCli, ...retroArgs]]
-    : ['bunx', ['safeword@latest', ...retroArgs]];
+): [string, string[]] | undefined {
+  const cli = safewordCli(projectDirectory);
+  return cli === undefined ? undefined : [cli.command, [...cli.args, ...retroChildArgs(decision)]];
 }
 
 function argvShape(args: readonly string[]): string[] {
@@ -183,7 +182,9 @@ function runRetroExtraction(projectDirectory: string, input: CodexStopInput): vo
   });
   if (!decision) return;
 
-  const [command, args] = resolveExtractCommand(projectDirectory, decision);
+  const extract = resolveExtractCommand(projectDirectory, decision);
+  if (extract === undefined) return;
+  const [command, args] = extract;
   const startedAt = Date.now();
   const result = spawnSync(command, args, {
     cwd: projectDirectory,

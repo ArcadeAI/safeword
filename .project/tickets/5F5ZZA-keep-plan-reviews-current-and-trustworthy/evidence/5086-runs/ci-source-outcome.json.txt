@@ -1,0 +1,26 @@
+{
+  "source_head": "8420448f42ac00a4f345de2344b91b6ef510461c",
+  "product_source_checkpoint": "8d8a43d5493dd8908a7e925df73256ce64d4895f",
+  "run_url": "https://github.com/ArcadeAI/safeword/actions/runs/39477785863",
+  "terminal_check_counts": {
+    "success": 12,
+    "skipped": 9,
+    "failure": 1
+  },
+  "only_failure": "Dependency audit, inherited byte-identical bun.lock GHSA-r7fv-28h4-cvq7",
+  "node22_job": "https://github.com/ArcadeAI/safeword/actions/runs/39477785863/job/118818132934",
+  "node24_job": "https://github.com/ArcadeAI/safeword/actions/runs/39477785863/job/118818132969",
+  "node24_full_cli": {
+    "passed": 11577,
+    "skipped": 10,
+    "files_passed": 717
+  },
+  "node24_package_acceptance": {
+    "scenarios_passed": 597,
+    "steps_passed": 11140
+  },
+  "node22_acceptance": "Skipped by matrix design; not counted as executed.",
+  "node24_raw_log_sha256": "7623ab5cad95f504b2fc72722e7f6d0ff57457db9e62bca22b1ffdd04dc19a36",
+  "node24_raw_log_bytes": 911773,
+  "scope": "These package CI lanes do not retroactively re-score the old failed head, satisfy the 33 deferred ticket cases or prove R7 host isolation. Later metadata-only head CI must be reported separately."
+}

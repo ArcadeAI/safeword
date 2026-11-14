@@ -1,0 +1,10 @@
+$ depcruise packages/*/src --config .dependency-cruiser.cjs --output-type err
+
+  warn no-orphans: packages/cli/src/review/scenario-rubric.ts
+  warn no-orphans: packages/cli/src/review/red-rubric.ts
+  warn no-orphans: packages/cli/src/review/quality-rubric.ts
+  warn no-orphans: packages/cli/src/review/delivery-compatibility-rubric.ts
+  warn no-orphans: packages/cli/src/codex-plugin/hooks.ts
+
+x 5 dependency violations (0 errors, 5 warnings). 452 modules, 1616 dependencies cruised.
+

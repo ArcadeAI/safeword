@@ -1,4 +1,12 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -45,7 +53,7 @@ afterEach(() => {
 
 describe('runTests (resolves its suite via safeword project test-plan)', () => {
   it('allows the required BDD acceptance lane to use the Stop hook budget', () => {
-    expect(timeoutMsForTestCommand('bdd')).toBe(5 * 60_000);
+    expect(timeoutMsForTestCommand('bdd')).toBe(20 * 60_000);
     expect(timeoutMsForTestCommand('test')).toBe(60_000);
   });
 
@@ -184,6 +192,74 @@ process.exit(kind === 'test' ? 2 : 0);\n`,
     }
   });
 
+  // 8VG20K: with no SAFEWORD_CLI override, the shared lookup finds the project's own
+  // installed safeword when it is the pinned version.
+  it('resolves the test plan through the installed safeword at the pinned version', () => {
+    const project = makeProject({});
+    mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(project, '.safeword', 'version'), '1.2.3\n');
+    mkdirSync(nodePath.join(project, 'node_modules', 'safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(project, 'node_modules', 'safeword', 'package.json'),
+      '{"name":"safeword","version":"1.2.3"}',
+    );
+    const plan = JSON.stringify({
+      schema_version: 1,
+      data: {
+        plan: [
+          {
+            language: 'javascript',
+            cwd: project,
+            command: 'touch installed.marker',
+            runner: 'sh',
+            available: true,
+          },
+        ],
+      },
+    });
+    const bin = nodePath.join(project, 'node_modules', '.bin', 'safeword');
+    mkdirSync(nodePath.dirname(bin), { recursive: true });
+    writeFileSync(
+      bin,
+      `#!/bin/sh\ncase "$*" in *"--kind test"*) printf '%s' '${plan}' ;; *) printf '%s' '{"schema_version":1,"data":{"plan":[]}}' ;; esac\n`,
+    );
+    chmodSync(bin, 0o755);
+    const originalCli = process.env.SAFEWORD_CLI;
+    delete process.env.SAFEWORD_CLI;
+
+    try {
+      const result = runTests(project);
+
+      expect(result.passed).toBe(true);
+      expect(existsSync(nodePath.join(project, 'installed.marker'))).toBe(true);
+    } finally {
+      process.env.SAFEWORD_CLI = originalCli;
+    }
+  });
+
+  // 8VG20K: only an unavailable runner explains a nonzero exit; any other failed
+  // resolver run must not read as a valid empty plan that skips every test.
+  it('fails closed when the resolver exits nonzero with an otherwise valid empty plan', () => {
+    const project = makeProject({});
+    const fakeCli = nodePath.join(project, 'failing-plan.ts');
+    writeFileSync(
+      fakeCli,
+      `process.stdout.write(JSON.stringify({schema_version:1,data:{plan:[]}}));\nprocess.exit(1);\n`,
+    );
+    const originalCli = process.env.SAFEWORD_CLI;
+    process.env.SAFEWORD_CLI = fakeCli;
+
+    try {
+      const result = runTests(project);
+
+      expect(result.passed).toBe(false);
+      expect(result.skipped).toBe(false);
+      expect(result.output).toContain('Test plan could not be resolved');
+    } finally {
+      process.env.SAFEWORD_CLI = originalCli;
+    }
+  });
+
   it('preserves an unavailable-runner diagnostic after verbose later suites are truncated', () => {
     const project = makeProject({});
     const fakeCli = nodePath.join(project, 'verbose-plan.ts');
@@ -231,6 +307,19 @@ process.stdout.write(JSON.stringify({schema_version:1,data:{plan}}));\n`,
     } finally {
       process.env.SAFEWORD_CLI = originalCli;
     }
+  });
+
+  it('preserves a failed suite diagnostic when later passing suites are verbose', () => {
+    const project = makeProject({
+      'test:done': 'node -e "console.error(\'FIRST_SUITE_FAILURE\'); process.exit(1)"',
+      'test:bdd': 'node -e "process.stdout.write(\'.\'.repeat(5000))"',
+    });
+
+    const result = runTests(project);
+
+    expect(result.passed).toBe(false);
+    expect(result.output).toContain('FIRST_SUITE_FAILURE');
+    expect(result.output.length).toBeLessThanOrEqual(3100);
   });
 
   it('suppresses update chatter for the machine-readable plan subprocess', () => {

@@ -18,7 +18,10 @@ export const NAMESPACE_ROOT_LEGACY = '.safeword-project';
 
 /** True after explicit Safeword setup has enrolled this repository. */
 export function hasSafewordProjectMarker(projectDirectory: string): boolean {
-  return existsSync(nodePath.join(projectDirectory, '.safeword', 'SAFEWORD.md'));
+  // The dedicated marker, or the project handbook copy older installs carry.
+  return ['enrolled', 'SAFEWORD.md'].some(marker =>
+    existsSync(nodePath.join(projectDirectory, '.safeword', marker)),
+  );
 }
 
 /**

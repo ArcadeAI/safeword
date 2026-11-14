@@ -1,0 +1,102 @@
+[
+  {
+    "source": "/tmp/5086-refactor-scoring-tests.log",
+    "archive": "5086-refactor-scoring-tests.log.gz",
+    "sha256": "3d5d6db5758b8cb62177ae040f77dc16786987467cdf13ec358598941c3060b8"
+  },
+  {
+    "source": "/tmp/5086-refactor-bdd-2.log",
+    "archive": "5086-refactor-bdd-2.log.gz",
+    "sha256": "55e15378c49aa9cb0d7ae2dec303b27b8056166572ba0ee51ee0c3cbde7c2b09"
+  },
+  {
+    "source": "/tmp/5086-refactor-bdd-3.log",
+    "archive": "5086-refactor-bdd-3.log.gz",
+    "sha256": "afaab5dd22d4d508b5cfd19258df8fddcfd983e4ac434a555f27a438d71eeecf"
+  },
+  {
+    "source": "/tmp/5086-refactor-bdd-final.log",
+    "archive": "5086-refactor-bdd-final.log.gz",
+    "sha256": "62b320d2246b61e43f1f77ae38e08f02b5198552baf58ca856dd51c154ea0b37"
+  },
+  {
+    "source": "/tmp/5086-refactor-bdd-final-corrected.log",
+    "archive": "5086-refactor-bdd-final-corrected.log.gz",
+    "sha256": "a41b33cd0fe6fcef819eef275c38950a4d77277ff2f1d8f1af72bcafaa478280"
+  },
+  {
+    "source": "/tmp/5086-refactor-audit-code.log",
+    "archive": "5086-refactor-audit-code.log.gz",
+    "sha256": "a8f4d22b4c720ccbf13b3a875f5ac103f3dae19f964191ed97e7b1e1ed3f03fa"
+  },
+  {
+    "source": "/tmp/5086-refactor-audit-code-final.log",
+    "archive": "5086-refactor-audit-code-final.log.gz",
+    "sha256": "ef1da6078a921c28d1ebb43eaebc6c50b6a51374da474d1402316544517cea99"
+  },
+  {
+    "source": "/tmp/5086-refactor-audit-learnings.log",
+    "archive": "5086-refactor-audit-learnings.log.gz",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "source": "/tmp/5086-refactor-audit-principles.log",
+    "archive": "5086-refactor-audit-principles.log.gz",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "source": "/tmp/5086-refactor-audit-domain.log",
+    "archive": "5086-refactor-audit-domain.log.gz",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "source": "/tmp/5086-refactor-generated.log",
+    "archive": "5086-refactor-generated.log.gz",
+    "sha256": "b14948a65d3e1915acfab0f60e2cc2b2b827aa96bfcf7e1d505dbd53eaf51a00"
+  },
+  {
+    "source": "/tmp/5086-refactor-lint.log",
+    "archive": "5086-refactor-lint.log.gz",
+    "sha256": "57d5f8367b5a58bba4b4cbada9293f039cf55e9aea854237c06c4f0f8274df90"
+  },
+  {
+    "source": "/tmp/5086-refactor-all-types.log",
+    "archive": "5086-refactor-all-types.log.gz",
+    "sha256": "336611721df5e258f1f63cfc3b7eb5afb028d2ac5940177b9818058a2081d7b2"
+  },
+  {
+    "source": "/tmp/5086-refactor-parity.log",
+    "archive": "5086-refactor-parity.log.gz",
+    "sha256": "65107e673c739342f5b1fea27450dfeac02286ae9bbb9b47e5ca601f16ac0f4d"
+  },
+  {
+    "source": "/tmp/5086-refactor-contract.log",
+    "archive": "5086-refactor-contract.log.gz",
+    "sha256": "61d14f844e04a16932d144ea07c4ee2cd82d5c8de164032962d9c7da6b5804ac"
+  },
+  {
+    "source": "/tmp/5086-refactor-offline-qualification.log",
+    "archive": "5086-refactor-offline-qualification.log.gz",
+    "sha256": "54b069c2a0cfb7bedf155bb5f4e84302d123ba64d09d9c037eb1e29a21a04fd6"
+  },
+  {
+    "source": "/tmp/5086-refactor-equivalence.ts",
+    "archive": "5086-refactor-equivalence.ts.gz",
+    "sha256": "0ff8010339aa716002fa8e87b53c56e6ccf6d027aa14612edc428a6f098aab5f"
+  },
+  {
+    "source": "/tmp/5086-refactor-bdd.cucumber.mjs",
+    "archive": "5086-refactor-bdd.cucumber.mjs.gz",
+    "sha256": "4999ebbcf90528c4836f0e173d478f32fd47016b32ccd58d0441fa6358acbd86"
+  },
+  {
+    "source": "/tmp/5086-refactor-full.log",
+    "archive": "5086-refactor-full.log.gz",
+    "sha256": "9f6fbcc37aac9734fa6907061ae23047e235ac63384fda59f38b94c1382d900c"
+  },
+  {
+    "source": "/tmp/5086-refactor-release.log",
+    "archive": "5086-refactor-release.log.gz",
+    "sha256": "52c404f4555b1bfffea1a9206d0ce563907777724526f00e1b9e2a94f7f892e6"
+  }
+]

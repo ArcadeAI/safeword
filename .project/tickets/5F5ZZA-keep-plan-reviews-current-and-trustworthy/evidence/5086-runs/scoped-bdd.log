@@ -1,0 +1,11 @@
+
+Failed scenarios:
+  1) Supplemental host fallback cannot claim completed machine coverage # features/clarify-review-coverage.feature:273
+       Then no surface claims completed coverage outside its mandatory denial clauses # features/steps/clarify-review-coverage.steps.ts:1569
+           AssertionError [ERR_ASSERTION]: packages/cli/templates/skills/finish-review/SKILL.md
+               at SafewordWorld.<anonymous> (/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/features/steps/clarify-review-coverage.steps.ts:1587:14)
+
+2 hooks (2 passed)
+119 scenarios (118 passed, 1 failed)
+2285 steps (2284 passed, 1 failed)
+0m 16.909s (0m 16.820s executing your code)

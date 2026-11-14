@@ -14,6 +14,11 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
+import {
+  isEmptyFrontmatterValue,
+  parseFrontmatter,
+  REQUIRED_INTAKE_FIELDS,
+} from '../../templates/hooks/lib/hierarchy.js';
 import { legacyCodexEventIsViable } from '../codex-plugin/legacy-authority.js';
 import {
   CODEX_PLUGIN_HOOK_EVENTS,
@@ -74,7 +79,6 @@ interface HookProcessResult {
 const EXPLAIN_HINT = 'Run `$explain` for a plain-English version of this block.';
 const EXIT_CODE_DENY_MODE = 'exit-code';
 const PRE_TOOL_QUALITY_HOOK_PATH = 'codex/pre-tool-quality.ts';
-const REQUIRED_INTAKE_FIELDS = ['scope', 'out_of_scope', 'done_when'] as const;
 const MODULE_DIRECTORY = import.meta.dirname;
 const TEMPLATE_DIRECTORIES = [
   nodePath.resolve(MODULE_DIRECTORY, '../resources'),
@@ -285,33 +289,11 @@ function extractTargetPaths(input: CodexHookInput): string[] {
   return filePath ? [filePath] : [];
 }
 
-function frontmatterBody(content: string): string | undefined {
-  const normalized = content.replaceAll('\r\n', '\n');
-  if (!normalized.startsWith('---\n')) return undefined;
-  const end = normalized.indexOf('\n---', 4);
-  return end === -1 ? undefined : normalized.slice(4, end);
-}
-
-function frontmatterHasField(body: string, field: string): boolean {
-  const lines = body.split('\n');
-  const fieldPrefix = `${field}:`;
-
-  for (const [index, line] of lines.entries()) {
-    if (!line.startsWith(fieldPrefix)) continue;
-
-    const afterColon = line.slice(fieldPrefix.length).trim();
-    if (afterColon.length > 0) return true;
-
-    return lines.slice(index + 1).some(nextLine => /^\s+-\s*\S/u.test(nextLine));
-  }
-
-  return false;
-}
-
 function missingIntakeFields(ticketContent: string): string[] {
-  const body = frontmatterBody(ticketContent);
-  if (body === undefined) return [...REQUIRED_INTAKE_FIELDS];
-  return REQUIRED_INTAKE_FIELDS.filter(field => !frontmatterHasField(body, field));
+  const match = /^---\r?\n([\s\S]*?)\r?\n---/u.exec(ticketContent);
+  if (!match) return [...REQUIRED_INTAKE_FIELDS];
+  const meta = parseFrontmatter(match[1] ?? '');
+  return REQUIRED_INTAKE_FIELDS.filter(field => isEmptyFrontmatterValue(meta[field]));
 }
 
 function testDefinitionsTicketFolder(
@@ -346,19 +328,39 @@ function deny(reason: string): void {
   process.stdout.write(`${JSON.stringify(output)}\n`);
 }
 
-function readPackagedSafewordInstructions(): string | undefined {
+/**
+ * The handbook this bundle ships. When it is missing, return where it should be
+ * so the session hook reports the missing plugin file rather than falling back
+ * to a project copy.
+ */
+function packagedSafewordHandbookPath(): string {
+  return (
+    findPackagedTemplate('SAFEWORD.md') ??
+    nodePath.join(TEMPLATE_DIRECTORIES[0] ?? MODULE_DIRECTORY, 'SAFEWORD.md')
+  );
+}
+
+/** The bundled handbook when it exists and has content; otherwise undefined. */
+function usablePackagedHandbookPath(): string | undefined {
   const instructionsPath = findPackagedTemplate('SAFEWORD.md');
+  if (!instructionsPath || !readFileSync(instructionsPath, 'utf8').trim()) return undefined;
+  return instructionsPath;
+}
+
+function readPackagedSafewordInstructions(): string | undefined {
+  const instructionsPath = usablePackagedHandbookPath();
   if (!instructionsPath) return undefined;
-  if (!readFileSync(instructionsPath, 'utf8').trim()) return undefined;
+  const guidesPath = findPackagedTemplate('guides');
+  const guidesAuthority = guidesPath
+    ? `current workflow guides live under \`${nodePath.resolve(guidesPath)}\``
+    : 'the applicable Safeword guides provide the current workflows';
 
   return [
-    'Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.',
+    `Current Safeword authority: tickets and their user stories/test definitions live under \`.project/\` (or the configured namespace root), and ${guidesAuthority}.`,
     'These current paths supersede retired Safeword instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.',
     '',
-    'Safeword session bootstrap:',
-    'Before non-trivial work, read the packaged Safeword handbook and the applicable guide in `.safeword/guides/`.',
-    'Current tickets, learnings, and project context are under `.project/` (or the configured namespace root).',
-    'Follow the active Safeword workflow and its gates.',
+    // Same one-line instruction as templates/hooks/lib/safeword-context.ts.
+    `First, Read \`${nodePath.resolve(instructionsPath)}\` in full, even for trivial requests or right after compaction; a summary or earlier read does not count.`,
   ].join('\n');
 }
 
@@ -461,7 +463,7 @@ function runPackagedHook(
     // The copied dispatcher is observation-only and injects package-owned
     // instructions rather than project-local text.
     const packagedContextPath =
-      relativePath === 'session-codex-start.ts' ? (findPackagedTemplate('SAFEWORD.md') ?? '') : '';
+      relativePath === 'session-codex-start.ts' ? packagedSafewordHandbookPath() : '';
     return runHookFile(executableHookPath, rawInput, projectDirectory, packagedContextPath);
   } finally {
     if (temporaryHookDirectory) rmSync(temporaryHookDirectory, { recursive: true, force: true });
@@ -726,12 +728,14 @@ function maybeDenyTestDefinitionsWrite(projectDirectory: string, targetPath: str
   const ticketFolder = testDefinitionsTicketFolder(projectDirectory, targetPath);
   if (!ticketFolder) return false;
 
-  const ticketPath = nodePath.join(
+  const ticketDirectory = nodePath.join(
     resolveNamespaceRoot(projectDirectory),
     'tickets',
     ticketFolder,
-    'ticket.md',
   );
+  // Like the shared gate, only creation is gated; an existing ledger stays editable.
+  if (existsSync(nodePath.join(ticketDirectory, 'test-definitions.md'))) return false;
+  const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
   const ticketContent = existsSync(ticketPath) ? readFileSync(ticketPath, 'utf8') : '';
   const missing = missingIntakeFields(ticketContent);
   if (missing.length === 0) return false;
@@ -795,6 +799,15 @@ async function runSessionStart(projectDirectory: string): Promise<void> {
     process.stdout.write(packagedResult.stdout);
     return;
   }
+  if (!usablePackagedHandbookPath()) {
+    // Surface the hook's missing-handbook error instead of starting silently.
+    process.stderr.write(
+      packagedResult.stderr ||
+        `Safeword's plugin is missing its packaged handbook at ${packagedSafewordHandbookPath()}. Reinstall or update the Safeword plugin; Safeword does not fall back to a project copy.\n`,
+    );
+    process.exitCode = 1;
+    return;
+  }
 
   const input = parseCodexHookInput(rawInput);
   if (!input) return;
@@ -824,6 +837,14 @@ function postToolLintInputs(
   );
 }
 
+function boundedLintWarning(output: string): string {
+  const bytes = Buffer.from(output);
+  const limit = 16 * 1024;
+  if (bytes.length <= limit) return output;
+  const notice = '\n[Additional lint output truncated; these are not all findings.]';
+  return `${bytes.subarray(0, limit - Buffer.byteLength(notice) - 3).toString('utf8')}${notice}`;
+}
+
 function collectPostToolLintContexts(lintInputs: string[], projectDirectory: string): string[] {
   const contexts: string[] = [];
   for (const lintInput of lintInputs) {
@@ -831,7 +852,7 @@ function collectPostToolLintContexts(lintInputs: string[], projectDirectory: str
     const context = packagedAdditionalContext(lintResult, 'PostToolUse');
     const output = lintResult.stdout.trim();
     if (context) contexts.push(context);
-    else if (output) contexts.push(output);
+    else if (output) contexts.push(boundedLintWarning(output));
   }
   return contexts;
 }

@@ -162,7 +162,6 @@ Feature: Make review coverage clear without false alarms
       | case              | state           | status            | independence | actual | assigned | verdict         | keys                                                                                                                        |
       | approved          | healthy         | approved          | degraded     | codex  | claude   | approve         | actual_reviewer,assigned_reviewer,author_agent,command,excluded_targets,independence,independent_fallback_failure,preferred_failure,preferred_model,review_excluded_targets,review_id,review_kind,review_targets,reviewer_output,status                                                       |
       | changes_requested | action_required | changes_requested | degraded     | codex  | claude   | request_changes | actual_reviewer,alternate_model,alternate_model_failure,assigned_reviewer,author_agent,command,excluded_targets,independence,independent_fallback_failure,preferred_failure,preferred_model,review_excluded_targets,review_id,review_kind,review_targets,reviewer_output,status               |
-      | blocked_degraded  | action_required | blocked           | degraded     | codex  | claude   | request_changes | actual_reviewer,alternate_model,alternate_model_failure,assigned_reviewer,author_agent,command,excluded_targets,independence,independent_fallback_failure,preferred_failure,preferred_model,review_excluded_targets,review_id,review_kind,review_policy,review_targets,reviewer_output,status |
       | exhausted         | action_required | blocked           | none         | absent | claude   | absent          | alternate_model,alternate_model_failure,assigned_reviewer,author_agent,command,excluded_targets,fallback_failure,independence,independent_fallback_failure,preferred_failure,preferred_model,review_excluded_targets,review_id,review_kind,review_policy,review_targets,status                |
 
   @clarify-review-coverage.TBU1.R1 @surface.safeword-cli @rejection
@@ -219,8 +218,8 @@ Feature: Make review coverage clear without false alarms
       | independent | request_changes | verbose  |
 
   @clarify-review-coverage.SWM1.R1 @surface.safeword-cli
-  Scenario Outline: Real CLI enforces required independence and preserves or supplies recovery
-    Given isolated real CLI fixtures can require independent review
+  Scenario Outline: Real CLI treats the retired require policy as prefer and never blocks on independence
+    Given isolated real CLI fixtures set the retired require policy
     When required review runs with <outcome> in isolation
     Then required <outcome> preserves its assurance contract
 
@@ -234,7 +233,7 @@ Feature: Make review coverage clear without false alarms
 
   @clarify-review-coverage.SWM1.R2 @surface.safeword-cli
   Scenario Outline: Blocked CLI modes preserve action-required precedence
-    Given isolated real CLI fixtures can require independent review
+    Given isolated real CLI fixtures set the retired require policy
     When a blocked required review runs in <mode> mode
     Then blocked <mode> output preserves its channel contract
 
@@ -264,9 +263,8 @@ Feature: Make review coverage clear without false alarms
 
     Examples:
       | contract       | required_text                                                    |
-      | finish-review  | Provide supplemental review feedback in this foreground session. |
-      | finish-review  | Required independent coverage remains unsatisfied.               |
-      | finish-review  | Include the coordinator's recovery command exactly as provided. |
+      | finish-review  | Report the verdict, summary, and every finding as supplemental feedback in |
+      | finish-review  | it creates no machine receipt or review stamp. |
       | quality-review | Show review coverage details.                                     |
 
   @clarify-review-coverage.SWM1.R1 @contract.host @rejection

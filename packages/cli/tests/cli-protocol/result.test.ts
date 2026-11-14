@@ -380,6 +380,26 @@ describe('CLI result protocol', () => {
       line: 'Review complete — independent coverage.',
     },
     {
+      name: 'approved reduced',
+      state: 'healthy',
+      status: 'approved',
+      independence: 'reduced',
+      reviewer: 'claude',
+      verdict: 'approve',
+      policy: undefined,
+      line: 'Review complete — reduced coverage.',
+    },
+    {
+      name: 'changes-requested reduced',
+      state: 'action_required',
+      status: 'changes_requested',
+      independence: 'reduced',
+      reviewer: 'codex',
+      verdict: 'request_changes',
+      policy: undefined,
+      line: 'Review changes requested — reduced coverage.',
+    },
+    {
       name: 'required standard',
       state: 'action_required',
       status: 'blocked',
@@ -433,6 +453,59 @@ describe('CLI result protocol', () => {
       expect(result.data).toEqual(data);
     },
   );
+
+  it('does not turn an architecture warning into a failure when another finding rejects review', () => {
+    const warning =
+      'Shared-contract choice already has a durable architecture record; owner contact is optional.';
+    const findings = [
+      { severity: 'warning' as const, message: warning },
+      { severity: 'error' as const, message: 'The accepted authorization boundary is unresolved.' },
+    ];
+    const result = createResult({
+      state: 'action_required',
+      findings: findings.map(finding => ({ ...finding, code: 'REVIEWER_FINDING' })),
+      data: {
+        command: 'review run',
+        status: 'changes_requested',
+        review_kind: 'plan-implementation',
+        author_agent: 'codex',
+        actual_reviewer: 'claude',
+        independence: 'cross-agent',
+        reviewer_output: { reviewer_agent: 'claude', verdict: 'request_changes', findings },
+      },
+    });
+    expect(renderHumanResult(result)).toContain('authorization boundary is unresolved');
+    expect(renderHumanResult(result)).toContain(warning);
+    expect(renderHumanResult(result)).not.toContain('Check: Durable architecture link — failed.');
+  });
+
+  it('keeps an approved architecture warning distinct from a failed check', () => {
+    const warning =
+      'Shared-contract choice already has a durable architecture record; adding owner contact is optional.';
+    const result = createResult({
+      state: 'healthy',
+      findings: [{ code: 'REVIEWER_FINDING', severity: 'warning', message: warning }],
+      data: {
+        command: 'review run',
+        status: 'approved',
+        review_kind: 'plan-implementation',
+        author_agent: 'codex',
+        actual_reviewer: 'claude',
+        independence: 'cross-agent',
+        review_targets: ['impl-plan.md'],
+        reviewer_output: {
+          reviewer_agent: 'claude',
+          verdict: 'approve',
+          findings: [{ severity: 'warning', message: warning }],
+        },
+      },
+    });
+    const rendered = renderHumanResult(result);
+    expect(rendered).toContain('Review complete — independent coverage.');
+    expect(rendered).toContain(warning);
+    expect(rendered).not.toContain('Check: Durable architecture link — failed.');
+    expect(rendered).not.toContain('needs a durable architecture record');
+  });
 
   it.each([undefined, 'prefer'])(
     'does not invent a required-independence block for policy %s',

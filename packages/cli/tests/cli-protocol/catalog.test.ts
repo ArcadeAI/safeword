@@ -67,6 +67,17 @@ describe('CLI command catalog', () => {
     );
   });
 
+  it('publishes explicit confirmation for earlier-proof diff egress', () => {
+    const command = commandCatalog.find(
+      definition => definition.name === 'ticket record-delivery-proof',
+    );
+
+    expect(command?.registration.options).toContainEqual({
+      flags: '--confirm-egress',
+      description: 'Confirm sending the complete contribution diff to the configured reviewer',
+    });
+  });
+
   it('describes every public command with executable policy and a fixture', () => {
     expect(publicCommands.length).toBeGreaterThan(0);
     for (const command of publicCommands) {
@@ -113,6 +124,7 @@ describe('CLI command catalog', () => {
       'project test-execution remote setup',
       'project test-execution remote disable',
       'project lint-gherkin',
+      'project pr-ready',
       'project audit-scope',
       'project record-skill-invocation',
       'project runtime',
@@ -133,8 +145,16 @@ describe('CLI command catalog', () => {
       'ticket list',
       'ticket new',
       'ticket reconcile-parent',
+      'ticket approve-plan',
+      'ticket record-review-disposition',
+      'ticket planning-contract-check',
+      'ticket delivery-checklist',
+      'ticket execution-prerequisite',
+      'ticket coding-authorization',
+      'ticket record-delivery-proof',
       'review run',
       'review status',
+      'review continue',
       'review gate executable-red',
       'review gate retrospective',
       'review attest retrospective',
@@ -205,6 +225,7 @@ describe('CLI command catalog', () => {
       'boundary',
       'hook codex',
       'codex-hook',
+      'hook go-lint',
       'feature-directories',
     ]);
   });

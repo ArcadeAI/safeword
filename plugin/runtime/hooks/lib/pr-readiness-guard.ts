@@ -127,10 +127,14 @@ function readReceipt(projectDirectory: string): ReadinessReceipt | undefined {
   }
 }
 
-function currentHead(projectDirectory: string): string | undefined {
+function currentHead(
+  projectDirectory: string,
+  environment: NodeJS.ProcessEnv = process.env,
+): string | undefined {
   try {
     return execFileSync('git', ['rev-parse', 'HEAD'], {
       cwd: projectDirectory,
+      env: environment,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
     }).trim();
@@ -209,6 +213,7 @@ function evaluateTicket(
   projectDirectory: string,
   ticketId: string,
   receipt: ReadinessReceipt | undefined,
+  environment: NodeJS.ProcessEnv,
 ): PrReadinessVerdict {
   const ticket = getTicketInfo(projectDirectory, ticketId);
   if (!ticket.folder) {
@@ -257,7 +262,7 @@ function evaluateTicket(
     );
   }
 
-  const head = currentHead(projectDirectory);
+  const head = currentHead(projectDirectory, environment);
   if (!receipt || receipt.ticket_id !== ticketId || !head || receipt.head_sha !== head) {
     return unfinished(
       `Ticket ${ticketId} is verified, but ticket closure is not recorded at the current commit; close the verified ticket or run verification again.`,
@@ -269,6 +274,7 @@ function evaluateTicket(
 export function evaluatePrReadiness(
   projectDirectory: string,
   sessionId: string | undefined,
+  environment: NodeJS.ProcessEnv = process.env,
 ): PrReadinessVerdict {
   const state = readSessionState(projectDirectory, sessionId);
   const receipt = readReceipt(projectDirectory);
@@ -286,5 +292,5 @@ export function evaluatePrReadiness(
         'This change is not finished. Open or resume the delivery ticket, then complete its next action before making the pull request Ready.',
     };
   }
-  return evaluateTicket(projectDirectory, ticketId, receipt);
+  return evaluateTicket(projectDirectory, ticketId, receipt, environment);
 }

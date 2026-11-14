@@ -1,0 +1,381 @@
+{
+  "scope": "Remaining #5041 on main 2dcc27e57",
+  "note": "Retain failed, rejected, stale, interrupted and passing attempts as distinct records; compressed files are gzip with deterministic mtime. No current live pass inferred from historical admission reuse.",
+  "records": [
+    {
+      "file": "admission-architecture-excerpt.md",
+      "sha256": "6b4e70287ac2af4a84a3ee6b7e2d9c4b1233002a1e33670d7e6342f982cbabad",
+      "bytes": 6944
+    },
+    {
+      "file": "admission-reuse-review-final.json.gz",
+      "sha256": "ea3b42f041d4d12211402967142a6901f148a8ab08cb5d8f9da3c4a67f29bb70",
+      "bytes": 2379
+    },
+    {
+      "file": "admission-reuse-review.json.gz",
+      "sha256": "e6954267e1e1af8f17e27eda10294982885bfbf977d432f661d8ff37a2046acd",
+      "bytes": 377
+    },
+    {
+      "file": "changed-contract-qualification.log.gz",
+      "sha256": "2a41aa1fd80ad85b34d76ef0095e0ef32a36e436065f09b3741f556697ac445f",
+      "bytes": 8313
+    },
+    {
+      "file": "cli-contract-final.log.gz",
+      "sha256": "04f5a088de2e16ab17fb71beb315052882b154406ddf05f83c078bce315332a5",
+      "bytes": 173
+    },
+    {
+      "file": "cli-contract-restored-verified.log.gz",
+      "sha256": "04f5a088de2e16ab17fb71beb315052882b154406ddf05f83c078bce315332a5",
+      "bytes": 173
+    },
+    {
+      "file": "currency-green-final.log.gz",
+      "sha256": "e2bebcfffb025b2d95fe41093cf8c0a251e52e62eb32e2af2a535633dfdcbd80",
+      "bytes": 4770
+    },
+    {
+      "file": "currency-green.log.gz",
+      "sha256": "92662beea56f29708d7307ac2542a6c3b7a5671b6e7460195e0786af33a0cdff",
+      "bytes": 7781
+    },
+    {
+      "file": "currency-red-review-final.json.gz",
+      "sha256": "3ca283943ad1b180bebf9bd8fd448180d00146b09ed4f64341f37be445466905",
+      "bytes": 7640
+    },
+    {
+      "file": "currency-red-review.json.gz",
+      "sha256": "e0873c38938efe2a6b83a9f9714dd9726b91e18cbb6b24d951bc11351ce5efa0",
+      "bytes": 7852
+    },
+    {
+      "file": "currency-red.log.gz",
+      "sha256": "6e8d950a9d6310719cfa511912f403a097145db74cfec4adf8a64d0bc3e69c36",
+      "bytes": 5189
+    },
+    {
+      "file": "derived-identities.json.gz",
+      "sha256": "a6a4d063a4fa411c0ee8d0cd4f6554ffb673617abce792be2e395a518250e26a",
+      "bytes": 598
+    },
+    {
+      "file": "final-commit.log.gz",
+      "sha256": "70de71b8ffe358dbd1041f0a5546c5d47ebe6a9b70f094d98025c194ca509f37",
+      "bytes": 1767
+    },
+    {
+      "file": "final-generated.log.gz",
+      "sha256": "5284b490db610dd9d81606621aaf54d87cfce19143aad72e801945c5399439ca",
+      "bytes": 172
+    },
+    {
+      "file": "final-lint-verified.log.gz",
+      "sha256": "fa0217799730025e558a26ab9a5220bf5753393296f5e95822caea522dcea2a5",
+      "bytes": 136
+    },
+    {
+      "file": "final-lint.log.gz",
+      "sha256": "fa0217799730025e558a26ab9a5220bf5753393296f5e95822caea522dcea2a5",
+      "bytes": 136
+    },
+    {
+      "file": "final-typecheck-complete.log.gz",
+      "sha256": "f5f23f5961cfb5759886b95689587022df174742bcbc205627e7bfc9ad0c2c5c",
+      "bytes": 102
+    },
+    {
+      "file": "final-typecheck.log.gz",
+      "sha256": "f5f23f5961cfb5759886b95689587022df174742bcbc205627e7bfc9ad0c2c5c",
+      "bytes": 102
+    },
+    {
+      "file": "full-suite-currency-withdrawn-interrupted.log.gz",
+      "sha256": "b63b61c66f8ca12eb69e318070035f5619bf1831b942e4ea74cf9b22e63f8fb5",
+      "bytes": 6812
+    },
+    {
+      "file": "full-suite-restored-verified.log.gz",
+      "sha256": "0e372e63976a3432fd0d4db04dbc97a71739eb910ced38ad3df42230da3305e3",
+      "bytes": 5595
+    },
+    {
+      "file": "full-suite.log.gz",
+      "sha256": "84511153ca759c786a28e3593aeb6d5e0bb5e4f2006e2023343b6ff55688f8d5",
+      "bytes": 14821
+    },
+    {
+      "file": "generated-restored-verified.log.gz",
+      "sha256": "22f8eada9eb743a975e6b43d2e9d42373b0ec9e90f67760288f373df04e3834f",
+      "bytes": 54
+    },
+    {
+      "file": "generation-commit.log.gz",
+      "sha256": "893d7b7039870cdde6f737dcd861abbfd9c708a5fe6a62192132472bc4051b7f",
+      "bytes": 1143
+    },
+    {
+      "file": "generation-dogfood.log.gz",
+      "sha256": "0777064b1dfa084296439c8bd7ccd03271deb4b3269b755e3c9dfe5a184aee80",
+      "bytes": 503
+    },
+    {
+      "file": "generation-green.log.gz",
+      "sha256": "3aa7c5010fe99c245896186deaea9fc6974d5a1c9080bb14cbf9ce450189aca3",
+      "bytes": 4629
+    },
+    {
+      "file": "generation-install-final.log.gz",
+      "sha256": "bce6267cb3ec245d3cc4fc7e3328bfeaad1d3e269e24e15b48a8ac329e4eeb51",
+      "bytes": 185
+    },
+    {
+      "file": "generation-install-retry.log.gz",
+      "sha256": "005cffa9f5af24cd00a0b5b2add878752183864164fc3cc1df8cb3e5ca2d5286",
+      "bytes": 344
+    },
+    {
+      "file": "generation-install.log.gz",
+      "sha256": "005cffa9f5af24cd00a0b5b2add878752183864164fc3cc1df8cb3e5ca2d5286",
+      "bytes": 344
+    },
+    {
+      "file": "generation-parity.log.gz",
+      "sha256": "2e1f8a0e693b17151442c1ca72568707a56b74a234b8d044150419575de9fb64",
+      "bytes": 151
+    },
+    {
+      "file": "generation-red.log.gz",
+      "sha256": "09ce0bfd260d5ebeb2d2440035892f7cf4c926731ee20146db189c7985de5f68",
+      "bytes": 20302
+    },
+    {
+      "file": "historical-admission-0c5394aec.ts",
+      "sha256": "25cef77d861198564ec1ee6827a26cbfa8126e55b0d6074c39ff867e64936160",
+      "bytes": 3021
+    },
+    {
+      "file": "historical-admission-check.log.gz",
+      "sha256": "d0a725a921e03190b949242568396137bc4cef11917f0c39ef305ce4581fd994",
+      "bytes": 73
+    },
+    {
+      "file": "historical-admission-compatibility.json.gz",
+      "sha256": "7d60a58078a42f49e1ea57f9a919e03f83b30a175b22318ed7455f2ab33b4b28",
+      "bytes": 256
+    },
+    {
+      "file": "historical-admission-generated.log.gz",
+      "sha256": "5284b490db610dd9d81606621aaf54d87cfce19143aad72e801945c5399439ca",
+      "bytes": 172
+    },
+    {
+      "file": "installed-red-review-after-generation.json.gz",
+      "sha256": "7d0de6b57850bcbec13be3239aaaee6d825996d9ca58434176a7fa7d4258c8e6",
+      "bytes": 7492
+    },
+    {
+      "file": "installed-red-review-fresh.json.gz",
+      "sha256": "963248f19b39d56038a7d808207b5898c516e9c19c498111738452d349c42926",
+      "bytes": 8364
+    },
+    {
+      "file": "installed-red-review-terminal.json.gz",
+      "sha256": "738b97a85e91534d7680fd35b05cf3109f407c395a5b0b3f889700a476de55af",
+      "bytes": 8231
+    },
+    {
+      "file": "installed-red-review.json.gz",
+      "sha256": "7446161d25438ba9203d98c180b8fb9a7e7e2f194dd4ec7aab178c2ee2902abf",
+      "bytes": 6379
+    },
+    {
+      "file": "installed-red.log.gz",
+      "sha256": "5da71bc12a394d49c75e2227f8a97b802345517406b613df165be6213fc251a8",
+      "bytes": 6400
+    },
+    {
+      "file": "integrity-green.log.gz",
+      "sha256": "ed2e899e4f39952b43d76ebf7b51d304aead9c2477484989f15c8f8aef2c2707",
+      "bytes": 6257
+    },
+    {
+      "file": "lint-restored-verified.log.gz",
+      "sha256": "fa0217799730025e558a26ab9a5220bf5753393296f5e95822caea522dcea2a5",
+      "bytes": 136
+    },
+    {
+      "file": "maintenance-green.log.gz",
+      "sha256": "86613865c77fa522c85f5715f709f1981930c3c570a2788e12bc99e68995cefb",
+      "bytes": 4763
+    },
+    {
+      "file": "parity-restored-verified.log.gz",
+      "sha256": "da7587f96a8c4ac438cc9045d24834fa404498dc9a7ee181ee8aeff349e635da",
+      "bytes": 112
+    },
+    {
+      "file": "preserved-main.json",
+      "sha256": "27c103497ee1fcaa0c37e0a94419ce08a6987af3103e16a40c378eda5f785189",
+      "bytes": 1523
+    },
+    {
+      "file": "preserved-rebased-main.json",
+      "sha256": "b8ec7e4ecb59bfa1dd86fe7a84d48b92c1837fcc6ae160c1dc3a070f8226dddf",
+      "bytes": 1496
+    },
+    {
+      "file": "product-red.log.gz",
+      "sha256": "c90ca29ca5422700db9f88a49c87baf3e67e98a6cf726980664d786bfbc6101a",
+      "bytes": 5128
+    },
+    {
+      "file": "push.log.gz",
+      "sha256": "be37afb37920e44a09aebdc6c5aa81b5b5e900d82e2cf0138e15c8bcd0d60310",
+      "bytes": 420
+    },
+    {
+      "file": "qualification-derived-case-mapping.json",
+      "sha256": "f14d4e2eba28fbb17d150557b0f3ba52d04f1d9116bb97e88ef7bed87c9c6e32",
+      "bytes": 1143
+    },
+    {
+      "file": "qualification-observed-failures.json",
+      "sha256": "c9f4902f32183819f5ebe8848f9662b4f5b71c9f1194a3dd6405f79060843c31",
+      "bytes": 11384
+    },
+    {
+      "file": "rebase-completed.log.gz",
+      "sha256": "f81e5c6ccf23f12b383e9e113885172abc1de3dfd479095d4077a60fae4616bd",
+      "bytes": 899
+    },
+    {
+      "file": "rebase-continue.log.gz",
+      "sha256": "b6fe82264fe623b1297cf2159fffff907c8521bc40eacf20edd97a797007c39a",
+      "bytes": 652
+    },
+    {
+      "file": "rebase-generation1.log.gz",
+      "sha256": "5284b490db610dd9d81606621aaf54d87cfce19143aad72e801945c5399439ca",
+      "bytes": 172
+    },
+    {
+      "file": "rebase-generation2.log.gz",
+      "sha256": "5284b490db610dd9d81606621aaf54d87cfce19143aad72e801945c5399439ca",
+      "bytes": 172
+    },
+    {
+      "file": "rebase-range-diff.log.gz",
+      "sha256": "9ceb6aeacc968c847f7e648c53c5d5841e778f0b09678f015b6be3a2e028267e",
+      "bytes": 1094722
+    },
+    {
+      "file": "rebase-review.err.gz",
+      "sha256": "f1b651238a58fe290baec6c5e32f3bdb1943dd2bd582f02569231f7a757c7837",
+      "bytes": 20
+    },
+    {
+      "file": "rebase-review.json.gz",
+      "sha256": "32bc9d619b379630a6ff62f564eea0cae8ab3483e35b573cda309d5ade3f726f",
+      "bytes": 1723
+    },
+    {
+      "file": "rebase.log.gz",
+      "sha256": "d612f35e16b4aeade434e7323ed74bcb39209d3f020a56f5a820658202438474",
+      "bytes": 426
+    },
+    {
+      "file": "rebased-cli-contract.log.gz",
+      "sha256": "04f5a088de2e16ab17fb71beb315052882b154406ddf05f83c078bce315332a5",
+      "bytes": 173
+    },
+    {
+      "file": "rebased-execution-prompt.txt.gz",
+      "sha256": "b1bf891f830ea9aef796145c1797ac65f9f1471a3376dfa6f1653ecdb6326ce9",
+      "bytes": 72
+    },
+    {
+      "file": "rebased-full-suite.log.gz",
+      "sha256": "1657929d80fbaa4fb2f525c036aaf3377a637426a027e0377d83af895e23fe09",
+      "bytes": 5614
+    },
+    {
+      "file": "rebased-generated-check.log.gz",
+      "sha256": "22f8eada9eb743a975e6b43d2e9d42373b0ec9e90f67760288f373df04e3834f",
+      "bytes": 54
+    },
+    {
+      "file": "rebased-lint.log.gz",
+      "sha256": "fa0217799730025e558a26ab9a5220bf5753393296f5e95822caea522dcea2a5",
+      "bytes": 136
+    },
+    {
+      "file": "rebased-parity-check.log.gz",
+      "sha256": "da7587f96a8c4ac438cc9045d24834fa404498dc9a7ee181ee8aeff349e635da",
+      "bytes": 112
+    },
+    {
+      "file": "rebased-typecheck.log.gz",
+      "sha256": "f5f23f5961cfb5759886b95689587022df174742bcbc205627e7bfc9ad0c2c5c",
+      "bytes": 102
+    },
+    {
+      "file": "red-commit.log.gz",
+      "sha256": "9400056d3720ff2086a0c90ab7e7b754fc96f3ca88f54d4fc7798413987b04e6",
+      "bytes": 733
+    },
+    {
+      "file": "red-review-corrected.json.gz",
+      "sha256": "c20da929e4acb12d2a7c85d8f04b24f946e5d9acc19ce53bc68f8e15584e7fda",
+      "bytes": 20252
+    },
+    {
+      "file": "red-review.json.gz",
+      "sha256": "d8f12cb2129a51bd7bd7fc9bc4ed77a17de68d07342da5a563a9b0ac38ceefad",
+      "bytes": 8532
+    },
+    {
+      "file": "repair-source-review.json.gz",
+      "sha256": "db80433edbe1d88facec49a3ed82f0b2cd6b2243028f57f1554cc9d7336298f3",
+      "bytes": 2462
+    },
+    {
+      "file": "restored-admission-green.log.gz",
+      "sha256": "c253e8283cc0bf250bbcd8aebaf7a17fe528acacca2d88e8cfd4bb5474bac232",
+      "bytes": 4927
+    },
+    {
+      "file": "source-review-status.json.gz",
+      "sha256": "00d2fcced7a59345c83ab6ac050f62420b4d20dbe034f80cecdf3e9dbb90fa43",
+      "bytes": 3092
+    },
+    {
+      "file": "terminal-walkthrough-current.json.gz",
+      "sha256": "d6c34974f5a53d47553ef23b35e0e2e2f9a15ac9a39a7751ffbf925154305b40",
+      "bytes": 3297
+    },
+    {
+      "file": "terminal-walkthrough-rebased.json.gz",
+      "sha256": "d6c34974f5a53d47553ef23b35e0e2e2f9a15ac9a39a7751ffbf925154305b40",
+      "bytes": 3297
+    },
+    {
+      "file": "terminal-walkthrough.json.gz",
+      "sha256": "d6c34974f5a53d47553ef23b35e0e2e2f9a15ac9a39a7751ffbf925154305b40",
+      "bytes": 3297
+    },
+    {
+      "file": "test-maintenance-lint.log.gz",
+      "sha256": "8f2695506511a172202590618ca4fec45ec8c6d9ee1111c7c44401dac0e51186",
+      "bytes": 278
+    },
+    {
+      "file": "typecheck-restored-verified.log.gz",
+      "sha256": "f5f23f5961cfb5759886b95689587022df174742bcbc205627e7bfc9ad0c2c5c",
+      "bytes": 102
+    }
+  ]
+}

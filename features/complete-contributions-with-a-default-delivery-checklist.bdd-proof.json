@@ -1,0 +1,137 @@
+{
+  "feature": "features/complete-contributions-with-a-default-delivery-checklist.feature",
+  "scenarios": {
+    "The installed CLI exposes a satisfied execution prerequisite": [
+      "packages/cli/tests/integration/delivery-execution-prerequisite.test.ts",
+      "runs through the installed CLI with integrity-checked admitted reviews"
+    ],
+    "Missing contribution context blocks execution readiness": [
+      "packages/cli/tests/integration/delivery-execution-prerequisite.test.ts",
+      "denies only the missing %s prerequisite with one repair"
+    ],
+    "Several missing prerequisites are reported in deterministic planning order": [
+      "packages/cli/tests/integration/delivery-execution-prerequisite.test.ts",
+      "reports every missing prerequisite once in deterministic planning order"
+    ],
+    "A complete checklist exposes every default obligation category": [
+      "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+      "presents every default category through the installed CLI"
+    ],
+    "A silently omitted default category prevents checklist completion": [
+      "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+      "names missing %s with one repair through the installed CLI"
+    ],
+    "Each checklist item records an honest disposition": [
+      [
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "records %s evidence through the installed CLI",
+        "current"
+      ],
+      [
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "retains an honest %s disposition while updating proof through the installed CLI",
+        "not applicable"
+      ],
+      [
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "retains an honest %s disposition while updating proof through the installed CLI",
+        "human-owned"
+      ]
+    ],
+    "Contributor-controlled work cannot be dismissed as a human handoff": [
+      "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+      "rejects a contributor human handoff through the installed CLI"
+    ],
+    "In-flight checklist state reflects partial execution progress": [
+      "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+      "names monitoring and documentation after recording testing through the installed CLI"
+    ],
+    "An unreadable Execution Plan blocks checklist updates": [
+      "packages/cli/tests/integration/delivery-checklist-unreadable.test.ts",
+      "blocks the installed CLI with one repair and does not regenerate the plan"
+    ],
+    "The feature Delivery Checklist lives in the Execution Plan": [
+      "packages/cli/tests/integration/plan-design-approval.test.ts",
+      "creates the feature checklist only inside the canonical Execution Plan"
+    ],
+    "The feature checklist contract cannot impose feature artifacts on smaller work": [
+      "packages/cli/tests/integration/delivery-execution-prerequisite.test.ts",
+      "keeps %s work outside the feature contract"
+    ],
+    "Readiness reports the next owning boundary without inventing authority": [
+      [
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "records %s evidence through the installed CLI",
+        "missing"
+      ],
+      [
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "records %s evidence through the installed CLI",
+        "partial"
+      ],
+      [
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "records %s evidence through the installed CLI",
+        "incompatible earlier"
+      ],
+      [
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "records %s evidence through the installed CLI",
+        "compatible earlier"
+      ],
+      [
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "records %s evidence through the installed CLI",
+        "current"
+      ],
+      [
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "reports satisfied human approval without merge authority through the installed CLI"
+      ]
+    ],
+    "Contributor evidence cannot record human approval": [
+      "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+      "keeps human approval pending when a contributor records proof through the installed CLI"
+    ],
+    "Evidence class controls the claim Safeword may make": [
+      [
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "records %s evidence through the installed CLI",
+        "current"
+      ],
+      [
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "records %s evidence through the installed CLI",
+        "compatible earlier"
+      ],
+      [
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "records %s evidence through the installed CLI",
+        "partial"
+      ],
+      [
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "records %s evidence through the installed CLI",
+        "missing"
+      ],
+      [
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "records %s evidence through the installed CLI",
+        "incompatible earlier"
+      ]
+    ],
+    "Earlier or partial evidence cannot silently become current complete proof": [
+      "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+      "records %s evidence through the installed CLI",
+      "partial earlier"
+    ],
+    "A disposition cannot omit its required explanation": [
+      "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+      "rejects %s without its required detail through the installed CLI"
+    ],
+    "An unreviewed applicability change cannot hide admitted work": [
+      "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+      "rejects an applicability change after admission through the installed CLI"
+    ]
+  }
+}

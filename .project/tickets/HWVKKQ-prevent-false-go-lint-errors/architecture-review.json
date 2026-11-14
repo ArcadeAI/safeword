@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "ok": true,
+  "state": "healthy",
+  "changed": false,
+  "findings": [
+    {
+      "code": "REVIEW_INDEPENDENCE",
+      "message": "A different agent (Claude) checked the work in a separate headless process.",
+      "severity": "info"
+    },
+    {
+      "code": "REVIEWER_SUMMARY",
+      "message": "The documentation matches the design in the context file and the supplied `go-lint.ts` executor. Package lint runs from the edited file's directory against the `.` target. Only the edited file is formatted, and `run` has no `--fix`. Findings carry the package and file context and say they may predate the edit. Infrastructure and stderr warnings are kept alongside errors, an unresolved base or a config the hook can't create becomes a warning, and the outside-root check skips both formatting and lint. I found no errors that block release. The main issue is wording in `hooks-and-skills.mdx`: it implies the edited Go file still gets lint autofixes, but the design removes all Go lint autofixes. Some claims depend on files not in this packet (`config.ts`, `process.ts`, CI), so I couldn't check them, but nothing supplied contradicts them.",
+      "severity": "info"
+    },
+    {
+      "code": "REVIEWER_FINDING",
+      "message": "`hooks-and-skills.mdx`, Auto-linting section: the general line \"Usually nothing \u2014 the linter auto-fixes quietly\" is followed by \"Package lint does not auto-fix sibling files.\" Together they suggest the edited Go file still gets lint autofixes. The design (\"Go lint autofixes are intentionally removed; formatting remains automatic\") and `go-lint.ts` (`run` without `--fix`) both show that no Go file gets lint autofixes; the edited file is only formatted. Suggested wording: \"For Go, Safeword formats only the edited file and runs check-only lint on its complete package; lint findings are not auto-fixed.\" The same implication appears in the runtime message's \"sibling files were not auto-fixed\" (sibling-only wording). That string is fixed by the design, but the docs shouldn't add to the ambiguity.",
+      "severity": "warning"
+    },
+    {
+      "code": "REVIEWER_FINDING",
+      "message": "ARCHITECTURE.md ADR: \"Cleanup runs on ordinary completion and handled termination signals\" and \"real package/config fixtures with the oldest supported v2 and current linter in the CI matrix\" depend on `goLintProcess` signal handling and CI configuration. Neither is in this packet, so I couldn't verify them. The design context file is also still headed \"proposed design, not implemented,\" while the ADR says Accepted. Before merging, confirm the signal handlers and the v2.0.0/v2.13.2 CI lanes exist, so the ADR doesn't claim more than it can prove.",
+      "severity": "warning"
+    },
+    {
+      "code": "REVIEWER_FINDING",
+      "message": "`go-lint.ts` always passes `--path-prefix config.base`. When no config is found, the design requires the package directory as the prefix, together with `--no-config`. Whether `prepareGoLintConfig` sets `base` to the package directory in that case isn't visible here. The ADR's claim that feedback names \"actual source paths\" depends on it.",
+      "severity": "info"
+    },
+    {
+      "code": "REVIEWER_FINDING",
+      "message": "The \"Where hook feedback is supported\" qualifier correctly avoids claiming that Cursor displays Go diagnostics. This matches the design's decision to keep Cursor's existing behavior.",
+      "severity": "info"
+    }
+  ],
+  "effects": {
+    "files": [],
+    "packages": [],
+    "configuration": [],
+    "network": [
+      {
+        "kind": "review",
+        "target": "claude",
+        "operation": "request"
+      }
+    ],
+    "destructive": []
+  },
+  "errors": [],
+  "recovery": [],
+  "next_actions": [],
+  "data": {
+    "command": "review run",
+    "status": "approved",
+    "review_kind": "quality-review",
+    "review_targets": [
+      ".safeword-review-runtime-go-lint/documentation-changes.md",
+      "packages/website/src/content/docs/reference/hooks-and-skills.mdx"
+    ],
+    "author_agent": "codex",
+    "assigned_reviewer": "claude",
+    "actual_reviewer": "claude",
+    "reviewer_model": "opus",
+    "independence": "cross-agent",
+    "reviewer_output": {
+      "schema_version": 1,
+      "dispatch_id": "fa3d4991-9de3-4b5c-9525-362cbe147d14",
+      "reviewer_agent": "claude",
+      "verdict": "approve",
+      "summary": "The documentation matches the design in the context file and the supplied `go-lint.ts` executor. Package lint runs from the edited file's directory against the `.` target. Only the edited file is formatted, and `run` has no `--fix`. Findings carry the package and file context and say they may predate the edit. Infrastructure and stderr warnings are kept alongside errors, an unresolved base or a config the hook can't create becomes a warning, and the outside-root check skips both formatting and lint. I found no errors that block release. The main issue is wording in `hooks-and-skills.mdx`: it implies the edited Go file still gets lint autofixes, but the design removes all Go lint autofixes. Some claims depend on files not in this packet (`config.ts`, `process.ts`, CI), so I couldn't check them, but nothing supplied contradicts them.",
+      "findings": [
+        {
+          "severity": "warning",
+          "message": "`hooks-and-skills.mdx`, Auto-linting section: the general line \"Usually nothing \u2014 the linter auto-fixes quietly\" is followed by \"Package lint does not auto-fix sibling files.\" Together they suggest the edited Go file still gets lint autofixes. The design (\"Go lint autofixes are intentionally removed; formatting remains automatic\") and `go-lint.ts` (`run` without `--fix`) both show that no Go file gets lint autofixes; the edited file is only formatted. Suggested wording: \"For Go, Safeword formats only the edited file and runs check-only lint on its complete package; lint findings are not auto-fixed.\" The same implication appears in the runtime message's \"sibling files were not auto-fixed\" (sibling-only wording). That string is fixed by the design, but the docs shouldn't add to the ambiguity."
+        },
+        {
+          "severity": "warning",
+          "message": "ARCHITECTURE.md ADR: \"Cleanup runs on ordinary completion and handled termination signals\" and \"real package/config fixtures with the oldest supported v2 and current linter in the CI matrix\" depend on `goLintProcess` signal handling and CI configuration. Neither is in this packet, so I couldn't verify them. The design context file is also still headed \"proposed design, not implemented,\" while the ADR says Accepted. Before merging, confirm the signal handlers and the v2.0.0/v2.13.2 CI lanes exist, so the ADR doesn't claim more than it can prove."
+        },
+        {
+          "severity": "info",
+          "message": "`go-lint.ts` always passes `--path-prefix config.base`. When no config is found, the design requires the package directory as the prefix, together with `--no-config`. Whether `prepareGoLintConfig` sets `base` to the package directory in that case isn't visible here. The ADR's claim that feedback names \"actual source paths\" depends on it."
+        },
+        {
+          "severity": "info",
+          "message": "The \"Where hook feedback is supported\" qualifier correctly avoids claiming that Cursor displays Go diagnostics. This matches the design's decision to keep Cursor's existing behavior."
+        }
+      ]
+    },
+    "excluded_targets": [],
+    "review_id": "8216024d-848f-4e88-a02a-6ea8d8798dc2",
+    "review_excluded_targets": []
+  }
+}

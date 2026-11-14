@@ -1,0 +1,11 @@
+{
+  "lineage": {
+    "uncovered": [],
+    "stale": [],
+    "orphan": []
+  },
+  "surfaces": {
+    "missing": [],
+    "stale": []
+  }
+}

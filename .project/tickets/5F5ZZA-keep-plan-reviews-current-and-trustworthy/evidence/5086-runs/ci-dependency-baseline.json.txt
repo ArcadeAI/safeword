@@ -1,0 +1,10 @@
+{
+  "base": "150eb7c619b2d5852174da99ba675ae326354153",
+  "head": "8420448f42ac00a4f345de2344b91b6ef510461c",
+  "bun_lock_identical": true,
+  "base_sha256": "9ab7cb7fb7c09bcf7d5facb84a600be57ca0abe4bdbd322331ee5b838dbecb9d",
+  "head_sha256": "9ab7cb7fb7c09bcf7d5facb84a600be57ca0abe4bdbd322331ee5b838dbecb9d",
+  "audit_job": "https://github.com/ArcadeAI/safeword/actions/runs/39477785863/job/118818132766",
+  "ci_finding": "markdown-it <14.3.2, GHSA-r7fv-28h4-cvq7, high, via markdownlint-cli2",
+  "disposition": "Retain as blocked CI; do not expand the scoped #5086 change into dependency remediation."
+}

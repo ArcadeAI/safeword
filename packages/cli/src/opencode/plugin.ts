@@ -1,3 +1,5 @@
+import { COMPLETION_HOOK_TIMEOUT_SECONDS } from '../templates/config.js';
+
 export interface OpenCodeProfilePluginOptions {
   readonly markerTimeoutMilliseconds?: number;
 }
@@ -68,11 +70,13 @@ async function classifyProject(directory) {
   const marker = (async () => {
     let candidate = path.resolve(directory);
     while (true) {
-      try {
-        await access(path.join(candidate, '.safeword', 'SAFEWORD.md'));
-        return { kind: 'marked', directory: candidate };
-      } catch (error) {
-        if (error?.code !== 'ENOENT') return { kind: 'uncertain' };
+      for (const marker of ['enrolled', 'SAFEWORD.md']) {
+        try {
+          await access(path.join(candidate, '.safeword', marker));
+          return { kind: 'marked', directory: candidate };
+        } catch (error) {
+          if (error?.code !== 'ENOENT') return { kind: 'uncertain' };
+        }
       }
       const parent = path.dirname(candidate);
       if (parent === candidate) return { kind: 'unmarked' };
@@ -162,7 +166,7 @@ async function readBoundIdentity() {
 function dispatch(identity, envelope, directory) {
   const inputText = Object.values(envelope.tool_input).filter(value => typeof value === 'string').join('\n');
   const timeoutMilliseconds = /ticket\.md/u.test(inputText) && /status:\s*['"]?done\b/u.test(inputText)
-    ? 90_000
+    ? ${COMPLETION_HOOK_TIMEOUT_SECONDS * 1000}
     : /\bVERIFIED\b/iu.test(inputText) ? 30_000 : 2_000;
   return new Promise((resolve, reject) => {
     const child = spawn(identity.runtime_path, [identity.dispatcher_path], {

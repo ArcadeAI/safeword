@@ -8,13 +8,126 @@ import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { inspirationContractProvenance, specArtifactProvenance } from './feature-provenance.js';
-import { type ImplPlanResult, parseImplPlan } from './impl-plan.js';
+import { type ImplPlanResult, parseImplPlan, unresolvedDecisionNames } from './impl-plan.js';
 import { evaluateImplementationInspiration } from './inspiration.js';
+import { resolveNamespaceRoot } from './namespace-root.js';
 import { checkPrincipleTrace } from './principle-trace.js';
+import { askTrustedSafeword } from './safeword-cli.js';
 
 export type PlanGateVerdict = { ok: true } | { ok: false; reason: string; remediation: string };
 
 const OK: PlanGateVerdict = { ok: true };
+
+/** Consume the public coding-authorization envelope without recomputing its prerequisites. */
+export function evaluateCodingAuthorization(
+  projectDirectory: string,
+  ticketId: string,
+): PlanGateVerdict {
+  const answer = askTrustedSafeword(
+    projectDirectory,
+    ['ticket', 'coding-authorization', ticketId],
+    run => codingAuthorizationVerdict(run, ticketId),
+  );
+  switch (answer.kind) {
+    case 'refused':
+      return {
+        ok: false,
+        reason: 'Safeword refused a project-writable coding-authorization command.',
+        remediation:
+          'Point SAFEWORD_PLUGIN_CLI or CLAUDE_PLUGIN_ROOT at the installed plugin runtime.',
+      };
+    case 'missing':
+      return {
+        ok: false,
+        reason: 'Safeword could not check whether coding is authorized.',
+        remediation:
+          'Reinstall the Safeword plugin, or reinstall Safeword in this project so .safeword/version names its version.',
+      };
+    case 'answered':
+      return answer.value;
+    case 'unanswered':
+      return {
+        ok: false,
+        reason: 'Safeword could not validate the coding-authorization result.',
+        remediation: `Run safeword ticket coding-authorization ${ticketId} and repair the reported local CLI problem.`,
+      };
+  }
+}
+
+/** One trusted CLI run's coding-authorization verdict, or undefined when it gave no valid result. */
+function codingAuthorizationVerdict(
+  run: { status: number | null; stdout: string },
+  ticketId: string,
+): PlanGateVerdict | undefined {
+  try {
+    const parsed = JSON.parse(run.stdout) as {
+      state?: unknown;
+      findings?: Array<{ message?: unknown }>;
+      next_actions?: Array<{ command?: unknown }>;
+      data?: {
+        command?: unknown;
+        coding_authorization?: unknown;
+        grants_authority?: unknown;
+        authorization_input_identity?: unknown;
+      };
+    };
+    if (
+      run.status === 0 &&
+      parsed.state === 'healthy' &&
+      parsed.data?.command === 'ticket coding-authorization' &&
+      parsed.data.coding_authorization === 'authorized' &&
+      parsed.data.grants_authority === false &&
+      typeof parsed.data.authorization_input_identity === 'string' &&
+      parsed.data.authorization_input_identity !== ''
+    ) {
+      return OK;
+    }
+    if (
+      parsed.data?.command === 'ticket coding-authorization' &&
+      parsed.data.coding_authorization === 'denied' &&
+      parsed.data.grants_authority === false
+    ) {
+      const reason = parsed.findings?.find(
+        finding => typeof finding.message === 'string' && finding.message !== '',
+      )?.message;
+      const remediation = parsed.next_actions?.find(
+        action => typeof action.command === 'string' && action.command !== '',
+      )?.command;
+      return {
+        ok: false,
+        reason:
+          typeof reason === 'string'
+            ? reason
+            : 'The current planning evidence does not authorize coding.',
+        remediation:
+          typeof remediation === 'string'
+            ? remediation
+            : `Run safeword ticket coding-authorization ${ticketId} and complete its recovery action.`,
+      };
+    }
+  } catch {
+    // No valid envelope from this CLI; the caller tries the next one.
+  }
+  return undefined;
+}
+
+/** Return the exact executable action carried by the first unmet RED row. */
+export function firstNamedRedAction(
+  projectDirectory: string,
+  ticketFolder: string,
+): string | undefined {
+  const ledgerPath = nodePath.join(
+    resolveNamespaceRoot(projectDirectory),
+    'tickets',
+    ticketFolder,
+    'test-definitions.md',
+  );
+  if (!existsSync(ledgerPath)) return undefined;
+  const match = readFileSync(ledgerPath, 'utf8').match(
+    /^[ \t]*- \[ \] RED[ \t]+(?:—|-|:)[ \t]*(.+)$/mu,
+  );
+  return match?.[1]?.trim() || undefined;
+}
 
 function missingSpecVerdict(
   activationProvenance: ReturnType<typeof inspirationContractProvenance>,
@@ -60,6 +173,25 @@ function validateParsedPlan(parsed: ImplPlanResult, requireDocImpact: boolean): 
     };
   }
   return OK;
+}
+
+/** Block Execution Planning while the plan explicitly carries open choices. */
+export function evaluateExecutionPlanningEntry(
+  ticketDirectory: string,
+  options: { evaluationDate?: string; projectDirectory: string },
+): PlanGateVerdict {
+  const planPath = nodePath.join(ticketDirectory, 'impl-plan.md');
+  const planVerdict = evaluateImplementEntry(ticketDirectory, options);
+  if (!planVerdict.ok) return planVerdict;
+
+  const unresolved = unresolvedDecisionNames(readFileSync(planPath, 'utf8'));
+  if (unresolved.length === 0) return OK;
+  return {
+    ok: false,
+    reason: `Implementation Planning still has unresolved behavior-shaping choices: ${unresolved.join(', ')}.`,
+    remediation:
+      'Decide each named choice in impl-plan.md, then run the Implementation Plan review again before entering Execution Planning.',
+  };
 }
 
 /**

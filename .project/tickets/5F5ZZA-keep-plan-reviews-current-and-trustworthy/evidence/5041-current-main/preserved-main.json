@@ -1,0 +1,38 @@
+[
+  {
+    "path": "packages/cli/src/review/planning-context-identity.ts",
+    "identical_to_starting_main": true,
+    "sha256": "d1db2d22b1092d92c48516b6f9346e1f0c812e113a06d65545db90f4794295d7"
+  },
+  {
+    "path": "packages/cli/src/review/planning-ticket-owner.ts",
+    "identical_to_starting_main": true,
+    "sha256": "3857f4ea7de7dd300ffe3859f91bf0483c962502e81f417c37869a34d18ae508"
+  },
+  {
+    "path": "packages/cli/src/review/planning-context-error.ts",
+    "identical_to_starting_main": true,
+    "sha256": "04141792bcc1b18f5dd13a2744e79f62955db5e9f1b0e8b61ed91b64e3485ef1"
+  },
+  {
+    "path": "packages/cli/src/review/planning-role-context.ts",
+    "identical_to_starting_main": true,
+    "sha256": "e8460522189e329298af49e508736c5000f24ba9791f59b38e18d92b4ab3451d"
+  },
+  {
+    "path": "packages/cli/src/review/planning-accepted-boundary.ts",
+    "identical_to_starting_main": true,
+    "sha256": "484c3345ade63afe7dfd00c3652c4c1eaf465ac35368e60e0883361c186cc6cf"
+  },
+  {
+    "path": "packages/cli/src/execution-plan/delivery-checklist.ts",
+    "identical_to_starting_main": true,
+    "sha256": "e75a0ed9127e8be4949275ed63cdedeec5408bd4ee9abf69fc6291b3b65f6304"
+  },
+  {
+    "path": "packages/cli/src/review/execution-plan-admission.generated.ts",
+    "identical_to_starting_main": false,
+    "sha256": "25cef77d861198564ec1ee6827a26cbfa8126e55b0d6074c39ff867e64936160",
+    "reason": "Exact historical matching admission descriptor restored verbatim from 0c5394aec; not a new result or weaker corpus."
+  }
+]

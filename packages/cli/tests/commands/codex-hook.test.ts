@@ -555,9 +555,10 @@ describe('packagedNamespaceRootLabel', () => {
     );
 
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain('Safeword session bootstrap');
-    expect(result.stdout).toContain('the packaged Safeword handbook');
-    expect(result.stdout).toContain('the packaged Safeword guides');
+    expect(result.stdout).toContain('First, Read `');
+    expect(result.stdout).toMatch(
+      /First, Read `\/[^`]*\/(?:templates|resources)\/SAFEWORD\.md` in full, even for trivial requests or right after compaction; a summary or earlier read does not count\./,
+    );
     expect(result.stdout).toContain('.project/');
     expect(result.stdout).toContain('supersede');
     expect(result.stdout).not.toContain('.safeword/guides/');
@@ -565,6 +566,33 @@ describe('packagedNamespaceRootLabel', () => {
     expect(result.stdout.length).toBeLessThanOrEqual(1000);
     expect(result.stdout).not.toContain('PROJECT-LOCAL INSTRUCTIONS MUST NOT APPEAR');
   });
+
+  it.each(['startup', 'compact'])(
+    'delivers the package-owned handbook read through the manifest --plugin-hook command on %s',
+    source => {
+      const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), `safeword-codex-${source}-`));
+      directories.push(projectDirectory);
+      mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+      writeFileSync(
+        nodePath.join(projectDirectory, '.safeword', 'SAFEWORD.md'),
+        'PROJECT-LOCAL INSTRUCTIONS MUST NOT APPEAR',
+      );
+
+      const result = runCodexHook(
+        projectDirectory,
+        'session-start',
+        { hook_event_name: 'SessionStart', source },
+        { SAFEWORD_NO_AUTO_UPGRADE: '1' },
+        true,
+      );
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout).toMatch(
+        /First, Read `\/[^`]*\/(?:templates|resources)\/SAFEWORD\.md` in full, even for trivial requests or right after compaction; a summary or earlier read does not count\./,
+      );
+      expect(result.stdout).not.toContain('.safeword/SAFEWORD.md');
+    },
+  );
 
   it('keeps the packaged SessionStart fallback compact when its dispatcher is unavailable', () => {
     const { packageDirectory, projectDirectory } = createPackagedCliFixture();
@@ -582,8 +610,10 @@ describe('packagedNamespaceRootLabel', () => {
     );
 
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain('Safeword session bootstrap');
-    expect(result.stdout).toContain('the packaged Safeword handbook');
+    expect(result.stdout).toContain('First, Read `');
+    expect(result.stdout).toMatch(
+      /First, Read `\/[^`]*\/(?:templates|resources)\/SAFEWORD\.md` in full, even for trivial requests or right after compaction; a summary or earlier read does not count\./,
+    );
     expect(result.stdout).not.toContain('SAFEWORD Agent Instructions');
     expect(result.stdout.length).toBeLessThanOrEqual(1000);
   });
@@ -602,8 +632,10 @@ describe('packagedNamespaceRootLabel', () => {
     );
 
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain('Safeword session bootstrap');
-    expect(result.stdout).toContain('the packaged Safeword handbook');
+    expect(result.stdout).toContain('First, Read `');
+    expect(result.stdout).toMatch(
+      /First, Read `\/[^`]*\/(?:templates|resources)\/SAFEWORD\.md` in full, even for trivial requests or right after compaction; a summary or earlier read does not count\./,
+    );
     expect(result.stdout.length).toBeLessThanOrEqual(1000);
     expect(rootEntries(projectDirectory)).toEqual(before);
   });
@@ -676,6 +708,144 @@ describe('packagedNamespaceRootLabel', () => {
 
     expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(2);
     expect(result.stderr).toContain('scope, out_of_scope, done_when');
+  });
+
+  // The shared quality gate only recognises the default ticket roots, so a
+  // configured namespace is where Codex's own intake check is the one that blocks.
+  const CUSTOM_NAMESPACE = { paths: { projectRoot: 'knowledge' } };
+
+  it.each([
+    [
+      'an empty scope followed by a later list field',
+      'scope:\nout_of_scope:\n  - y\ndone_when:\n  - z\n',
+      'scope.',
+    ],
+    ['an empty inline list', 'scope: []\nout_of_scope: y\ndone_when: z\n', 'scope.'],
+    ['YAML nulls', 'scope: null\nout_of_scope: ~\ndone_when: z\n', 'scope, out_of_scope.'],
+    [
+      'comment-only values',
+      'scope: # TODO\nout_of_scope:\n  - # later\ndone_when: z\n',
+      'scope, out_of_scope.',
+    ],
+    [
+      'empty values with trailing comments',
+      "scope: [] # TODO\nout_of_scope: null # pending\ndone_when: '' # pending\n",
+      'scope, out_of_scope, done_when.',
+    ],
+    [
+      'capitalised nulls and empty block scalars',
+      'scope: NULL\nout_of_scope: |\ndone_when: >-\n',
+      'scope, out_of_scope, done_when.',
+    ],
+    [
+      'lists of YAML nulls',
+      'scope: [null]\nout_of_scope: [~]\ndone_when:\n  - NULL\n',
+      'scope, out_of_scope, done_when.',
+    ],
+    [
+      'quoted empty values',
+      'scope: \'\'\nout_of_scope: ""\ndone_when: z\n',
+      'scope, out_of_scope.',
+    ],
+  ])('blocks test definitions in a custom namespace for %s', (_case, fields, expected) => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
+    directories.push(projectDirectory);
+    markSafewordProject(projectDirectory, CUSTOM_NAMESPACE);
+    const ticketDirectory = nodePath.join(projectDirectory, 'knowledge/tickets/empty-scope');
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'ticket.md'),
+      `---\nid: empty-scope\ntype: task\n${fields}---\n`,
+    );
+
+    const result = runCodexHook(
+      projectDirectory,
+      'pre-tool-use',
+      {
+        session_id: 'empty-scope-session',
+        tool_name: 'Write',
+        tool_input: { file_path: nodePath.join(ticketDirectory, 'test-definitions.md') },
+      },
+      { CLAUDE_PROJECT_DIR: projectDirectory, SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
+    );
+
+    expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(2);
+    expect(result.stderr).toContain(`until ticket.md declares ${expected}`);
+  });
+
+  it.each([
+    ['LF', '\n', '  '],
+    ['CRLF', '\r\n', '  '],
+    ['unindented items', '\n', ''],
+  ])(
+    'allows test definitions in a custom namespace when every intake field has a block list (%s)',
+    (_case, eol, indent) => {
+      const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
+      directories.push(projectDirectory);
+      markSafewordProject(projectDirectory, CUSTOM_NAMESPACE);
+      const ticketDirectory = nodePath.join(projectDirectory, 'knowledge/tickets/full-scope');
+      mkdirSync(ticketDirectory, { recursive: true });
+      writeFileSync(
+        nodePath.join(ticketDirectory, 'ticket.md'),
+        [
+          '---',
+          'id: full-scope',
+          'type: task',
+          'scope:',
+          '  # included behavior',
+          `${indent}- x`,
+          '',
+          'out_of_scope:',
+          `${indent}- y`,
+          'done_when:',
+          `${indent}- z`,
+          '---',
+          '',
+        ].join(eol),
+      );
+
+      const result = runCodexHook(
+        projectDirectory,
+        'pre-tool-use',
+        {
+          session_id: 'full-scope-session',
+          tool_name: 'Write',
+          tool_input: { file_path: nodePath.join(ticketDirectory, 'test-definitions.md') },
+        },
+        { CLAUDE_PROJECT_DIR: projectDirectory, SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
+      );
+
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(0);
+      expect(result.stderr).not.toContain('until ticket.md declares');
+    },
+  );
+
+  it('allows edits to existing test definitions in a custom namespace even when intake is incomplete', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
+    directories.push(projectDirectory);
+    markSafewordProject(projectDirectory, CUSTOM_NAMESPACE);
+    const ticketDirectory = nodePath.join(projectDirectory, 'knowledge/tickets/legacy-ledger');
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'ticket.md'),
+      '---\nid: legacy-ledger\ntype: task\nscope: ~\nout_of_scope: y\ndone_when: z\n---\n',
+    );
+    const ledgerPath = nodePath.join(ticketDirectory, 'test-definitions.md');
+    writeFileSync(ledgerPath, '# Test definitions\n');
+
+    const result = runCodexHook(
+      projectDirectory,
+      'pre-tool-use',
+      {
+        session_id: 'legacy-ledger-session',
+        tool_name: 'Edit',
+        tool_input: { file_path: ledgerPath },
+      },
+      { CLAUDE_PROJECT_DIR: projectDirectory, SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
+    );
+
+    expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(0);
+    expect(result.stderr).not.toContain('until ticket.md declares');
   });
 
   it('defers a plugin event to an exact runnable legacy handler', () => {
@@ -845,6 +1015,63 @@ command = "npx --yes safeword hook codex pre-tool-use"
     expect(existsSync(log)).toBe(true);
     expectBiomeChecked(log, 'source.ts');
   });
+
+  it.each([
+    { warningOnly: false, warning: 'formatter unavailable' },
+    { warningOnly: true, warning: `warning-only ${'x'.repeat(25_000)}` },
+  ])(
+    'retains bounded Go feedback through the Codex boundary (warningOnly=$warningOnly)',
+    scenario => {
+      const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-go-context-'));
+      directories.push(projectDirectory);
+      markSafewordProject(projectDirectory, { selfReport: { capture: false } });
+      writeFileSync(nodePath.join(projectDirectory, '.safeword/.golangci.yml'), 'version: "2"\n');
+      const packageDirectory = nodePath.join(projectDirectory, 'pkg');
+      mkdirSync(packageDirectory);
+      const sourceFile = nodePath.join(packageDirectory, 'value.go');
+      writeFileSync(sourceFile, 'package value\n');
+      const bin = nodePath.join(projectDirectory, 'bin');
+      mkdirSync(bin);
+      const executable = nodePath.join(bin, 'golangci-lint');
+      writeFileSync(
+        executable,
+        `#!/bin/sh
+case "$1" in
+version) echo 2.13.2 ;;
+fmt) printf '%s' "$GO_LINT_WARNING" >&2; exit 2 ;;
+run) if [ "$GO_LINT_WARNING_ONLY" = 1 ]; then exit 0; fi; echo 'sample package issue (govet)'; exit 1 ;;
+esac
+`,
+      );
+      chmodSync(executable, 0o755);
+      const result = runCodexHook(
+        projectDirectory,
+        'post-tool-use',
+        {
+          hook_event_name: 'PostToolUse',
+          tool_name: 'Write',
+          tool_input: { file_path: sourceFile },
+        },
+        {
+          PATH: [bin, process.env.PATH].join(nodePath.delimiter),
+          GO_LINT_WARNING: scenario.warning,
+          GO_LINT_WARNING_ONLY: scenario.warningOnly ? '1' : '0',
+        },
+      );
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout).toContain(scenario.warning.slice(0, 100));
+      const context = JSON.parse(result.stdout).hookSpecificOutput.additionalContext as string;
+      expect(Buffer.byteLength(context)).toBeLessThanOrEqual(16 * 1024);
+      if (scenario.warningOnly) {
+        expect(context).toContain('truncated');
+        expect(context).toContain('not all findings');
+      } else {
+        expect(context).toContain('Go lint findings for package');
+        expect(context).toContain('sample package issue');
+      }
+      expect(result.stdout).not.toContain('after auto-fix');
+    },
+  );
 
   it('warns through the packaged Codex hook when an edited-file symlink escapes the project', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-host-escape-'));

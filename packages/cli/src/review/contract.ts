@@ -1,14 +1,18 @@
+import type { ReviewDispositionContext } from './planning-accepted-boundary.js';
+import type { PlanningRoleContext } from './planning-role-context.js';
 export type ReviewAgent = 'claude' | 'codex' | 'opencode';
 export type ReviewAuthor = ReviewAgent | 'cursor' | 'unknown';
+export type SupportedReviewAuthor = Exclude<ReviewAuthor, 'unknown'>;
 export type ReviewKind =
   | 'quality-review'
   | 'scenario-gate'
   | 'plan-implementation'
   | 'plan-execution'
+  | 'delivery-compatibility'
   | 'executable-red'
   | 'retrospective-eligibility'
   | 'retrospective-proof';
-export type ReviewPolicy = 'prefer' | 'require' | 'off';
+export type ReviewPolicy = 'prefer' | 'off';
 export type RedEvidenceClass =
   'pure-contract' | 'simulated-host' | 'local-live-host' | 'external-live-host';
 
@@ -74,13 +78,100 @@ interface ReviewFinding {
   readonly message: string;
 }
 
+export interface ReviewEvidenceRecordV1 {
+  readonly source_identity: string;
+  readonly checked_version: string;
+  readonly source_version: string;
+  readonly target_version: string;
+  readonly supported_claim: string;
+  readonly license_identifier: string;
+  readonly attribution_notice: string;
+  readonly redistribution_limit: string;
+  readonly security_limit: string;
+  readonly privacy_limit: string;
+  readonly reuse_limit: string;
+}
+
+export interface ReviewEvidenceRecordsV1 {
+  readonly schema_version: 1;
+  readonly records: readonly ReviewEvidenceRecordV1[];
+}
+
+export interface ExecutionPlanSlice {
+  readonly name: string;
+  readonly purpose: string;
+  readonly boundary: string;
+  readonly prerequisites: readonly string[];
+  readonly proof: string;
+  readonly completion_signal: string;
+  readonly relies_on_unmerged_successor: boolean;
+}
+
+export interface ExecutionPlanObligationOwner {
+  readonly obligation: string;
+  readonly slices: readonly string[];
+}
+
+export interface ExecutionPlanDecisionStatus {
+  readonly decision: string;
+  readonly status: 'unchanged';
+}
+
+export interface ExecutionPlanProofSpecification {
+  readonly proof_id: string;
+  readonly method: 'command' | 'review_receipt';
+  readonly scope: 'unit' | 'integration' | 'E2E' | 'eval';
+  readonly boundary_exercised: string;
+  readonly qualifies_as: 'real_boundary' | 'partial_or_structural';
+  readonly currency: 'current_required' | 'compatible_earlier_allowed';
+  readonly invocation:
+    | { readonly type: 'command'; readonly cwd: string; readonly argv: readonly string[] }
+    | {
+        readonly type: 'review_receipt';
+        readonly kind: string;
+        readonly targets: readonly string[];
+      };
+}
+
+export interface ExecutionPlanChecklistDefinitionItem {
+  readonly id: string;
+  readonly category: string;
+  readonly obligation: string;
+  readonly owner: 'contributor' | 'human';
+  readonly required_proof: string;
+  readonly reviewed_disposition: 'not_applicable' | 'pending_human' | null;
+  readonly reviewed_detail: string | null;
+}
+
+export interface ExecutionPlanDeliveryDefinition {
+  readonly schema_version: 1;
+  readonly design_approval_gate: boolean;
+  readonly proof_specifications: readonly ExecutionPlanProofSpecification[];
+  readonly checklist_items: readonly ExecutionPlanChecklistDefinitionItem[];
+}
+
+export interface ExecutionPlanRecord {
+  readonly slicing_decision: 'one_pull_request' | 'multiple_pull_requests';
+  readonly rationale: string;
+  readonly slices: readonly ExecutionPlanSlice[];
+  readonly obligation_owners: readonly ExecutionPlanObligationOwner[];
+  readonly decision_statuses: readonly ExecutionPlanDecisionStatus[];
+  readonly accepted_scenarios_covered: true;
+  readonly accepted_approach_preserved: true;
+  readonly normalized_plan_digest: string;
+  readonly delivery_definition: ExecutionPlanDeliveryDefinition;
+}
+
 export interface ReviewerOutput {
   readonly schema_version: 1;
   readonly dispatch_id: string;
-  readonly reviewer_agent: ReviewAgent;
+  readonly reviewer_agent: SupportedReviewAuthor;
   readonly verdict: 'approve' | 'request_changes';
   readonly summary: string;
   readonly findings: readonly ReviewFinding[];
+  readonly evidence_records?: ReviewEvidenceRecordsV1;
+  readonly planning_destination?: 'plan-execution' | 'plan-implementation';
+  readonly execution_plan_record?: ExecutionPlanRecord | null;
 }
 
 export interface UnverifiedReviewerOutput {
@@ -90,21 +181,58 @@ export interface UnverifiedReviewerOutput {
   readonly verdict: 'approve' | 'request_changes';
   readonly summary: string;
   readonly findings: readonly ReviewFinding[];
+  readonly evidence_records?: unknown;
+  readonly planning_destination?: unknown;
+  readonly execution_plan_record?: unknown;
+}
+
+export interface PlanContractIdentity {
+  readonly sha256: string;
+  readonly obligations: readonly string[];
+}
+
+export interface PlanContractPair {
+  readonly author: PlanContractIdentity;
+  readonly reviewer: PlanContractIdentity;
+}
+
+export interface GitDiffRepresentation {
+  readonly kind: 'git-diff';
+  readonly base_ref: string;
+  readonly base_commit: string;
+  readonly base_path: string;
+  readonly base_blob: string;
+  readonly base_sha256: string;
+  readonly base_mode: '100644' | '100755';
+  readonly source_sha256: string;
+  readonly source_bytes: number;
+  readonly source_mode: '100644' | '100755';
+}
+
+export interface ReviewPacketFile {
+  readonly path: string;
+  readonly content: string;
+  /** Present only for a coordinator-validated logical lockfile patch. */
+  readonly representation?: GitDiffRepresentation;
 }
 
 export interface ReviewPacket {
   readonly schema_version: 1;
   readonly dispatch_id: string;
   readonly kind: ReviewKind;
-  readonly logical_files: readonly {
-    readonly path: string;
-    readonly content: string;
-  }[];
+  readonly logical_files: readonly ReviewPacketFile[];
   /** Bounded evidence available to the reviewer, but not part of the work product. */
-  readonly context_files?: readonly {
-    readonly path: string;
-    readonly content: string;
-  }[];
+  readonly context_files?: readonly ReviewPacketFile[];
+  /** Exact author/reviewer planning obligations carried through semantic review. */
+  readonly planning_phase?: 'product-plan' | 'plan-implementation' | 'plan-execution';
+  readonly planning_context?: PlanningRoleContext;
+  readonly review_disposition_context?: ReviewDispositionContext;
+  readonly upstream_plan_contract?: PlanContractPair;
+  readonly plan_contract?: PlanContractPair;
+  /** Trusted normalized definition the plan-execution reviewer must retain exactly. */
+  readonly execution_plan_delivery_definition?: ExecutionPlanDeliveryDefinition;
+  /** Trusted digest of the whole Execution Plan with ordinary progress normalized out. */
+  readonly execution_plan_normalized_digest?: string;
   /** Trusted process evidence, present only for executable RED review. */
   readonly execution_attestation?: RedExecutionAttestation;
 }
@@ -114,6 +242,7 @@ const REVIEW_KINDS = new Set<ReviewKind>([
   'scenario-gate',
   'plan-implementation',
   'plan-execution',
+  'delivery-compatibility',
   'executable-red',
   'retrospective-eligibility',
   'retrospective-proof',

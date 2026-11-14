@@ -13,6 +13,10 @@ if git rev-parse --verify HEAD > /dev/null 2>&1 && git diff --cached --quiet; th
   exit 0
 fi
 
+# Git hooks also need the repository pins in non-interactive shells.
+PATH=$(scripts/dev --print-path) || exit 1
+export PATH
+
 # Fail if nested config directories/files exist (indicates setup ran from wrong directory)
 # Uses schema-derived patterns to stay in sync with what safeword creates
 bun scripts/check-nested-configs.ts || exit 1

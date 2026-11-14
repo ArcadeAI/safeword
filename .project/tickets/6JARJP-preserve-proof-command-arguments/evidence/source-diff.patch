@@ -1,0 +1,502 @@
+diff --git a/packages/cli/src/execution-plan/delivery-checklist.ts b/packages/cli/src/execution-plan/delivery-checklist.ts
+index eab96de70..93b8f0c00 100644
+--- a/packages/cli/src/execution-plan/delivery-checklist.ts
++++ b/packages/cli/src/execution-plan/delivery-checklist.ts
+@@ -202,7 +202,8 @@ function splitRow(line: string): string[] | undefined {
+   const body = line.trim().slice(1, -1);
+   for (const character of body) {
+     if (escaped) {
+-      cell += character;
++      // Only Markdown pipe escapes belong to the table; preserve JSON escapes.
++      cell += character === '|' ? character : `\\${character}`;
+       escaped = false;
+     } else if (character === '\\') {
+       escaped = true;
+@@ -274,7 +275,9 @@ function parseCommandInvocation(
+   if (
+     !Array.isArray(value.argv) ||
+     value.argv.length === 0 ||
+-    value.argv.some(argument => typeof argument !== 'string' || argument === '')
++    typeof value.argv[0] !== 'string' ||
++    value.argv[0].trim() === '' ||
++    value.argv.some(argument => typeof argument !== 'string')
+   ) {
+     return undefined;
+   }
+diff --git a/packages/cli/src/review/execution-plan-output.ts b/packages/cli/src/review/execution-plan-output.ts
+index 4df7f14e4..6ed7ba2c9 100644
+--- a/packages/cli/src/review/execution-plan-output.ts
++++ b/packages/cli/src/review/execution-plan-output.ts
+@@ -22,7 +22,7 @@ type ValidatedExecutionPlanOutput =
+         readonly execution_plan_record: null;
+       };
+     }
+-  | { readonly kind: 'invalid_output' };
++  | { readonly kind: 'invalid_output'; readonly reason: string };
+ 
+ const NULL_EXECUTION_PLAN_RECORD = JSON.parse('null') as null;
+ 
+@@ -51,6 +51,15 @@ function uniqueNonblankStrings(value: unknown, allowEmpty: boolean): value is st
+   return new Set(value).size === value.length;
+ }
+ 
++function commandArguments(value: unknown): value is string[] {
++  return (
++    Array.isArray(value) &&
++    value.length > 0 &&
++    isNonblank(value[0]) &&
++    value.every(argument => typeof argument === 'string')
++  );
++}
++
+ function deniedOutput(
+   output: UnverifiedReviewerOutput,
+   messages: readonly string[] = [],
+@@ -164,28 +173,52 @@ function isProjectContainedPath(value: string): boolean {
+   return !value.split(/[\\/]/u).includes('..');
+ }
+ 
+-function isValidProofInvocation(
++function commandInvocationFailure(
++  value: Record<string, unknown>,
++  path: string,
++): string | undefined {
++  if (!hasExactKeys(value, ['type', 'cwd', 'argv'])) {
++    return `${path} must contain exactly type, cwd, and argv`;
++  }
++  if (typeof value.cwd !== 'string' || !isProjectContainedPath(value.cwd)) {
++    return `${path}.cwd must be a project-contained path`;
++  }
++  if (!commandArguments(value.argv)) {
++    return `${path}.argv must be a non-empty array of strings with a nonblank executable`;
++  }
++  return undefined;
++}
++
++function receiptInvocationFailure(
++  value: Record<string, unknown>,
++  path: string,
++): string | undefined {
++  if (!hasExactKeys(value, ['type', 'kind', 'targets'])) {
++    return `${path} must contain exactly type, kind, and targets`;
++  }
++  if (!isNonblank(value.kind)) return `${path}.kind must be a nonblank string`;
++  if (!uniqueNonblankStrings(value.targets, false)) {
++    return `${path}.targets must be a non-empty array of unique nonblank strings`;
++  }
++  if (value.targets.some(target => !isProjectContainedPath(target))) {
++    return `${path}.targets must contain only project-contained paths`;
++  }
++  return undefined;
++}
++
++function proofInvocationFailure(
+   value: unknown,
+   method: ExecutionPlanProofSpecification['method'],
+-): boolean {
+-  if (!isRecord(value) || value.type !== method) return false;
+-  if (method === 'command') {
+-    return (
+-      hasExactKeys(value, ['type', 'cwd', 'argv']) &&
+-      typeof value.cwd === 'string' &&
+-      isProjectContainedPath(value.cwd) &&
+-      uniqueNonblankStrings(value.argv, false)
+-    );
+-  }
+-  return (
+-    hasExactKeys(value, ['type', 'kind', 'targets']) &&
+-    isNonblank(value.kind) &&
+-    uniqueNonblankStrings(value.targets, false) &&
+-    value.targets.every(target => isProjectContainedPath(target))
+-  );
++  path: string,
++): string | undefined {
++  if (!isRecord(value)) return `${path} must be an object`;
++  if (value.type !== method) return `${path}.type must match the proof method`;
++  return method === 'command'
++    ? commandInvocationFailure(value, path)
++    : receiptInvocationFailure(value, path);
+ }
+ 
+-function isValidProofSpecification(value: unknown): value is ExecutionPlanProofSpecification {
++function proofSpecificationFailure(value: unknown, path: string): string | undefined {
+   if (
+     !isRecord(value) ||
+     !hasExactKeys(value, [
+@@ -198,7 +231,7 @@ function isValidProofSpecification(value: unknown): value is ExecutionPlanProofS
+       'invocation',
+     ])
+   ) {
+-    return false;
++    return `${path} has an invalid object shape`;
+   }
+   const methodIsValid = value.method === 'command' || value.method === 'review_receipt';
+   const scopeIsValid = ['unit', 'integration', 'E2E', 'eval'].includes(String(value.scope));
+@@ -208,20 +241,25 @@ function isValidProofSpecification(value: unknown): value is ExecutionPlanProofS
+   const currencyIsValid = ['current_required', 'compatible_earlier_allowed'].includes(
+     String(value.currency),
+   );
+-  return (
+-    isNonblank(value.proof_id) &&
+-    isNonblank(value.boundary_exercised) &&
+-    methodIsValid &&
+-    scopeIsValid &&
+-    qualificationIsValid &&
+-    currencyIsValid &&
+-    isValidProofInvocation(
+-      value.invocation,
+-      value.method as ExecutionPlanProofSpecification['method'],
+-    )
++  if (!isNonblank(value.proof_id)) return `${path}.proof_id must be a nonblank string`;
++  if (!isNonblank(value.boundary_exercised)) {
++    return `${path}.boundary_exercised must be a nonblank string`;
++  }
++  if (!methodIsValid) return `${path}.method is unsupported`;
++  if (!scopeIsValid) return `${path}.scope is unsupported`;
++  if (!qualificationIsValid) return `${path}.qualifies_as is unsupported`;
++  if (!currencyIsValid) return `${path}.currency is unsupported`;
++  return proofInvocationFailure(
++    value.invocation,
++    value.method as ExecutionPlanProofSpecification['method'],
++    `${path}.invocation`,
+   );
+ }
+ 
++function isValidProofSpecification(value: unknown): value is ExecutionPlanProofSpecification {
++  return proofSpecificationFailure(value, 'proof specification') === undefined;
++}
++
+ function hasValidChecklistItemBase(value: Record<string, unknown>): boolean {
+   return (
+     isNonblank(value.id) &&
+@@ -329,6 +367,25 @@ function hasValidDeliveryDefinition(definition: ExecutionPlanDeliveryDefinition)
+   );
+ }
+ 
++function deliveryDefinitionFailure(value: unknown): string | undefined {
++  if (!isRecord(value)) return 'execution_plan_record.delivery_definition must be an object';
++  const definition = value as unknown as ExecutionPlanDeliveryDefinition;
++  if (!hasValidDeliveryDefinitionHeader(definition)) {
++    return 'execution_plan_record.delivery_definition has an invalid header';
++  }
++  for (const [index, proof] of definition.proof_specifications.entries()) {
++    const failure = proofSpecificationFailure(
++      proof,
++      `execution_plan_record.delivery_definition.proof_specifications[${index}]`,
++    );
++    if (failure !== undefined) return failure;
++  }
++  if (!hasValidDeliveryDefinition(definition)) {
++    return 'execution_plan_record.delivery_definition failed structural validation';
++  }
++  return undefined;
++}
++
+ function hasValidSliceGraph(record: ExecutionPlanRecord): boolean {
+   const slices = record.slices;
+   const countMatchesDecision =
+@@ -390,6 +447,17 @@ function isValidExecutionPlanRecord(value: unknown): value is ExecutionPlanRecor
+   );
+ }
+ 
++function executionPlanRecordFailure(value: unknown): string | undefined {
++  if (!isRecord(value)) return 'execution_plan_record must be an object';
++  if (!hasValidRecordHeader(value)) return 'execution_plan_record has an invalid header';
++  const deliveryFailure = deliveryDefinitionFailure(value.delivery_definition);
++  if (deliveryFailure !== undefined) return deliveryFailure;
++  if (!isValidExecutionPlanRecord(value)) {
++    return 'execution_plan_record failed structural validation';
++  }
++  return undefined;
++}
++
+ function hasValidPlanningDestination(output: UnverifiedReviewerOutput): boolean {
+   const destination = output.planning_destination;
+   return (
+@@ -404,7 +472,9 @@ export function validateExecutionPlanOutput(
+   expectedDefinition?: ExecutionPlanDeliveryDefinition,
+   expectedNormalizedPlanDigest?: string,
+ ): ValidatedExecutionPlanOutput {
+-  if (!hasValidPlanningDestination(output)) return { kind: 'invalid_output' };
++  if (!hasValidPlanningDestination(output)) {
++    return { kind: 'invalid_output', reason: 'planning_destination is invalid' };
++  }
+   if (output.verdict === 'request_changes') return deniedOutput(output);
+ 
+   const candidate = output.execution_plan_record;
+@@ -412,18 +482,26 @@ export function validateExecutionPlanOutput(
+     const tripwires = readableTripwireFindings(candidate);
+     if (tripwires.length > 0) return deniedOutput(output, tripwires);
+   }
+-  if (!isValidExecutionPlanRecord(candidate)) return { kind: 'invalid_output' };
++  const recordFailure = executionPlanRecordFailure(candidate);
++  if (recordFailure !== undefined) return { kind: 'invalid_output', reason: recordFailure };
++  const validatedCandidate = candidate as ExecutionPlanRecord;
+   if (
+     expectedDefinition !== undefined &&
+-    !isDeepStrictEqual(candidate.delivery_definition, expectedDefinition)
++    !isDeepStrictEqual(validatedCandidate.delivery_definition, expectedDefinition)
+   ) {
+-    return { kind: 'invalid_output' };
++    return {
++      kind: 'invalid_output',
++      reason: 'execution_plan_record.delivery_definition differs from the trusted definition',
++    };
+   }
+   if (
+     expectedNormalizedPlanDigest !== undefined &&
+-    candidate.normalized_plan_digest !== expectedNormalizedPlanDigest
++    validatedCandidate.normalized_plan_digest !== expectedNormalizedPlanDigest
+   ) {
+-    return { kind: 'invalid_output' };
++    return {
++      kind: 'invalid_output',
++      reason: 'execution_plan_record.normalized_plan_digest differs from the trusted digest',
++    };
+   }
+-  return { kind: 'approved', output: { ...output, execution_plan_record: candidate } };
++  return { kind: 'approved', output: { ...output, execution_plan_record: validatedCandidate } };
+ }
+diff --git a/packages/cli/src/review/runtime.ts b/packages/cli/src/review/runtime.ts
+index 35779b465..6ef121436 100644
+--- a/packages/cli/src/review/runtime.ts
++++ b/packages/cli/src/review/runtime.ts
+@@ -1561,9 +1561,18 @@ async function runCandidate(
+                 packet.execution_plan_delivery_definition,
+                 packet.execution_plan_normalized_digest,
+               );
+-              if (validation.kind === 'invalid_output') throw new Error('invalid reviewer output');
++              if (validation.kind === 'invalid_output') {
++                throw new ReviewRuntimeError(
++                  'invalid_output',
++                  `${reviewer} returned invalid review output: ${validation.reason}`,
++                );
++              }
+               resolve(validation.output);
+-            } catch {
++            } catch (error) {
++              if (error instanceof ReviewRuntimeError) {
++                reject(error);
++                return;
++              }
+               reject(
+                 new ReviewRuntimeError(
+                   'invalid_output',
+diff --git a/packages/cli/tests/execution-plan/delivery-checklist.test.ts b/packages/cli/tests/execution-plan/delivery-checklist.test.ts
+index ad7ab4ce2..407f1fe92 100644
+--- a/packages/cli/tests/execution-plan/delivery-checklist.test.ts
++++ b/packages/cli/tests/execution-plan/delivery-checklist.test.ts
+@@ -177,6 +177,37 @@ describe('Delivery Checklist contract', () => {
+ });
+ 
+ describe('Proof specifications contract', () => {
++  it.each([
++    ['repeated flags', ['cargo', 'test', '--test', 'one', '--test', 'two']],
++    ['empty operands', ['node', '-e', '', ' ', '']],
++    ['JSON backslashes', ['node', '-e', String.raw`console.log(/\d/.test("C:\\tmp"))`]],
++    ['escaped pipe and backslash', ['node', '-e', String.raw`console.log(/a|b/, "\\|")`]],
++  ])('preserves %s in proof command JSON', (_name, argv) => {
++    const invocation = { type: 'command', cwd: 'packages/cli', argv };
++    const json = JSON.stringify(invocation).replaceAll('|', String.raw`\|`);
++    const result = parseProofSpecifications(
++      proofSpecifications([
++        `| proof | command | unit | parser | real_boundary | current_required | ${json} |`,
++      ]),
++    );
++    expect(result).toMatchObject({ ok: true, specifications: [{ invocation }] });
++  });
++
++  it.each([
++    ['empty argv', []],
++    ['empty executable', ['']],
++    ['blank executable', [' ', 'test']],
++    ['non-string operand', ['node', 1]],
++  ])('rejects malformed argv: %s', (_name, argv) => {
++    const invocation = { type: 'command', cwd: '.', argv };
++    const result = parseProofSpecifications(
++      proofSpecifications([
++        `| proof | command | unit | parser | real_boundary | current_required | ${JSON.stringify(invocation)} |`,
++      ]),
++    );
++    expect(result.ok).toBe(false);
++  });
++
+   it('parses retained command and review-receipt invocations without inventing defaults', () => {
+     const content = proofSpecifications([
+       '| unit-tests | command | unit | checklist parser | partial_or_structural | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test"]} |',
+diff --git a/packages/cli/tests/review/execution-plan-output.test.ts b/packages/cli/tests/review/execution-plan-output.test.ts
+index eee746df3..329636040 100644
+--- a/packages/cli/tests/review/execution-plan-output.test.ts
++++ b/packages/cli/tests/review/execution-plan-output.test.ts
+@@ -232,6 +232,63 @@ describe('Execution Plan output schema', () => {
+ });
+ 
+ describe('Execution Plan output validation', () => {
++  it.each([
++    ['repeated flags', ['cargo', 'test', '--test', 'local_route', '--test', 'request_audit']],
++    ['empty operands', ['node', '-e', '', ' ', '']],
++  ])('accepts %s without changing the trusted definition', (_name, argv) => {
++    const record = validRecord();
++    const proof = record.delivery_definition.proof_specifications[0];
++    if (proof?.invocation.type !== 'command') throw new Error('Missing command proof');
++    Object.assign(proof.invocation, { argv });
++    const output = approval(record);
++    expect(
++      validateExecutionPlanOutput(
++        output,
++        structuredClone(record.delivery_definition),
++        record.normalized_plan_digest,
++      ),
++    ).toEqual({ kind: 'approved', output });
++  });
++
++  it.each([
++    ['empty argv', { argv: [] }, 'invocation.argv'],
++    ['blank executable', { argv: [' ', 'test'] }, 'invocation.argv'],
++    ['empty executable', { argv: ['', 'test'] }, 'invocation.argv'],
++    ['non-string operand', { argv: ['node', 1] }, 'invocation.argv'],
++    ['non-array argv', { argv: 'node' }, 'invocation.argv'],
++    ['outside cwd', { cwd: '../outside' }, 'invocation.cwd'],
++    ['absolute cwd', { cwd: '/outside' }, 'invocation.cwd'],
++    ['mismatched type', { type: 'review_receipt' }, 'invocation.type'],
++    ['extra invocation key', { extra: true }, 'invocation'],
++  ])('rejects %s with a field-specific reason', (_name, changes, field) => {
++    const record = validRecord();
++    const proof = record.delivery_definition.proof_specifications[0];
++    if (!proof) throw new Error('Missing proof fixture');
++    Object.assign(proof.invocation, changes);
++    expect(validateExecutionPlanOutput(approval(record))).toEqual({
++      kind: 'invalid_output',
++      reason: expect.stringContaining(field),
++    });
++  });
++
++  it('keeps receipt targets unique and names the rejected field', () => {
++    const record = validRecord();
++    const proof = record.delivery_definition.proof_specifications[0];
++    if (!proof) throw new Error('Missing proof fixture');
++    Object.assign(proof, {
++      method: 'review_receipt',
++      invocation: {
++        type: 'review_receipt',
++        kind: 'scenario-gate',
++        targets: ['a.feature', 'a.feature'],
++      },
++    });
++    expect(validateExecutionPlanOutput(approval(record))).toEqual({
++      kind: 'invalid_output',
++      reason: expect.stringContaining('invocation.targets'),
++    });
++  });
++
+   it('accepts a complete positive record without changing it', () => {
+     const output = approval();
+     expect(validateExecutionPlanOutput(output)).toEqual({ kind: 'approved', output });
+@@ -255,7 +312,10 @@ describe('Execution Plan output validation', () => {
+       }),
+     );
+ 
+-    expect(validateExecutionPlanOutput(output, expected)).toEqual({ kind: 'invalid_output' });
++    expect(validateExecutionPlanOutput(output, expected)).toEqual({
++      kind: 'invalid_output',
++      reason: expect.any(String),
++    });
+   });
+ 
+   it('refuses a reviewer digest that differs from the trusted normalized plan identity', () => {
+@@ -264,6 +324,7 @@ describe('Execution Plan output validation', () => {
+ 
+     expect(validateExecutionPlanOutput(output, expected, 'b'.repeat(64))).toEqual({
+       kind: 'invalid_output',
++      reason: expect.any(String),
+     });
+   });
+ 
+@@ -295,19 +356,19 @@ describe('Execution Plan output validation', () => {
+ 
+     expect(
+       validateExecutionPlanOutput(withoutDestination as unknown as UnverifiedReviewerOutput),
+-    ).toEqual({ kind: 'invalid_output' });
++    ).toEqual({ kind: 'invalid_output', reason: expect.any(String) });
+     expect(
+       validateExecutionPlanOutput({
+         ...approval(),
+         planning_destination: 'somewhere-else',
+       }),
+-    ).toEqual({ kind: 'invalid_output' });
++    ).toEqual({ kind: 'invalid_output', reason: expect.any(String) });
+     expect(
+       validateExecutionPlanOutput({
+         ...approval(),
+         planning_destination: 'plan-implementation',
+       }),
+-    ).toEqual({ kind: 'invalid_output' });
++    ).toEqual({ kind: 'invalid_output', reason: expect.any(String) });
+   });
+ 
+   it.each([
+@@ -494,6 +555,7 @@ describe('Execution Plan output validation', () => {
+   ])('classifies %s as retryable invalid output', (_name, output) => {
+     expect(validateExecutionPlanOutput(output)).toEqual({
+       kind: 'invalid_output',
++      reason: expect.any(String),
+     });
+   });
+ 
+diff --git a/packages/cli/tests/review/runtime.test.ts b/packages/cli/tests/review/runtime.test.ts
+index 929dcf405..6f601c7d4 100644
+--- a/packages/cli/tests/review/runtime.test.ts
++++ b/packages/cli/tests/review/runtime.test.ts
+@@ -604,6 +604,52 @@ describe('reviewer process-group liveness', () => {
+ });
+ 
+ describe('headless reviewer process lifecycle', () => {
++  it.skipIf(process.platform === 'win32')(
++    'preserves the structural rejection reason from plan-execution review output',
++    async () => {
++      vi.stubEnv('NODE_ENV', 'test');
++      const bin = trustedTemporaryDirectory();
++      const project = temporaryDirectory();
++      const untrustedRoot = temporaryDirectory();
++      const executable = nodePath.join(bin, 'claude');
++      const malformedApproval = {
++        ...output,
++        planning_destination: 'plan-execution',
++        execution_plan_record: JSON.parse('null') as null,
++      };
++      writeFileSync(
++        executable,
++        `#!/bin/sh
++if [ "\${1:-}" = "--help" ]; then
++  echo '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools'
++  exit 0
++fi
++/bin/cat > /dev/null
++printf '%s' '${JSON.stringify({ structured_output: malformedApproval })}'
++`,
++      );
++      chmodSync(executable, 0o755);
++      vi.stubEnv('PATH', bin);
++
++      await expect(
++        runHeadlessReviewer(
++          'claude',
++          {
++            schema_version: 1,
++            dispatch_id: 'dispatch-1',
++            kind: 'plan-execution',
++            logical_files: [],
++          },
++          project,
++          untrustedRoot,
++        ),
++      ).rejects.toMatchObject({
++        failure: 'invalid_output',
++        message: expect.stringContaining('execution_plan_record must be an object'),
++      });
++    },
++  );
++
+   it.skipIf(process.platform === 'win32')(
+     'blocks contradictory plan contracts even when the reviewer approves',
+     async () => {

@@ -25,7 +25,6 @@ import {
   createBoundaryProject,
   git,
   readAudit,
-  shapeValidImplPlan,
 } from './boundary-helpers';
 
 function writeIntakeFeatureTicket(dir: string, folder: string): void {
@@ -73,16 +72,16 @@ describe('safeword boundary (slice 1: engine core)', () => {
       );
       git(dir, 'add -A');
       git(dir, 'commit -m seed --quiet');
-      // The anchored impl-plan lands on disk only — never `git add`ed, so the
+      // The anchored execution plan lands on disk only — never `git add`ed, so the
       // staged tree the commit will ship does not contain it.
-      writeTestFile(dir, `${ticket}/impl-plan.md`, '# plan on disk only\n');
+      writeTestFile(dir, `${ticket}/execution-plan.md`, '# plan on disk only\n');
       writeTestFile(
         dir,
         `${ticket}/ticket.md`,
         boundaryTicketContent({
           id: 'BND009',
           phase: 'implement',
-          anchors: [`implement: ${ticket}/impl-plan.md`],
+          anchors: [`implement: ${ticket}/execution-plan.md`],
         }),
       );
       git(dir, `add ${ticket}/ticket.md`);
@@ -101,17 +100,17 @@ describe('safeword boundary (slice 1: engine core)', () => {
         `${ticket}/ticket.md`,
         boundaryTicketContent({ id: 'BND010', phase: 'scenario-gate' }),
       );
-      writeTestFile(dir, `${foreignTicket}/impl-plan.md`, '# foreign plan\n');
+      writeTestFile(dir, `${foreignTicket}/execution-plan.md`, '# foreign plan\n');
       git(dir, 'add -A');
       git(dir, 'commit -m seed --quiet');
-      writeTestFile(dir, `${foreignTicket}/impl-plan.md`, shapeValidImplPlan());
+      writeTestFile(dir, `${foreignTicket}/execution-plan.md`, '# Execution Plan\n');
       writeTestFile(
         dir,
         `${ticket}/ticket.md`,
         boundaryTicketContent({
           id: 'BND010',
           phase: 'implement',
-          anchors: [`implement: ${foreignTicket}/impl-plan.md`],
+          anchors: [`implement: ${foreignTicket}/execution-plan.md`],
         }),
       );
       git(dir, 'add -A');
@@ -131,14 +130,14 @@ describe('safeword boundary (slice 1: engine core)', () => {
       );
       git(dir, 'add -A');
       git(dir, 'commit -m seed --quiet');
-      writeTestFile(dir, `${ticket}/impl-plan.md`, shapeValidImplPlan());
+      writeTestFile(dir, `${ticket}/execution-plan.md`, '# Execution Plan\n');
       writeTestFile(
         dir,
         `${ticket}/ticket.md`,
         boundaryTicketContent({
           id: 'BND012',
           phase: 'implement',
-          anchors: [`implement: 0:${ticket}/impl-plan.md`],
+          anchors: [`implement: 0:${ticket}/execution-plan.md`],
         }),
       );
       git(dir, 'add -A');
@@ -318,8 +317,8 @@ describe('safeword boundary (slice 1: engine core)', () => {
         `${ticket}/ticket.md`,
         boundaryTicketContent({
           id: 'BND017',
-          phase: 'implement',
-          anchors: [`implement: ${ticket}/impl-plan.md`],
+          phase: 'plan-execution',
+          anchors: [`plan-execution: ${ticket}/impl-plan.md`],
         }),
       );
       git(dir, 'add -A');
@@ -341,8 +340,8 @@ describe('safeword boundary (slice 1: engine core)', () => {
         `${ticket}/ticket.md`,
         boundaryTicketContent({
           id: 'BND018',
-          phase: 'implement',
-          anchors: [`implement: ${ticket}/impl-plan.md`],
+          phase: 'plan-execution',
+          anchors: [`plan-execution: ${ticket}/impl-plan.md`],
         }),
       );
       git(dir, 'add -A');

@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "ok": true,
+  "state": "healthy",
+  "changed": false,
+  "findings": [
+    {
+      "code": "REVIEW_INDEPENDENCE",
+      "message": "A different agent (Claude) checked the work in a separate headless process.",
+      "severity": "info"
+    },
+    {
+      "code": "REVIEWER_SUMMARY",
+      "message": "The Go auto-linting paragraph mostly matches the supplied go-lint.ts. `fmt` runs only on the edited file. `run` targets `.` from the edited file's directory, so it checks the whole package. The diagnostic context says findings may predate the edit and that sibling files were not auto-fixed. `--path-prefix` supports the claim that findings identify their source files. I found no blocking errors. Some nearby general statements are looser than the Go behavior, and the supplied context can't fully confirm two details.",
+      "severity": "info"
+    },
+    {
+      "code": "REVIEWER_FINDING",
+      "message": "The general auto-linting text conflicts with the Go-specific paragraph. 'Usually nothing \u2014 the linter auto-fixes quietly' is followed by 'Go lint findings are not auto-fixed.' Go users get findings that are never auto-fixed, and those findings can predate the edit. Consider saying the auto-fix claim excludes Go, or moving the Go note next to the 'What you see' line.",
+      "severity": "warning"
+    },
+    {
+      "code": "REVIEWER_FINDING",
+      "message": "'If a linter isn't installed, it's silently skipped' is not clearly true for Go. In go-lint.ts, a failed `fmt` or `run` produces a warning like 'golangci-lint fmt failed: \u2026', or 'Go lint could not run: \u2026' if an exception is thrown. A missing Safeword Go config also produces a visible warning. The supplied context doesn't show how a missing golangci-lint binary is handled (that's in goLintProcess), so it's unclear whether that case is actually silent.",
+      "severity": "warning"
+    },
+    {
+      "code": "REVIEWER_FINDING",
+      "message": "'Check-only lint' assumes `config.args`, built in go-lint/config.js, never adds `--fix`. That file wasn't supplied. The `run` call in go-lint.ts adds no fix flag, and its diagnostic text says sibling files were not auto-fixed, which supports the claim.",
+      "severity": "info"
+    }
+  ],
+  "effects": {
+    "files": [],
+    "packages": [],
+    "configuration": [],
+    "network": [
+      {
+        "kind": "review",
+        "target": "claude",
+        "operation": "request"
+      }
+    ],
+    "destructive": []
+  },
+  "errors": [],
+  "recovery": [],
+  "next_actions": [],
+  "data": {
+    "command": "review run",
+    "status": "approved",
+    "review_kind": "quality-review",
+    "review_targets": [
+      "packages/website/src/content/docs/reference/hooks-and-skills.mdx"
+    ],
+    "author_agent": "codex",
+    "assigned_reviewer": "claude",
+    "actual_reviewer": "claude",
+    "reviewer_model": "opus",
+    "independence": "cross-agent",
+    "reviewer_output": {
+      "schema_version": 1,
+      "dispatch_id": "6b046f82-eaba-436a-9e18-71a22ca5a14a",
+      "reviewer_agent": "claude",
+      "verdict": "approve",
+      "summary": "The Go auto-linting paragraph mostly matches the supplied go-lint.ts. `fmt` runs only on the edited file. `run` targets `.` from the edited file's directory, so it checks the whole package. The diagnostic context says findings may predate the edit and that sibling files were not auto-fixed. `--path-prefix` supports the claim that findings identify their source files. I found no blocking errors. Some nearby general statements are looser than the Go behavior, and the supplied context can't fully confirm two details.",
+      "findings": [
+        {
+          "severity": "warning",
+          "message": "The general auto-linting text conflicts with the Go-specific paragraph. 'Usually nothing \u2014 the linter auto-fixes quietly' is followed by 'Go lint findings are not auto-fixed.' Go users get findings that are never auto-fixed, and those findings can predate the edit. Consider saying the auto-fix claim excludes Go, or moving the Go note next to the 'What you see' line."
+        },
+        {
+          "severity": "warning",
+          "message": "'If a linter isn't installed, it's silently skipped' is not clearly true for Go. In go-lint.ts, a failed `fmt` or `run` produces a warning like 'golangci-lint fmt failed: \u2026', or 'Go lint could not run: \u2026' if an exception is thrown. A missing Safeword Go config also produces a visible warning. The supplied context doesn't show how a missing golangci-lint binary is handled (that's in goLintProcess), so it's unclear whether that case is actually silent."
+        },
+        {
+          "severity": "info",
+          "message": "'Check-only lint' assumes `config.args`, built in go-lint/config.js, never adds `--fix`. That file wasn't supplied. The `run` call in go-lint.ts adds no fix flag, and its diagnostic text says sibling files were not auto-fixed, which supports the claim."
+        }
+      ]
+    },
+    "excluded_targets": [],
+    "review_id": "82a997d7-ea8a-4d2d-827c-f431e1fe72e4",
+    "review_excluded_targets": []
+  }
+}

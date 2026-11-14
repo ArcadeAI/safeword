@@ -14,7 +14,8 @@ export interface InspirationActivationInput {
 export type InspirationActivationVerdict =
   { ok: true; activated: boolean } | { ok: false; reason: string; remediation: string };
 
-export type InspirationEvidencePath = 'legacy' | 'reference' | 'unsuccessful-search';
+export type InspirationEvidencePath =
+  'legacy' | 'reference' | 'unsuccessful-search' | 'not-applicable';
 
 export type InspirationEvidenceVerdict =
   { ok: true; path: InspirationEvidencePath } | { ok: false; reason: string; remediation: string };
@@ -48,6 +49,7 @@ export const IMPLEMENTATION_INSPIRATION_GRAMMAR = {
     '| Technical question | Decision informed | Constraints | Dependency versions | Source categories | Repositories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |',
   searchDelimiter: '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
   recordedDecisionsHeading: '### Recorded Decisions',
+  decisionEvidenceApplicability: 'Decision evidence applicability: skip:',
 } as const;
 
 const {
@@ -58,7 +60,7 @@ const {
 } = IMPLEMENTATION_INSPIRATION_GRAMMAR;
 
 const EVIDENCE_REMEDIATION =
-  'Complete one exact inspiration reference table or the exact unsuccessful-search table with current dates and non-empty fields.';
+  'Complete one evidence record as the packaged table, labeled prose or bullets, or the exact unsuccessful-search table; keep every required field current and non-empty.';
 
 function frontmatterLines(content: string): string[] {
   const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(content);
@@ -305,6 +307,80 @@ function decisionRows(content: string): string[][] {
   return new Set(identifiers).size === identifiers.length ? rows : [];
 }
 
+function hasJustifiedDecisionEvidenceSkip(recordedDecisions: string): boolean {
+  const prefix = IMPLEMENTATION_INSPIRATION_GRAMMAR.decisionEvidenceApplicability;
+  const lines = recordedDecisions.split(/\r?\n/u);
+  const candidates = lines.filter(line => line.startsWith(prefix));
+  if (candidates.length !== 1) return false;
+  const reason = candidates[0]?.slice(prefix.length).trim() ?? '';
+  return reason !== '' && reason !== '<reason>';
+}
+
+const NARRATIVE_EVIDENCE_FIELDS = [
+  'decision',
+  'choice',
+  'alternative considered',
+  'rejected because',
+  'evidence reference',
+  'retrieval date',
+  'applicable version',
+] as const;
+
+type NarrativeEvidenceField = (typeof NARRATIVE_EVIDENCE_FIELDS)[number];
+
+interface NarrativeEvidenceRecord {
+  present: boolean;
+  values: Partial<Record<NarrativeEvidenceField, string>>;
+  duplicate?: NarrativeEvidenceField;
+}
+
+function narrativeEvidenceRecord(recordedDecisions: string): NarrativeEvidenceRecord {
+  const values: Partial<Record<NarrativeEvidenceField, string>> = {};
+  let present = false;
+  for (const line of recordedDecisions.split(/\r?\n/u)) {
+    const match = /^\s*(?:[-*+]\s+)?(?:\*\*)?([^:*]+?):(?:\*\*)?\s*(.+?)\s*$/u.exec(line);
+    if (!match) continue;
+    const label = match[1]!.trim().toLowerCase();
+    const field =
+      label === 'alternatives considered'
+        ? 'alternative considered'
+        : NARRATIVE_EVIDENCE_FIELDS.find(candidate => candidate === label);
+    if (!field) continue;
+    present = true;
+    if (values[field] !== undefined) return { present, values, duplicate: field };
+    values[field] = match[2]!.trim();
+  }
+  return { present, values };
+}
+
+function validateNarrativeImplementationEvidence(
+  recordedDecisions: string,
+  baseline: string,
+  evaluationDate: string,
+): InspirationEvidenceVerdict | undefined {
+  const record = narrativeEvidenceRecord(recordedDecisions);
+  if (!record.present) return undefined;
+  if (record.duplicate) {
+    return evidenceFailure(
+      `Implementation decision evidence repeats the ${record.duplicate}. Keep exactly one value.`,
+    );
+  }
+  for (const field of NARRATIVE_EVIDENCE_FIELDS) {
+    if (record.values[field] === undefined) {
+      return evidenceFailure(`Implementation decision evidence is missing the ${field}.`);
+    }
+  }
+  if (!isHttpsUrl(record.values['evidence reference']!)) {
+    return evidenceFailure('Implementation evidence references must be absolute HTTPS URLs.');
+  }
+  if (!dateInRange(record.values['retrieval date']!, baseline, evaluationDate)) {
+    return evidenceFailure(
+      'Implementation evidence retrieval dates must fall between planning and evaluation.',
+    );
+  }
+  return { ok: true, path: 'reference' };
+}
+
 function validateProductReferences(
   section: string,
   baseline: string,
@@ -533,7 +609,28 @@ export function evaluateImplementationInspiration(
   const decisions = extractSection(input.planContent, '## Decisions', 2);
   if (decisions === undefined) {
     return evidenceFailure(
-      'Implementation Inspiration must appear once directly inside Decisions.',
+      'Recorded Decisions has a missing decision entry and no justified applicability skip.',
+    );
+  }
+  const recordedDecisions = extractSection(decisions, '### Recorded Decisions', 3);
+  if (recordedDecisions === undefined) {
+    return evidenceFailure(
+      'Recorded Decisions has a missing decision entry and no justified applicability skip.',
+    );
+  }
+  const narrativeEvidence = validateNarrativeImplementationEvidence(
+    recordedDecisions,
+    baseline,
+    input.evaluationDate,
+  );
+  if (narrativeEvidence !== undefined) return narrativeEvidence;
+  const recordedRows = recordedDecisions === undefined ? [] : decisionRows(recordedDecisions);
+  if (recordedRows.length === 0 && hasJustifiedDecisionEvidenceSkip(recordedDecisions)) {
+    return { ok: true, path: 'not-applicable' };
+  }
+  if (recordedRows.length === 0) {
+    return evidenceFailure(
+      'Recorded Decisions has a missing decision entry and no justified applicability skip.',
     );
   }
   const section = extractSection(decisions, '### Implementation Inspiration', 3);
@@ -542,9 +639,6 @@ export function evaluateImplementationInspiration(
       'Implementation Inspiration must appear once directly inside Decisions.',
     );
   }
-  const recordedDecisions = extractSection(decisions, '### Recorded Decisions', 3);
-  const recordedRows = recordedDecisions === undefined ? [] : decisionRows(recordedDecisions);
-
   const hasReference = section.includes(IMPLEMENTATION_HEADER);
   const searchSection = extractSection(section, '#### Implementation Unsuccessful Search', 4);
   const hasSearch = searchSection !== undefined;

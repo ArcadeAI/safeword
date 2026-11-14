@@ -1,0 +1,51 @@
+{
+  "integration_commit": "41a51f256ae3e0f58b85637f885f110d62f216a0",
+  "main_commit": "7fae8f97fbc30962b916d3b3aba9c61f943ac531",
+  "prior_delivery_commit": "94d859c6e6e9d9c2f7bc08d43b489aca92630ba4",
+  "comparison_before": "git diff --binary 65631937a..94d859c6",
+  "comparison_after": "git diff --binary 7fae8f97..41a51f25",
+  "before_sha256": "6b39dfd2a1a661544fe1f74336093a80de1fa76fd00376a7a2a9c527935ac974",
+  "after_sha256": "6b39dfd2a1a661544fe1f74336093a80de1fa76fd00376a7a2a9c527935ac974",
+  "diff_byte_length": 9142168,
+  "same_own_diff_at_integration_before_evidence_notes": true,
+  "frozen_product_and_dependency_files_unchanged": 168,
+  "focused_tests": {
+    "files": 2,
+    "passed": 75,
+    "seconds": 21.48,
+    "exit": 0
+  },
+  "generated_surfaces": {
+    "count": 5,
+    "exit": 0
+  },
+  "new_final_head_CI": "pending",
+  "paid_qualification_calls": 0,
+  "archives": [
+    {
+      "source": "/tmp/5086-quality-promotion-node22-failure.log",
+      "archive": "5086-quality-promotion-node22-failure.log.gz",
+      "decompressed_sha256": "486f5665fcfae8d10cbdba55f3c83fdc77e65d05dd850e2df75831c0566bec4f"
+    },
+    {
+      "source": "/tmp/5086-quality-promotion-node22-retry.log",
+      "archive": "5086-quality-promotion-node22-retry.log.gz",
+      "decompressed_sha256": "ae20c2b9bf6da97500d84e17fb0105dbf11fea28e1dc6924154017d1bca8a44c"
+    },
+    {
+      "source": "/tmp/5086-main-5994-focused.log",
+      "archive": "5086-main-5994-focused.log.gz",
+      "decompressed_sha256": "b5d757deb49aa654e9de4ddf49bd9ee19da86dad999ed8b22e41a9c569cc9c21"
+    },
+    {
+      "source": "/tmp/5086-main-5994-generated.log",
+      "archive": "5086-main-5994-generated.log.gz",
+      "decompressed_sha256": "b14948a65d3e1915acfab0f60e2cc2b2b827aa96bfcf7e1d505dbd53eaf51a00"
+    },
+    {
+      "source": "/tmp/5086-main-5994-merge.log",
+      "archive": "5086-main-5994-merge.log.gz",
+      "decompressed_sha256": "f15ba8dd8bf527aa9aa9377d968b325ce20c66a8ecb3fb320ad8f4a7389af861"
+    }
+  ]
+}

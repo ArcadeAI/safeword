@@ -48,6 +48,18 @@ export const REVIEWER_CAPABILITIES = {
   opencode: ['--format', '--pure', '--model'].join(' '),
 } as const satisfies Record<'claude' | 'codex' | 'opencode', string>;
 
+export function claudeReviewerShellPrelude(): string {
+  return String.raw`#!/bin/sh
+set -eu
+if [ "${'$'}{1:-}" = "--version" ]; then printf 'claude 1.0.0\n'; exit 0; fi
+if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
+  printf '%s\n' '${REVIEWER_CAPABILITIES.claude}'
+  exit 0
+fi
+payload=$(cat)
+dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')`;
+}
+
 /**
  * Reviewer discovery deliberately rejects executables beneath writable
  * ancestry such as /tmp. Put positive-path fake binaries under a private,

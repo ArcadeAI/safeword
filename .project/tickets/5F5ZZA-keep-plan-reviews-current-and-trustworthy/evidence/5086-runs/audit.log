@@ -1,0 +1,196 @@
+Audit scope: origin/main (merge base: 150eb7c619b2d5852174da99ba675ae326354153)
+  - .claude/agents/safeword-reviewer.md
+  - .claude/skills/bdd/PLAN_EXECUTION.md
+  - .claude/skills/bdd/PLAN_IMPLEMENTATION.md
+  - .claude/skills/bdd/SKILL.md
+  - .claude/skills/bdd/TDD.md
+  - .claude/skills/finish-review/REVIEWER.md
+  - .claude/skills/finish-review/SKILL.md
+  - .claude/skills/quality-review/SKILL.md
+  - .claude/skills/review-spec/SKILL.md
+  - .cursor/agents/safeword-reviewer.md
+  - .project/tickets/5F5ZZA-keep-plan-reviews-current-and-trustworthy/5086-review-scope.md
+  - .project/tickets/5F5ZZA-keep-plan-reviews-current-and-trustworthy/evidence/5086-historical-capability/claude-opus-5.json
+  - .project/tickets/5F5ZZA-keep-plan-reviews-current-and-trustworthy/evidence/5086-historical-capability/gpt-6-astra.json
+  - .project/tickets/5F5ZZA-keep-plan-reviews-current-and-trustworthy/evidence/5086-source-review.patch
+  - .project/tickets/5F5ZZA-keep-plan-reviews-current-and-trustworthy/evidence/5086-test-review.patch
+  - .project/tickets/5F5ZZA-keep-plan-reviews-current-and-trustworthy/resume-5086.md
+  - .safeword/SAFEWORD.md
+  - .safeword/hooks/lib/review-ledger.ts
+  - .safeword/hooks/lib/review-receipt.ts
+  - .safeword/hooks/stop-quality.ts
+  - .safeword/hooks/write-review-stamp.ts
+  - .safeword/skills/bdd/PLAN_EXECUTION.md
+  - .safeword/skills/bdd/PLAN_IMPLEMENTATION.md
+  - .safeword/skills/bdd/SKILL.md
+  - .safeword/skills/bdd/TDD.md
+  - .safeword/skills/finish-review/REVIEWER.md
+  - .safeword/skills/finish-review/SKILL.md
+  - .safeword/skills/quality-review/SKILL.md
+  - .safeword/skills/review-spec/SKILL.md
+  - ARCHITECTURE.md
+  - README.md
+  - packages/cli/codex-plugin/resources/SAFEWORD.md
+  - packages/cli/codex-plugin/runtime/cli.js
+  - packages/cli/codex-plugin/skills/bdd/SKILL.md
+  - packages/cli/codex-plugin/skills/bdd/references/PLAN_EXECUTION.md
+  - packages/cli/codex-plugin/skills/bdd/references/PLAN_IMPLEMENTATION.md
+  - packages/cli/codex-plugin/skills/bdd/references/TDD.md
+  - packages/cli/codex-plugin/skills/finish-review/SKILL.md
+  - packages/cli/codex-plugin/skills/finish-review/references/REVIEWER.md
+  - packages/cli/codex-plugin/skills/quality-review/SKILL.md
+  - packages/cli/codex-plugin/skills/review-spec/SKILL.md
+  - packages/cli/codex-plugin/templates/SAFEWORD.md
+  - packages/cli/codex-plugin/templates/agents/safeword-reviewer.md
+  - packages/cli/codex-plugin/templates/hooks/lib/review-ledger.ts
+  - packages/cli/codex-plugin/templates/hooks/lib/review-receipt.ts
+  - packages/cli/codex-plugin/templates/hooks/stop-quality.ts
+  - packages/cli/codex-plugin/templates/hooks/write-review-stamp.ts
+  - packages/cli/codex-plugin/templates/skills/bdd/PLAN_EXECUTION.md
+  - packages/cli/codex-plugin/templates/skills/bdd/PLAN_IMPLEMENTATION.md
+  - packages/cli/codex-plugin/templates/skills/bdd/SKILL.md
+  - packages/cli/codex-plugin/templates/skills/bdd/TDD.md
+  - packages/cli/codex-plugin/templates/skills/finish-review/REVIEWER.md
+  - packages/cli/codex-plugin/templates/skills/finish-review/SKILL.md
+  - packages/cli/codex-plugin/templates/skills/quality-review/SKILL.md
+  - packages/cli/codex-plugin/templates/skills/review-spec/SKILL.md
+  - packages/cli/package.json
+  - packages/cli/scripts/reviewer-capability-eval.ts
+  - packages/cli/src/claude-plugin/historical-catalogue.generated.ts
+  - packages/cli/src/cli-protocol/catalog.ts
+  - packages/cli/src/cli-protocol/public-handlers.ts
+  - packages/cli/src/cli-protocol/review-handlers.ts
+  - packages/cli/src/commands/plan-approval.ts
+  - packages/cli/src/execution-plan/delivery-admission.ts
+  - packages/cli/src/execution-plan/execution-prerequisite.ts
+  - packages/cli/src/lifecycle/status.ts
+  - packages/cli/src/planning/contracts.generated.ts
+  - packages/cli/src/review/capability-catalogue.generated.ts
+  - packages/cli/src/review/capability-catalogue.ts
+  - packages/cli/src/review/capability-eval.ts
+  - packages/cli/src/review/codex-app-server-proof.ts
+  - packages/cli/src/review/contract.ts
+  - packages/cli/src/review/coordinator.ts
+  - packages/cli/src/review/job.ts
+  - packages/cli/src/review/phase-admission.ts
+  - packages/cli/src/review/policy.ts
+  - packages/cli/src/review/preferences.ts
+  - packages/cli/src/review/route-config.ts
+  - packages/cli/src/review/runtime.ts
+  - packages/cli/templates/SAFEWORD.md
+  - packages/cli/templates/agents/safeword-reviewer.md
+  - packages/cli/templates/hooks/lib/review-ledger.ts
+  - packages/cli/templates/hooks/lib/review-receipt.ts
+  - packages/cli/templates/hooks/stop-quality.ts
+  - packages/cli/templates/hooks/write-review-stamp.ts
+  - packages/cli/templates/skills/bdd/PLAN_EXECUTION.md
+  - packages/cli/templates/skills/bdd/PLAN_IMPLEMENTATION.md
+  - packages/cli/templates/skills/bdd/SKILL.md
+  - packages/cli/templates/skills/bdd/TDD.md
+  - packages/cli/templates/skills/finish-review/REVIEWER.md
+  - packages/cli/templates/skills/finish-review/SKILL.md
+  - packages/cli/templates/skills/quality-review/SKILL.md
+  - packages/cli/templates/skills/review-spec/SKILL.md
+  - packages/cli/tests/cli-protocol/catalog.test.ts
+  - packages/cli/tests/cli-protocol/review-routes-wiring.test.ts
+  - packages/cli/tests/cli-protocol/review-wiring.test.ts
+  - packages/cli/tests/fixtures/delivery-cli.ts
+  - packages/cli/tests/fixtures/lifecycle-origin-main/claude-check.json
+  - packages/cli/tests/fixtures/lifecycle-origin-main/claude-install.json
+  - packages/cli/tests/fixtures/lifecycle-origin-main/claude-upgrade.json
+  - packages/cli/tests/fixtures/lifecycle-origin-main/codex-check.json
+  - packages/cli/tests/fixtures/lifecycle-origin-main/codex-install.json
+  - packages/cli/tests/fixtures/lifecycle-origin-main/codex-upgrade.json
+  - packages/cli/tests/fixtures/lifecycle-origin-main/cursor-check.json
+  - packages/cli/tests/fixtures/lifecycle-origin-main/cursor-install.json
+  - packages/cli/tests/fixtures/lifecycle-origin-main/cursor-upgrade.json
+  - packages/cli/tests/fixtures/lifecycle-origin-main/manifest.json
+  - packages/cli/tests/fixtures/reviewer-capability-corpus.ts
+  - packages/cli/tests/fixtures/reviewer-capability-evidence/claude-opus-5.json
+  - packages/cli/tests/fixtures/reviewer-capability-evidence/gpt-6-astra.json
+  - packages/cli/tests/hooks/review-ledger.test.ts
+  - packages/cli/tests/integration/architecture-review-gate.test.ts
+  - packages/cli/tests/integration/coding-authorization.test.ts
+  - packages/cli/tests/integration/installed-planning-copy-admission.test.ts
+  - packages/cli/tests/integration/plan-design-approval.test.ts
+  - packages/cli/tests/integration/plan-execution-journey.test.ts
+  - packages/cli/tests/integration/planning-documentation.test.ts
+  - packages/cli/tests/integration/planning-review-fallback.test.ts
+  - packages/cli/tests/integration/planning-review-host-gates.test.ts
+  - packages/cli/tests/integration/planning-review-route-order.test.ts
+  - packages/cli/tests/integration/planning-review-unavailable-independent.test.ts
+  - packages/cli/tests/integration/planning-review-weaker-route.test.ts
+  - packages/cli/tests/integration/planning-review-zero-independent.test.ts
+  - packages/cli/tests/review/capability-catalogue.test.ts
+  - packages/cli/tests/review/capability-corpus.test.ts
+  - packages/cli/tests/review/capability-eval.test.ts
+  - packages/cli/tests/review/codex-app-server-proof.test.ts
+  - packages/cli/tests/review/finish-review-contract.test.ts
+  - packages/cli/tests/review/job.test.ts
+  - packages/cli/tests/review/packaged-capability.release.test.ts
+  - packages/cli/tests/review/policy.test.ts
+  - packages/cli/tests/review/surface-parity.test.ts
+  - packages/website/src/content/docs/reference/cli.mdx
+  - plugin/agents/safeword-reviewer.md
+  - plugin/identity.json
+  - plugin/inventory.json
+  - plugin/resources/SAFEWORD.md
+  - plugin/runtime/cli.js
+  - plugin/runtime/dispatch.js
+  - plugin/runtime/hooks/lib/review-ledger.ts
+  - plugin/runtime/hooks/lib/review-receipt.ts
+  - plugin/runtime/hooks/stop-quality.ts
+  - plugin/runtime/hooks/write-review-stamp.ts
+  - plugin/skills/bdd/PLAN_EXECUTION.md
+  - plugin/skills/bdd/PLAN_IMPLEMENTATION.md
+  - plugin/skills/bdd/SKILL.md
+  - plugin/skills/bdd/TDD.md
+  - plugin/skills/finish-review/REVIEWER.md
+  - plugin/skills/finish-review/SKILL.md
+  - plugin/skills/quality-review/SKILL.md
+  - plugin/skills/review-spec/SKILL.md
+  - plugin/templates/SAFEWORD.md
+  - plugin/templates/agents/safeword-reviewer.md
+  - plugin/templates/hooks/lib/review-ledger.ts
+  - plugin/templates/hooks/lib/review-receipt.ts
+  - plugin/templates/hooks/stop-quality.ts
+  - plugin/templates/hooks/write-review-stamp.ts
+  - plugin/templates/skills/bdd/PLAN_EXECUTION.md
+  - plugin/templates/skills/bdd/PLAN_IMPLEMENTATION.md
+  - plugin/templates/skills/bdd/SKILL.md
+  - plugin/templates/skills/bdd/TDD.md
+  - plugin/templates/skills/finish-review/REVIEWER.md
+  - plugin/templates/skills/finish-review/SKILL.md
+  - plugin/templates/skills/quality-review/SKILL.md
+  - plugin/templates/skills/review-spec/SKILL.md
+No Python projects found — Python architecture, dead-code, and outdated checks not applicable
+No Go modules found — Go architecture, dead-code, and outdated checks not applicable
+No Rust crates found — Rust architecture, dead-code, and outdated checks not applicable
+Healthy
+Changed: no
+
+✔ no dependency violations found (565 modules, 1041 dependencies cruised)
+
+Knip: skipped in diff scope — run a repository audit for whole-workspace unused-code discovery
+Duplication: skipped in diff scope — run a repository audit for cross-file clone discovery
+Dependency freshness: skipped in diff scope — run a repository audit for upgrade discovery
+./experiments/go-skill-directive/trap/counter_test.go.tmpl
+./experiments/gepa-review-spec/tests/evaluator.test.ts
+./experiments/gepa-review-spec/tests/protected.test.ts
+./experiments/gepa-review-spec/tests/consensus-floor.test.ts
+./experiments/gepa-review-spec/tests/task.test.ts
+./experiments/gepa-review-spec/tests/protected-manifest.test.ts
+./experiments/gepa-review-spec/tests/harness.test.ts
+./.claude/skills/check-retros/scripts/check-retros.test.mjs
+./.project/tickets/Y4ZAAY-prove-cross-provider-review-before-scaling-spend/terra-canary-evidence.test.ts
+./.project/tickets/Y4ZAAY-prove-cross-provider-review-before-scaling-spend/terra-development-canary.test.ts
+./.project/tickets/Y4ZAAY-prove-cross-provider-review-before-scaling-spend/terra-live-launcher.test.ts
+./.project/tickets/Y4ZAAY-prove-cross-provider-review-before-scaling-spend/terra-github-authorization.test.ts
+./.project/tickets/Y4ZAAY-prove-cross-provider-review-before-scaling-spend/terra-github-upstream.test.ts
+./.project/tickets/Y4ZAAY-prove-cross-provider-review-before-scaling-spend/terra-real-recorder-wiring.test.ts
+./.project/tickets/CWGYH0-pr-review-eval/scored-artifact-manifest.test.ts
+./.project/tickets/CWGYH0-pr-review-eval/scored-canary-gate.test.ts
+./.project/tickets/CWGYH0-pr-review-eval/scored-lock-contention.test.ts
+./.project/tickets/CWGYH0-pr-review-eval/scored-matrix.test.ts
+./.project/tickets/CWGYH0-pr-review-eval/scored-analysis.test.ts
+./.project/tickets/CWGYH0-pr-review-eval/scored-adapter.test.ts

@@ -1,0 +1,18 @@
+bun install v1.3.14 (0d9b296a)
+
++ @cucumber/cucumber@13.2.1
++ @openai/codex@0.160.0
++ @types/node@26.6.4
++ dependency-cruiser@18.5.0
++ eslint@10.10.0
++ eslint-config-prettier@10.1.8
++ husky@9.1.7
++ jiti@2.7.0
++ knip@6.39.0
++ lint-staged@17.6.0
++ markdownlint-cli2@0.23.3
++ prettier@3.9.9
++ prettier-plugin-sh@0.20.2
++ tsx@4.23.15
+
+2159 packages installed [2.65s]

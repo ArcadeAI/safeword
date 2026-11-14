@@ -1,0 +1,35 @@
+diff --git a/packages/cli/features/review-with-the-best-available-agent.feature b/packages/cli/features/review-with-the-best-available-agent.feature
+index 72b83c2e4..b31edf53a 100644
+--- a/packages/cli/features/review-with-the-best-available-agent.feature
++++ b/packages/cli/features/review-with-the-best-available-agent.feature
+@@ -77,7 +77,7 @@ Feature: Keep review available with the best supported fallback
+         | case        | launches                                      | reviewer | assurance   | packets |
+         | first       | codex:gpt-6-astra                              | codex    | cross-agent | 1       |
+         | alternate   | codex:default,codex:gpt-6-astra                | codex    | cross-agent | 2       |
+-        | later       | codex:default,codex:gpt-6-sol,codex:gpt-6-astra | codex    | cross-agent | 3       |
++        | later       | codex:default,codex:gpt-6-astra                | codex    | cross-agent | 2       |
+         | unsupported | codex:default,claude:default                  | claude   | reduced     | 1       |
+ 
+   @review-with-the-best-available-agent.TBU1.R2 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents @manual
+diff --git a/packages/cli/features/steps/ranked-planning-review.steps.ts b/packages/cli/features/steps/ranked-planning-review.steps.ts
+index 662521379..941d7c470 100644
+--- a/packages/cli/features/steps/ranked-planning-review.steps.ts
++++ b/packages/cli/features/steps/ranked-planning-review.steps.ts
+@@ -53,6 +53,17 @@ Then(
+       result.launches.map(({ agent, model }) => `${agent}:${model}`),
+       expected.split(','),
+     );
++    if (state(this).example === 'later') {
++      assert.ok(
++        result.output.data.review_routes.some(
++          (route: { model?: string; status: string; failure?: string }) =>
++            route.model === 'gpt-6-sol' &&
++            route.status === 'skipped' &&
++            route.failure === 'reviewer_capability_unknown',
++        ),
++        'the unqualified explicit selector must be a skipped refusal, not an attempt',
++      );
++    }
+   },
+ );
+ Then(

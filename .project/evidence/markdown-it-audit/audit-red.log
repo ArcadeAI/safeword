@@ -1,0 +1,13 @@
+[0m[1mbun audit [0m[2mv1.3.14 (0d9b296a)[0m
+markdown-it  <14.3.2
+  markdownlint-cli2 › markdown-it
+  high: markdown-it: Quadratic complexity in smartquotes with unmatched closing quotes - https://github.com/advisories/GHSA-r7fv-28h4-cvq7
+
+1 vulnerabilities (1 high)
+
+To update all dependencies to the latest compatible versions:
+  bun update
+
+To update all dependencies to the latest versions (including breaking changes):
+  bun update --latest
+

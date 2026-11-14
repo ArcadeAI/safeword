@@ -8,6 +8,7 @@
 // effects from linting. Version upgrades run at session start; pack repair is
 // manual, so fallback linting reports the missing config once per session.
 
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import nodePath from 'node:path';
@@ -15,6 +16,7 @@ import nodePath from 'node:path';
 import { $ } from 'bun';
 
 import { resolveHostToolchain, runHostToolchain } from './host-toolchain.js';
+import { safewordCli } from './safeword-cli.js';
 import {
   hostFormatsSqlWithPrettier,
   projectOwnsAlternativeFormatter,
@@ -59,7 +61,6 @@ const projectDir = existsSync(configuredProjectDir)
   : configuredProjectDir;
 const SAFEWORD_ESLINT = `${projectDir}/.safeword/eslint.config.mjs`;
 const SAFEWORD_RUFF = `${projectDir}/.safeword/ruff.toml`;
-const SAFEWORD_GOLANGCI = `${projectDir}/.safeword/.golangci.yml`;
 const SAFEWORD_SQLFLUFF = `${projectDir}/.safeword/sqlfluff.cfg`;
 const SAFEWORD_CLIPPY = `${projectDir}/.safeword/clippy.toml`;
 const SAFEWORD_RUSTFMT = `${projectDir}/.safeword/rustfmt.toml`;
@@ -80,6 +81,8 @@ export interface LintResult {
   warnings: string[];
   /** Remaining lint errors after auto-fix (surfaced to Claude via additionalContext) */
   errors?: string;
+  /** Go uses package scope and does not apply linter autofixes. */
+  diagnosticContext?: string;
 }
 
 /** Check if a command is available on PATH */
@@ -187,14 +190,9 @@ function hasConfig(path: string): boolean {
   return existsSync(path);
 }
 
-function safewordCliCommand(): string[] {
-  const pluginCli = process.env.SAFEWORD_PLUGIN_CLI;
-  if (pluginCli !== undefined) return ['bun', pluginCli];
-  const installedCli = `${projectDir}/node_modules/safeword/dist/cli.js`;
-  if (existsSync(installedCli)) return ['bun', installedCli];
-  const sourceCli = `${projectDir}/packages/cli/src/cli.ts`;
-  if (existsSync(sourceCli)) return ['bun', sourceCli];
-  return ['bunx', 'safeword'];
+function safewordCliCommand(): string[] | undefined {
+  const cli = safewordCli(projectDir);
+  return cli === undefined ? undefined : [cli.command, ...cli.args];
 }
 
 function normalizeExistingDirectory(directory: string): string {
@@ -291,6 +289,56 @@ async function runPrettier(file: string): Promise<void> {
   }
 }
 
+/** Invoke the bundled Go helper and validate its JSON response. */
+function runGoLintHelper(file: string, projectRoot: string): LintResult {
+  const cli = safewordCli(projectRoot);
+  if (!cli)
+    return {
+      warnings: [
+        'Go lint helper is unavailable; run `safeword install` to align hooks and runtime.',
+      ],
+    };
+  const result = spawnSync(
+    cli.command,
+    [
+      ...cli.args,
+      'hook',
+      'go-lint',
+      '--file',
+      file,
+      '--project-root',
+      projectRoot,
+      '--original-cwd',
+      process.cwd(),
+    ],
+    { cwd: cli.cwd, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 },
+  );
+  if (result.status !== 0 || result.error) {
+    return {
+      warnings: [
+        `Go lint helper failed; update Safeword to align hooks and runtime: ${result.error?.message ?? result.stderr.trim()}`,
+      ],
+    };
+  }
+  try {
+    const answer: unknown = JSON.parse(result.stdout);
+    if (
+      typeof answer !== 'object' ||
+      answer === null ||
+      !('warnings' in answer) ||
+      !Array.isArray(answer.warnings) ||
+      !answer.warnings.every(entry => typeof entry === 'string') ||
+      ('errors' in answer && typeof answer.errors !== 'string') ||
+      ('diagnosticContext' in answer && typeof answer.diagnosticContext !== 'string')
+    ) {
+      throw new Error('invalid helper result');
+    }
+    return answer as LintResult;
+  } catch (error) {
+    return { warnings: [`Go lint helper returned an invalid result: ${String(error)}`] };
+  }
+}
+
 /**
  * Lint a file based on its extension.
  * Uses safeword configs (.safeword/) for stricter LLM enforcement when available.
@@ -371,8 +419,22 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     return { warnings, ...(errors && { errors }) };
   }
 
-  // Go files - golangci-lint run (fix code), then golangci-lint fmt (format)
+  // Go: the bundled helper preserves configuration policy paths while
+  // formatting only the edit and checking its complete package (no lint autofixes).
   if (GO_EXTENSIONS.has(extension)) {
+    const root = normalizeExistingDirectory(_projectDir);
+    const relative = nodePath.relative(root, normalizedFile);
+    if (
+      relative === '..' ||
+      relative.startsWith(`..${nodePath.sep}`) ||
+      nodePath.isAbsolute(relative)
+    ) {
+      return {
+        warnings: [
+          `Edited file ${normalizedFile} resolves outside the Safeword project root ${root}; Go lint and formatting were skipped.`,
+        ],
+      };
+    }
     if (
       !(await checkToolAvailable(
         'golangci-lint',
@@ -400,15 +462,14 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
       }
       toolWarnings.add('golangci-lint-v2-ok');
     }
-    warnMissingSafewordConfig('Go', 'golangci-lint', SAFEWORD_GOLANGCI, warnings);
-    const configArguments = configArgs(SAFEWORD_GOLANGCI);
-    await $`golangci-lint run ${configArguments} --fix ${normalizedFile}`.nothrow().quiet();
-    await $`golangci-lint fmt ${configArguments} ${normalizedFile}`.nothrow().quiet();
-    const errors = await captureRemainingErrors(
-      ['golangci-lint', 'run', ...configArguments, normalizedFile],
-      warnings,
-    );
-    return { warnings, ...(errors && { errors }) };
+    const lintResult = runGoLintHelper(normalizedFile, _projectDir);
+    lintResult.warnings = lintResult.warnings.filter(warning => {
+      if (!warning.startsWith('Go Safeword config is missing')) return true;
+      if (toolWarnings.has('pack:Go')) return false;
+      toolWarnings.add('pack:Go');
+      return true;
+    });
+    return lintResult;
   }
 
   // Rust files - clippy for linting (package-level), rustfmt for formatting (file-level)
@@ -503,9 +564,10 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
   }
 
   // Gherkin feature files - syntax/style lint, no auto-fix available
-  if (FEATURE_EXTENSIONS.has(extension)) {
+  const cli = FEATURE_EXTENSIONS.has(extension) ? safewordCliCommand() : undefined;
+  if (cli !== undefined) {
     const errors = await captureRemainingErrors(
-      [...safewordCliCommand(), 'lint-gherkin', normalizedFile],
+      [...cli, 'lint-gherkin', normalizedFile],
       warnings,
       { stderrIsLintOutput: true },
     );

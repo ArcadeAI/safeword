@@ -267,13 +267,17 @@ interface ProfilePrecondition {
   readonly observation: unknown;
 }
 
-function serializedProfilePreconditions(
+export function serializedProfilePreconditions(
   cwd: string,
   observations: readonly ProfilePrecondition[],
 ): string {
-  return JSON.stringify(observations, (_key, value: unknown) =>
-    typeof value === 'string' ? value.replaceAll(cwd, '<project>') : value,
-  );
+  return JSON.stringify(observations, (key, value: unknown) => {
+    // Observation time is evidence provenance, not profile state. Codex hook
+    // activity may refresh it while parallel commands run; hashing it would
+    // give an unchanged lifecycle plan a different identity.
+    if (key === 'recorded_at') return '<observed-at>';
+    return typeof value === 'string' ? value.replaceAll(cwd, '<project>') : value;
+  });
 }
 
 async function profilePreconditions(

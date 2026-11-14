@@ -127,7 +127,7 @@ legacy content is preserved and reported instead.
 
 **Result**: Your project now has:
 
-- `.safeword/SAFEWORD.md` - Global patterns and workflows, injected into each session by a SessionStart hook
+- `.safeword/enrolled` - Marks the project as enrolled; Safeword hooks run only in enrolled projects
 - `.safeword/config.json` - Project configuration and detected language packs
 - `.mcp.json` - context7 and Playwright MCP servers
 - `.safeword/guides/`, `.safeword/templates/`, `.safeword/skills/`, and `.safeword/hooks/` - Cursor's project-local workflow runtime (only with `--agents=cursor`)
@@ -146,7 +146,7 @@ legacy content is preserved and reported instead.
 
 **Stack-agnostic** — Safeword is a process layer, not a framework opinion. It works alongside any stack — Next, Elysia, Astro, Django, Gin, whatever you use. Your application code and runtime dependencies are never touched.
 
-**Your agent config stays yours** — Safeword-owned hooks load `.safeword/SAFEWORD.md` for Claude Code, Cursor, and Codex. Claude plugin installation defaults to project-scoped activation in `.claude/settings.json`, while `--scope user` remains available for profile-wide activation; explicit native-update opt-outs are preserved. Codex install merges only its marked SessionStart bootstrap into `.codex/config.toml` and preserves unrelated configuration. Install does not create or add imports to customer-owned `AGENTS.md` or `CLAUDE.md`; existing project instructions remain yours.
+**Your agent config stays yours** — Safeword-owned hooks point Claude Code, Cursor, and Codex at the Safeword handbook (`SAFEWORD.md`): the copy inside the plugin for native plugins, or `.safeword/SAFEWORD.md` for Cursor and older project-hook installs. Claude plugin installation defaults to project-scoped activation in `.claude/settings.json`, while `--scope user` remains available for profile-wide activation; explicit native-update opt-outs are preserved. Codex install merges only its marked SessionStart bootstrap into `.codex/config.toml` and preserves unrelated configuration. Install does not create or add imports to customer-owned `AGENTS.md` or `CLAUDE.md`; existing project instructions remain yours.
 
 **Dev-only tools** — Safeword installs ESLint, Prettier, supporting plugins, `jiti` for TypeScript config loading, plus the Gherkin acceptance lane (cucumber-js + tsx), as `devDependencies` — in every project. A pure Go/Python/Rust repo gets a minimal `private: true` package.json created to host them (the lane's step definitions are TypeScript and test your app from the outside). These are development tools — they never ship with your application or affect your runtime.
 
@@ -211,8 +211,10 @@ flowchart TD
     g1 --> scenarios["Define-behavior scenarios"]
     scenarios --> g2{{"Phase gate:<br/>.feature scenarios + test-definitions.md ledger"}}
     g2 --> plan["Plan: author impl-plan.md"]
-    plan --> g4{{"Plan gate:<br/>impl-plan.md valid"}}
-    g4 --> build
+    plan --> g4{{"Implementation gate:<br/>current review + enabled human approval"}}
+    g4 --> execution["Plan execution:<br/>execution-plan.md — proof and build order"]
+    execution --> executionGate{{"Execution gate:<br/>current reviewed execution-plan.md"}}
+    executionGate --> build
 
     task --> build["3 · Build<br/>RED → GREEN → REFACTOR"]
     patch --> verify
@@ -226,7 +228,7 @@ flowchart TD
 
 - **Clarify** — the agent proposes a direction and converges with you before building. For features, this writes the product framing first: Jobs To Be Done → Product Inspiration (who does this exceptionally well, what customers value, and what principle transfers) → Rules → engineering scope.
 - **Classify** — sizes the work as a **patch** (fix directly), **task** (TDD), or **feature** (BDD).
-- **Build** — patches go straight to the fix; tasks and features run the RED → GREEN → REFACTOR loop, with features defining behavior scenarios and an implementation plan first. After a successful GREEN, the agent continues through refactor and the next incomplete scenario without a routine handoff.
+- **Build** — patches go straight to the fix; tasks and features run the RED → GREEN → REFACTOR loop. Features first define scenarios, review approach decisions in an Implementation Plan, then review proof and build order in an Execution Plan. After a successful GREEN, the agent continues through refactor and the next incomplete scenario without a routine handoff.
 - **Verify** — after the final scenario, the agent continues through whole-ticket review, plan reconciliation, verification, audit, and recorded ticket closure, stopping only at a real authority, safety, dependency, or scope boundary.
 - **Review** — every ticket phase exit needs an independent review stamp by default (`reviewGate`); an end-of-session review prompt is opt-in (`stopQualityReview: true`).
 - **Done** — hard-blocked until `/verify` writes `verify.md` to the ticket. Draft pull requests remain available for CI or review evidence, but Claude Code, Codex, and Cursor block first-class GitHub CLI Ready commands until the ticket is verified done; Ready promotion still requires your explicit authorization.
@@ -251,7 +253,8 @@ You direct in plain language; safeword keeps the agent honest. Auditing the code
 
 Key directories created in your project:
 
-- `.safeword/SAFEWORD.md` and `.safeword/config.json` - Shared project enrollment and configuration
+- `.safeword/enrolled` and `.safeword/config.json` - Shared project enrollment and configuration
+- `.safeword/SAFEWORD.md` - Project copy of the handbook, only when Cursor or an older project-hook install reads it; native plugins ship their own
 - `<namespace-root>/tickets/` - Tickets for complex/multi-step work (context anchors)
 - `.safeword/guides/`, `.safeword/templates/`, and `.safeword/hooks/` - Cursor's project-local workflow runtime, only when Cursor is selected
 - Safeword Claude, Codex, and OpenCode plugins - Profile-scoped workflow skills, hooks, guides, and templates
@@ -317,7 +320,8 @@ inside each agent's plugin; Cursor installs them under `.safeword/guides/` and
 | **design-doc-template.md**                                  | Design doc structure (architecture, components)                           | design-doc-guide.md          |
 | **architecture-template.md**                                | Living architecture decision structure                                    | planning-guide.md            |
 | **adr-template.md**                                         | Standalone record for a structural or hard-to-reverse decision            | bdd skill (plan)             |
-| **impl-plan-template.md**                                   | Feature implementation plan, authored before TDD starts                   | bdd skill, planning-guide.md |
+| **impl-plan-template.md**                                   | Feature approach decisions, reviewed before Execution Planning            | bdd skill, planning-guide.md |
+| **execution-plan-template.md**                              | Concrete proof and build order, reviewed before TDD                       | bdd skill, planning-guide.md |
 | **ticket-template.md**                                      | Context anchor for complex/multi-step work                                | ticket-system skill          |
 | **work-log-template.md**                                    | Scratch pad and working memory during execution                           | planning-guide.md            |
 | **tripwire-template.md**                                    | Upstream-workaround tripwire (header + pinned-version test)               | testing-guide.md             |
@@ -358,9 +362,10 @@ inside each agent's plugin; Cursor installs them under `.safeword/guides/` and
 │   │   ├── spec.md             # Feature spec, auto-created at intake (features only)
 │   │   ├── dimensions.md       # Behavioral dimensions (features only)
 │   │   ├── test-definitions.md # R/G/R progress ledger; scenarios live in features/<slug>.feature
-│   │   ├── impl-plan.md        # Implementation plan (features only)
+│   │   ├── impl-plan.md        # Implementation decisions (features only)
+│   │   ├── execution-plan.md   # Proof and build order (features only)
 │   │   ├── verify.md           # Completion evidence written by /verify
-│   │   └── design.md           # Design doc for complex features (optional)
+│   │   └── design.md           # Historical design retained on existing tickets
 │   └── completed/              # Archive for done tickets
 ├── learnings/                  # Extracted knowledge (gotchas, discoveries)
 └── tmp/                        # Scratch space (research, logs, etc.)
@@ -381,7 +386,7 @@ creates project-level SessionStart hooks for enrollment and dependency
 preparation, never an edit or shell-command interception hook. Startup remains
 advisory, while repository-owned composed commands require readiness. The plugin does not
 implicitly enroll repositories: until `safeword install` creates
-`.safeword/SAFEWORD.md`, project gates fail open and hooks do not create
+`.safeword/enrolled` (older installs: `.safeword/SAFEWORD.md`), project gates fail open and hooks do not create
 `.project/` or other project state. Codex visibly skips
 unreviewed or changed plugin hooks and directs the builder to Desktop
 Settings > Hooks or `/hooks` in the terminal TUI. Review changed hooks before
@@ -414,11 +419,53 @@ second independent runtime before same-agent headless review. OpenCode-authored
 work routes to Claude and then Codex, so OpenCode self-review is never counted
 as independent. If those routes cannot complete, a foreground agent makes one
 best-effort fresh-context host review and then one bounded self-review. Those
-last two routes are useful feedback, not independent evidence; `require` stays
-blocked and no independent stamp is written. Both read the live worktree, so
-their assurance says source integrity was not revalidated. The Claude plugin's
-bundled `safeword-reviewer` agent provides the fresh-context route, including in
-Claude Code Cloud when no external agent CLI is available.
+last two routes are feedback, not independent evidence. For non-planning
+reviews they read the live worktree, so source integrity was not revalidated;
+the bundled Claude reviewer also supports Claude Code Cloud when no external
+agent CLI is available. Planning fallbacks instead use the coordinator's
+immutable packet.
+
+Independent review never blocks. Independence means a different agent
+reviewed: Claude reviewing Codex-authored work, or the reverse. Whenever no
+different agent can review, for any reason (not installed, not signed in,
+failed, or out of run budget), Safeword falls
+back to the same agent. The receipt names the actual reviewer and records
+reduced independence, which still satisfies the phase gate. A signed-out
+reviewer is reported with its sign-in command rather than pausing the review.
+Every review uses the latest Opus or Sol first and may retry on Sonnet or
+Terra; reviewers are not qualified per review kind.
+
+Planning reviews check both missing accepted work and proposed work beyond the
+user's scope. Product Plans inventory each accepted persona's consequential
+outcomes and distinguish facts, assumptions and unresolved choices; scenario
+review separately checks their coverage. New planning verdicts retain typed
+source/version and reuse-limit records. Declared license, attribution,
+redistribution, security and privacy limits remain evidence, not permission or
+approval authority.
+
+Review currency binds the exact canonical rules inside the trusted packaged
+contract markers. Changes outside those markers retain currency, but the
+whole authoring copy must still match before use. Reviewer routes are not
+ranked against the author's model: any configured selector launches in order.
+Each planning approval establishes only its own phase; implementation,
+verification, human approval and merge authority remain separate. Codex Cloud
+and OpenCode Desktop guidance remains advisory.
+
+Cursor-authored planning work tries Claude and Codex as external reviewers;
+Cursor itself has no headless reviewer route. If those routes fail, the Cursor
+host can review the same sealed packet and record a reduced-independence
+receipt. A current receipt is still required at the phase gate. The retired
+`require` policy is read as `prefer`.
+
+The continuation authenticates the saved job, packet, source currency, tier,
+and single-use submission. The fresh-context claim and current agent origin
+are host-reported; the receipt does not attest that an isolated reviewer ran.
+Claude and Codex app-server planning reviewers use the effort settings sealed
+with the packaged capability catalogue.
+
+The opt-in `architectureReviewGate` separately requires a cited design review
+before implementation finishes; a reduced planning receipt satisfies it, and
+the reasoned skip remains an auditable escape hatch.
 
 **Codex plugin skills**: Codex gets Safeword workflow skills from the Safeword Codex plugin, with scoped names such as `safeword:bdd`, `safeword:verify`, and `safeword:explain`. Safeword no longer installs Safeword-owned workflow aliases into `.agents/skills/`.
 
@@ -528,8 +575,9 @@ marketplace replacement behavior before users depend on it.
 
 ### How Guide Imports Work
 
-Safeword-owned session hooks load `.safeword/SAFEWORD.md`. SAFEWORD.md then
-routes agents to the relevant guides and templates. Customer `AGENTS.md` and
+Safeword-owned session hooks tell the agent to read the Safeword handbook,
+`SAFEWORD.md` (the plugin's copy for native plugins; `.safeword/SAFEWORD.md` for
+Cursor and older project-hook installs). SAFEWORD.md then routes agents to the relevant guides and templates. Customer `AGENTS.md` and
 `CLAUDE.md` remain independent project context and are never required to import
 Safeword.
 
@@ -687,7 +735,7 @@ Tickets and learnings derive from `paths.projectRoot`. Principles, personas, glo
 
 **How it works**:
 
-1. Safeword-owned host hooks inject `.safeword/SAFEWORD.md` at session boundaries.
+1. Safeword-owned host hooks point the agent at the handbook, `SAFEWORD.md`, at session boundaries (the plugin's copy for native plugins).
 2. SAFEWORD.md routes by work type to focused guides, skills, and templates.
 3. Customer `AGENTS.md` and `CLAUDE.md` add project-specific context without carrying framework bootstrap text.
 4. Learnings remain in `<namespace-root>/learnings/` and are indexed for discovery.
@@ -775,6 +823,23 @@ These tools enhance development scripts but are not required:
 | `dot`   | Generate dependency graph SVG | `bun deps:graph` | `brew install graphviz` |
 
 Without these binaries, the scripts print a message and skip.
+
+### Pinned Development Tools
+
+Install [mise](https://mise.jdx.dev/getting-started), then run:
+
+```bash
+mise install
+scripts/dev bun install --frozen-lockfile
+```
+
+Prefix the development commands below with `scripts/dev`, for example
+`scripts/dev bun run test:all` from the repository root (or use
+`../../scripts/dev` from `packages/cli`). The launcher resolves Bun and Node
+from `mise.toml` and puts their directories first on PATH for the command and
+its child processes. The commit and pre-push hooks use the same launcher. This works in
+terminals, IDEs, and non-interactive agent shells without changing your shell profile. A bare `bun` can still select a different global
+version even though `package.json` declares `packageManager`.
 
 ### Development Workflow
 

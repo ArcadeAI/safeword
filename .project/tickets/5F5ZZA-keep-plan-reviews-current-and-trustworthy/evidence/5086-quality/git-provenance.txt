@@ -1,0 +1,10 @@
+Observed with git show -s --format='%H %P %s' and gh pr view 5996 --json mergeCommit,mergedAt:
+
+65631937a73b8deadfbab5c348b13a14fc02a39b 150eb7c619b2d5852174da99ba675ae326354153 340b16e95b42b4332feeba91396a5a3897f93a1c Merge pull request #5996 from ArcadeAI/codex/repair-markdown-it-audit
+23dd979ac122a2e01ac5eb2f2f6900439d29c0ef 28d06a39ec4c8883e94ad56701d57871bb8173c2 65631937a73b8deadfbab5c348b13a14fc02a39b Merge remote-tracking branch 'origin/main' into codex/5086-ranked-review-continuation
+5a7f3c6eec014cb7308182a5c1ba0fb57271363c 23dd979ac122a2e01ac5eb2f2f6900439d29c0ef fix: retain safe review feedback and bind protocol responses
+GitHub PR #5996: mergeCommit.oid 65631937a73b8deadfbab5c348b13a14fc02a39b; mergedAt 2026-10-21T05:45:11Z.
+
+Disposition of review 31e2687e-4243-47de-aa0e-ff7961501c7e:
+Its claim that 65631937a precedes #5996 is contradicted by both Git and GitHub. Keep the correct hashes. Clarified integration roles, snapshot timing and quality-only audit scope in verify.md. Added per-package typecheck names, parity counts, raw log pointers and the intake review ID. Named unchanged regression tests are exercised by the full suite, independently of the changed-path manifest.
+The review's raw changes_requested result is preserved alongside this adjudication; it is not relabeled approved.

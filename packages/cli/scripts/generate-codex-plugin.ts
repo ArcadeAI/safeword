@@ -8,7 +8,10 @@ import {
   writeCodexPluginCatalogue,
 } from '../src/codex-plugin/catalogue.js';
 import { codexPluginHookCommand, type CodexPluginHookEntry } from '../src/codex-plugin/hooks.js';
+import { COMPLETION_HOOK_TIMEOUT_SECONDS } from '../src/templates/config.js';
 import { VERSION } from '../src/version.js';
+import { generateDeliveryCompatibilityRubric } from './generate-delivery-compatibility-rubric.js';
+import { generateExecutionPlanRubric } from './generate-execution-plan-rubric.js';
 import { generatePlanRubric } from './generate-plan-rubric.js';
 import { generateQualityRubric } from './generate-quality-rubric.js';
 import { generateRedRubric } from './generate-red-rubric.js';
@@ -19,6 +22,7 @@ import {
   parseCodexPluginGenerationOptions,
   publishFreshDirectory,
 } from './lib/codex-plugin-generation.js';
+import { planningAuthorCopies } from './lib/planning-author-copies.js';
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '..');
 const shippedRoot = nodePath.join(packageRoot, 'codex-plugin');
@@ -40,6 +44,8 @@ if (
 const rubricResults = [
   generateScenarioRubric(options.checkOnly),
   generatePlanRubric(options.checkOnly),
+  generateExecutionPlanRubric(options.checkOnly),
+  generateDeliveryCompatibilityRubric(options.checkOnly),
   generateQualityRubric(options.checkOnly),
   generateRedRubric(options.checkOnly),
 ];
@@ -59,6 +65,7 @@ function writeHookManifest(generatedRoot: string): void {
         const event = hook.command?.match(/ hook codex ([a-z-]+) --plugin-hook$/u)?.[1];
         if (event === undefined) throw new Error('Codex hook is missing its bundled event binding');
         hook.command = codexPluginHookCommand(event);
+        if (event === 'stop') hook.timeout = COMPLETION_HOOK_TIMEOUT_SECONDS;
       }
     }
   }
@@ -78,6 +85,11 @@ async function generatePlugin(
     throw new Error(`Codex plugin manifest does not declare package version ${VERSION}`);
   }
   const builtVersion = options.effectiveVersion === VERSION ? undefined : options.effectiveVersion;
+  const assets = writeCodexPluginCatalogue(
+    nodePath.join(packageRoot, 'templates/skills'),
+    generatedRoot,
+    options.effectiveVersion,
+  );
   // Keep Codex hooks and skill commands independent from bunx's shared mutable
   // package installation. This is the same standalone build shape as the Claude
   // plugin runtime, emitted into the Codex plugin payload.
@@ -86,6 +98,7 @@ async function generatePlugin(
     rootPackageJson.packageManager,
     'Codex',
     builtVersion,
+    planningAuthorCopies(generatedRoot, 'codex'),
   );
   const runtimeDirectory = nodePath.join(generatedRoot, 'runtime');
   mkdirSync(runtimeDirectory, { recursive: true });
@@ -99,11 +112,6 @@ async function generatePlugin(
     )}\n`,
   );
 
-  const assets = writeCodexPluginCatalogue(
-    nodePath.join(packageRoot, 'templates/skills'),
-    generatedRoot,
-    options.effectiveVersion,
-  );
   const knownSkillNames = new Set<string>();
   for (const asset of assets) {
     const [directory, skill, filename] = asset.relativePath.split(nodePath.sep);

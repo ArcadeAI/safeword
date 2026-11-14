@@ -1,0 +1,24 @@
+import subprocess,os,json,time
+from pathlib import Path
+root='/Users/alex/.codex/worktrees/e24e/safeword'
+env=dict(os.environ, SAFEWORD_TEST_LOCK_MAX_WAIT_MS='1800000')
+stages=[
+ ('generated-fix',['scripts/dev','bun','packages/cli/scripts/check-generated-surfaces.ts','--fix'],root),
+ ('full',['scripts/dev','bun','run','test'],root),
+ ('release',['scripts/dev','bun','run','--cwd','packages/cli','test:release'],root),
+ ('bdd',['../../scripts/dev','node','--import','tsx','../../node_modules/@cucumber/cucumber/bin/cucumber-js','--config','.ranked-quality.cucumber.mjs'],root+'/packages/cli'),
+ ('lint',['scripts/dev','bun','run','lint'],root),
+ ('typecheck',['scripts/dev','bun','run','typecheck'],root),
+ ('parity',['scripts/dev','bun','scripts/parity-check.ts'],root),
+ ('generated-check',['scripts/dev','bun','packages/cli/scripts/check-generated-surfaces.ts'],root),
+ ('cli-contract',['scripts/dev','bun','run','check:cli-contract'],root),
+]
+results=[]
+for name,argv,cwd in stages:
+ print(name+' starting',flush=True);start=time.time()
+ with open('/tmp/5086-quality-verify-'+name+'.log','w') as f: result=subprocess.run(argv,cwd=cwd,env=env,stdout=f,stderr=subprocess.STDOUT)
+ results.append(dict(stage=name,command=argv,exit=result.returncode,seconds=round(time.time()-start,2)))
+ Path('/tmp/5086-quality-verify-results.json').write_text(json.dumps(results,indent=2)+'\n')
+ print(name+' exit '+str(result.returncode),flush=True)
+ if name=='bdd':Path(root+'/packages/cli/.ranked-quality.cucumber.mjs').unlink(missing_ok=True)
+ if result.returncode:raise SystemExit(result.returncode)

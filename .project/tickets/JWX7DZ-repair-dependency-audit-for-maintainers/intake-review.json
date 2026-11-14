@@ -1,0 +1,8 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"review_id\":\"5451fd5d-f670-483f-b3b0-9eff605b3fc9\",\"status\":\"stale\",\"independent\":false,\"result\":{\"schemaVersion\":1,\"ok\":true,\"state\":\"action_required\",\"changed\":false,\"findings\":[{\"code\":\"REVIEW_STALE\",\"message\":\"The reviewed source changed after this review started; run a fresh review.\",\"severity\":\"warning\"}],\"effects\":{\"files\":[],\"packages\":[],\"configuration\":[],\"network\":[],\"destructive\":[]},\"errors\":[],\"recovery\":[],\"nextActions\":[{\"command\":\"safeword review run quality-review --context .project/evidence/markdown-it-audit/verification.md -- .project/tickets/JWX7DZ-repair-dependency-audit-for-maintainers/ticket.md\",\"mutates\":true,\"requiresHuman\":false}],\"data\":{\"command\":\"review status\",\"status\":\"stale\",\"review_id\":\"5451fd5d-f670-483f-b3b0-9eff605b3fc9\"}}}"
+    }
+  ]
+}

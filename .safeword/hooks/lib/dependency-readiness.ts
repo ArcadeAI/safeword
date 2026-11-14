@@ -8,8 +8,10 @@ import {
   realpathSync,
   rmSync,
   statSync,
+  utimesSync,
   writeFileSync,
   type Dirent,
+  type Stats,
 } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -30,6 +32,8 @@ export interface DependencyPlan {
   installCommand: InstallCommand;
   installArtifact: string;
   inputPaths: string[];
+  /** The `packageManager` pin (e.g. `bun@1.4.2`), when it names this manager. */
+  pinnedManager?: string;
 }
 
 export interface DependencyReadiness {
@@ -64,6 +68,9 @@ export type DependencyBootstrapResult =
 
 const INSTALL_ARTIFACT = 'node_modules';
 const INSTALL_MARKER_FILENAME = '.safeword-deps-fingerprint';
+const REINSTALL_SENTINEL_PREFIX = '.safeword-deps-reinstalled-';
+/** Fingerprint characters in a sentinel name: enough to tie it to one input state. */
+const REINSTALL_SENTINEL_FINGERPRINT_LENGTH = 12;
 const DEPENDENCY_STATE_FILENAME = 'dependency-readiness.json';
 const DEPENDENCY_BOOTSTRAP_LOCK_DIRECTORY = '.dependency-bootstrap.lock';
 const BUN_LOCKFILES = ['bun.lock', 'bun.lockb'];
@@ -149,6 +156,17 @@ export function detectDependencyPlan(projectDirectory: string): DependencyPlan |
   const packageManager =
     typeof packageJson.packageManager === 'string' ? packageJson.packageManager : undefined;
 
+  const plan = buildDependencyPlan(projectDirectory, packageJson, packageManager);
+  if (plan === undefined || parseDeclaredManager(packageManager) !== plan.manager) return plan;
+  // Drop a Corepack integrity suffix (`pnpm@9.0.0+sha512.…`) from the display.
+  return { ...plan, pinnedManager: packageManager?.split('+', 1)[0] };
+}
+
+function buildDependencyPlan(
+  projectDirectory: string,
+  packageJson: Record<string, unknown>,
+  packageManager: string | undefined,
+): DependencyPlan | undefined {
   switch (detectDependencyManager(projectDirectory, packageManager)) {
     case 'bun':
       return buildBunPlan(projectDirectory, packageJson);
@@ -358,6 +376,8 @@ export function getDependencyReadiness(projectDirectory: string): DependencyRead
     };
   }
 
+  // Settle sentinels before reading the marker: an accepted one becomes it.
+  const sentinelAccepted = settleReinstallSentinels(projectDirectory, plan, fingerprint);
   const marker = readInstallMarker(projectDirectory, plan);
   const failedStateSuperseded =
     previousState?.status === 'failed' &&
@@ -366,7 +386,7 @@ export function getDependencyReadiness(projectDirectory: string): DependencyRead
 
   // A matching marker is proof that a later install completed successfully.
   // Let that proof supersede durable failure state left by an earlier attempt.
-  if (marker === fingerprint) {
+  if (sentinelAccepted || marker === fingerprint) {
     return {
       status: 'ready',
       reason: 'install_artifact_current',
@@ -719,7 +739,84 @@ function stampInstallMarker(
   } catch {
     // The marker shares node_modules' lifecycle and is best-effort. A failure
     // to stamp it simply falls back to the mtime check on the next read.
+    return;
   }
+  clearReinstallSentinels(projectDirectory, plan);
+}
+
+/**
+ * A new marker supersedes every reinstall sentinel: each one vouched for an
+ * install that the tree may no longer hold. Left behind, a sentinel for inputs
+ * A would mark A ready again after an A → B → A change while node_modules holds
+ * B. Runs only after the marker is written, so the removal's mtime bump cannot
+ * reach the marker-less mtime fallback.
+ */
+function clearReinstallSentinels(projectDirectory: string, plan: DependencyPlan): void {
+  const artifactPath = nodePath.join(projectDirectory, plan.installArtifact);
+  removeReinstallSentinels(artifactPath, listReinstallSentinels(artifactPath));
+}
+
+/**
+ * The stale recovery ends in `touch <artifact>/.safeword-deps-reinstalled-<fp>`,
+ * where `<fp>` comes from the inputs the message was rendered for, and the touch
+ * runs only after its install succeeds. A sentinel naming the current inputs
+ * therefore proves an install completed against exactly this content, with no
+ * timestamp comparison that coarse or skewed clocks could defeat. It replaces
+ * `rm -f <marker> && touch <artifact>`, which host command policies reject
+ * (#5188, #5647).
+ *
+ * Every readiness check settles all sentinels at once, so none outlives the
+ * tree state it vouched for (a later checkout, a failed bootstrap, an A → B → A
+ * change): a matching sentinel becomes the content marker, which clears the
+ * rest; otherwise all are discarded. Discarding restores the artifact's mtime so
+ * the removal cannot satisfy the marker-less mtime fallback. A bootstrap checks
+ * readiness before it installs, so no sentinel survives into its attempt.
+ */
+function settleReinstallSentinels(
+  projectDirectory: string,
+  plan: DependencyPlan,
+  fingerprint: string,
+): boolean {
+  const artifactPath = nodePath.join(projectDirectory, plan.installArtifact);
+  const sentinels = listReinstallSentinels(artifactPath);
+  if (sentinels.length === 0) return false;
+
+  if (sentinels.includes(reinstallSentinelFilename(fingerprint))) {
+    stampInstallMarker(projectDirectory, plan, fingerprint);
+    return true;
+  }
+
+  let artifactStat: Stats | undefined;
+  try {
+    artifactStat = statSync(artifactPath);
+  } catch {
+    return false;
+  }
+  removeReinstallSentinels(artifactPath, sentinels);
+  try {
+    utimesSync(artifactPath, artifactStat.atime, artifactStat.mtime);
+  } catch {
+    // Best-effort: a failed restore can only make the mtime fallback newer.
+  }
+  return false;
+}
+
+function listReinstallSentinels(artifactPath: string): string[] {
+  try {
+    return readdirSync(artifactPath).filter(entry => entry.startsWith(REINSTALL_SENTINEL_PREFIX));
+  } catch {
+    return [];
+  }
+}
+
+function removeReinstallSentinels(artifactPath: string, sentinels: string[]): void {
+  for (const sentinel of sentinels) {
+    rmSync(nodePath.join(artifactPath, sentinel), { force: true });
+  }
+}
+
+function reinstallSentinelFilename(fingerprint: string): string {
+  return `${REINSTALL_SENTINEL_PREFIX}${fingerprint.slice(0, REINSTALL_SENTINEL_FINGERPRINT_LENGTH)}`;
 }
 
 function getDependencyReadinessIgnoringInstallState(projectDirectory: string): DependencyReadiness {
@@ -789,18 +886,17 @@ export function toDependencyReadinessState(
 }
 
 function dependencyRecoveryCommand(readiness: DependencyReadiness): string {
-  const { installCommand, plan, status } = readiness;
+  const { installCommand, plan, status, fingerprint } = readiness;
   if (installCommand === undefined) return 'install dependencies';
 
   // A version-bump pull changes the input fingerprint without changing resolved
   // dependencies, so the install reports "no changes" and does not refresh the
   // marker — which would otherwise leave this stale check looping. No package
   // manager offers a cheap "lockfile already satisfied" probe (pnpm#4861), so
-  // remove the stale marker and touch the artifact after the install succeeds.
-  // This also works when the current app still has an older PostToolUse hook
-  // loaded and therefore cannot stamp the new fingerprint itself.
-  if (status !== 'stale' || plan === undefined) return installCommand;
-  return `${installCommand} && rm -f ${plan.installArtifact}/${INSTALL_MARKER_FILENAME} && touch ${plan.installArtifact}`;
+  // touch a sentinel naming these inputs after the install succeeds. This also
+  // works on hosts with no PostToolUse stamping (Codex) or an older hook loaded.
+  if (status !== 'stale' || plan === undefined || fingerprint === undefined) return installCommand;
+  return `${installCommand} && touch ${plan.installArtifact}/${reinstallSentinelFilename(fingerprint)}`;
 }
 
 export function formatDependencyRecovery(readiness: DependencyReadiness): string {
@@ -809,8 +905,16 @@ export function formatDependencyRecovery(readiness: DependencyReadiness): string
       ? "the project's tool list changed since it was last set up, so safeword's checks may be out of date"
       : "this project's tools aren't installed yet, so safeword's checks can't run";
 
+  const pinned = readiness.plan?.pinnedManager;
   const lines = [
     `${problem}.`,
+    // A shell can resolve an older binary than the pin (#5647); the install then
+    // fails on the lockfile format rather than on anything this message names.
+    ...(pinned === undefined
+      ? []
+      : [
+          `This project pins ${pinned}; if the install fails, check that \`${readiness.plan?.manager} --version\` matches.`,
+        ]),
     // The recovery may end in a relative `touch`, so the folder has to be the
     // project root — "the project folder" reads as "wherever you are" inside a
     // monorepo package and quietly touches the wrong artifact.

@@ -1,0 +1,1894 @@
+[
+  {
+    "ticket": "G1C9PP-approve-coherent-implementation-plans",
+    "feature_scenarios": 50,
+    "ledger_scenarios": 50,
+    "feature_only": [],
+    "ledger_only": [],
+    "duplicate_ledger": [],
+    "history": [
+      {
+        "scenario": "Safeword CLI enforces and releases the decision boundary",
+        "commits": {
+          "RED": [
+            "b1727e245"
+          ],
+          "GREEN": [
+            "828d8af75"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": false
+        }
+      },
+      {
+        "scenario": "Contract agreement controls review eligibility",
+        "commits": {
+          "RED": [
+            "5c33fe706"
+          ],
+          "GREEN": [
+            "5f6201106"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": false
+        }
+      },
+      {
+        "scenario": "A missing packaged contract blocks installed review",
+        "commits": {
+          "RED": [
+            "917fca1a0"
+          ],
+          "GREEN": [
+            "e8a440de4"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Decision presentation controls focused reviewability",
+        "commits": {
+          "RED": [
+            "c4674408b"
+          ],
+          "GREEN": [
+            "2e01fc849"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": false
+        }
+      },
+      {
+        "scenario": "A load-bearing decision cannot disappear from the review path",
+        "commits": {
+          "RED": [
+            "9ad2d2518"
+          ],
+          "GREEN": [
+            "2e01fc849"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": false
+        }
+      },
+      {
+        "scenario": "Safeword CLI accepts only the project-local Implementation Plan",
+        "commits": {
+          "RED": [
+            "b59d6f7b9"
+          ],
+          "GREEN": [
+            "2722ee208"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "A divergent host-private copy never becomes authoritative",
+        "commits": {
+          "RED": [
+            "4f168b359"
+          ],
+          "GREEN": [
+            "2722ee208"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": false
+        }
+      },
+      {
+        "scenario": "Architecture applicability accepts consequences or a justified skip",
+        "commits": {
+          "RED": [
+            "61636f429"
+          ],
+          "GREEN": [
+            "5b00d9413"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Data guidance follows data-contract applicability",
+        "commits": {
+          "RED": [
+            "a1ab09835"
+          ],
+          "GREEN": [
+            "6e58244f28"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": false
+        }
+      },
+      {
+        "scenario": "Data decisions cannot be replaced by migration commands",
+        "commits": {
+          "RED": [
+            "c642b9967"
+          ],
+          "GREEN": [
+            "80e39608d"
+          ],
+          "REFACTOR": [
+            "790f3be0e"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "Conflicting data ownership blocks approval",
+        "commits": {
+          "RED": [
+            "9845cadf0"
+          ],
+          "GREEN": [
+            "7a7473024"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Coherent data ownership permits approval",
+        "commits": {
+          "RED": [
+            "cec8e4aab"
+          ],
+          "GREEN": [
+            "7a7473024"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": false
+        }
+      },
+      {
+        "scenario": "Durable recording routes only significant decisions to the architecture record",
+        "commits": {
+          "RED": [
+            "ca18e79a6"
+          ],
+          "GREEN": [
+            "d2084c8c0"
+          ],
+          "REFACTOR": [
+            "0379b57e3"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "An unrecorded significant decision blocks approval",
+        "commits": {
+          "RED": [
+            "37d445eb2"
+          ],
+          "GREEN": [
+            "8504f326d"
+          ],
+          "REFACTOR": [
+            "b58e82d6f"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "Planning access permits only configured durable architecture records",
+        "commits": {
+          "RED": [
+            "446fe35b9"
+          ],
+          "GREEN": [
+            "be327806e"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "A one-file shared contract is significant while a many-file mechanical edit is not",
+        "commits": {
+          "RED": [
+            "9410f11e6"
+          ],
+          "GREEN": [
+            "6c7040887"
+          ],
+          "REFACTOR": [
+            "f76c9d7e4"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "One design plan remains the feature plan of record",
+        "commits": {
+          "RED": [
+            "7bdd33ed0"
+          ],
+          "GREEN": [
+            "e3b149f29"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Proof scope excludes execution mechanics",
+        "commits": {
+          "RED": [
+            "6b72a8724"
+          ],
+          "GREEN": [
+            "ec3a723a5"
+          ],
+          "REFACTOR": [
+            "58aebd530"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "Decision resolution controls its Implementation Plan obligation",
+        "commits": {
+          "RED": [
+            "78c997859"
+          ],
+          "GREEN": [
+            "b3c2f898d"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Installed review reports every simultaneous decision blocker",
+        "commits": {
+          "RED": [
+            "ee611ade9"
+          ],
+          "GREEN": [
+            "07b38e5410"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": false
+        }
+      },
+      {
+        "scenario": "Decision evidence controls semantic review",
+        "commits": {
+          "RED": [
+            "3b5f78a9b"
+          ],
+          "GREEN": [
+            "f6343f586"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Evidence fields accept honest applicability without allowing empty decision coverage",
+        "commits": {
+          "RED": [
+            "06221b2df"
+          ],
+          "GREEN": [
+            "d33f7a62c"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Evidence presentation does not replace evidence completeness",
+        "commits": {
+          "RED": [
+            "89f22b337"
+          ],
+          "GREEN": [
+            "d64828c6b"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Discovery respects and updates scope only with user authority",
+        "commits": {
+          "RED": [
+            "8adbd9581"
+          ],
+          "GREEN": [
+            "c23b88b7a"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Persona consequence coverage controls approach approval",
+        "commits": {
+          "RED": [
+            "63dab8b2c"
+          ],
+          "GREEN": [
+            "3d3e3d2c3"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Omitting one accepted persona blocks approach approval",
+        "commits": {
+          "RED": [
+            "ed13f8d63"
+          ],
+          "GREEN": [
+            "7de8f700c"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "The receipt records the focused-review judgment",
+        "commits": {
+          "RED": [
+            "4168e473a"
+          ],
+          "GREEN": [
+            "e9582618c"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "A blocked receipt gives a Non-Technical Builder a concrete recovery",
+        "commits": {
+          "RED": [
+            "87fa059b3"
+          ],
+          "GREEN": [
+            "19c911c56"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "A blocked receipt preserves evidence for a Technical Builder",
+        "commits": {
+          "RED": [
+            "7e4281d7c"
+          ],
+          "GREEN": [
+            "2172f5f76"
+          ],
+          "REFACTOR": [
+            "1e82764db"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "Plan-state claims remain truthful",
+        "commits": {
+          "RED": [
+            "8c1ff90f4"
+          ],
+          "GREEN": [
+            "ae74ea6e2"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Significant workflow decisions are complete at decision depth",
+        "commits": {
+          "RED": [
+            "c62458a80"
+          ],
+          "GREEN": [
+            "6d01a8599"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Measurement ownership stays with the phase that owns it",
+        "commits": {
+          "RED": [
+            "0eb25d232"
+          ],
+          "GREEN": [
+            "fce53f366"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Measurement applicability is explicit",
+        "commits": {
+          "RED": [
+            "af66da714"
+          ],
+          "GREEN": [
+            "7331e04c4"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Installed CLI human design authority follows configuration",
+        "commits": {
+          "RED": [
+            "ba24ca98e"
+          ],
+          "GREEN": [
+            "ffc20b29f"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Malformed approval configuration fails closed",
+        "commits": {
+          "RED": [
+            "0302d818d"
+          ],
+          "GREEN": [
+            "34cc6a317"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Implementation Planning exits through the canonical approval boundary",
+        "commits": {
+          "RED": [
+            "f9d832a6c"
+          ],
+          "GREEN": [
+            "cb285bee7"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "A declined design returns to Implementation Planning",
+        "commits": {
+          "RED": [
+            "afd16b0b2"
+          ],
+          "GREEN": [
+            "a7de9a01f"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "An accepted design enters Execution Planning",
+        "commits": {
+          "RED": [
+            "395dab774"
+          ],
+          "GREEN": [
+            "5532748f1"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "A review-blocked design is never presented for human approval",
+        "commits": {
+          "RED": [
+            "c5dad14b1"
+          ],
+          "GREEN": [
+            "7fe63f37d"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Human design authority follows approach currency",
+        "commits": {
+          "RED": [
+            "c3b190c73"
+          ],
+          "GREEN": [
+            "13d2085d3"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Concurrent design decisions do not overwrite each other",
+        "commits": {
+          "RED": [
+            "06724f70c",
+            "9fab905a2",
+            "5e4197aea"
+          ],
+          "GREEN": [
+            "426ccbf7e",
+            "cd60ba10e",
+            "0189cb294"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {}
+      },
+      {
+        "scenario": "An interrupted approval resumes according to durable authority",
+        "commits": {
+          "RED": [
+            "e707a8f87"
+          ],
+          "GREEN": [
+            "daec96bce"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Retrying the same design approval does not duplicate authority",
+        "commits": {
+          "RED": [],
+          "GREEN": [
+            "426ccbf7e"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {}
+      },
+      {
+        "scenario": "Approval-ledger contention fails closed without changing authority",
+        "commits": {
+          "RED": [
+            "c99a7cf44",
+            "8c8a663b9"
+          ],
+          "GREEN": [
+            "b03466f66",
+            "6bcacef21"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {}
+      },
+      {
+        "scenario": "A design decision preserves compatible approval-ledger extensions",
+        "commits": {
+          "RED": [],
+          "GREEN": [
+            "426ccbf7e"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {}
+      },
+      {
+        "scenario": "A completed Execution Plan does not trigger a second design approval",
+        "commits": {
+          "RED": [],
+          "GREEN": [
+            "13d2085d3"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {}
+      },
+      {
+        "scenario": "A completed Execution Plan cannot preserve stale design approval",
+        "commits": {
+          "RED": [],
+          "GREEN": [
+            "13d2085d3"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {}
+      },
+      {
+        "scenario": "Review repairs every known plan defect before execution planning",
+        "commits": {
+          "RED": [
+            "8eab8e7f0"
+          ],
+          "GREEN": [
+            "7c2c24197"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "External authority pauses repair without disguising the plan as complete",
+        "commits": {
+          "RED": [
+            "8eab8e7f0"
+          ],
+          "GREEN": [
+            "7c2c24197"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Every corrected plan is re-reviewed until its current bytes are clean",
+        "commits": {
+          "RED": [
+            "8eab8e7f0"
+          ],
+          "GREEN": [
+            "7c2c24197"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      }
+    ]
+  },
+  {
+    "ticket": "7CAMAD-turn-decisions-into-startable-work",
+    "feature_scenarios": 39,
+    "ledger_scenarios": 39,
+    "feature_only": [],
+    "ledger_only": [],
+    "duplicate_ledger": [],
+    "history": [
+      {
+        "scenario": "Implementation Plan review state controls Execution Planning",
+        "commits": {
+          "RED": [
+            "5d2aa327f"
+          ],
+          "GREEN": [
+            "88efda591"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Review routes preserve their actual provenance",
+        "commits": {
+          "RED": [
+            "5d2aa327f"
+          ],
+          "GREEN": [
+            "88efda591"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "An unearned fallback receipt cannot authorize planning",
+        "commits": {
+          "RED": [
+            "5d2aa327f"
+          ],
+          "GREEN": [
+            "88efda591"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "A self-authored independence claim cannot authorize planning",
+        "commits": {
+          "RED": [
+            "5d2aa327f"
+          ],
+          "GREEN": [
+            "88efda591"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "A fresh-context agent turns an accepted approach into the first RED",
+        "commits": {
+          "RED": [
+            "39163e735",
+            "265496503",
+            "6d08a5cd7",
+            "7380ff209"
+          ],
+          "GREEN": [
+            "3936a7d0b"
+          ],
+          "REFACTOR": [
+            "d86fd1745"
+          ]
+        },
+        "ancestry": {
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "A later unstartable step blocks an otherwise startable plan",
+        "commits": {
+          "RED": [],
+          "GREEN": [
+            "7a9e321b8"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {}
+      },
+      {
+        "scenario": "First-step availability and ordering control startability",
+        "commits": {
+          "RED": [],
+          "GREEN": [
+            "e8d7cf539"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {}
+      },
+      {
+        "scenario": "Review-contract identity controls semantic approval",
+        "commits": {
+          "RED": [
+            "bb2bf5c8d"
+          ],
+          "GREEN": [
+            "b5ddd8b22"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "A discovered change returns only when it alters an accepted decision",
+        "commits": {
+          "RED": [],
+          "GREEN": [
+            "f7a05dc4a"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {}
+      },
+      {
+        "scenario": "Project-local Execution Plan state controls coding authorization",
+        "commits": {
+          "RED": [
+            "86cda081d"
+          ],
+          "GREEN": [
+            "153b78709"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "A missing project-local plan names the project-local artifact to create",
+        "commits": {
+          "RED": [
+            "86cda081d"
+          ],
+          "GREEN": [
+            "153b78709"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Decision specificity controls semantic approval",
+        "commits": {
+          "RED": [],
+          "GREEN": [
+            "0c5f1a6ce"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {}
+      },
+      {
+        "scenario": "The structural gate reports artifact facts without a semantic verdict",
+        "commits": {
+          "RED": [
+            "82e8137ba"
+          ],
+          "GREEN": [
+            "9a433ff6a"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Concrete proof content controls test-step startability",
+        "commits": {
+          "RED": [
+            "364f45b50"
+          ],
+          "GREEN": [
+            "760aafbe9"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Execution Plan currency controls coding authorization",
+        "commits": {
+          "RED": [
+            "7cead12f6"
+          ],
+          "GREEN": [
+            "153b78709"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": false
+        }
+      },
+      {
+        "scenario": "Execution Plan verdict and recorded assurance control coding authorization",
+        "commits": {
+          "RED": [
+            "ef18bc398"
+          ],
+          "GREEN": [
+            "d7dc1b100"
+          ],
+          "REFACTOR": [
+            "4ca3c4422"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "Every accepted obligation must map to startable work",
+        "commits": {
+          "RED": [],
+          "GREEN": [
+            "45bcf2227"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {}
+      },
+      {
+        "scenario": "Partial obligation mapping is not startable",
+        "commits": {
+          "RED": [],
+          "GREEN": [
+            "45bcf2227"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {}
+      },
+      {
+        "scenario": "Complete obligation mapping permits semantic approval",
+        "commits": {
+          "RED": [],
+          "GREEN": [
+            "45bcf2227"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {}
+      },
+      {
+        "scenario": "Explicitly inapplicable obligations do not manufacture execution work",
+        "commits": {
+          "RED": [],
+          "GREEN": [
+            "45bcf2227"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {}
+      },
+      {
+        "scenario": "An execution step still proceeds through RED GREEN and REFACTOR",
+        "commits": {
+          "RED": [
+            "40fed356a"
+          ],
+          "GREEN": [
+            "91a446985"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Production code cannot precede the named RED",
+        "commits": {
+          "RED": [],
+          "GREEN": [
+            "719486201"
+          ],
+          "REFACTOR": [
+            "2fbec3997"
+          ]
+        },
+        "ancestry": {
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "Measurement execution preserves the accepted promise and validity contract",
+        "commits": {
+          "RED": [],
+          "GREEN": [
+            "3c65b65f5"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {}
+      },
+      {
+        "scenario": "Review invalidation follows dependency direction",
+        "commits": {
+          "RED": [
+            "d25df2ea7"
+          ],
+          "GREEN": [
+            "2d41c4802"
+          ],
+          "REFACTOR": [
+            "33955c24c"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "An Execution Plan cannot stay current after its source approach changes",
+        "commits": {
+          "RED": [
+            "4faf5aec8"
+          ],
+          "GREEN": [
+            "cb9015b92"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Implementation-time replanning preserves valid progress and refreshes the affected plans",
+        "commits": {
+          "RED": [
+            "9ca6f63c6"
+          ],
+          "GREEN": [
+            "8f2059b23"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Repeating approval cannot clear a recorded design repair",
+        "commits": {
+          "RED": [],
+          "GREEN": [],
+          "REFACTOR": []
+        },
+        "ancestry": {}
+      },
+      {
+        "scenario": "Fresh review can recover an unchanged approach without inventing human authority",
+        "commits": {
+          "RED": [],
+          "GREEN": [],
+          "REFACTOR": []
+        },
+        "ancestry": {}
+      },
+      {
+        "scenario": "Replanning reopens proof invalidated by the changed decision",
+        "commits": {
+          "RED": [
+            "fc1f607e3"
+          ],
+          "GREEN": [
+            "6d71508bd"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Implementation cannot continue under a stale affected plan",
+        "commits": {
+          "RED": [
+            "d65d37e28"
+          ],
+          "GREEN": [
+            "719486201"
+          ],
+          "REFACTOR": [
+            "2fbec3997"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "Evidence state controls the delivery claim",
+        "commits": {
+          "RED": [
+            "13e5380e0"
+          ],
+          "GREEN": [
+            "de47c9120"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Delivery evidence uses the canonical checklist taxonomy",
+        "commits": {
+          "RED": [],
+          "GREEN": [
+            "a444ccd57"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {}
+      },
+      {
+        "scenario": "Canonical delivery-contract identity prevents local contract drift",
+        "commits": {
+          "RED": [
+            "231553108"
+          ],
+          "GREEN": [
+            "c87435977"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Partial structural evidence cannot authorize completion",
+        "commits": {
+          "RED": [
+            "e7237d2b6",
+            "0db3aeda9",
+            "e08716a40"
+          ],
+          "GREEN": [
+            "fecea88ed"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {}
+      },
+      {
+        "scenario": "The Execution Plan maps delivery obligations into owned review units",
+        "commits": {
+          "RED": [],
+          "GREEN": [
+            "45bcf2227"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {}
+      },
+      {
+        "scenario": "Canonical slicing-contract identity prevents local contract drift",
+        "commits": {
+          "RED": [
+            "2f81f4a6b"
+          ],
+          "GREEN": [
+            "b5ddd8b22"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Contribution shape controls pull-request decomposition",
+        "commits": {
+          "RED": [],
+          "GREEN": [
+            "45bcf2227"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {}
+      },
+      {
+        "scenario": "A complete-looking task list cannot leave delivery obligations unowned",
+        "commits": {
+          "RED": [],
+          "GREEN": [
+            "45bcf2227"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {}
+      },
+      {
+        "scenario": "Execution approval cannot impersonate a downstream approval",
+        "commits": {
+          "RED": [
+            "53d2c247e"
+          ],
+          "GREEN": [
+            "91aba5c13"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      }
+    ]
+  },
+  {
+    "ticket": "6XW8H7-split-large-contributions-into-reviewable-prs",
+    "feature_scenarios": 15,
+    "ledger_scenarios": 15,
+    "feature_only": [],
+    "ledger_only": [],
+    "duplicate_ledger": [],
+    "history": [
+      {
+        "scenario": "Contribution shape produces an explicit slicing decision",
+        "commits": {
+          "RED": [
+            "be9e664ac"
+          ],
+          "GREEN": [
+            "f6e67f8ad"
+          ],
+          "REFACTOR": [
+            "1c4d56d07"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "An omitted slicing decision cannot pass Execution Plan review",
+        "commits": {
+          "RED": [
+            "238f2e4f4"
+          ],
+          "GREEN": [
+            "596886398"
+          ],
+          "REFACTOR": [
+            "f6e67f8ad"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "Installed review dispatch carries the canonical slicing contract",
+        "commits": {
+          "RED": [
+            "2f81f4a6b"
+          ],
+          "GREEN": [
+            "1c4d56d07"
+          ],
+          "REFACTOR": [
+            "ee9ce897b"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "A complete pull-request slice receives a complete review record",
+        "commits": {
+          "RED": [
+            "be9e664ac"
+          ],
+          "GREEN": [
+            "31c78b6f1"
+          ],
+          "REFACTOR": [
+            "1c4d56d07"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "An incomplete pull-request slice is rejected",
+        "commits": {
+          "RED": [
+            "be9e664ac"
+          ],
+          "GREEN": [
+            "31c78b6f1"
+          ],
+          "REFACTOR": [
+            "1c4d56d07"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "A pull-request slice with two independent purposes is rejected",
+        "commits": {
+          "RED": [
+            "238f2e4f4"
+          ],
+          "GREEN": [
+            "596886398"
+          ],
+          "REFACTOR": [
+            "f6e67f8ad"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "A formally complete slice cannot leave a design decision to its implementer",
+        "commits": {
+          "RED": [
+            "238f2e4f4"
+          ],
+          "GREEN": [
+            "596886398"
+          ],
+          "REFACTOR": [
+            "f6e67f8ad"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "Ordered slices preserve a supported repository after every merge",
+        "commits": {
+          "RED": [
+            "238f2e4f4"
+          ],
+          "GREEN": [
+            "596886398"
+          ],
+          "REFACTOR": [
+            "f6e67f8ad"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "A slice that becomes safe only after a later merge is rejected",
+        "commits": {
+          "RED": [
+            "238f2e4f4"
+          ],
+          "GREEN": [
+            "596886398"
+          ],
+          "REFACTOR": [
+            "f6e67f8ad"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "Conceptual scope determines reviewable slicing",
+        "commits": {
+          "RED": [
+            "238f2e4f4"
+          ],
+          "GREEN": [
+            "596886398"
+          ],
+          "REFACTOR": [
+            "f6e67f8ad"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "Line count alone cannot justify a slicing decision",
+        "commits": {
+          "RED": [
+            "238f2e4f4"
+          ],
+          "GREEN": [
+            "596886398"
+          ],
+          "REFACTOR": [
+            "f6e67f8ad"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "Accepted obligations remain assigned across pull-request slices",
+        "commits": {
+          "RED": [
+            "238f2e4f4"
+          ],
+          "GREEN": [
+            "596886398"
+          ],
+          "REFACTOR": [
+            "f6e67f8ad"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "Accepted decisions remain unchanged across pull-request slices",
+        "commits": {
+          "RED": [
+            "238f2e4f4"
+          ],
+          "GREEN": [
+            "596886398"
+          ],
+          "REFACTOR": [
+            "f6e67f8ad"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "A slicing plan cannot discard an accepted obligation",
+        "commits": {
+          "RED": [
+            "238f2e4f4"
+          ],
+          "GREEN": [
+            "596886398"
+          ],
+          "REFACTOR": [
+            "f6e67f8ad"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "A pull-request slice cannot rewrite an accepted approach decision",
+        "commits": {
+          "RED": [
+            "238f2e4f4"
+          ],
+          "GREEN": [
+            "596886398"
+          ],
+          "REFACTOR": [
+            "f6e67f8ad"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      }
+    ]
+  },
+  {
+    "ticket": "A639WN-complete-contributions-with-a-default-delivery-checklist",
+    "feature_scenarios": 18,
+    "ledger_scenarios": 18,
+    "feature_only": [],
+    "ledger_only": [],
+    "duplicate_ledger": [],
+    "history": [
+      {
+        "scenario": "The installed CLI exposes a satisfied execution prerequisite",
+        "commits": {
+          "RED": [
+            "54af6fdf5"
+          ],
+          "GREEN": [
+            "240ccec06"
+          ],
+          "REFACTOR": [
+            "dec938ae9"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "Missing contribution context blocks execution readiness",
+        "commits": {
+          "RED": [
+            "54af6fdf5"
+          ],
+          "GREEN": [
+            "240ccec06"
+          ],
+          "REFACTOR": [
+            "dec938ae9"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "Several missing prerequisites are reported in deterministic planning order",
+        "commits": {
+          "RED": [
+            "54af6fdf5"
+          ],
+          "GREEN": [
+            "240ccec06"
+          ],
+          "REFACTOR": [
+            "dec938ae9"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "A complete checklist exposes every default obligation category",
+        "commits": {
+          "RED": [
+            "b95affd4f"
+          ],
+          "GREEN": [
+            "06add9684"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "A silently omitted default category prevents checklist completion",
+        "commits": {
+          "RED": [
+            "c2c4cdbe5"
+          ],
+          "GREEN": [
+            "c1b07cec5"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "An applicable item records an honest disposition",
+        "commits": {
+          "RED": [
+            "13d6a8be5"
+          ],
+          "GREEN": [
+            "07e0054a7"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Contributor-controlled work cannot be dismissed as a human handoff",
+        "commits": {
+          "RED": [
+            "b8e731844"
+          ],
+          "GREEN": [
+            "db08befa5"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Applicable contributor work cannot be dismissed as not applicable",
+        "commits": {
+          "RED": [],
+          "GREEN": [
+            "5d0652809"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {}
+      },
+      {
+        "scenario": "In-flight checklist state reflects partial execution progress",
+        "commits": {
+          "RED": [
+            "2b0bed8ad"
+          ],
+          "GREEN": [
+            "4ef8c0a40"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "An unreadable Execution Plan blocks checklist updates",
+        "commits": {
+          "RED": [
+            "d00277c4d"
+          ],
+          "GREEN": [
+            "f97d5efa9"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "The feature Delivery Checklist lives in the Execution Plan",
+        "commits": {
+          "RED": [
+            "4c2ccc16f"
+          ],
+          "GREEN": [
+            "eadc5e773"
+          ],
+          "REFACTOR": [
+            "9d9fc74c6"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "The feature checklist contract cannot impose feature artifacts on smaller work",
+        "commits": {
+          "RED": [
+            "54af6fdf5"
+          ],
+          "GREEN": [
+            "240ccec06"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "The checklist records the appropriate PR-slicing outcome",
+        "commits": {
+          "RED": [
+            "e3a24a8fc"
+          ],
+          "GREEN": [
+            "bb3565467"
+          ],
+          "REFACTOR": [
+            "e4ea44f24"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "A large contribution cannot leave PR slicing unresolved",
+        "commits": {
+          "RED": [
+            "3f988cf67"
+          ],
+          "GREEN": [
+            "eb813d834"
+          ],
+          "REFACTOR": []
+        },
+        "ancestry": {
+          "RED->GREEN": true
+        }
+      },
+      {
+        "scenario": "Readiness reports the next owning boundary without inventing authority",
+        "commits": {
+          "RED": [
+            "ef851d2b0",
+            "549f8b486"
+          ],
+          "GREEN": [
+            "f339f9c4d"
+          ],
+          "REFACTOR": [
+            "31a4b21f9"
+          ]
+        },
+        "ancestry": {
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "Contributor evidence cannot record human approval",
+        "commits": {
+          "RED": [
+            "9bd269830"
+          ],
+          "GREEN": [
+            "0ca75dd50"
+          ],
+          "REFACTOR": [
+            "31a4b21f9"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "Evidence class controls the claim Safeword may make",
+        "commits": {
+          "RED": [
+            "1b5e17b99"
+          ],
+          "GREEN": [
+            "67a8de4b4"
+          ],
+          "REFACTOR": [
+            "31a4b21f9"
+          ]
+        },
+        "ancestry": {
+          "RED->GREEN": true,
+          "GREEN->REFACTOR": true
+        }
+      },
+      {
+        "scenario": "Earlier or partial evidence cannot silently become current complete proof",
+        "commits": {
+          "RED": [
+            "54ece7929",
+            "3147b959b"
+          ],
+          "GREEN": [
+            "127ec3624"
+          ],
+          "REFACTOR": [
+            "31a4b21f9"
+          ]
+        },
+        "ancestry": {
+          "GREEN->REFACTOR": true
+        }
+      }
+    ]
+  }
+]

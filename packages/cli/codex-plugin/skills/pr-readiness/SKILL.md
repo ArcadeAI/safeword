@@ -19,6 +19,25 @@ Read the ticket, merge-base diff, commits, current PR body, check rollup, review
 and unresolved threads at the current head SHA. Generated summaries may
 supplement this evidence, never replace or obscure it.
 
+For Codex, perform authorized Ready promotion through the same installed or
+bundled Safeword CLI used for verification, with these arguments:
+`project pr-ready [pull] --cwd <delivery-worktree>`. In a native plugin session,
+use its bundled runtime rather than assuming a globally installed executable.
+The optional pull operand is a positive PR number; omit it for the current branch.
+The command selects its actual worktree, requires that checkout's verified
+ticket and exact-HEAD closure receipt, checks that the open PR's head matches,
+then promotes the inspected PR from the same checkout. It rechecks local evidence
+before promotion; GitHub's Ready API has no atomic expected-head precondition.
+
+Codex 0.160.0 raw shell hooks omit a separate tool `workdir`
+([upstream issue](https://github.com/openai/codex/issues/32360)), so their allow
+alone does not prove another worktree was checked. Use the checked command for
+cross-worktree promotion instead of relying on raw `gh pr ready`. If evidence is
+missing or stale, complete verification and ticket closure in the delivery
+worktree. Keep tickets, state, and receipts in their own checkout; do not copy
+or edit them to repair a context mismatch. This command does not grant authority
+to change PR state: explicit user authorization below still applies.
+
 Keep speculative work on a branch. Open a requested PR as Draft only for concrete
 CI, AI review, or a narrow human check. Reply before resolving every thread;
 leave disagreements for the reviewer to resolve; re-request review after a

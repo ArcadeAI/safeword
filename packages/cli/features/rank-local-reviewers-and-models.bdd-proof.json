@@ -44,7 +44,7 @@
     ],
     "Same-author success cannot satisfy independent review": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "continues past a same-author success to the next independent route"
+      "tries the independent route before a same-author route listed first"
     ],
     "Last same-author success remains degraded": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",

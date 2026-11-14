@@ -21,6 +21,7 @@ import { writeDurableFile } from '../codex-plugin/durable-write.js';
 import { canonicalDirectory } from '../utils/fs.js';
 import { compareVersions, isSafePackageVersion } from '../utils/version.js';
 import { VERSION } from '../version.js';
+import { claudeAssetMatches } from './asset-integrity.js';
 import {
   CLAUDE_NATIVE_METADATA_FILES,
   CLAUDE_NATIVE_REQUIRED_ASSETS,
@@ -900,7 +901,13 @@ function assertInstalledAsset(installPath: string, asset: JsonObject): void {
     throw new TypeError('installed inventory contains an unsafe asset');
   }
   const path = nodePath.join(installPath, asset.path);
-  if (!lstatSync(path).isFile() || fileSha256(path) !== asset.sha256) {
+  if (
+    !lstatSync(path).isFile() ||
+    !claudeAssetMatches(
+      { path: asset.path, sha256: asset.sha256, skill_sha256: asset.skill_sha256 },
+      readFileSync(path),
+    )
+  ) {
     throw new TypeError(`installed asset failed integrity validation: ${asset.path}`);
   }
 }

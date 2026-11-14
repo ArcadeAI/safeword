@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { CommandInvocation } from '../../src/cli-protocol/handler.js';
 import { createResult } from '../../src/cli-protocol/result.js';
@@ -85,7 +85,15 @@ function projectBytes(cwd: string, relativePath: string): string {
   return readFileSync(nodePath.join(cwd, relativePath), 'utf8');
 }
 
+// These cases assert lifecycle file ownership and profile state, never installed
+// packages; the real dependency install took ~93 s of this file locally and
+// pushed single cases past 60 s on CI (#6357).
+beforeEach(() => {
+  vi.stubEnv('SAFEWORD_SKIP_INSTALL', '1');
+});
+
 afterEach(() => {
+  vi.unstubAllEnvs();
   profileState.codex = false;
   profileState.claude = false;
   profileState.opencode = false;
@@ -127,7 +135,7 @@ describe('selected authority lifecycle reconciliation', () => {
     profileState.codex = true;
     const installed = await installLifecycle(invocation(cwd, 'codex'), adapters);
     expect(installed.errors).toEqual([]);
-    expect(existsSync(nodePath.join(cwd, '.safeword/SAFEWORD.md'))).toBe(true);
+    expect(existsSync(nodePath.join(cwd, '.safeword/enrolled'))).toBe(true);
     mkdirSync(nodePath.join(cwd, '.project'), { recursive: true });
     writeFileSync(nodePath.join(cwd, '.project/authored.md'), 'authored knowledge\n');
 
@@ -136,7 +144,7 @@ describe('selected authority lifecycle reconciliation', () => {
     const result = await uninstallLifecycle(invocation(cwd, 'none', { yes: true, plan }));
 
     expect(result.errors).toEqual([]);
-    expect(existsSync(nodePath.join(cwd, '.safeword/SAFEWORD.md'))).toBe(false);
+    expect(existsSync(nodePath.join(cwd, '.safeword/enrolled'))).toBe(false);
     expect(profileState.claude).toBe(true);
     expect(profileState.codex).toBe(true);
     expect(projectBytes(cwd, '.project/authored.md')).toBe('authored knowledge\n');
@@ -156,7 +164,7 @@ describe('selected authority lifecycle reconciliation', () => {
       const installed = await installLifecycle(invocation(cwd, removed), adapters);
       expect(installed.errors).toEqual([]);
       expect(existsSync(nodePath.join(cwd, '.cursor'))).toBe(removed === 'cursor');
-      const preserved = ['.safeword/SAFEWORD.md', '.safeword/config.json'];
+      const preserved = ['.safeword/enrolled', '.safeword/config.json'];
       const before = new Map(preserved.map(path => [path, projectBytes(cwd, path)]));
 
       const preview = await uninstallLifecycle(invocation(cwd, removed));

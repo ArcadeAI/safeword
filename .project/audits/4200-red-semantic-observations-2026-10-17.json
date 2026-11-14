@@ -1,0 +1,338 @@
+{
+  "schema_version": 1,
+  "code_head": "2c069be7689f678f88e7c32486e3223a307992f5",
+  "method": "Permanent opt-in live Vitest lane; five fresh public CLI reviews; Claude Opus explicitly selected. Public response fields copied after execution; no credential stores or integrity keys copied.",
+  "command": "SAFEWORD_RUN_EXECUTABLE_RED_LIVE=1 SAFEWORD_EXECUTABLE_RED_LIVE_REVIEWER=claude SAFEWORD_EXECUTABLE_RED_LIVE_MODEL=opus SAFEWORD_EXECUTABLE_RED_RESULTS_PATH=<fresh absolute path> scripts/dev bun run --cwd packages/cli test --config vitest.live.config.ts tests/smoke/executable-red.live.test.ts --maxWorkers=1",
+  "result": {
+    "tests_passed": 5,
+    "duration_seconds": 66.68
+  },
+  "limits": [
+    "Small synthetic regression set, not provider qualification, installed-host/cloud parity or historical RED reconstruction.",
+    "Copied public responses are an observation record, not portable authenticated receipts. Live authenticated status and gates were checked on the originating host.",
+    "Temporary fixture directories were removed; reproduce from the committed fixture builder and live lane.",
+    "Wider audit findings and historical failures remain open in the unchanged audit snapshots."
+  ],
+  "observations": [
+    {
+      "case_id": "actor-assertion",
+      "expected_verdict": "approve",
+      "passed": true,
+      "review_id": "4d50e01c-ffdb-497e-bc24-46bcdbe7fcfb",
+      "author_agent": "codex",
+      "actual_reviewer": "claude",
+      "reviewer_model": "opus",
+      "independence": "cross-agent",
+      "verdict": "approve",
+      "review_status": "approved",
+      "gate_status": "approved",
+      "execution_attestation": {
+        "schema_version": 1,
+        "argv": [
+          "/Users/alex/.local/share/mise/installs/node/24.18.1/bin/node",
+          "/Users/alex/.codex/worktrees/b2c3/safeword/node_modules/.bun/@cucumber+cucumber@13.2.1/node_modules/@cucumber/cucumber/bin/cucumber.js",
+          "--config",
+          "cucumber.mjs",
+          "--import",
+          "steps.mjs",
+          "--format",
+          "progress",
+          "--format",
+          "json:run-report.json",
+          "case.feature"
+        ],
+        "cwd": ".",
+        "evidence_class": "local-live-host",
+        "expected_failure": {
+          "literal": "Expected actor output status: ready",
+          "matched": true
+        },
+        "timeout_ms": 10000,
+        "source_fingerprint": "679905f5d7223cb04ed63e56fe0619771789f4bbcb7f2eaad87e6af5fc589e12",
+        "environment": {
+          "sha256": "6dc16324478cb7321a32356ccfe0f5212f1ddc64bfd28e7bb267260c4b25b593",
+          "variable_count": 95,
+          "platform": "darwin",
+          "arch": "arm64",
+          "node": "v24.18.1"
+        },
+        "started_at": "2026-10-17T00:54:16.978Z",
+        "finished_at": "2026-10-17T00:54:17.789Z",
+        "duration_ms": 811,
+        "termination": {
+          "exit_code": 1,
+          "signal": null,
+          "timed_out": false
+        },
+        "stdout": {
+          "excerpt": "..F\n\nFailed scenarios:\n  1) Builder reads readiness # case.feature:2\n       Then the builder sees status ready # steps.mjs:6\n           AssertionError [ERR_ASSERTION]: Expected actor output status: ready\n           + actual - expected\n           \n           + 'status: pending'\n           - 'status: ready'\n                      ^\n           \n               + expected - actual\n           \n               -status: pending\n               +status: ready\n           \n               at World.<anonymous> (file:///private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-case-W94jZN/steps.mjs:6:60)\n\n1 scenario (1 failed)\n3 steps (2 passed, 1 failed)\n0m 0.79s (0m 0.69s executing your code)\n",
+          "bytes": 694,
+          "sha256": "563fbc8b3bf26f4f0fa3a2206a30ca0c9f8792ab5037e4abe5affa452fb006c9",
+          "truncated": false
+        },
+        "stderr": {
+          "excerpt": "",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "truncated": false
+        }
+      }
+    },
+    {
+      "case_id": "undefined-step",
+      "expected_verdict": "request_changes",
+      "passed": true,
+      "review_id": "b7bf4e47-a894-4d7b-838a-aa3ddcfe0077",
+      "author_agent": "codex",
+      "actual_reviewer": "claude",
+      "reviewer_model": "opus",
+      "independence": "cross-agent",
+      "verdict": "request_changes",
+      "review_status": "changes_requested",
+      "gate_status": "blocked",
+      "execution_attestation": {
+        "schema_version": 1,
+        "argv": [
+          "/Users/alex/.local/share/mise/installs/node/24.18.1/bin/node",
+          "/Users/alex/.codex/worktrees/b2c3/safeword/node_modules/.bun/@cucumber+cucumber@13.2.1/node_modules/@cucumber/cucumber/bin/cucumber.js",
+          "--config",
+          "cucumber.mjs",
+          "--import",
+          "steps.mjs",
+          "--format",
+          "progress",
+          "--format",
+          "json:run-report.json",
+          "case.feature"
+        ],
+        "cwd": ".",
+        "evidence_class": "local-live-host",
+        "expected_failure": {
+          "literal": "undefined",
+          "matched": true
+        },
+        "timeout_ms": 10000,
+        "source_fingerprint": "8821edfacc62b18ac46ae71a061c0f3d67a6fbdf180c040e0f32472875e36b37",
+        "environment": {
+          "sha256": "6dc16324478cb7321a32356ccfe0f5212f1ddc64bfd28e7bb267260c4b25b593",
+          "variable_count": 95,
+          "platform": "darwin",
+          "arch": "arm64",
+          "node": "v24.18.1"
+        },
+        "started_at": "2026-10-17T00:54:33.414Z",
+        "finished_at": "2026-10-17T00:54:33.698Z",
+        "duration_ms": 284,
+        "termination": {
+          "exit_code": 1,
+          "signal": null,
+          "timed_out": false
+        },
+        "stdout": {
+          "excerpt": ".U-\n\nUndefined scenarios:\n  1) Builder reads readiness # case.feature:2\n       When the builder asks for readiness\n\n1 scenario (1 undefined)\n3 steps (1 passed, 1 skipped, 1 undefined)\n0m 0.6s (0m 0.0s executing your code)\n\nYou can implement missing steps with the snippets below:\n\nWhen('the builder asks for readiness', function () {\n  // Write code here that turns the phrase above into concrete actions\n  return 'pending';\n});\n\n",
+          "bytes": 430,
+          "sha256": "100cb1cc3f749b62f4d79e85fead75d0d556d968f149d0ac910f3c9b11d6b8a6",
+          "truncated": false
+        },
+        "stderr": {
+          "excerpt": "",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "truncated": false
+        }
+      }
+    },
+    {
+      "case_id": "pending-step",
+      "expected_verdict": "request_changes",
+      "passed": true,
+      "review_id": "501c0909-9279-47f7-9ab2-1d344cb55bd3",
+      "author_agent": "codex",
+      "actual_reviewer": "claude",
+      "reviewer_model": "opus",
+      "independence": "cross-agent",
+      "verdict": "request_changes",
+      "review_status": "changes_requested",
+      "gate_status": "blocked",
+      "execution_attestation": {
+        "schema_version": 1,
+        "argv": [
+          "/Users/alex/.local/share/mise/installs/node/24.18.1/bin/node",
+          "/Users/alex/.codex/worktrees/b2c3/safeword/node_modules/.bun/@cucumber+cucumber@13.2.1/node_modules/@cucumber/cucumber/bin/cucumber.js",
+          "--config",
+          "cucumber.mjs",
+          "--import",
+          "steps.mjs",
+          "--format",
+          "progress",
+          "--format",
+          "json:run-report.json",
+          "case.feature"
+        ],
+        "cwd": ".",
+        "evidence_class": "local-live-host",
+        "expected_failure": {
+          "literal": "pending",
+          "matched": true
+        },
+        "timeout_ms": 10000,
+        "source_fingerprint": "2addc185428ccab1e3e9bc67a032b9730eff534167591c9ab5c598f4bec0c246",
+        "environment": {
+          "sha256": "6dc16324478cb7321a32356ccfe0f5212f1ddc64bfd28e7bb267260c4b25b593",
+          "variable_count": 95,
+          "platform": "darwin",
+          "arch": "arm64",
+          "node": "v24.18.1"
+        },
+        "started_at": "2026-10-17T00:54:43.947Z",
+        "finished_at": "2026-10-17T00:54:44.263Z",
+        "duration_ms": 316,
+        "termination": {
+          "exit_code": 1,
+          "signal": null,
+          "timed_out": false
+        },
+        "stdout": {
+          "excerpt": ".P-\n\nPending scenarios:\n  1) Builder reads readiness # case.feature:2\n       When the builder asks for readiness # steps.mjs:5\n\n1 scenario (1 pending)\n3 steps (1 passed, 1 skipped, 1 pending)\n0m 0.5s (0m 0.0s executing your code)\n",
+          "bytes": 230,
+          "sha256": "9ed479f569bfd12df839feec298f76861069eb435fe662e3f83621f03a35de42",
+          "truncated": false
+        },
+        "stderr": {
+          "excerpt": "",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "truncated": false
+        }
+      }
+    },
+    {
+      "case_id": "setup-failure",
+      "expected_verdict": "request_changes",
+      "passed": true,
+      "review_id": "7dc91cd1-b848-4022-a525-4d10ad4224ed",
+      "author_agent": "codex",
+      "actual_reviewer": "claude",
+      "reviewer_model": "opus",
+      "independence": "cross-agent",
+      "verdict": "request_changes",
+      "review_status": "changes_requested",
+      "gate_status": "blocked",
+      "execution_attestation": {
+        "schema_version": 1,
+        "argv": [
+          "/Users/alex/.local/share/mise/installs/node/24.18.1/bin/node",
+          "/Users/alex/.codex/worktrees/b2c3/safeword/node_modules/.bun/@cucumber+cucumber@13.2.1/node_modules/@cucumber/cucumber/bin/cucumber.js",
+          "--config",
+          "cucumber.mjs",
+          "--import",
+          "steps.mjs",
+          "--format",
+          "progress",
+          "--format",
+          "json:run-report.json",
+          "case.feature"
+        ],
+        "cwd": ".",
+        "evidence_class": "local-live-host",
+        "expected_failure": {
+          "literal": "Expected actor output status: ready",
+          "matched": true
+        },
+        "timeout_ms": 10000,
+        "source_fingerprint": "233bde38789c541ee4890a51781500be9c40e63dfd1606ba82502e827f322580",
+        "environment": {
+          "sha256": "6dc16324478cb7321a32356ccfe0f5212f1ddc64bfd28e7bb267260c4b25b593",
+          "variable_count": 95,
+          "platform": "darwin",
+          "arch": "arm64",
+          "node": "v24.18.1"
+        },
+        "started_at": "2026-10-17T00:54:57.333Z",
+        "finished_at": "2026-10-17T00:54:57.592Z",
+        "duration_ms": 259,
+        "termination": {
+          "exit_code": 1,
+          "signal": null,
+          "timed_out": false
+        },
+        "stdout": {
+          "excerpt": "F---\n\nFailed scenarios:\n  1) Builder reads readiness # case.feature:2\n       Before # steps.mjs:4\n           Error: Expected actor output status: ready\n               at World.<anonymous> (file:///private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-case-MIR0hU/steps.mjs:4:28)\n\n1 scenario (1 failed)\n4 steps (3 skipped, 1 failed)\n0m 0.5s (0m 0.0s executing your code)\n",
+          "bytes": 381,
+          "sha256": "a289b4dd5ff638366f4b4baf990f55e36724ec9566c198ffd430575aeaf2203f",
+          "truncated": false
+        },
+        "stderr": {
+          "excerpt": "",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "truncated": false
+        }
+      }
+    },
+    {
+      "case_id": "unrelated-assertion",
+      "expected_verdict": "request_changes",
+      "passed": true,
+      "review_id": "8f8dfd08-be70-4cdc-9834-c568967cd835",
+      "author_agent": "codex",
+      "actual_reviewer": "claude",
+      "reviewer_model": "opus",
+      "independence": "cross-agent",
+      "verdict": "request_changes",
+      "review_status": "changes_requested",
+      "gate_status": "blocked",
+      "execution_attestation": {
+        "schema_version": 1,
+        "argv": [
+          "/Users/alex/.local/share/mise/installs/node/24.18.1/bin/node",
+          "/Users/alex/.codex/worktrees/b2c3/safeword/node_modules/.bun/@cucumber+cucumber@13.2.1/node_modules/@cucumber/cucumber/bin/cucumber.js",
+          "--config",
+          "cucumber.mjs",
+          "--import",
+          "steps.mjs",
+          "--format",
+          "progress",
+          "--format",
+          "json:run-report.json",
+          "case.feature"
+        ],
+        "cwd": ".",
+        "evidence_class": "local-live-host",
+        "expected_failure": {
+          "literal": "Expected actor output status: ready",
+          "matched": true
+        },
+        "timeout_ms": 10000,
+        "source_fingerprint": "037af05f1bee980f5ecab0254092596f7760575b26076cbff518ea27a6a25970",
+        "environment": {
+          "sha256": "6dc16324478cb7321a32356ccfe0f5212f1ddc64bfd28e7bb267260c4b25b593",
+          "variable_count": 95,
+          "platform": "darwin",
+          "arch": "arm64",
+          "node": "v24.18.1"
+        },
+        "started_at": "2026-10-17T00:55:09.685Z",
+        "finished_at": "2026-10-17T00:55:09.966Z",
+        "duration_ms": 281,
+        "termination": {
+          "exit_code": 1,
+          "signal": null,
+          "timed_out": false
+        },
+        "stdout": {
+          "excerpt": "..F\n\nFailed scenarios:\n  1) Builder reads readiness # case.feature:2\n       Then the builder sees status ready # steps.mjs:6\n           AssertionError [ERR_ASSERTION]: Expected actor output status: ready\n           + actual - expected\n           \n           + 'memo: draft'\n           - 'memo: published'\n                    ^\n           \n               + expected - actual\n           \n               -memo: draft\n               +memo: published\n           \n               at World.<anonymous> (file:///private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-case-YQ8o3I/steps.mjs:6:60)\n\n1 scenario (1 failed)\n3 steps (2 passed, 1 failed)\n0m 0.38s (0m 0.32s executing your code)\n",
+          "bytes": 688,
+          "sha256": "1f1b7ef79b0b25e7360852cf5a6fe2c19b24763e151dc29fdc605b53f1192dd7",
+          "truncated": false
+        },
+        "stderr": {
+          "excerpt": "",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "truncated": false
+        }
+      }
+    }
+  ]
+}

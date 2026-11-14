@@ -1,0 +1,6 @@
+Command: scripts/dev bun audit --audit-level high --ignore GHSA-vfj7-8cjw-p6xm --ignore GHSA-ch52-4w7c-c8xp
+[0m[1mbun audit [0m[2mv1.3.14 (0d9b296a)[0m
+exit=0
+Observed HEAD and lockfile hash at pre-merge audit follow-up:
+4d419f51d88c977b6e3ead2347de37e88fdd5b55
+f4ec5a840d9469ef611c4b0d23572d228f69580c8aeda6e1ec8e956045969c02  bun.lock

@@ -1,0 +1,201 @@
+{
+  "scope": "Test hardening following assessment at c2d503233; preserve failed runs and degraded independence",
+  "records": [
+    {
+      "file": "claude-auth-diagnosis.json",
+      "sha256": "4e462d562003d3a98c069b56adeff8618e6bdb9a1bf4d7b225547f90d008a1c7",
+      "bytes": 589
+    },
+    {
+      "file": "hardening-characterization.log.gz",
+      "sha256": "66113a2005a74772b790ff5052266dd34873ec367e64b1e6c4233b66ea1ff96e",
+      "bytes": 6269
+    },
+    {
+      "file": "hardening-final-main-digests.json.gz",
+      "sha256": "28afc11da8bd72f9bb668ef9a53f65f51b82093cbb09fa7adeb205b59f587d56",
+      "bytes": 144
+    },
+    {
+      "file": "hardening-final-main-focused.log.gz",
+      "sha256": "5d35c6e489e3d8553aebd6f4872240ae7f05eee7d05fb587821246c65dbd5a36",
+      "bytes": 4835
+    },
+    {
+      "file": "hardening-final-main-generated.log.gz",
+      "sha256": "22f8eada9eb743a975e6b43d2e9d42373b0ec9e90f67760288f373df04e3834f",
+      "bytes": 54
+    },
+    {
+      "file": "hardening-final-main-lint.log.gz",
+      "sha256": "fa0217799730025e558a26ab9a5220bf5753393296f5e95822caea522dcea2a5",
+      "bytes": 136
+    },
+    {
+      "file": "hardening-final-main-manual.json.gz",
+      "sha256": "4b4846337c88d7d2d753f44da31921e317bdfdde85a98130804de607089a9334",
+      "bytes": 360
+    },
+    {
+      "file": "hardening-final-main-parity.log.gz",
+      "sha256": "da7587f96a8c4ac438cc9045d24834fa404498dc9a7ee181ee8aeff349e635da",
+      "bytes": 112
+    },
+    {
+      "file": "hardening-final-main-preservation.json.gz",
+      "sha256": "08837dd808b6a229f1530aa404d4ab9dbf9868c8701879d273e94cf6bc06de43",
+      "bytes": 265
+    },
+    {
+      "file": "hardening-final-main-typecheck.log.gz",
+      "sha256": "f5f23f5961cfb5759886b95689587022df174742bcbc205627e7bfc9ad0c2c5c",
+      "bytes": 102
+    },
+    {
+      "file": "hardening-focused.log.gz",
+      "sha256": "5caa34adcda0a9a4f7ecd96d135e4a44e956a1310028786a262149cd7420f174",
+      "bytes": 5156
+    },
+    {
+      "file": "hardening-full-suite.log.gz",
+      "sha256": "7a497bca6bc6720b37db174a1f47bd3f733fb6d7602da464b2ed6817279d0e21",
+      "bytes": 6045
+    },
+    {
+      "file": "hardening-generated.log.gz",
+      "sha256": "22f8eada9eb743a975e6b43d2e9d42373b0ec9e90f67760288f373df04e3834f",
+      "bytes": 54
+    },
+    {
+      "file": "hardening-lint.log.gz",
+      "sha256": "fa0217799730025e558a26ab9a5220bf5753393296f5e95822caea522dcea2a5",
+      "bytes": 136
+    },
+    {
+      "file": "hardening-merge-tree.log.gz",
+      "sha256": "fadbdf899f2c411034cc2dc355d9f9d3a10e2e24045d2da0a28a6a075fbbf63a",
+      "bytes": 1223
+    },
+    {
+      "file": "hardening-native-green.log.gz",
+      "sha256": "f2e4e722f07a157600fc5e18036f4dfab8f963cabb6563544c9dac3f67033b1f",
+      "bytes": 5130
+    },
+    {
+      "file": "hardening-native-isolated.log.gz",
+      "sha256": "fdeb6cb9fd109b1813ab5e767257049707ba50e745cd8ae516364daf87b0b5d8",
+      "bytes": 6244
+    },
+    {
+      "file": "hardening-native-retry.log.gz",
+      "sha256": "c9754a43c35bce3ddc2fc18009f20feb95a8d0fc0f66cd5b22001c0d6469a6cf",
+      "bytes": 5749
+    },
+    {
+      "file": "hardening-parity.log.gz",
+      "sha256": "da7587f96a8c4ac438cc9045d24834fa404498dc9a7ee181ee8aeff349e635da",
+      "bytes": 112
+    },
+    {
+      "file": "hardening-push.log.gz",
+      "sha256": "0c033c379383f22aef256a570f9add35fefd8916494308dc401d5fcfe2d79aea",
+      "bytes": 335
+    },
+    {
+      "file": "hardening-rebase-completed.log.gz",
+      "sha256": "8c98014a5a0330d8bdc6c9b7c52bf78610d28943c6756be23d66c71be90058c5",
+      "bytes": 917
+    },
+    {
+      "file": "hardening-rebase-continue.log.gz",
+      "sha256": "bce0603e797c4d95283a648744aa7860f57cef697c162b61320d617a5b2bf048",
+      "bytes": 783
+    },
+    {
+      "file": "hardening-rebase-generation1.log.gz",
+      "sha256": "5284b490db610dd9d81606621aaf54d87cfce19143aad72e801945c5399439ca",
+      "bytes": 172
+    },
+    {
+      "file": "hardening-rebase-generation2.log.gz",
+      "sha256": "5284b490db610dd9d81606621aaf54d87cfce19143aad72e801945c5399439ca",
+      "bytes": 172
+    },
+    {
+      "file": "hardening-rebase.log.gz",
+      "sha256": "676d1ea7f1c814f49c2b3e28bb4a4bd4dfb53f4e035ee800939bbfa1f29877a4",
+      "bytes": 536
+    },
+    {
+      "file": "hardening-review-diagnostic-final.err.gz",
+      "sha256": "f1b651238a58fe290baec6c5e32f3bdb1943dd2bd582f02569231f7a757c7837",
+      "bytes": 20
+    },
+    {
+      "file": "hardening-review-diagnostic-final.json.gz",
+      "sha256": "8a68b6f0a649f7ee95656a230bb077049c226bd1bf91f949635074d462a2cd1b",
+      "bytes": 934
+    },
+    {
+      "file": "hardening-review-diagnostic.err.gz",
+      "sha256": "f1b651238a58fe290baec6c5e32f3bdb1943dd2bd582f02569231f7a757c7837",
+      "bytes": 20
+    },
+    {
+      "file": "hardening-review-diagnostic.json.gz",
+      "sha256": "6b0abe878cb33a6e7eecf9e825591ee13ce1b5ad482e3ddb3453d6c00da08e3a",
+      "bytes": 970
+    },
+    {
+      "file": "hardening-review-retry.err.gz",
+      "sha256": "f1b651238a58fe290baec6c5e32f3bdb1943dd2bd582f02569231f7a757c7837",
+      "bytes": 20
+    },
+    {
+      "file": "hardening-review-retry.json.gz",
+      "sha256": "57d95738efef1ba49df92db0456f391ef7dec79c256333c13ad774d8264dfdf2",
+      "bytes": 2554
+    },
+    {
+      "file": "hardening-review.err.gz",
+      "sha256": "f1b651238a58fe290baec6c5e32f3bdb1943dd2bd582f02569231f7a757c7837",
+      "bytes": 20
+    },
+    {
+      "file": "hardening-review.json.gz",
+      "sha256": "7d8045e95f35f78ac2e1e44bddbea4c4542dc5af97b57594c9e8b0c431e1f532",
+      "bytes": 976
+    },
+    {
+      "file": "hardening-routing-isolated.log.gz",
+      "sha256": "54ec1894cfa8a58a9e4936d22f56e74a28e5dcf5c2ee80fe758e9fe675edc7f2",
+      "bytes": 4752
+    },
+    {
+      "file": "hardening-typecheck.log.gz",
+      "sha256": "f5f23f5961cfb5759886b95689587022df174742bcbc205627e7bfc9ad0c2c5c",
+      "bytes": 102
+    },
+    {
+      "file": "review-retry-architecture-check.log.gz",
+      "sha256": "e7c508cb24268f990eec63ff4a6287f1800bc95f6e92b929f827945b1852bc15",
+      "bytes": 40
+    },
+    {
+      "file": "review-retry-architecture.log.gz",
+      "sha256": "6a87d335ab0457fe5957a4da9bf6ee496d994a4d5ed1475a41aeb433bc5e1399",
+      "bytes": 110
+    },
+    {
+      "file": "review-retry-ci-lint.log.gz",
+      "sha256": "b082fd6c2a1ebae0de97b44a109e41c0a3b828405bd9cf53cebc03df38cb2e59",
+      "bytes": 433
+    },
+    {
+      "file": "review-retry-ci-state.json.gz",
+      "sha256": "c951593acc9fe92cdbf9bdf2f61d32ed3eb0558794a1bea24d7da12eb9770bf2",
+      "bytes": 910
+    }
+  ],
+  "final_main": "172aac2c85d8197344b68ff9ece769a283f6f7f6"
+}

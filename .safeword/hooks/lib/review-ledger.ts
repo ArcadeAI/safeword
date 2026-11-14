@@ -22,11 +22,11 @@ export interface ReviewStamp {
   /** The reviewing model, recorded by the orchestrator that assigned it (ticket MR5M3A). Absent on pre-MR5M3A stamps. */
   model?: string;
   /** Author runtime recorded from the validated coordinator result. */
-  author?: 'claude' | 'codex' | 'opencode';
+  author?: 'claude' | 'codex' | 'cursor' | 'opencode';
   /** Actual reviewer runtime recorded from the validated coordinator result. */
-  reviewer?: 'claude' | 'codex' | 'opencode';
+  reviewer?: 'claude' | 'codex' | 'cursor' | 'opencode';
   /** Independence earned by the validated route. */
-  independence?: 'cross-agent' | 'degraded' | 'none';
+  independence?: 'cross-agent' | 'reduced' | 'degraded' | 'none';
   /**
    * The coordinator review this stamp cites (ticket PB1GMZ). Recorded so the
    * claim stays checkable after the fact: `review status <id>` still reports
@@ -35,7 +35,7 @@ export interface ReviewStamp {
   reviewId?: string;
 }
 
-export type CrossAgentReviewPolicy = 'prefer' | 'require' | 'off';
+export type CrossAgentReviewPolicy = 'prefer' | 'off';
 
 /** Short content hash binding a stamp to the reviewed artifact's exact state. */
 export function hashArtifact(content: string): string {
@@ -55,10 +55,10 @@ export function reviewScope(ticketId: string, artifact: string, contentHash: str
 export type GateVerdict = { ok: true } | { ok: false; reason: string };
 
 /** Levels that assert a coordinator ran and returned a verdict. */
-const COORDINATOR_CLAIMS = new Set(['cross-agent', 'degraded']);
+const COORDINATOR_CLAIMS = new Set(['cross-agent', 'reduced', 'degraded']);
 
 /** A stamp satisfies a gate when it's a real review, or a skip with a non-empty reason. */
-function isSatisfyingStamp(stamp: ReviewStamp, policy: CrossAgentReviewPolicy = 'prefer'): boolean {
+function isSatisfyingStamp(stamp: ReviewStamp): boolean {
   const ordinarilySatisfying =
     stamp.skipReason === undefined || isValidSkipReason(stamp.skipReason);
   if (!ordinarilySatisfying) return false;
@@ -76,38 +76,23 @@ function isSatisfyingStamp(stamp: ReviewStamp, policy: CrossAgentReviewPolicy = 
   )
     return false;
 
-  if (policy !== 'require') return true;
-  return (
-    stamp.skipReason === undefined &&
-    stamp.independence === 'cross-agent' &&
-    stamp.author !== undefined &&
-    stamp.reviewer !== undefined &&
-    stamp.author !== stamp.reviewer
-  );
+  return true;
 }
 
 /** Whether the ledger holds a satisfying review stamp for `id` (an asset or a phase). */
-function hasSatisfyingStamp(
-  id: string,
-  stamps: readonly ReviewStamp[],
-  policy: CrossAgentReviewPolicy = 'prefer',
-): boolean {
-  return stamps.some(stamp => stamp.scope === id && isSatisfyingStamp(stamp, policy));
+function hasSatisfyingStamp(id: string, stamps: readonly ReviewStamp[]): boolean {
+  return stamps.some(stamp => stamp.scope === id && isSatisfyingStamp(stamp));
 }
 
-/** Whether a phase stamp records a cited coordinator review that satisfies the active policy. */
-export function isSatisfyingCoordinatorReviewStamp(
-  id: string,
-  stamp: ReviewStamp,
-  policy: CrossAgentReviewPolicy,
-): boolean {
+/** Whether a phase stamp records a cited coordinator review, at any achieved independence. */
+export function isSatisfyingCoordinatorReviewStamp(id: string, stamp: ReviewStamp): boolean {
   return (
     stamp.scope === id &&
     stamp.skipReason === undefined &&
     stamp.reviewId !== undefined &&
     stamp.independence !== undefined &&
     COORDINATOR_CLAIMS.has(stamp.independence) &&
-    isSatisfyingStamp(stamp, policy)
+    isSatisfyingStamp(stamp)
   );
 }
 
@@ -119,14 +104,9 @@ export function isSatisfyingSkipStamp(id: string, stamp: ReviewStamp): boolean {
 }
 
 /** Phase exits require a cited coordinator review; only an explicit skip may bypass it. */
-function hasSatisfyingPhaseStamp(
-  id: string,
-  stamps: readonly ReviewStamp[],
-  policy: CrossAgentReviewPolicy,
-): boolean {
+function hasSatisfyingPhaseStamp(id: string, stamps: readonly ReviewStamp[]): boolean {
   return stamps.some(
-    stamp =>
-      isSatisfyingSkipStamp(id, stamp) || isSatisfyingCoordinatorReviewStamp(id, stamp, policy),
+    stamp => isSatisfyingSkipStamp(id, stamp) || isSatisfyingCoordinatorReviewStamp(id, stamp),
   );
 }
 
@@ -138,14 +118,28 @@ function hasSatisfyingPhaseStamp(
 export function reviewGateForNextAsset(
   priorScope: string | undefined,
   stamps: readonly ReviewStamp[],
-  policy: CrossAgentReviewPolicy = 'prefer',
 ): GateVerdict {
   if (priorScope === undefined) return { ok: true };
-  if (hasSatisfyingStamp(priorScope, stamps, policy)) return { ok: true };
+  if (hasSatisfyingStamp(priorScope, stamps)) return { ok: true };
   return {
     ok: false,
     reason: `"${priorScope}" has not been reviewed — review it (or log a skip with a reason) before authoring the next asset`,
   };
+}
+
+/** The opt-in architecture gate requires a cited design review (any achieved independence) or a reasoned skip. */
+export function reviewGateForIndependentDesign(
+  scope: string,
+  stamps: readonly ReviewStamp[],
+): GateVerdict {
+  if (
+    stamps.some(
+      stamp =>
+        isSatisfyingSkipStamp(scope, stamp) || isSatisfyingCoordinatorReviewStamp(scope, stamp),
+    )
+  )
+    return { ok: true };
+  return { ok: false, reason: `"${scope}" has no independent design review` };
 }
 
 /**
@@ -153,12 +147,8 @@ export function reviewGateForNextAsset(
  * independent review stamp for that phase exists. Unlike the per-asset gate
  * there is no "first" exemption — every phase exit needs a stamp.
  */
-export function gatePhaseAdvance(
-  phase: string,
-  stamps: readonly ReviewStamp[],
-  policy: CrossAgentReviewPolicy = 'prefer',
-): GateVerdict {
-  if (hasSatisfyingPhaseStamp(phase, stamps, policy)) return { ok: true };
+export function gatePhaseAdvance(phase: string, stamps: readonly ReviewStamp[]): GateVerdict {
+  if (hasSatisfyingPhaseStamp(phase, stamps)) return { ok: true };
   return {
     ok: false,
     reason: `phase "${phase}" has no independent review stamp — run the phase-exit review (or log a skip with a reason) before advancing`,
@@ -177,7 +167,7 @@ export function gatePhaseAdvance(
 // fork review). The content-hash binding in <scope> at least defeats accidental
 // stale-after-edit passes, not deliberate spoofing.
 const REVIEW_LINE =
-  /(?:^|\s)review:(\S+)(?:\s+model:(\S+))?(?:\s+author:(claude|codex|opencode))?(?:\s+reviewer:(claude|codex|opencode))?(?:\s+independence:(cross-agent|degraded|none))?(?:\s+review-id:(\S+))?(?:\s+skip:(.+))?$/;
+  /(?:^|\s)review:(\S+)(?:\s+model:(\S+))?(?:\s+author:(claude|codex|cursor|opencode))?(?:\s+reviewer:(claude|codex|cursor|opencode))?(?:\s+independence:(cross-agent|reduced|degraded|none))?(?:\s+review-id:(\S+))?(?:\s+skip:(.+))?$/;
 
 /**
  * Tier 1 (the per-asset inline stamp) is OFF unless `.safeword/config.json` sets
@@ -282,17 +272,9 @@ export function isArchitectureReviewGateEnabled(rawConfig?: string): boolean {
 }
 
 /**
- * Whether the architecture review must be performed by a different model than
- * the author (ticket MR5M3A): true only when `.safeword/config.json` sets
- * `crossModelReview: true`. Default-off — same-model fork is the floor.
- */
-export function isCrossModelReviewRequired(rawConfig?: string): boolean {
-  return configFlagIsTrue(rawConfig, 'crossModelReview');
-}
-
-/**
- * Cross-agent review routing policy. Missing, malformed, and unknown values use
- * the product default (`prefer`), matching the public review coordinator.
+ * Cross-agent review routing policy. Only `off` disables planning review; every
+ * other value, including the retired `require`, uses the product default
+ * (`prefer`): try a different agent first, never block on independence.
  */
 export function readCrossAgentReviewPolicy(rawConfig?: string): CrossAgentReviewPolicy {
   if (rawConfig === undefined) return 'prefer';
@@ -300,31 +282,10 @@ export function readCrossAgentReviewPolicy(rawConfig?: string): CrossAgentReview
     const config: unknown = JSON.parse(rawConfig);
     if (typeof config !== 'object' || config === null) return 'prefer';
     const value = (config as Record<string, unknown>).crossAgentReview;
-    return value === 'require' || value === 'off' ? value : 'prefer';
+    return value === 'off' ? 'off' : 'prefer';
   } catch {
     return 'prefer';
   }
-}
-
-/**
- * Env var carrying the author/main-session model id, captured at SessionStart
- * (`session-author-model.ts`) and read by the cross-model gate in stop-quality.ts
- * (ticket MR5M3A). Shared so the writer and reader cannot drift.
- */
-export const AUTHOR_MODEL_ENV = 'SAFEWORD_AUTHOR_MODEL';
-
-/**
- * Whether a reviewer-model tag denotes the SAME model as the author-model tag
- * (ticket MR5M3A) — the cross-model gate blocks when this is true. Comparison
- * is trimmed and case-insensitive. An absent or empty tag on either side is
- * indeterminate: it cannot establish independence, so it counts as a match and
- * the gate fails closed (blocks) rather than waving the review through.
- */
-export function modelsMatch(reviewerTag?: string, authorTag?: string): boolean {
-  const reviewer = reviewerTag?.trim().toLowerCase() ?? '';
-  const author = authorTag?.trim().toLowerCase() ?? '';
-  if (reviewer === '' || author === '') return true;
-  return reviewer === author;
 }
 
 /**

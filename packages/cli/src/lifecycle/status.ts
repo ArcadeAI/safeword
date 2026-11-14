@@ -54,7 +54,7 @@ async function reviewRouteObservations(
   routes: readonly {
     readonly reviewer: 'claude' | 'codex' | 'opencode';
     readonly model?: string;
-    readonly independence: 'cross-agent' | 'degraded';
+    readonly independence: 'cross-agent' | 'reduced' | 'degraded';
   }[],
 ): Promise<readonly Record<string, unknown>[]> {
   const inspectionDeadline = Date.now() + 5000;

@@ -1,0 +1,15 @@
+[
+  {
+    "command": "scripts/dev bun run --cwd packages/cli test:release",
+    "exit": 0,
+    "result": "14 files / 83 tests passed after final API assertions; shared-lock wait retained in release-final.log.gz"
+  },
+  {
+    "command": "scripts/dev bun run --cwd packages/cli typecheck",
+    "exit": 0
+  },
+  {
+    "command": "scripts/dev node_modules/.bin/eslint packages/cli/tests/review/packaged-capability.release.test.ts",
+    "exit": 0
+  }
+]

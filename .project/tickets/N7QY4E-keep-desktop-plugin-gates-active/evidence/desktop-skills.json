@@ -1,0 +1,11 @@
+{
+  "plugin_version": "1.2.0",
+  "source": "Actual Claude desktop organization-synced skill files, read locally",
+  "compared_to": "Generated plugin/skills at c0af11ddb",
+  "skills_checked": 24,
+  "skills_with_changed_bytes": 16,
+  "all_semantic_digests_match": true,
+  "reported_audit_hash": "70b579ab248ff746ec1a76653439621836f66ffb44f64f9343e84c5254e6b213",
+  "original_audit_hash": "5150538ef9cf5932420de5ab413980a23bf82f087461296a74c4f29f8bf9087b",
+  "audit_semantic_digest": "46a084564ceec516b7afa7f88fe6fef87e0eb39f64042d468eff032e88476ccb"
+}

@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "ok": true,
+  "state": "healthy",
+  "changed": false,
+  "findings": [
+    {
+      "code": "REVIEW_INDEPENDENCE",
+      "message": "A different agent (Claude) checked the work in a separate headless process.",
+      "severity": "info"
+    },
+    {
+      "code": "REVIEWER_SUMMARY",
+      "message": "I found no blocking errors in the Go package-context lint delivery. Edits outside the project root are refused before any command runs, in both the hook template and the helper. When the helper fails, returns bad JSON, is an older CLI, or a config is malformed, the user gets a visible warning instead of a false clean result. Formatting runs once on the edited file before one package-wide lint, which no longer uses --fix. Temporary configs are created exclusively with mode 0600, use a unique name per run, are cleaned up in a finally block and on each handled signal, and cleanup is safe to repeat. Claude output keeps warnings next to lint errors and is capped at 16 KiB. The hidden `hook go-lint` command is wired through the catalog, the handler map and program.ts, and the catalog inventory test was updated to match. Real-collaborator proof exists: a real hook process with only the golangci-lint executable stubbed (with cwd/argv traces and ordering checks), real-linter tests that compare against native behavior, and a CI matrix on v2.0.0/Go 1.24 and v2.13.2/Go 1.25 that fails if a tool is missing. The remaining concerns are non-blocking warnings.",
+      "severity": "info"
+    },
+    {
+      "code": "REVIEWER_FINDING",
+      "message": "post-tool-lint.ts only caps output when `result.errors` is set. If the helper returns only warnings (for example a very large stderr from `golangci-lint fmt` or `run`), the Claude/Cursor path prints them to stdout with no size limit. The Codex path is protected by boundedLintWarning in codex-hook.ts, and the codex-hook test checks only that path. Consider applying the same 16 KiB cap to the plain-warning branch so Claude and Codex behave the same.",
+      "severity": "warning"
+    },
+    {
+      "code": "REVIEWER_FINDING",
+      "message": "normalizeReports always adds or overwrites `output.formats.text.path = 'stdout'`. If a customer config already sends another format (e.g. json or checkstyle) to stdout, both formats are written to the captured stdout. The structured output then lands inside `errors` and is shown to the agent as diagnostics. This is an unusual setup and is not a false success, but it is not covered by a test.",
+      "severity": "warning"
+    },
+    {
+      "code": "REVIEWER_FINDING",
+      "message": "The effective temporary config is written into the original base B. Under cfg, gomod or gitroot modes, or with a home-directory config found as a fallback, B can be outside the Safeword project (for example $HOME or an outer repository). There is also a short window between writeTemporary and the signal-handler registration in goLintProcess where a signal leaves residue. Both are acknowledged in refactor-quality-review.md. They remain non-blocking, but the user-facing docs should say that `.safeword-go-lint-*.json` can appear outside the project.",
+      "severity": "warning"
+    },
+    {
+      "code": "REVIEWER_FINDING",
+      "message": "normalizeGocritic replaces `${base-path}` in gocritic settings regardless of golangci-lint version. On v2.0.0, which per the cited sources interpolated base-path only in depguard, this changes the meaning of a literal `${base-path}` gocritic value compared with native behavior. It probably doesn't matter in practice, because a literal placeholder is not a useful path anyway. Still, it differs from the 'only where upstream interpolates' contract, and no v2.0 test covers it.",
+      "severity": "warning"
+    },
+    {
+      "code": "REVIEWER_FINDING",
+      "message": "lint-config-fallback.test.ts checks the Go invocations with `arrayContaining`, so it does not prove their order or that run happens exactly once. That ordering is proven separately by lifecycle.test.ts ('retains formatter warnings…'), which filters the trace to the fmt and run commands and checks the count and order. The overall proof therefore covers it.",
+      "severity": "info"
+    },
+    {
+      "code": "REVIEWER_FINDING",
+      "message": "The golangci-lint version is checked twice per edit: once in lint.ts to detect v1, and again in go-lint.ts to check whether config-path is supported. This is harmless but adds an extra process spawn per edit.",
+      "severity": "info"
+    }
+  ],
+  "effects": {
+    "files": [],
+    "packages": [],
+    "configuration": [],
+    "network": [],
+    "destructive": []
+  },
+  "errors": [],
+  "recovery": [],
+  "next_actions": [],
+  "data": {
+    "command": "review run",
+    "status": "approved",
+    "review_kind": "quality-review",
+    "review_targets": [
+      ".github/workflows/ci.yml",
+      "packages/cli/src/cli-protocol/catalog.ts",
+      "packages/cli/src/cli-protocol/program.ts",
+      "packages/cli/src/cli-protocol/public-handlers.ts",
+      "packages/cli/src/commands/codex-hook.ts",
+      "packages/cli/src/commands/go-lint.ts",
+      "packages/cli/src/go-lint/config.ts",
+      "packages/cli/src/go-lint/process.ts",
+      "packages/cli/src/packs/golang/files.ts",
+      "packages/cli/src/utils/project-detector.ts",
+      "packages/cli/templates/hooks/lib/lint.ts",
+      "packages/cli/templates/hooks/post-tool-lint.ts",
+      "packages/cli/tests/cli-protocol/catalog.test.ts",
+      "packages/cli/tests/commands/codex-hook.test.ts",
+      "packages/cli/tests/go-lint/config.test.ts",
+      "packages/cli/tests/go-lint/lifecycle.test.ts",
+      "packages/cli/tests/hooks/lint-config-fallback.test.ts",
+      "packages/cli/tests/hooks/lint-go-context.test.ts",
+      "packages/cli/tests/integration/golang-golden-path.test.ts",
+      "packages/cli/tests/integration/invisible-extension.test.ts"
+    ],
+    "author_agent": "codex",
+    "assigned_reviewer": "claude",
+    "actual_reviewer": "claude",
+    "reviewer_model": "opus",
+    "independence": "cross-agent",
+    "reviewer_output": {
+      "schema_version": 1,
+      "dispatch_id": "f6e0e138-572f-4756-a4a8-02fd404e31b8",
+      "reviewer_agent": "claude",
+      "verdict": "approve",
+      "summary": "I found no blocking errors in the Go package-context lint delivery. Edits outside the project root are refused before any command runs, in both the hook template and the helper. When the helper fails, returns bad JSON, is an older CLI, or a config is malformed, the user gets a visible warning instead of a false clean result. Formatting runs once on the edited file before one package-wide lint, which no longer uses --fix. Temporary configs are created exclusively with mode 0600, use a unique name per run, are cleaned up in a finally block and on each handled signal, and cleanup is safe to repeat. Claude output keeps warnings next to lint errors and is capped at 16 KiB. The hidden `hook go-lint` command is wired through the catalog, the handler map and program.ts, and the catalog inventory test was updated to match. Real-collaborator proof exists: a real hook process with only the golangci-lint executable stubbed (with cwd/argv traces and ordering checks), real-linter tests that compare against native behavior, and a CI matrix on v2.0.0/Go 1.24 and v2.13.2/Go 1.25 that fails if a tool is missing. The remaining concerns are non-blocking warnings.",
+      "findings": [
+        {
+          "severity": "warning",
+          "message": "post-tool-lint.ts only caps output when `result.errors` is set. If the helper returns only warnings (for example a very large stderr from `golangci-lint fmt` or `run`), the Claude/Cursor path prints them to stdout with no size limit. The Codex path is protected by boundedLintWarning in codex-hook.ts, and the codex-hook test checks only that path. Consider applying the same 16 KiB cap to the plain-warning branch so Claude and Codex behave the same."
+        },
+        {
+          "severity": "warning",
+          "message": "normalizeReports always adds or overwrites `output.formats.text.path = 'stdout'`. If a customer config already sends another format (e.g. json or checkstyle) to stdout, both formats are written to the captured stdout. The structured output then lands inside `errors` and is shown to the agent as diagnostics. This is an unusual setup and is not a false success, but it is not covered by a test."
+        },
+        {
+          "severity": "warning",
+          "message": "The effective temporary config is written into the original base B. Under cfg, gomod or gitroot modes, or with a home-directory config found as a fallback, B can be outside the Safeword project (for example $HOME or an outer repository). There is also a short window between writeTemporary and the signal-handler registration in goLintProcess where a signal leaves residue. Both are acknowledged in refactor-quality-review.md. They remain non-blocking, but the user-facing docs should say that `.safeword-go-lint-*.json` can appear outside the project."
+        },
+        {
+          "severity": "warning",
+          "message": "normalizeGocritic replaces `${base-path}` in gocritic settings regardless of golangci-lint version. On v2.0.0, which per the cited sources interpolated base-path only in depguard, this changes the meaning of a literal `${base-path}` gocritic value compared with native behavior. It probably doesn't matter in practice, because a literal placeholder is not a useful path anyway. Still, it differs from the 'only where upstream interpolates' contract, and no v2.0 test covers it."
+        },
+        {
+          "severity": "info",
+          "message": "lint-config-fallback.test.ts checks the Go invocations with `arrayContaining`, so it does not prove their order or that run happens exactly once. That ordering is proven separately by lifecycle.test.ts ('retains formatter warnings…'), which filters the trace to the fmt and run commands and checks the count and order. The overall proof therefore covers it."
+        },
+        {
+          "severity": "info",
+          "message": "The golangci-lint version is checked twice per edit: once in lint.ts to detect v1, and again in go-lint.ts to check whether config-path is supported. This is harmless but adds an extra process spawn per edit."
+        }
+      ]
+    },
+    "excluded_targets": [],
+    "review_id": "eaf6ff61-5c21-4e6c-b5e6-0cf3db7c878e",
+    "review_excluded_targets": []
+  }
+}

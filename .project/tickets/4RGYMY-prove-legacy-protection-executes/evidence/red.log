@@ -1,0 +1,57 @@
+
+Failed scenarios:
+  1) A failed sibling hook blocks the prompt without event-level plugin proof # features/native-claude-plugin.feature:162
+       And viable legacy protection remains authoritative # steps/native-claude-plugin.steps.ts:692
+           AssertionError [ERR_ASSERTION]
+               + expected - actual
+           
+               -0
+               +1
+           
+               at assertLegacyConfigProtection (/Users/alex/.codex/worktrees/bbf0/safeword/steps/native-claude-plugin.steps.ts:675:10)
+               at SafewordWorld.<anonymous> (/Users/alex/.codex/worktrees/bbf0/safeword/steps/native-claude-plugin.steps.ts:693:3)
+  2) Coexisting plugin hooks prove identity but suppress duplicate work per legacy event # features/native-claude-plugin.feature:224
+       And the protected functional effect occurs exactly once through the viable legacy hook # steps/native-claude-plugin.steps.ts:1754
+           AssertionError [ERR_ASSERTION]
+               + expected - actual
+           
+               -0
+               +1
+           
+               at assertLegacyConfigProtection (/Users/alex/.codex/worktrees/bbf0/safeword/steps/native-claude-plugin.steps.ts:675:10)
+               at SafewordWorld.<anonymous> (/Users/alex/.codex/worktrees/bbf0/safeword/steps/native-claude-plugin.steps.ts:1757:5)
+  3) Damaged plugin runtime remains non-blocking and writes no plugin proof # features/native-claude-plugin.feature:306
+       And viable legacy protection remains authoritative # steps/native-claude-plugin.steps.ts:692
+           AssertionError [ERR_ASSERTION]
+               + expected - actual
+           
+               -0
+               +1
+           
+               at assertLegacyConfigProtection (/Users/alex/.codex/worktrees/bbf0/safeword/steps/native-claude-plugin.steps.ts:675:10)
+               at SafewordWorld.<anonymous> (/Users/alex/.codex/worktrees/bbf0/safeword/steps/native-claude-plugin.steps.ts:693:3)
+  4) Damaged plugin runtime remains non-blocking and writes no plugin proof # features/native-claude-plugin.feature:307
+       And viable legacy protection remains authoritative # steps/native-claude-plugin.steps.ts:692
+           AssertionError [ERR_ASSERTION]
+               + expected - actual
+           
+               -0
+               +1
+           
+               at assertLegacyConfigProtection (/Users/alex/.codex/worktrees/bbf0/safeword/steps/native-claude-plugin.steps.ts:675:10)
+               at SafewordWorld.<anonymous> (/Users/alex/.codex/worktrees/bbf0/safeword/steps/native-claude-plugin.steps.ts:693:3)
+  5) Damaged plugin runtime remains non-blocking and writes no plugin proof # features/native-claude-plugin.feature:308
+       And viable legacy protection remains authoritative # steps/native-claude-plugin.steps.ts:692
+           AssertionError [ERR_ASSERTION]
+               + expected - actual
+           
+               -0
+               +1
+           
+               at assertLegacyConfigProtection (/Users/alex/.codex/worktrees/bbf0/safeword/steps/native-claude-plugin.steps.ts:675:10)
+               at SafewordWorld.<anonymous> (/Users/alex/.codex/worktrees/bbf0/safeword/steps/native-claude-plugin.steps.ts:693:3)
+
+2 hooks (2 passed)
+5 scenarios (5 failed)
+236 steps (231 passed, 5 failed)
+0m 2.5s (0m 1.926s executing your code)

@@ -1,0 +1,32 @@
+import json, os, pathlib, shutil, subprocess, tempfile
+repo=pathlib.Path.cwd();linter=pathlib.Path(os.environ['SAFEWORD_GO_LINT_BIN']);go=os.environ.get('SAFEWORD_GO_TEST_GO','go')
+for scenario in ['same-package-test','nested-internal-import','workspace-and-unrelated-package']:
+ root=pathlib.Path(tempfile.mkdtemp(prefix='safeword-final-hook-')).resolve()
+ def write(name,text):
+  p=root/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(text);return p
+ try:
+  write('.safeword/config.json','{"selfReport":{"capture":false}}')
+  write('.safeword/.golangci.yml','version: "2"\nlinters: {default: none, enable: [govet]}\nformatters: {enable: [gofmt]}\n')
+  write('apps/engine/go.mod','module example.com/engine\n\ngo 1.23\n')
+  sibling=write('apps/engine/value.go','package engine\n\nfunc Value() int { return 42 }\n')
+  if scenario=='same-package-test':
+   file=write('apps/engine/value_test.go','package engine\nimport "testing"\nfunc TestValue(t *testing.T) { if Value()!=42 {t.Fatal("wrong")}}\n')
+  elif scenario=='nested-internal-import':
+   write('apps/engine/internal/identity/value.go','package identity\n\nconst Value = 42\n')
+   file=write('apps/engine/internal/service/value.go','package service\nimport "example.com/engine/internal/identity"\nfunc Value()int{return identity.Value}\n')
+  else:
+   write('libs/shared/go.mod','module example.com/shared\n\ngo 1.23\n')
+   write('libs/shared/value.go','package shared\n\nconst Value = 42\n')
+   write('go.work','go 1.23\nuse (\n./apps/engine\n./libs/shared\n)\n')
+   write('apps/engine/unrelated/bad.go','package unrelated\nvar Bad=Undefined\n')
+   file=write('apps/engine/service/value.go','package service\nimport "example.com/shared"\nfunc Value()int{return shared.Value}\n')
+  before=sibling.read_text();env=os.environ.copy();env.update(CLAUDE_PROJECT_DIR=str(root),SAFEWORD_PLUGIN_CLI=str(repo/'packages/cli/src/cli.ts'),GOPROXY='off',GOTOOLCHAIN='local',SAFEWORD_NO_UPDATE_CHECK='1')
+  env['PATH']=os.pathsep.join([str(linter.parent),str(pathlib.Path(go).parent),env['PATH']])
+  if os.environ.get('SAFEWORD_GO_TEST_GO'):env.pop('GOROOT',None)
+  result=subprocess.run(['bun',str(repo/'packages/cli/templates/hooks/post-tool-lint.ts')],input=json.dumps({'tool_input':{'file_path':str(file)}}),cwd=root,env=env,text=True,capture_output=True,timeout=45)
+  assert result.returncode==0 and not result.stdout.strip(),(scenario,result.stdout,result.stderr)
+  assert sibling.read_text()==before
+  assert not list(root.rglob('.safeword-go-lint-*.json'))
+  print('PASS '+scenario,flush=True)
+ finally:shutil.rmtree(root)
+print('3/3 final source-hook checks passed')

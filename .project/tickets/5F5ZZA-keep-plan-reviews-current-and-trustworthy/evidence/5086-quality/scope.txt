@@ -1,0 +1,16 @@
+Quality review for #5995 / #5086, source checkpoint 23dd979ac (merged current main 65631937a, which carries #5996 markdown-it and Vite dependency repairs). User now authorizes suggested edits, CI green and admin merge. Earlier no-merge text in historical records is superseded authorization, not erased evidence. Parent #4200 and broader ticket remain open; no #5139 scope enforcement.
+
+Accepted slice: ranked independent-first reviewer routes; exact qualified capability/model provenance; authenticated single-use host continuation; honest reduced independence under prefer and strict current require policy. Preserve main #5957 full copy/contract checks and #5980 semantic context/dispositions and stronger tests.
+
+Review changed lines against current sources, not unrelated pre-existing architecture. Complete own-slice non-generated core, tests and source-guidance diffs are supplied in separate packets. Derived CLI bundles are excluded from raw independent inspection; generators/parity/runtime checks cover those surfaces. Raw historical failures/deferrals are retained. All local source-checkpoint 6bb984f96 suites passed before merging main; source files unchanged by that merge, dependency graph updated by main. Fresh integrated verification required. No unchanged paid qualification should be repeated.
+
+Angles: (1) route exhaustion/order/budget and preserving unknown-capability rejection, (2) job/packet/origin/tier/single-use and current-policy admission, (3) requested/confirmed model provenance + rerouting and sealed qualification lineage, (4) discriminating tests and honest control-plane wording and evidence. Error = concrete in-scope regression/contract failure. Do not invent optional scope as blocking. Do identify proof required for safe merge of this slice versus broader epic acceptance. R7 native retrieval/private-injection remains human-deferred, not proof of isolation; current implementation claims host-reported context only. R9 broader recovery diagnostic and 33 ticket cases remain unverified; do not relabel them green.
+
+Current-source checks fetched 2026-10-21 UTC: Node 24.18.1 fs exclusive wx/O_EXCL fails if lock exists (local-filesystem limitation; NFS unsupported); Node crypto timingSafeEqual requires equal byte lengths and surrounding-code discipline. Codex 0.160.0 protocol ThreadStartResponse has model/modelProvider, ModelReroutedNotification binds threadId/turnId. Claude official headless docs confirm stream-json final result and structured_output. These source links and installed lock versions support mechanisms; no general semantic or model-superiority guarantee is claimed by lexical corpus.
+
+Sources:
+https://nodejs.org/download/release/v24.18.1/docs/api/fs.html#file-system-flags
+https://nodejs.org/download/release/v24.18.1/docs/api/crypto.html#cryptotimingsafeequala-b
+https://raw.githubusercontent.com/openai/codex/rust-v0.160.0/codex-rs/app-server-protocol/schema/typescript/v2/ThreadStartResponse.ts
+https://raw.githubusercontent.com/openai/codex/rust-v0.160.0/codex-rs/app-server-protocol/schema/typescript/v2/ModelReroutedNotification.ts
+https://code.claude.com/docs/en/headless

@@ -421,6 +421,65 @@ describe('Quality Gates', () => {
       expect(result.stdout).toBe('');
     });
 
+    it('2.2c: permits only the configured durable architecture record during implementation planning', () => {
+      writeGateConfig(projectDirectory, {
+        reviewGate: false,
+        paths: { architecture: 'docs/decisions.md' },
+      });
+      seedPlanImplementationFeature();
+
+      const architectureEdit = runPreToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, 'docs/decisions.md'),
+      );
+      const siblingEdit = runPreToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, 'docs/decisions-notes.md'),
+      );
+      const sourceEdit = runPreToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, 'src/app.ts'),
+      );
+      const documentationEdit = runPreToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, 'docs/guide.md'),
+      );
+
+      expect(architectureEdit.status).toBe(0);
+      expect(architectureEdit.stdout).toBe('');
+      for (const blocked of [siblingEdit, sourceEdit, documentationEdit]) {
+        expect(JSON.parse(blocked.stdout).hookSpecificOutput.permissionDecision).toBe('deny');
+      }
+    });
+
+    it('2.2d: permits ADR files inside a configured architecture directory, not its siblings', () => {
+      writeGateConfig(projectDirectory, {
+        reviewGate: false,
+        paths: { architecture: 'docs/adr' },
+      });
+      writeTestFile(projectDirectory, 'docs/adr/existing.md', '# Existing decision\n');
+      seedPlanImplementationFeature();
+
+      const adrEdit = runPreToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, 'docs/adr/20260910-new-decision.md'),
+      );
+      const siblingEdit = runPreToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, 'docs/adr-notes.md'),
+      );
+
+      expect(adrEdit.status).toBe(0);
+      expect(adrEdit.stdout).toBe('');
+      expect(JSON.parse(siblingEdit.stdout).hookSpecificOutput.permissionDecision).toBe('deny');
+    });
+
     it('2.2: PreToolUse allows edits even with phase gate set (gates are now reminders)', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
@@ -728,7 +787,7 @@ describe('Quality Gates', () => {
       expect(result.stdout).toBe('');
     });
 
-    it('2: deny without additionalContext omits the field', () => {
+    it('2: a deny with no remedy emits no additionalContext', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 450,
@@ -1306,9 +1365,14 @@ describe('Quality Gates', () => {
         'Cannot create test definitions',
       );
       // The block explains that an atomic apply_patch is rejected on pre-edit
-      // state and must be split into ordered patches (#385).
-      expect(output.hookSpecificOutput.additionalContext).toContain('apply_patch');
-      expect(output.hookSpecificOutput.additionalContext).toContain('ordered patches');
+      // state and must be split into ordered patches (#385). The remedy rides in
+      // the reason — the one field every host delivers (#5760) — ahead of the
+      // /explain hint, never in additionalContext, which Cursor and OpenCode drop.
+      const reason: string = output.hookSpecificOutput.permissionDecisionReason;
+      expect(reason).toContain('apply_patch');
+      expect(reason).toContain('ordered patches');
+      expect(reason.indexOf('ordered patches')).toBeLessThan(reason.indexOf('/explain'));
+      expect(output.hookSpecificOutput.additionalContext).toBeUndefined();
     });
 
     it('9.2: denies test-definitions.md when ticket has no scope fields', () => {
@@ -1497,7 +1561,8 @@ describe('Quality Gates', () => {
       expect(output.hookSpecificOutput.permissionDecisionReason).toContain('intake phase');
       // A same-patch phase change isn't visible to this pre-edit gate; the note
       // tells the agent to order the patches rather than batch them (#385).
-      expect(output.hookSpecificOutput.additionalContext).toContain('apply_patch');
+      expect(output.hookSpecificOutput.permissionDecisionReason).toContain('apply_patch');
+      expect(output.hookSpecificOutput.additionalContext).toBeUndefined();
     });
 
     it('9.7: denies test-definitions.md for features without dimensions.md', () => {

@@ -16,6 +16,7 @@ import {
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -64,6 +65,91 @@ function filesUnder(root: string, relative = ''): string[] {
     const path = nodePath.join(relative, entry.name);
     return entry.isDirectory() ? filesUnder(root, path) : [path];
   });
+}
+
+function runtimeWithoutVerifiedAuthorCopies(
+  pluginRoot: string,
+  layout: 'codex' | 'claude',
+): string {
+  const source = readFileSync(nodePath.join(pluginRoot, 'runtime/cli.js'), 'utf8');
+  const parsed = ts.createSourceFile(
+    'cli.js',
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.JS,
+  );
+  const declarations: ts.VariableDeclaration[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isFunctionDeclaration(node) && node.name?.text === 'packagedPlanningAuthor') {
+      const findCopies = (child: ts.Node): void => {
+        if (
+          ts.isVariableDeclaration(child) &&
+          ts.isIdentifier(child.name) &&
+          child.name.text === 'copies'
+        )
+          declarations.push(child);
+        ts.forEachChild(child, findCopies);
+      };
+      ts.forEachChild(node, findCopies);
+    } else ts.forEachChild(node, visit);
+  };
+  visit(parsed);
+  expect(declarations).toHaveLength(1);
+  const initializer = declarations[0]?.initializer;
+  if (initializer === undefined) throw new Error('Host author identity literal is missing');
+  const readLiteral = (node: ts.Node): unknown => {
+    if (ts.isStringLiteral(node)) return node.text;
+    if (!ts.isObjectLiteralExpression(node))
+      throw new Error('Host author identity must be a static object');
+    return Object.fromEntries(
+      node.properties.map(property => {
+        if (
+          !ts.isPropertyAssignment(property) ||
+          !(ts.isIdentifier(property.name) || ts.isStringLiteral(property.name))
+        )
+          throw new Error('Host author identity must use named static properties');
+        return [property.name.text, readLiteral(property.initializer)];
+      }),
+    );
+  };
+  // Bun 1.4 preserves the compile-time typeof guard around the inlined copy.
+  let inlinedCopies = initializer;
+  if (ts.isConditionalExpression(initializer)) {
+    const guard = initializer.condition;
+    if (
+      !ts.isBinaryExpression(guard) ||
+      !ts.isTypeOfExpression(guard.left) ||
+      !ts.isObjectLiteralExpression(guard.left.expression) ||
+      guard.operatorToken.kind !== ts.SyntaxKind.EqualsEqualsEqualsToken ||
+      !ts.isStringLiteral(guard.right) ||
+      guard.right.text !== 'object'
+    )
+      throw new Error('Host author identity guard must be statically true');
+    inlinedCopies = initializer.whenTrue;
+  }
+  const identities = readLiteral(inlinedCopies);
+  // Independent delivery oracle: do not reuse the generator's phase/path map.
+  const expected = Object.fromEntries(
+    Object.entries({
+      'product-plan': 'DISCOVERY.md',
+      'plan-implementation': 'PLAN_IMPLEMENTATION.md',
+      'plan-execution': 'PLAN_EXECUTION.md',
+    }).map(([phase, file]) => {
+      const relativePath = `skills/bdd/${layout === 'codex' ? 'references/' : ''}${file}`;
+      return [
+        phase,
+        {
+          relativePath,
+          sha256: createHash('sha256')
+            .update(readFileSync(nodePath.join(pluginRoot, relativePath)))
+            .digest('hex'),
+        },
+      ];
+    }),
+  );
+  expect(identities).toEqual(expected);
+  return `${source.slice(0, initializer.getStart(parsed))}HOST_AUTHOR_COPIES${source.slice(initializer.end)}`;
 }
 
 describe('Codex plugin release contract', () => {
@@ -220,7 +306,7 @@ describe('Codex plugin release contract', () => {
           { cwd: project, encoding: 'utf8' },
         );
         expect(install.status, `${install.stdout}${install.stderr}`).toBe(0);
-        expect(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md'))).toBe(true);
+        expect(existsSync(nodePath.join(project, '.safeword/enrolled'))).toBe(true);
         const sessionStart = spawnSync(
           'bun',
           [runtimePath, 'hook', 'codex', 'session-start', '--plugin-hook'],
@@ -384,6 +470,9 @@ describe('Codex plugin release contract', () => {
     const protectedGeneratedFiles = [
       'scenario-rubric.generated.ts',
       'plan-rubric.generated.ts',
+      'execution-plan-rubric.generated.ts',
+      'product-plan-rubric.generated.ts',
+      'delivery-compatibility-rubric.generated.ts',
       'quality-rubric.generated.ts',
       'red-rubric.generated.ts',
     ].map(file => nodePath.join(root, 'src/review', file));
@@ -392,6 +481,7 @@ describe('Codex plugin release contract', () => {
         treeDigest(tree, tree === nodePath.join(repoRoot, '.claude') ? ['worktrees'] : []),
       );
     const before = protectedTreeDigests();
+    protectedGeneratedFiles.push(nodePath.join(root, 'src/planning/contracts.generated.ts'));
     const beforeGeneratedMtimes = protectedGeneratedFiles.map(file => statSync(file).mtimeMs);
     try {
       const generation = spawnSync(
@@ -528,8 +618,9 @@ describe('Codex plugin release contract', () => {
         assertBundledHookCommand(command);
       }).not.toThrow();
     }
-    expect(readFileSync(nodePath.join(root, 'codex-plugin/runtime/cli.js'), 'utf8')).toBe(
-      readFileSync(nodePath.resolve(root, '../../plugin/runtime/cli.js'), 'utf8'),
+
+    expect(runtimeWithoutVerifiedAuthorCopies(nodePath.join(root, 'codex-plugin'), 'codex')).toBe(
+      runtimeWithoutVerifiedAuthorCopies(nodePath.resolve(root, '../../plugin'), 'claude'),
     );
   });
 
@@ -649,7 +740,7 @@ describe('Codex plugin release contract', () => {
       expect(JSON.parse(sessionStart.stdout)).toMatchObject({
         hookSpecificOutput: {
           hookEventName: 'SessionStart',
-          additionalContext: expect.stringContaining('Safeword session bootstrap'),
+          additionalContext: expect.stringContaining('First, Read `'),
         },
       });
       const sessionProof = JSON.parse(

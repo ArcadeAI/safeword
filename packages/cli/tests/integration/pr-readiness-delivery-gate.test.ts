@@ -556,6 +556,90 @@ describe('pull-request readiness from a Codex or Cursor session inside a nested 
   );
 });
 
+describe('Codex readiness when the host omits the shell workdir (#5511)', () => {
+  it.each(['adapter-json', 'native-json', 'native-exit-code'])(
+    'explains the selected checkout and recovery through %s',
+    delivery => {
+      const session = worktreeSession();
+      closeTicketThroughAdapter('OpenAI Codex', session);
+      writeTestFile(
+        session.launchDirectory,
+        OTHER_TICKET_PATH,
+        ['---', 'id: OTHER', 'type: task', 'phase: implement', 'status: in_progress', '---'].join(
+          '\n',
+        ),
+      );
+      writeTestFile(
+        session.launchDirectory,
+        '.project/quality-state-codex-codex-test.json',
+        JSON.stringify({ activeTicket: 'OTHER' }),
+      );
+
+      // Codex 0.160.0 drops exec_command.workdir before calling its Bash hook.
+      // This is the emitted host payload, not the raw exec_command arguments.
+      const input = {
+        session_id: 'codex-test',
+        cwd: session.launchDirectory,
+        tool_name: 'Bash',
+        tool_input: { command: 'gh pr ready' },
+      };
+      const native = delivery !== 'adapter-json';
+      const exitCode = delivery === 'native-exit-code';
+      const codexHome = createTemporaryDirectory();
+      temporaryDirectories.push(codexHome);
+      const environment: NodeJS.ProcessEnv = {
+        ...process.env,
+        CODEX_HOME: codexHome,
+        CLAUDE_PROJECT_DIR: session.launchDirectory,
+        SAFEWORD_CODEX_DENY_MODE: exitCode ? 'exit-code' : 'json',
+      };
+      delete environment.SAFEWORD_PLUGIN_CLI;
+      const run = (cwd: string) =>
+        spawnSync(
+          native ? process.execPath : 'bun',
+          native
+            ? [
+                nodePath.join(REPO_ROOT, 'packages/cli/dist/cli.js'),
+                'hook',
+                'codex',
+                'pre-tool-use',
+                '--plugin-hook',
+              ]
+            : [CODEX_PRE_TOOL_QUALITY],
+          {
+            cwd: session.launchDirectory,
+            input: JSON.stringify({ ...input, cwd }),
+            env: environment,
+            encoding: 'utf8',
+            timeout: TIMEOUT_QUICK,
+          },
+        );
+
+      const shellCwd = nodePath.join(session.launchDirectory, 'shell');
+      mkdirSync(shellCwd);
+      const result = run(shellCwd);
+      expect(result.status, result.stderr).toBe(exitCode ? 2 : 0);
+      const output = exitCode ? {} : (JSON.parse(result.stdout) as ClaudeHookOutput);
+      if (!exitCode) expectDenied('OpenAI Codex', output);
+      const reason = exitCode ? result.stderr : denialReason('OpenAI Codex', output);
+      expect(reason).toContain('OTHER');
+      expect(reason).toContain(`Readiness checkout: ${session.launchDirectory}`);
+      expect(reason).toContain(`Hook cwd: ${shellCwd}`);
+      expect(reason).toContain('separate workdir');
+      expect(reason).toContain(
+        'start or resume a Codex session rooted in the intended PR worktree',
+      );
+      expect(reason).not.toContain(`Readiness checkout: ${session.worktreeDirectory}`);
+
+      // The same boundary allows Ready once the host actually reports the
+      // delivery worktree; no ticket or readiness evidence is copied across.
+      const recovered = run(session.worktreeDirectory);
+      expect(recovered.status, recovered.stderr).toBe(0);
+      expect(recovered.stdout).toBe('');
+    },
+  );
+});
+
 describe('pull-request readiness delivery gate', () => {
   it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
     'allows Ready commands in repositories that are not enrolled on %s',

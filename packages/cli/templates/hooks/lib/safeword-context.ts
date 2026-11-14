@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { hasSafewordProjectMarker } from './namespace-root.ts';
+
 declare const Bun: { stdin: { json(): Promise<unknown> } };
 
 // Packaged dependency closure: .safeword/guides/
@@ -12,6 +14,7 @@ export type Agent = 'claude' | 'codex' | 'cursor';
 export type HookInput = {
   cwd?: string;
   session_id?: string;
+  source?: string;
   workspace_root?: string;
 };
 
@@ -20,16 +23,20 @@ const CODEX_AUTHORITY = [
   'These current paths supersede retired Safeword instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.',
 ].join('\n');
 
-// Session-start hooks run repeatedly and their output has a small host-controlled
-// context budget. Keep this durable pointer compact; the handbook stays the source
-// of truth and is read when an agent begins non-trivial work.
-function sessionBootstrap(handbook: string, guides: string): string {
-  return [
-    'Safeword session bootstrap:',
-    `Before non-trivial work, read ${handbook} and the applicable guide in ${guides}.`,
-    'Current tickets, learnings, and project context are under `.project/` (or the configured namespace root).',
-    'Follow the active Safeword workflow and its gates.',
-  ].join('\n');
+// Host hook context is capped (Claude Code: 10,000 characters) and the handbook is
+// larger, so inject an instruction to read it rather than its contents. Keep it one
+// unconditional line with an absolute path. In headless Claude Code evals with the full
+// plugin loaded (Opus and Sonnet), this line made a full handbook read the first tool
+// call in 24/24 trials, including after compaction. The conditional "before non-trivial
+// work" pointer scored 0/24, and a bare "First, Read <path> in full." was skipped after
+// compaction (1/6) because the summary looks like the read already happened.
+export function sessionBootstrap(handbookPath: string): string {
+  return `First, Read \`${handbookPath}\` in full, even for trivial requests or right after compaction; a summary or earlier read does not count.`;
+}
+
+// A resumed session still holds the earlier read; startup, clear and compact do not.
+export function needsSafewordContext(input: HookInput): boolean {
+  return input.source !== 'resume';
 }
 
 export function withCodexAuthority(context: string | null): string | null {
@@ -54,7 +61,7 @@ export async function readHookInput(): Promise<HookInput> {
 export function findProjectDir(candidate: string): string | null {
   let current = nodePath.resolve(candidate);
   while (true) {
-    if (existsSync(nodePath.join(current, '.safeword/SAFEWORD.md'))) return current;
+    if (hasSafewordProjectMarker(current)) return current;
 
     const parent = nodePath.dirname(current);
     if (parent === current) return null;
@@ -78,22 +85,48 @@ export function resolveProjectDir(input: HookInput): string {
   return process.cwd();
 }
 
+/**
+ * A plugin runtime named its packaged handbook, but the file is missing or empty.
+ * Plugin installs never fall back to a project copy: agents follow the bootstrap
+ * line faithfully, so a stale `.safeword` handbook would silently become authority.
+ */
+export class MissingPackagedHandbookError extends Error {
+  constructor(readonly packagedPath: string) {
+    super(
+      `Safeword's plugin is missing its packaged handbook at ${packagedPath}. Reinstall or update the Safeword plugin; Safeword does not fall back to a project copy.`,
+    );
+    this.name = 'MissingPackagedHandbookError';
+  }
+}
+
+function hasHandbookContent(path: string): boolean {
+  return existsSync(path) && readFileSync(path, 'utf8').trim() !== '';
+}
+
+/**
+ * Plugin runtimes (the Claude dispatcher and the Codex hook bridge) always set
+ * SAFEWORD_PACKAGED_CONTEXT_PATH; only legacy project-hook installs leave it
+ * unset and read the project's own handbook.
+ */
 export function readSafewordContext(projectDir: string): string | null {
-  const packagedContextPath = process.env.SAFEWORD_PACKAGED_CONTEXT_PATH;
-  const packagedPath =
-    packagedContextPath && existsSync(packagedContextPath) ? packagedContextPath : undefined;
-  const safewordPath = packagedPath ?? nodePath.join(projectDir, '.safeword/SAFEWORD.md');
-  if (!existsSync(safewordPath)) return null;
+  const packagedPath = process.env.SAFEWORD_PACKAGED_CONTEXT_PATH;
+  // Read and validate the selected authority path, but never inject its full
+  // contents into a bounded hook context.
+  if (packagedPath) {
+    if (!hasHandbookContent(packagedPath)) throw new MissingPackagedHandbookError(packagedPath);
+    return sessionBootstrap(nodePath.resolve(packagedPath));
+  }
 
-  // Read and validate the selected authority path (which may be the packaged
-  // plugin handbook), but never inject its full contents into a bounded hook
-  // context. This preserves the packaged-context boundary for native Codex.
-  if (!readFileSync(safewordPath, 'utf8').trim()) return null;
+  const projectPath = nodePath.join(projectDir, '.safeword/SAFEWORD.md');
+  if (!hasHandbookContent(projectPath)) return null;
+  return sessionBootstrap(nodePath.resolve(projectPath));
+}
 
-  return sessionBootstrap(
-    packagedPath ? 'the packaged Safeword handbook' : '`.safeword/SAFEWORD.md`',
-    packagedPath ? 'the packaged Safeword guides' : `\`${['.safeword', 'guides'].join('/')}/\``,
-  );
+/** Report a missing packaged handbook as a visible hook failure; rethrow anything else. */
+export function reportMissingPackagedHandbook(error: unknown): number {
+  if (!(error instanceof MissingPackagedHandbookError)) throw error;
+  process.stderr.write(`${error.message}\n`);
+  return 1;
 }
 
 export function createSafewordContextResponse(

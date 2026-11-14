@@ -31,6 +31,9 @@ const LEGITIMATE: Record<string, string> = {
   'src/codex-plugin/inventory.ts': 'Codex hook launcher locates hook scripts in the git tree',
   'src/codex-plugin/project-bootstrap.ts':
     'dependency bootstrap runs in the git tree it is invoked in',
+  'src/commands/project-pr-ready.ts':
+    'PR Ready acts on the git worktree it is invoked in (or --cwd), by design',
+  'src/go-lint/config.ts': "mirrors golangci-lint's own gitroot relative-path-mode",
 };
 
 const PENDING: Record<string, string> = {

@@ -1,0 +1,27 @@
+All 11 contracts in sync; no unregistered templates; cursor rules are thin @reference pointers.
+⋯ Backing up original state…
+✔ Done backing up original state (7c8f5fab2)!
+⋯ Running tasks for staged files…
+    *.{js,jsx,ts,tsx,mjs,mts,cjs,cts} — 7 files
+      ⋯ eslint --fix "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/src/claude-plugin/historical-catalogue.generated.ts" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/src/commands/plan-approval.ts" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/src/planning/contracts.generated.ts" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/tests/integration/native-planning-copy-dispatch.test.ts"
+      ⋯ prettier --write "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/src/claude-plugin/historical-catalogue.generated.ts" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/src/commands/plan-approval.ts" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/src/planning/contracts.generated.ts" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/tests/integration/native-planning-copy-dispatch.test.ts"
+    *.{json,css,scss,html,yaml,yml,graphql} — 6 files
+      ⋯ prettier --write "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/tests/fixtures/lifecycle-origin-main/cursor-check.json" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/tests/fixtures/lifecycle-origin-main/cursor-install.json" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/tests/fixtures/lifecycle-origin-main/cursor-upgrade.json" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/tests/fixtures/lifecycle-origin-main/manifest.json"
+    *.md — 7 files
+      ⋯ prettier --write "/Users/alex/.codex/worktrees/e24e/safeword/.claude/skills/bdd/PLAN_IMPLEMENTATION.md" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/codex-plugin/skills/bdd/references/PLAN_IMPLEMENTATION.md" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/codex-plugin/templates/skills/bdd/PLAN_IMPLEMENTATION.md" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/templates/skills/bdd/PLAN_IMPLEMENTATION.md"
+      ⋯ markdownlint-cli2 --fix "/Users/alex/.codex/worktrees/e24e/safeword/.claude/skills/bdd/PLAN_IMPLEMENTATION.md" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/codex-plugin/skills/bdd/references/PLAN_IMPLEMENTATION.md" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/codex-plugin/templates/skills/bdd/PLAN_IMPLEMENTATION.md" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/templates/skills/bdd/PLAN_IMPLEMENTATION.md"
+
+✔ prettier --write "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/tests/fixtures/lifecycle-origin-main/cursor-check.json" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/tests/fixtures/lifecycle-origin-main/cursor-install.json" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/tests/fixtures/lifecycle-origin-main/cursor-upgrade.json" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/tests/fixtures/lifecycle-origin-main/manifest.json"
+✔ prettier --write "/Users/alex/.codex/worktrees/e24e/safeword/.claude/skills/bdd/PLAN_IMPLEMENTATION.md" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/codex-plugin/skills/bdd/references/PLAN_IMPLEMENTATION.md" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/codex-plugin/templates/skills/bdd/PLAN_IMPLEMENTATION.md" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/templates/skills/bdd/PLAN_IMPLEMENTATION.md"
+✔ markdownlint-cli2 --fix "/Users/alex/.codex/worktrees/e24e/safeword/.claude/skills/bdd/PLAN_IMPLEMENTATION.md" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/codex-plugin/skills/bdd/references/PLAN_IMPLEMENTATION.md" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/codex-plugin/templates/skills/bdd/PLAN_IMPLEMENTATION.md" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/templates/skills/bdd/PLAN_IMPLEMENTATION.md"
+✔ eslint --fix "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/src/claude-plugin/historical-catalogue.generated.ts" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/src/commands/plan-approval.ts" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/src/planning/contracts.generated.ts" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/tests/integration/native-planning-copy-dispatch.test.ts"
+✔ prettier --write "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/src/claude-plugin/historical-catalogue.generated.ts" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/src/commands/plan-approval.ts" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/src/planning/contracts.generated.ts" "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/tests/integration/native-planning-copy-dispatch.test.ts"
+
+✔ Done running tasks for staged files!
+⋯ Staging changes from tasks…
+✔ Done staging changes from tasks!
+⋯ Cleaning up temporary files…
+✔ Done cleaning up temporary files!
+All 5 generated surfaces current.
+[codex/5086-ranked-review-continuation 8d8a43d54] fix: preserve approval diagnostics and native copy proof assurance
+ 20 files changed, 36 insertions(+), 32 deletions(-)

@@ -1,0 +1,5 @@
+{
+  ".project/tickets/82T411-plan-implementation-implementability/spec.md": "a3ee9320d794e0a7d9384333804be7d195fe85ea385e16f848521da5097e228d",
+  "steps/turn-decisions-into-startable-work.steps.ts": "10e17d7029ff637362f2262325ffc02fce692a78a90277d028ffb1520ba11e03",
+  "packages/cli/tests/integration/plan-execution-journey.test.ts": "f4106d757a858aca5371c96a45893ba105b573c7797b4631c2882c8ff5535be6"
+}

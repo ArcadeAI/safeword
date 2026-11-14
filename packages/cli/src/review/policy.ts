@@ -2,17 +2,17 @@ import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { readCrossAgentReviewPolicy } from '../../templates/hooks/lib/review-ledger.js';
-import type { ReviewAgent, ReviewAuthor, ReviewPolicy } from './contract.js';
+import type { ReviewAgent, ReviewAuthor, ReviewPolicy, SupportedReviewAuthor } from './contract.js';
 import { effectiveConfiguredRoutes } from './preferences.js';
 import { MODEL_NAME, type ReviewRoute } from './route-config.js';
 
 export type { ReviewRoute } from './route-config.js';
 
 export interface ReviewRoutePlan {
-  readonly author: ReviewAgent;
+  readonly author: SupportedReviewAuthor;
   readonly preferred: ReviewAgent;
   readonly independentFallback: ReviewAgent;
-  readonly degradedFallback: ReviewAgent;
+  readonly degradedFallback?: ReviewAgent;
 }
 
 export function reviewRoutePlan(author: ReviewAuthor): ReviewRoutePlan | undefined {
@@ -40,11 +40,27 @@ export function reviewRoutePlan(author: ReviewAuthor): ReviewRoutePlan | undefin
       degradedFallback: author,
     };
   }
+  if (author === 'cursor') {
+    return {
+      author,
+      preferred: 'claude',
+      independentFallback: 'codex',
+    };
+  }
   return undefined;
 }
 
-const DEFAULT_PRIMARY_MODEL: Partial<Record<ReviewAgent, string>> = { claude: 'opus' };
-const DEFAULT_ALTERNATE_MODEL: Partial<Record<ReviewAgent, string>> = { claude: 'sonnet' };
+// Every review kind uses each agent's latest flagship first and retries on its
+// smaller sibling. Claude's `opus`/`sonnet` aliases track the newest release;
+// Codex has no alias, so update these names when a new Sol or Terra ships.
+const DEFAULT_PRIMARY_MODEL: Partial<Record<ReviewAgent, string>> = {
+  claude: 'opus',
+  codex: 'gpt-6.1-sol',
+};
+const DEFAULT_ALTERNATE_MODEL: Partial<Record<ReviewAgent, string>> = {
+  claude: 'sonnet',
+  codex: 'gpt-6.1-terra',
+};
 
 export function readConfiguredReviewRoutes(
   cwd: string,
@@ -55,22 +71,44 @@ export function readConfiguredReviewRoutes(
   return effectiveConfiguredRoutes(cwd, author)?.routes;
 }
 
-export function builtInReviewRoutes(cwd: string, author: ReviewAuthor): readonly ReviewRoute[] {
+/**
+ * The models Safeword asks one reviewer agent for, in order: its primary model,
+ * then its alternate when different. An agent with neither runs its default.
+ * Every route, preferred or fallback, uses this one chain.
+ */
+export function reviewerModelChain(
+  cwd: string,
+  reviewer: ReviewAgent,
+): readonly (string | undefined)[] {
+  const primary = readPrimaryReviewerModel(cwd, reviewer);
+  const alternate = readAlternateReviewerModel(cwd, reviewer);
+  return alternate !== undefined && alternate !== primary ? [primary, alternate] : [primary];
+}
+
+function agentRoutes(
+  cwd: string,
+  reviewer: ReviewAgent,
+  independence: ReviewRoute['independence'],
+): readonly ReviewRoute[] {
+  return reviewerModelChain(cwd, reviewer).map(model => ({
+    reviewer,
+    ...(model !== undefined && { model }),
+    independence,
+  }));
+}
+
+export function builtInReviewRoutes(
+  cwd: string,
+  author: SupportedReviewAuthor,
+): readonly ReviewRoute[] {
   const plan = reviewRoutePlan(author);
   if (plan === undefined) return [];
-  const primaryModel = readPrimaryReviewerModel(cwd, plan.preferred);
-  const alternateModel = readAlternateReviewerModel(cwd, plan.preferred);
   return [
-    {
-      reviewer: plan.preferred,
-      ...(primaryModel !== undefined && { model: primaryModel }),
-      independence: 'cross-agent',
-    },
-    ...(alternateModel !== undefined && alternateModel !== primaryModel
-      ? [{ reviewer: plan.preferred, model: alternateModel, independence: 'cross-agent' as const }]
-      : []),
-    { reviewer: plan.independentFallback, independence: 'cross-agent' },
-    { reviewer: plan.degradedFallback, independence: 'degraded' },
+    ...agentRoutes(cwd, plan.preferred, 'cross-agent'),
+    ...agentRoutes(cwd, plan.independentFallback, 'cross-agent'),
+    ...(plan.degradedFallback === undefined
+      ? []
+      : agentRoutes(cwd, plan.degradedFallback, 'degraded')),
   ];
 }
 
@@ -83,8 +121,8 @@ export function readPrimaryReviewerModel(cwd: string, reviewer: ReviewAgent): st
 
 /**
  * The model Safeword should retry the reviewer agent on when its primary route
- * cannot complete. Explicit values override the Claude default; agents without
- * a default retain their authenticated profile behavior.
+ * cannot complete. Explicit values override the built-in Claude and Codex
+ * defaults; agents without one (OpenCode) keep their authenticated profile.
  */
 export function readAlternateReviewerModel(cwd: string, reviewer: ReviewAgent): string | undefined {
   return (
@@ -130,9 +168,9 @@ export function readReviewPolicy(cwd: string): ReviewPolicy {
   try {
     const raw = readFileSync(nodePath.join(cwd, '.safeword', 'config.json'), 'utf8');
     const config: unknown = JSON.parse(raw);
-    if (typeof config !== 'object' || config === null || Array.isArray(config)) return 'require';
+    if (typeof config !== 'object' || config === null || Array.isArray(config)) return 'prefer';
     return readCrossAgentReviewPolicy(raw);
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code === 'ENOENT' ? 'prefer' : 'require';
+  } catch {
+    return 'prefer';
   }
 }

@@ -1,6 +1,6 @@
 {
   "integration": "codex",
   "operation": "install",
-  "result_sha256": "50b7c22588e590271480e7c56bc36c01e93c37885b4344a147cfd8f7a396bb29",
-  "tree_sha256": "169f86fc6778e3bb3146550fc38b31226cdfd87a314a449193b29f5af600d8b1"
+  "result_sha256": "64b89449865a618a1a703bf0a2fcb58ef3de9e7b540487690ff9746118bfec05",
+  "tree_sha256": "696b64424d7388c9fae580d33f73bcdf3489da1444e11fda55901e99862d00b2"
 }

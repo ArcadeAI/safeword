@@ -1,0 +1,687 @@
+diff --git a/packages/cli/src/cli-protocol/catalog.ts b/packages/cli/src/cli-protocol/catalog.ts
+index fb5085a99..52d8f5c99 100644
+--- a/packages/cli/src/cli-protocol/catalog.ts
++++ b/packages/cli/src/cli-protocol/catalog.ts
+@@ -584,6 +584,18 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
+       },
+     },
+   ),
++  command(
++    'ticket record-review-disposition',
++    'Decline one optional reviewed suggestion',
++    'mutate',
++    {
++      promptPolicy: 'confirm',
++      syntax: 'record-review-disposition <ticketId> <reviewId> <findingNumber>',
++      commandOptions: [
++        { flags: '--reason <reason>', description: 'Explain why the suggestion is declined' },
++      ],
++    },
++  ),
+   command(
+     'ticket planning-contract-check',
+     'Check active planning author-copy integrity',
+diff --git a/packages/cli/src/cli-protocol/public-handlers.ts b/packages/cli/src/cli-protocol/public-handlers.ts
+index 8a4319c7a..7ddffea28 100644
+--- a/packages/cli/src/cli-protocol/public-handlers.ts
++++ b/packages/cli/src/cli-protocol/public-handlers.ts
+@@ -356,6 +356,30 @@ async function ticketApprovePlanHandler(invocation: CommandInvocation): Promise<
+   return approvePlanResult(invocation.cwd, ticket, { noInput: invocation.noInput });
+ }
+ 
++async function recordReviewDispositionHandler(invocation: CommandInvocation): Promise<CliResult> {
++  const [ticketId, reviewId, findingNumber] = invocation.operands;
++  const reason = stringOption(invocation.options, 'reason');
++  if (
++    [ticketId, reviewId, findingNumber].some(value => typeof value !== 'string' || value === '') ||
++    reason === undefined ||
++    reason.trim() === ''
++  ) {
++    return invalidOperand(
++      'ticket record-review-disposition',
++      'Supply a ticket id, review id, one-based finding number, and --reason.',
++    );
++  }
++  const { recordReviewDisposition } = await import('../commands/review-disposition.js');
++  return recordReviewDisposition({
++    cwd: invocation.cwd,
++    ticketId: ticketId as string,
++    reviewId: reviewId as string,
++    findingNumber: findingNumber as string,
++    reason,
++    noInput: invocation.noInput,
++  });
++}
++
+ async function planningContractCheckHandler(invocation: CommandInvocation): Promise<CliResult> {
+   const ticket = invocation.operands[0];
+   const phase = invocation.operands[1];
+@@ -580,6 +604,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
+   'ticket new': ticketNewHandler,
+   'ticket reconcile-parent': ticketReconcileParentHandler,
+   'ticket approve-plan': ticketApprovePlanHandler,
++  'ticket record-review-disposition': recordReviewDispositionHandler,
+   'ticket planning-contract-check': planningContractCheckHandler,
+   'ticket delivery-checklist': deliveryChecklistHandler,
+   'ticket execution-prerequisite': executionPrerequisiteHandler,
+diff --git a/packages/cli/src/cli-protocol/review-handlers.ts b/packages/cli/src/cli-protocol/review-handlers.ts
+index 72c8eec65..a434858a4 100644
+--- a/packages/cli/src/cli-protocol/review-handlers.ts
++++ b/packages/cli/src/cli-protocol/review-handlers.ts
+@@ -18,6 +18,7 @@ import type {
+   ReviewKind,
+ } from '../review/contract.js';
+ import type {
++  PlanningContextError,
+   PlanningContractCopyError,
+   ReviewPacketError as ReviewPacketErrorType,
+ } from '../review/packet.js';
+@@ -48,7 +49,13 @@ export async function reviewRunHandler(invocation: CommandInvocation): Promise<C
+   }
+   if (process.env.SAFEWORD_REVIEW_WORKER === '1') return runReviewWorker(invocation);
+   const targets = Array.isArray(rawTargets)
+-    ? rawTargets.filter((target): target is string => typeof target === 'string')
++    ? new Map(
++        rawTargets
++          .filter((target): target is string => typeof target === 'string')
++          .map(target => [nodePath.resolve(invocation.cwd, target), target]),
++      )
++        .values()
++        .toArray()
+     : [];
+   const context = reviewContext(invocation.options.context);
+   if (rawKind === 'plan-implementation' || rawKind === 'plan-execution') {
+@@ -497,7 +504,9 @@ function withExecutionAttestation(
+   };
+ }
+ 
+-function planningCopyFindings(error?: PlanningContractCopyError): CliResult['findings'] {
++function planningCopyFindings(
++  error?: PlanningContractCopyError | PlanningContextError,
++): CliResult['findings'] {
+   return error === undefined
+     ? []
+     : [
+@@ -505,7 +514,10 @@ function planningCopyFindings(error?: PlanningContractCopyError): CliResult['fin
+           code: error.code,
+           message: error.message,
+           severity: 'error',
+-          metadata: { planning_phase: error.phase, contract_path: error.contractPath },
++          metadata:
++            'contextRole' in error
++              ? { context_role: error.contextRole, context_path: error.contextPath }
++              : { planning_phase: error.phase, contract_path: error.contractPath },
+         },
+       ];
+ }
+@@ -513,7 +525,7 @@ function planningCopyFindings(error?: PlanningContractCopyError): CliResult['fin
+ function failedReviewWorker(
+   error: CliResult['errors'][number],
+   reviewId?: string,
+-  copyError?: PlanningContractCopyError,
++  copyError?: PlanningContractCopyError | PlanningContextError,
+ ): CliResult {
+   return createResult({
+     state: 'failed',
+@@ -546,7 +558,7 @@ async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult
+   const [
+     { runReview },
+     { completeReviewJob, reviewJobWorkerInput },
+-    { ReviewPacketError, PlanningContractCopyError },
++    { ReviewPacketError, planningPacketError },
+   ] = await Promise.all([
+     import('../review/coordinator.js'),
+     import('../review/job.js'),
+@@ -595,11 +607,7 @@ async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult
+           },
+     );
+   } catch (error) {
+-    result = reviewExecutionFailure(
+-      error,
+-      ReviewPacketError,
+-      error instanceof PlanningContractCopyError ? error : undefined,
+-    );
++    result = reviewExecutionFailure(error, ReviewPacketError, planningPacketError(error));
+   }
+   try {
+     completeReviewJob(invocation.cwd, id, result);
+@@ -622,7 +630,7 @@ async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult
+ function reviewExecutionFailure(
+   error: unknown,
+   PacketError: typeof ReviewPacketErrorType,
+-  copyError?: PlanningContractCopyError,
++  copyError?: PlanningContractCopyError | PlanningContextError,
+ ): CliResult {
+   const packetError = error instanceof PacketError;
+   return failedReviewWorker(
+@@ -643,7 +651,7 @@ async function startReviewInBackground(
+   context: readonly string[],
+   execution?: RedExecutionRequest,
+ ): Promise<CliResult> {
+-  const [{ startReviewJob }, { ReviewPacketError, PlanningContractCopyError }] = await Promise.all([
++  const [{ startReviewJob }, { ReviewPacketError, planningPacketError }] = await Promise.all([
+     import('../review/job.js'),
+     import('../review/packet.js'),
+   ]);
+@@ -657,18 +665,14 @@ async function startReviewInBackground(
+       progress: invocation.progress,
+     });
+   } catch (error) {
+-    return reviewStartFailure(
+-      error,
+-      ReviewPacketError,
+-      error instanceof PlanningContractCopyError ? error : undefined,
+-    );
++    return reviewStartFailure(error, ReviewPacketError, planningPacketError(error));
+   }
+ }
+ 
+ function reviewStartFailure(
+   error: unknown,
+   PacketError: typeof ReviewPacketErrorType,
+-  copyError?: PlanningContractCopyError,
++  copyError?: PlanningContractCopyError | PlanningContextError,
+ ): CliResult {
+   const packetError = error instanceof PacketError;
+   return createResult({
+diff --git a/packages/cli/src/commands/review-disposition.ts b/packages/cli/src/commands/review-disposition.ts
+new file mode 100644
+index 000000000..9672475a6
+--- /dev/null
++++ b/packages/cli/src/commands/review-disposition.ts
+@@ -0,0 +1,325 @@
++import { createHash, randomUUID } from 'node:crypto';
++import { existsSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
++import nodePath from 'node:path';
++import process from 'node:process';
++import { createInterface } from 'node:readline/promises';
++
++import { parseDocument } from 'yaml';
++
++import { type CliResult, createResult } from '../cli-protocol/result.js';
++import { reviewJobStatus, withFileLock } from '../review/job.js';
++import { toReviewPath } from '../review/packet.js';
++import { acceptedBoundaryDigest } from '../review/planning-accepted-boundary.js';
++import { resolveTicketDirectory } from '../utils/product-plan-contract.js';
++import { parseTicketMetadata } from '../utils/ticket-metadata.js';
++
++const command = 'ticket record-review-disposition';
++type PlanningReviewKind = 'quality-review' | 'plan-implementation' | 'plan-execution';
++
++export interface RecordReviewDispositionRequest {
++  readonly cwd: string;
++  readonly ticketId: string;
++  readonly reviewId: string;
++  readonly findingNumber: string;
++  readonly reason: string;
++  readonly noInput: boolean;
++}
++
++function isRecord(value: unknown): value is Record<string, unknown> {
++  return value !== null && typeof value === 'object' && !Array.isArray(value);
++}
++
++function isPlanningKind(value: unknown): value is PlanningReviewKind {
++  return ['quality-review', 'plan-implementation', 'plan-execution'].includes(String(value));
++}
++
++function pending(
++  request: RecordReviewDispositionRequest,
++  kind: PlanningReviewKind,
++  finding: { readonly severity: 'info' | 'warning'; readonly message: string },
++): CliResult {
++  return createResult({
++    state: 'action_required',
++    findings: [
++      {
++        code: 'REVIEW_DISPOSITION_PENDING',
++        message: `Declining this ${finding.severity} finding requires interactive confirmation: ${finding.message}`,
++        severity: 'warning',
++      },
++    ],
++    data: {
++      command,
++      status: 'pending',
++      ticket_id: request.ticketId,
++      review_id: request.reviewId,
++      review_kind: kind,
++      finding: finding.message,
++      reason: request.reason,
++    },
++  });
++}
++
++function digest(value: string): string {
++  return createHash('sha256').update(value).digest('hex');
++}
++
++function currentBoundaryDigest(cwd: string, ticketPath: string, content: string): string {
++  const { metadata } = parseTicketMetadata(content);
++  const parent =
++    typeof metadata.parent === 'string' ? resolveTicketDirectory(cwd, metadata.parent) : undefined;
++  if (metadata.parent !== undefined && parent === undefined)
++    throw new Error('The declared parent Product Plan does not resolve.');
++  const specPath = nodePath.join(parent ?? nodePath.dirname(ticketPath), 'spec.md');
++  return acceptedBoundaryDigest(content, readFileSync(specPath, 'utf8'));
++}
++
++function addDisposition(
++  content: string,
++  request: RecordReviewDispositionRequest,
++  kind: PlanningReviewKind,
++  finding: { readonly severity: 'info' | 'warning'; readonly message: string },
++  boundaryDigest: string,
++): string {
++  const match = /^(---\r?\n)([\s\S]*?)(\r?\n---(?:\r?\n|$))/u.exec(content);
++  if (match === null) throw new Error('The ticket has no valid frontmatter.');
++  const document = parseDocument(match[2] ?? '', { uniqueKeys: true });
++  if (document.errors.length > 0) throw new Error('The ticket has invalid frontmatter.');
++  const metadata: unknown = document.toJS();
++  if (!isRecord(metadata)) throw new Error('The ticket has invalid frontmatter.');
++  const existing = metadata.review_dispositions;
++  if (existing !== undefined && !Array.isArray(existing))
++    throw new Error('The ticket review dispositions are invalid.');
++  const records = Array.isArray(existing) ? existing : [];
++  document.set('review_dispositions', [
++    ...records,
++    {
++      version: 1,
++      review_id: request.reviewId,
++      review_kind: kind,
++      finding_fingerprint: digest(JSON.stringify(finding)),
++      finding_severity: finding.severity,
++      finding_message: finding.message,
++      accepted_boundary_digest: boundaryDigest,
++      disposition: 'declined',
++      reason: request.reason,
++    },
++  ]);
++  return `${match[1]}${document.toString({ lineWidth: 0 }).trimEnd()}${match[3]}${content.slice(match[0].length)}`;
++}
++
++async function confirm(
++  finding: { readonly severity: 'info' | 'warning'; readonly message: string },
++  boundaryDigest: string,
++  reason: string,
++): Promise<boolean> {
++  process.stderr.write(
++    `Finding (${finding.severity}): ${finding.message}\nAccepted boundary: ${boundaryDigest}\nDecline reason: ${reason}\n`,
++  );
++  const prompt = createInterface({ input: process.stdin, output: process.stderr });
++  try {
++    const answer = await prompt.question('Record this decline in the ticket? [y/N] ');
++    return ['y', 'yes'].includes(answer.trim().toLowerCase());
++  } finally {
++    prompt.close();
++  }
++}
++
++type Finding = { readonly severity: 'info' | 'warning'; readonly message: string };
++
++// The independent provenance and finding checks are one trust boundary.
++// eslint-disable-next-line complexity -- Every independent condition authenticates the selected finding.
++function selectedFinding(
++  data: Record<string, unknown>,
++  findingNumber: string,
++  expectedTarget: string,
++): Finding | undefined {
++  const targets = data.review_targets;
++  const output = data.reviewer_output;
++  const findings = isRecord(output) ? output.findings : undefined;
++  const index = Number(findingNumber) - 1;
++  const finding: unknown = Array.isArray(findings) ? findings[index] : undefined;
++  if (
++    !Array.isArray(targets) ||
++    targets.length !== 1 ||
++    targets[0] !== expectedTarget ||
++    !Number.isSafeInteger(index) ||
++    !isRecord(finding) ||
++    (finding.severity !== 'info' && finding.severity !== 'warning') ||
++    typeof finding.message !== 'string' ||
++    finding.message.trim() === ''
++  )
++    return undefined;
++  return { severity: finding.severity, message: finding.message };
++}
++
++function currentReview(cwd: string, reviewId: string): Record<string, unknown> | undefined {
++  const data = reviewJobStatus(cwd, reviewId).data;
++  return isRecord(data) &&
++    data.status === 'approved' &&
++    isPlanningKind(data.review_kind) &&
++    isRecord(data.review_identity)
++    ? data
++    : undefined;
++}
++
++function writeUnavailable(message: string): CliResult {
++  return createResult({
++    state: 'action_required',
++    findings: [{ code: 'REVIEW_DISPOSITION_WRITE_UNAVAILABLE', message, severity: 'warning' }],
++    data: { command, status: 'pending' },
++  });
++}
++
++// eslint-disable-next-line max-params -- Keep the captured CAS inputs explicit at the write boundary.
++function writeDisposition(
++  request: RecordReviewDispositionRequest,
++  ticketPath: string,
++  kind: PlanningReviewKind,
++  finding: Finding,
++  before: string,
++  boundaryDigest: string,
++): CliResult {
++  const lockPath = `${ticketPath}.review-disposition.lock`;
++  try {
++    return withFileLock(lockPath, () => {
++      if (
++        readFileSync(ticketPath, 'utf8') !== before ||
++        currentBoundaryDigest(request.cwd, ticketPath, before) !== boundaryDigest ||
++        currentReview(request.cwd, request.reviewId) === undefined
++      )
++        return createResult({
++          state: 'action_required',
++          findings: [
++            {
++              code: 'REVIEW_DISPOSITION_STALE',
++              message:
++                'The ticket, accepted boundary, or review changed during confirmation. Refresh the review and confirm the finding again.',
++              severity: 'warning',
++            },
++          ],
++          data: { command, status: 'pending', review_id: request.reviewId },
++        });
++      const next = addDisposition(before, request, kind, finding, boundaryDigest);
++      const temporary = `${ticketPath}.${randomUUID()}.tmp`;
++      try {
++        writeFileSync(temporary, next, { flag: 'wx', mode: statSync(ticketPath).mode & 0o777 });
++        renameSync(temporary, ticketPath);
++      } finally {
++        if (existsSync(temporary)) unlinkSync(temporary);
++      }
++      return createResult({
++        state: 'changed',
++        changed: true,
++        effects: {
++          files: [
++            {
++              kind: 'update',
++              target: nodePath.relative(request.cwd, ticketPath),
++              operation: 'write',
++            },
++          ],
++        },
++        data: {
++          command,
++          status: 'recorded',
++          ticket_id: request.ticketId,
++          review_id: request.reviewId,
++        },
++      });
++    });
++  } catch (error) {
++    const reason = error instanceof Error ? error.message : String(error);
++    return writeUnavailable(
++      `The ticket or lock could not be updated atomically: ${reason}. Check the ticket before retrying.`,
++    );
++  }
++}
++
++// eslint-disable-next-line complexity -- Preserve distinct pending and failed outcomes at the public command boundary.
++export async function recordReviewDisposition(
++  request: RecordReviewDispositionRequest,
++): Promise<CliResult> {
++  if (request.reason.trim() === '') {
++    return createResult({
++      state: 'failed',
++      errors: [
++        {
++          code: 'DISPOSITION_REASON_REQUIRED',
++          message: 'Give a reason for declining this finding.',
++          retryable: false,
++        },
++      ],
++      data: { command },
++    });
++  }
++  const directory = resolveTicketDirectory(request.cwd, request.ticketId);
++  const ticketPath = directory === undefined ? undefined : nodePath.join(directory, 'ticket.md');
++  if (ticketPath === undefined || !existsSync(ticketPath)) {
++    return createResult({
++      state: 'failed',
++      errors: [
++        { code: 'TICKET_NOT_FOUND', message: 'The ticket does not resolve.', retryable: false },
++      ],
++      data: { command },
++    });
++  }
++  const data = currentReview(request.cwd, request.reviewId);
++  if (data === undefined) {
++    return createResult({
++      state: 'action_required',
++      findings: [
++        {
++          code: 'REVIEW_NOT_CURRENT',
++          message: 'The named review is not an authenticated current planning approval.',
++          severity: 'warning',
++        },
++      ],
++      data: { command, status: 'pending', review_id: request.reviewId },
++    });
++  }
++  const kind = data.review_kind as PlanningReviewKind;
++  const targetName = {
++    'quality-review': 'spec.md',
++    'plan-implementation': 'impl-plan.md',
++    'plan-execution': 'execution-plan.md',
++  }[kind];
++  const targetPath = nodePath.join(nodePath.dirname(ticketPath), targetName);
++  const expectedTarget = toReviewPath(nodePath.relative(request.cwd, targetPath));
++  const selected = selectedFinding(data, request.findingNumber, expectedTarget);
++  if (selected === undefined) {
++    return createResult({
++      state: 'failed',
++      errors: [
++        {
++          code: 'INVALID_REVIEW_FINDING',
++          message: 'Select one warning or info finding from this ticket’s authenticated review.',
++          retryable: false,
++        },
++      ],
++      data: { command },
++    });
++  }
++  if (request.noInput || !process.stdin.isTTY || !process.stderr.isTTY)
++    return pending(request, kind, selected);
++  const before = readFileSync(ticketPath, 'utf8');
++  let boundaryDigest: string;
++  try {
++    boundaryDigest = currentBoundaryDigest(request.cwd, ticketPath, before);
++  } catch {
++    return createResult({
++      state: 'failed',
++      errors: [
++        {
++          code: 'REVIEW_DISPOSITION_BOUNDARY_INVALID',
++          message:
++            'The accepted ticket and Product Plan boundary cannot be read. Repair them before recording a decline.',
++          retryable: false,
++        },
++      ],
++      data: { command },
++    });
++  }
++  if (!(await confirm(selected, boundaryDigest, request.reason)))
++    return pending(request, kind, selected);
++  return writeDisposition(request, ticketPath, kind, selected, before, boundaryDigest);
++}
+diff --git a/packages/cli/src/review/job.ts b/packages/cli/src/review/job.ts
+index feaf95237..1b9dcdbd1 100644
+--- a/packages/cli/src/review/job.ts
++++ b/packages/cli/src/review/job.ts
+@@ -414,7 +414,7 @@ function withJobLock<T>(cwd: string, id: string, operation: () => T): T {
+   return withFileLock(`${jobPath(cwd, id)}.lock`, operation);
+ }
+ 
+-function withFileLock<T>(lock: string, operation: () => T): T {
++export function withFileLock<T>(lock: string, operation: () => T): T {
+   const deadline = Date.now() + JOB_LOCK_WAIT_MS;
+   let descriptor: number | undefined;
+   while (descriptor === undefined) {
+diff --git a/packages/cli/src/review/packet.ts b/packages/cli/src/review/packet.ts
+index a8436050c..f4e4a71a3 100644
+--- a/packages/cli/src/review/packet.ts
++++ b/packages/cli/src/review/packet.ts
+@@ -25,7 +25,11 @@ import {
+   normalizedExecutionPlanDigest,
+   parseDeliveryPlanContract,
+ } from '../execution-plan/delivery-checklist.js';
+-import { assertActivePlanningAuthorCopy, packagedPlanningAuthor } from '../planning/author-copy.js';
++import {
++  assertActivePlanningAuthorCopy,
++  packagedPlanningAuthor,
++  PlanningContractCopyError,
++} from '../planning/author-copy.js';
+ import type { PlanningPhase } from '../planning/phase-contract.js';
+ import { PLANNING_DATA_GUIDE_PATH, SAFEWORD_SCHEMA } from '../schema.js';
+ import { resolveConfiguredPath, resolveTicketsDirectory } from '../utils/configured-paths.js';
+@@ -281,7 +285,6 @@ function resolvedPlanningContext(
+   context: readonly string[],
+   productPlan = false,
+ ): readonly string[] {
+-  if (kind !== 'plan-implementation' && kind !== 'plan-execution') return context;
+   const inherited = requiredPlanningBoundaryContext(cwd, kind, targets, context, productPlan);
+   if (inherited === undefined || inherited.length === 0) return context;
+   const included = new Set([...targets, ...context].map(path => nodePath.resolve(cwd, path)));
+@@ -796,13 +799,27 @@ function upstreamPlanContract(
+   return { upstream_plan_contract: contractForUse('plan-implementation', use) };
+ }
+ 
+-function productPlanWorkTarget(cwd: string, kind: ReviewKind, targets: readonly string[]): boolean {
+-  if (kind !== 'quality-review' || targets.length !== 1) return false;
+-  const target = targets[0];
+-  if (target === undefined || nodePath.basename(target) !== 'spec.md') return false;
+-  const ticketDirectory = nodePath.dirname(nodePath.resolve(cwd, target));
+-  if (!existsSync(nodePath.join(ticketDirectory, 'ticket.md'))) return false;
+-  return ownedPlanningTicket(cwd, target);
++function productPlanWorkTarget(
++  cwd: string,
++  kind: ReviewKind,
++  files: readonly ReviewPacketFile[],
++): boolean {
++  if (kind !== 'quality-review' || files.length !== 1) return false;
++  const target = files[0];
++  if (target === undefined || nodePath.basename(target.path) !== 'spec.md') return false;
++  const ticketDirectory = nodePath.dirname(nodePath.resolve(cwd, target.path));
++  if (nodePath.dirname(ticketDirectory) !== resolveTicketsDirectory(cwd)) return false;
++  const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
++  const relativeTicketPath = nodePath.relative(cwd, ticketPath);
++  const marked = target.content.includes('<!-- safeword:product-plan-contract:v1 -->');
++  if (!existsSync(ticketPath)) {
++    if (marked) throw new PlanningContextError('ticket', relativeTicketPath);
++    return false;
++  }
++  const metadata = planningTicketMetadata(cwd, ticketPath, 'ticket');
++  if (marked && metadata.product_plan_contract !== 'v1')
++    throw new PlanningContextError('ticket', relativeTicketPath);
++  return planningTicketOwner(metadata, nodePath.basename(ticketDirectory), relativeTicketPath);
+ }
+ 
+ function packetPlanContract(
+@@ -810,15 +827,18 @@ function packetPlanContract(
+   configured: PlanContractPair | undefined,
+   cwd: string,
+   targets: readonly string[],
+-  use: PlanningContractUse,
++  options: { readonly use: PlanningContractUse; readonly productTarget: boolean },
+ ): Pick<ReviewPacket, 'planning_phase' | 'plan_contract' | 'upstream_plan_contract'> {
+-  const target = targets.length === 1 ? targets[0] : undefined;
+-  if (productPlanWorkTarget(cwd, kind, targets)) {
+-    assertAuthorCopyForDispatch(cwd, 'product-plan', use);
+-    return { planning_phase: 'product-plan', plan_contract: contractForUse('product-plan', use) };
++  if (options.productTarget) {
++    assertAuthorCopyForDispatch(cwd, 'product-plan', options.use);
++    return {
++      planning_phase: 'product-plan',
++      plan_contract: contractForUse('product-plan', options.use),
++    };
+   }
+   if (kind !== 'plan-implementation' && kind !== 'plan-execution') return {};
+-  assertAuthorCopyForDispatch(cwd, kind, use);
++  const target = targets.length === 1 ? targets[0] : undefined;
++  assertAuthorCopyForDispatch(cwd, kind, options.use);
+   const expected = kind === 'plan-implementation' ? 'impl-plan.md' : 'execution-plan.md';
+   const planningTarget =
+     target !== undefined &&
+@@ -826,8 +846,8 @@ function packetPlanContract(
+     ownedPlanningTicket(cwd, target);
+   return {
+     ...(planningTarget && { planning_phase: kind }),
+-    plan_contract: configured ?? contractForUse(kind, use),
+-    ...upstreamPlanContract(planningTarget, kind, use),
++    plan_contract: configured ?? contractForUse(kind, options.use),
++    ...upstreamPlanContract(planningTarget, kind, options.use),
+   };
+ }
+ 
+@@ -1247,7 +1267,10 @@ function prepareReviewPacketUnsafe(
+       rejectDuplicate(target);
+       uniqueTargets.push(target);
+     }
+-    context = resolvedPlanningContext(canonicalRoot, kind, uniqueTargets, context);
++    requirePacketFileCount(uniqueTargets.length + context.length);
++    logicalFiles = captureFiles(uniqueTargets, true, 0);
++    const productTarget = productPlanWorkTarget(canonicalRoot, kind, logicalFiles);
++    context = resolvedPlanningContext(canonicalRoot, kind, uniqueTargets, context, productTarget);
+     for (const target of context) rejectDuplicate(target);
+     if (uniqueTargets.length + context.length > MAX_FILE_COUNT) {
+       throw new ReviewPacketError(
+@@ -1255,7 +1278,6 @@ function prepareReviewPacketUnsafe(
+         'REVIEW_PACKET_TOO_LARGE',
+       );
+     }
+-    logicalFiles = captureFiles(uniqueTargets, true, 0);
+     contextFiles = captureFiles(context, false, uniqueTargets.length);
+     requireStableSources(tracked);
+     const overflowIndex = serializedOverflowIndex(kind, captured, executionAttestation);
+@@ -1298,19 +1320,15 @@ function prepareReviewPacketUnsafe(
+       execution.planContract,
+       canonicalRoot,
+       uniqueTargets,
+-      execution.planningContractUse ?? 'dispatch',
++      { use: execution.planningContractUse ?? 'dispatch', productTarget },
++    );
++    planningContext = resolvePlanningRoleContext(
++      canonicalRoot,
++      kind,
++      planningContract.planning_phase,
++      logicalFiles,
++      contextFiles,
+     );
+-    planningContext =
+-      planningContract.planning_phase === undefined ||
+-      planningContract.planning_phase === 'product-plan'
+-        ? undefined
+-        : resolvePlanningRoleContext(
+-            canonicalRoot,
+-            kind,
+-            planningContract.planning_phase,
+-            logicalFiles,
+-            contextFiles,
+-          );
+     const additional = planningRoleSources(canonicalRoot, planningContext, seen);
+     requirePacketFileCount(uniqueTargets.length + context.length + additional.length);
+     contextFiles.push(
+@@ -1393,3 +1411,12 @@ export function prepareReviewPacket(
+     );
+   }
+ }
++
++/** Keep required-context and author-copy recovery typed at public dispatch boundaries. */
++export function planningPacketError(
++  error: unknown,
++): PlanningContractCopyError | PlanningContextError | undefined {
++  return error instanceof PlanningContractCopyError || error instanceof PlanningContextError
++    ? error
++    : undefined;
++}

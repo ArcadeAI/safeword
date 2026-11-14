@@ -1,0 +1,21 @@
+Error: Configuration file "/tmp/5086-cucumber-targeted.mjs" failed to load/parse
+    at loadFile (/Users/alex/.codex/worktrees/e24e/safeword/node_modules/.bun/@cucumber+cucumber@13.2.1/node_modules/@cucumber/cucumber/src/configuration/from_file.ts:144:11)
+    at async fromFile (/Users/alex/.codex/worktrees/e24e/safeword/node_modules/.bun/@cucumber+cucumber@13.2.1/node_modules/@cucumber/cucumber/src/configuration/from_file.ts:29:21)
+    at async loadConfiguration (/Users/alex/.codex/worktrees/e24e/safeword/node_modules/.bun/@cucumber+cucumber@13.2.1/node_modules/@cucumber/cucumber/src/api/load_configuration.ts:34:7)
+    at async Cli.run (/Users/alex/.codex/worktrees/e24e/safeword/node_modules/.bun/@cucumber+cucumber@13.2.1/node_modules/@cucumber/cucumber/src/cli/index.ts:68:67)
+    at async Object.run (/Users/alex/.codex/worktrees/e24e/safeword/node_modules/.bun/@cucumber+cucumber@13.2.1/node_modules/@cucumber/cucumber/src/cli/run.ts:32:14) {
+  [cause]: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/Users/alex/.codex/worktrees/e24e/safeword/packages/cli/tmp/5086-cucumber-targeted.mjs' imported from /Users/alex/.codex/worktrees/e24e/safeword/node_modules/.bun/@cucumber+cucumber@13.2.1/node_modules/@cucumber/cucumber/lib/configuration/from_file.js
+      at finalizeResolution (node:internal/modules/esm/resolve:271:11)
+      at moduleResolve (node:internal/modules/esm/resolve:865:10)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+      at nextStep (node:internal/modules/customization_hooks:189:26)
+      at resolveBaseSync (file:///Users/alex/.codex/worktrees/e24e/safeword/node_modules/.bun/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:11092)
+      at resolveDirectorySync (file:///Users/alex/.codex/worktrees/e24e/safeword/node_modules/.bun/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:12398)
+      at resolveTsPathsSync (file:///Users/alex/.codex/worktrees/e24e/safeword/node_modules/.bun/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:13605)
+      at resolve (file:///Users/alex/.codex/worktrees/e24e/safeword/node_modules/.bun/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:16832) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///Users/alex/.codex/worktrees/e24e/safeword/packages/cli/tmp/5086-cucumber-targeted.mjs'
+  }
+}

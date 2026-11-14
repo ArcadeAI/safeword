@@ -1,0 +1,381 @@
+Filtered verification output: bundle listings and acceptance progress dots omitted.
+
+$ bun run --cwd packages/retro-relay test && bun run --cwd packages/retro-collector test && bun run --cwd packages/cli test
+$ bun run build && vitest run
+$ tsup
+CLI Building entry: src/index.ts, src/main.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /Users/alex/.codex/worktrees/faf5/safeword/packages/retro-relay/tsup.config.ts
+CLI Target: node22
+CLI Cleaning output folder
+
+ RUN  v5.0.3 /Users/alex/.codex/worktrees/faf5/safeword/packages/retro-relay
+
+
+ Test Files  9 passed (9)
+      Tests  198 passed | 1 skipped (199)
+   Start at  10:31:26
+   Duration  9.66s (tests 90%, transform 6%, import 3%)
+
+$ bun run build && vitest run
+$ tsup
+CLI Building entry: src/index.ts, src/main.ts, src/worker-main.ts, src/worker.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /Users/alex/.codex/worktrees/faf5/safeword/packages/retro-collector/tsup.config.ts
+CLI Target: node24
+CLI Cleaning output folder
+
+ RUN  v5.0.3 /Users/alex/.codex/worktrees/faf5/safeword/packages/retro-collector
+
+
+ Test Files  4 passed (4)
+      Tests  153 passed (153)
+   Start at  10:31:37
+   Duration  1.43s (tests 88%, transform 9%, import 3%)
+
+$ node scripts/run-vitest-with-build-lock.mjs
+Waiting for safeword package test lock (1s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (31s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (1m 1s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (1m 31s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (2m 1s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (2m 31s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (3m 1s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (3m 31s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (4m 1s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (4m 31s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (5m 1s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (5m 31s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (6m 1s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (6m 31s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (7m 1s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (7m 31s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (8m 1s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (8m 31s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (9m 1s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (9m 31s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (10m 1s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (10m 31s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (11m 1s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (11m 31s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (12m 1s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (12m 31s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (13m 1s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (13m 31s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (14m 1s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (14m 31s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Safeword package test lock busy: could not acquire /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-test-locks/safeword-package-test.lock after waiting 15m 0s; no test was started. The active owner is PID 248 in /Users/alex/.codex/worktrees/dba0/safeword. A transition may be blocked at /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-test-locks/safeword-package-test.lock.transition. Re-run after it finishes, set SAFEWORD_TEST_LOCK_MAX_WAIT_MS to a larger positive millisecond value, or remove either directory only if you are sure no package test is running.
+error: script "test" exited with code 75
+error: script "test" exited with code 75
+$ bun run build && vitest run
+$ tsup
+CLI Building entry: src/index.ts, src/main.ts, src/worker-main.ts, src/worker.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /Users/alex/.codex/worktrees/faf5/safeword/packages/retro-collector/tsup.config.ts
+CLI Target: node24
+CLI Cleaning output folder
+
+ RUN  v5.0.3 /Users/alex/.codex/worktrees/faf5/safeword/packages/retro-collector
+
+
+ Test Files  4 passed (4)
+      Tests  153 passed (153)
+   Start at  10:47:48
+   Duration  1.34s (tests 91%, transform 7%, import 2%)
+
+$ node scripts/run-vitest-with-build-lock.mjs
+Waiting for safeword package test lock (1s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (31s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+error: script "test" was terminated by signal SIGTERM (Polite quit request)
+bash: line 7: 71779 Terminated: 15          bun run test
+?   	checker	[no test files]
+$ bun run --cwd packages/cli build && bun run --cwd packages/retro-relay build
+$ tsup
+CLI Building entry: src/cli.ts, src/index.ts, src/opencode/dispatcher.ts, src/presets/typescript/index.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /Users/alex/.codex/worktrees/faf5/safeword/packages/cli/tsup.config.ts
+CLI Target: node18
+CLI Cleaning output folder
+$ tsup
+CLI Building entry: src/index.ts, src/main.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /Users/alex/.codex/worktrees/faf5/safeword/packages/retro-relay/tsup.config.ts
+CLI Target: node22
+CLI Cleaning output folder
+$ bun run --cwd packages/cli test:bdd
+$ tsup
+CLI Building entry: src/cli.ts, src/index.ts, src/opencode/dispatcher.ts, src/presets/typescript/index.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /Users/alex/.codex/worktrees/faf5/safeword/packages/cli/tsup.config.ts
+CLI Target: node18
+CLI Cleaning output folder
+$ bun run test:bdd:acceptance && bun run test:bdd:proof
+$ NODE_OPTIONS='--import tsx' cucumber-js --tags 'not @wip and not @proof.vitest and not @manual and not @live'
+
+2 hooks (2 passed)
+601 scenarios (601 passed)
+11821 steps (11821 passed)
+6m 32.621s (6m 32.36s executing your code)
+$ node scripts/run-vitest-with-build-lock.mjs tests/bdd-proof-tags.test.ts
+Waiting for safeword package test lock (1s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (31s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+error: script "test:bdd:proof" was terminated by signal SIGTERM (Polite quit request)
+/bin/bash: line 1: 45928 Terminated: 15          bun run test:bdd:proof
+error: script "test:bdd" exited with code 143
+error: script "test:bdd" exited with code 143
+$ bun run --cwd packages/retro-relay build && bun run --cwd packages/retro-collector build && bun run --cwd packages/cli build
+$ tsup
+CLI Building entry: src/index.ts, src/main.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /Users/alex/.codex/worktrees/faf5/safeword/packages/retro-relay/tsup.config.ts
+CLI Target: node22
+CLI Cleaning output folder
+$ tsup
+CLI Building entry: src/index.ts, src/main.ts, src/worker-main.ts, src/worker.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /Users/alex/.codex/worktrees/faf5/safeword/packages/retro-collector/tsup.config.ts
+CLI Target: node24
+CLI Cleaning output folder
+$ tsup
+CLI Building entry: src/cli.ts, src/index.ts, src/opencode/dispatcher.ts, src/presets/typescript/index.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /Users/alex/.codex/worktrees/faf5/safeword/packages/cli/tsup.config.ts
+CLI Target: node18
+CLI Cleaning output folder
+$ tsup
+CLI Building entry: src/index.ts, src/main.ts, src/worker-main.ts, src/worker.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /Users/alex/.codex/worktrees/faf5/safeword/packages/retro-collector/tsup.config.ts
+CLI Target: node24
+CLI Cleaning output folder
+$ astro build
+10:56:03 [astro-mermaid] Setting up Mermaid integration
+10:56:03 [astro-mermaid] Existing rehype plugins:
+10:56:03 [astro-mermaid] Skipping ELK support
+10:56:03 [content] Syncing content
+10:56:03 [content] Synced content
+10:56:03 [types] Generated 500ms
+10:56:03 [build] output: "static"
+10:56:03 [build] mode: "static"
+10:56:03 [build] directory: /Users/alex/.codex/worktrees/faf5/safeword/packages/website/dist/
+10:56:03 [build] Collecting build info...
+10:56:03 [build] ✓ Completed in 638ms.
+10:56:03 [build] Building static entrypoints...
+10:56:03 [astro-mermaid] Sätteri transformed mermaid block in /Users/alex/.codex/worktrees/faf5/safeword/packages/website/src/content/docs/getting-started/workflow.mdx
+10:56:04 [WARN] [vite] [33m[MODULE_LEVEL_DIRECTIVE] [0mThe semantics of the module level directive "use astro:head-inject" in "src/content/docs/getting-started/faq.mdx?astroPropagatedAssets" may not be preserved when bundling.
+   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/content/docs/getting-started/faq.mdx?astroPropagatedAssets:2:6 [38;5;246m][0m
+   [38;5;246m│[0m
+ [38;5;246m2 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m"use astro:head-inject";
+ [38;5;240m  │[0m               ────────────┬───────────  
+ [38;5;240m  │[0m                           ╰───────────── module level directive may not be preserved
+ [38;5;240m  │[0m 
+ [38;5;240m  │[0m [38;5;115mHelp[0m: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+[38;5;246m───╯[0m
+
+10:56:04 [WARN] [vite] [33m[MODULE_LEVEL_DIRECTIVE] [0mThe semantics of the module level directive "use astro:head-inject" in "src/content/docs/getting-started/quick-start.mdx?astroPropagatedAssets" may not be preserved when bundling.
+   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/content/docs/getting-started/quick-start.mdx?astroPropagatedAssets:2:6 [38;5;246m][0m
+   [38;5;246m│[0m
+ [38;5;246m2 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m"use astro:head-inject";
+ [38;5;240m  │[0m               ────────────┬───────────  
+ [38;5;240m  │[0m                           ╰───────────── module level directive may not be preserved
+ [38;5;240m  │[0m 
+ [38;5;240m  │[0m [38;5;115mHelp[0m: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+[38;5;246m───╯[0m
+
+10:56:04 [WARN] [vite] [33m[MODULE_LEVEL_DIRECTIVE] [0mThe semantics of the module level directive "use astro:head-inject" in "src/content/docs/index.mdx?astroPropagatedAssets" may not be preserved when bundling.
+   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/content/docs/index.mdx?astroPropagatedAssets:2:6 [38;5;246m][0m
+   [38;5;246m│[0m
+ [38;5;246m2 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m"use astro:head-inject";
+ [38;5;240m  │[0m               ────────────┬───────────  
+ [38;5;240m  │[0m                           ╰───────────── module level directive may not be preserved
+ [38;5;240m  │[0m 
+ [38;5;240m  │[0m [38;5;115mHelp[0m: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+[38;5;246m───╯[0m
+
+10:56:04 [WARN] [vite] [33m[MODULE_LEVEL_DIRECTIVE] [0mThe semantics of the module level directive "use astro:head-inject" in "src/content/docs/getting-started/workflow.mdx?astroPropagatedAssets" may not be preserved when bundling.
+   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/content/docs/getting-started/workflow.mdx?astroPropagatedAssets:2:6 [38;5;246m][0m
+   [38;5;246m│[0m
+ [38;5;246m2 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m"use astro:head-inject";
+ [38;5;240m  │[0m               ────────────┬───────────  
+ [38;5;240m  │[0m                           ╰───────────── module level directive may not be preserved
+ [38;5;240m  │[0m 
+ [38;5;240m  │[0m [38;5;115mHelp[0m: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+[38;5;246m───╯[0m
+
+10:56:04 [WARN] [vite] [33m[MODULE_LEVEL_DIRECTIVE] [0mThe semantics of the module level directive "use astro:head-inject" in "src/content/docs/reference/tracker-integration.mdx?astroPropagatedAssets" may not be preserved when bundling.
+   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/content/docs/reference/tracker-integration.mdx?astroPropagatedAssets:2:6 [38;5;246m][0m
+   [38;5;246m│[0m
+ [38;5;246m2 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m"use astro:head-inject";
+ [38;5;240m  │[0m               ────────────┬───────────  
+ [38;5;240m  │[0m                           ╰───────────── module level directive may not be preserved
+ [38;5;240m  │[0m 
+ [38;5;240m  │[0m [38;5;115mHelp[0m: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+[38;5;246m───╯[0m
+
+10:56:04 [WARN] [vite] [33m[MODULE_LEVEL_DIRECTIVE] [0mThe semantics of the module level directive "use astro:head-inject" in "src/content/docs/reference/configuration.mdx?astroPropagatedAssets" may not be preserved when bundling.
+   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/content/docs/reference/configuration.mdx?astroPropagatedAssets:2:6 [38;5;246m][0m
+   [38;5;246m│[0m
+ [38;5;246m2 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m"use astro:head-inject";
+ [38;5;240m  │[0m               ────────────┬───────────  
+ [38;5;240m  │[0m                           ╰───────────── module level directive may not be preserved
+ [38;5;240m  │[0m 
+ [38;5;240m  │[0m [38;5;115mHelp[0m: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+[38;5;246m───╯[0m
+
+10:56:04 [WARN] [vite] [33m[MODULE_LEVEL_DIRECTIVE] [0mThe semantics of the module level directive "use astro:head-inject" in "src/content/docs/reference/hooks-and-skills.mdx?astroPropagatedAssets" may not be preserved when bundling.
+   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/content/docs/reference/hooks-and-skills.mdx?astroPropagatedAssets:2:6 [38;5;246m][0m
+   [38;5;246m│[0m
+ [38;5;246m2 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m"use astro:head-inject";
+ [38;5;240m  │[0m               ────────────┬───────────  
+ [38;5;240m  │[0m                           ╰───────────── module level directive may not be preserved
+ [38;5;240m  │[0m 
+ [38;5;240m  │[0m [38;5;115mHelp[0m: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+[38;5;246m───╯[0m
+
+10:56:04 [WARN] [vite] [33m[MODULE_LEVEL_DIRECTIVE] [0mThe semantics of the module level directive "use astro:head-inject" in "src/content/docs/reference/cli.mdx?astroPropagatedAssets" may not be preserved when bundling.
+   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/content/docs/reference/cli.mdx?astroPropagatedAssets:2:6 [38;5;246m][0m
+   [38;5;246m│[0m
+ [38;5;246m2 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m"use astro:head-inject";
+ [38;5;240m  │[0m               ────────────┬───────────  
+ [38;5;240m  │[0m                           ╰───────────── module level directive may not be preserved
+ [38;5;240m  │[0m 
+ [38;5;240m  │[0m [38;5;115mHelp[0m: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+[38;5;246m───╯[0m
+
+10:56:04 [vite] ✓ built in 838ms
+10:56:04 [WARN] [vite] [plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+10:56:04 [vite] ✓ built in 256ms
+10:56:04 [build] Rearranging server assets...
+
+ generating static routes 
+10:56:04 [WARN] [content] The collection "i18n" does not exist or is empty. Please check your content config file for errors.
+10:56:04 [WARN] [build] Could not render `/404` from route `/[...slug]` as it conflicts with higher priority route `/404`.
+10:56:04   ├─ /404.html (+9ms) 
+10:56:04   ├─ /getting-started/faq/index.html (+5ms) 
+10:56:04   ├─ /getting-started/quick-start/index.html (+11ms) 
+10:56:04   ├─ /getting-started/workflow/index.html (+9ms) 
+10:56:04   ├─ /index.html (+3ms) 
+10:56:04   ├─ /reference/cli/index.html (+3ms) 
+10:56:04   ├─ /reference/configuration/index.html (+3ms) 
+10:56:04   ├─ /reference/hooks-and-skills/index.html (+6ms) 
+10:56:04   ├─ /reference/tracker-integration/index.html (+3ms) 
+10:56:04 ✓ Completed in 78ms.
+
+10:56:04 [build] ✓ Completed in 1.19s.
+10:56:04 [starlight:pagefind] Building search index with Pagefind...
+10:56:06 [starlight:pagefind] Found 9 HTML files.
+10:56:06 [starlight:pagefind] Finished building search index in 1.37s.
+10:56:06 [@astrojs/sitemap] `sitemap-index.xml` created at `dist`
+10:56:06 [build] 9 page(s) built in 3.21s
+10:56:06 [build] Complete!
+$ tsup
+CLI Building entry: src/cli.ts, src/index.ts, src/opencode/dispatcher.ts, src/presets/typescript/index.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /Users/alex/.codex/worktrees/faf5/safeword/packages/cli/tsup.config.ts
+CLI Target: node18
+CLI Cleaning output folder
+$ bun run --cwd packages/retro-relay typecheck && bun run --cwd packages/retro-collector typecheck && bun run --cwd packages/cli typecheck
+$ tsc --noEmit
+$ tsc --noEmit
+$ tsc --noEmit
+$ tsc --noEmit
+$ astro check
+10:56:18 [astro-mermaid] Setting up Mermaid integration
+10:56:18 [astro-mermaid] Existing rehype plugins:
+10:56:18 [astro-mermaid] Skipping ELK support
+10:56:19 [content] Syncing content
+10:56:19 [content] Synced content
+10:56:19 [types] Generated 287ms
+10:56:19 [check] Getting diagnostics for Astro files in /Users/alex/.codex/worktrees/faf5/safeword/packages/website...
+Result (3 files): 
+- 0 errors
+- 0 warnings
+- 0 hints
+
+$ tsc --noEmit
+Using CPython 3.12.14
+Creating virtual environment at: .venv
+Installed 39 packages in 100ms
+Success: no issues found in 5 source files
+[0m[1mbun audit [0m[2mv1.3.14 (0d9b296a)[0m
+http-cache-semantics  <=4.2.0
+  workspace:@safeword/website › astro
+  high: http-cache-semantics max-stale handling can disclose cross-user cached responses - https://github.com/advisories/GHSA-ch52-4w7c-c8xp
+
+dompurify  >=3.4.13 <=3.4.15
+  workspace:@safeword/website › mermaid
+  low: DOMPurify: IN_PLACE: node-removing afterSanitize hook leaves detached subtree event handlers armed, causing DOM XSS - https://github.com/advisories/GHSA-p98j-92pf-mc4p
+  low: DOMPurify: IN_PLACE returns a force-removed rawtext root whose text carries attacker markup — pure HTML reparse executes - https://github.com/advisories/GHSA-6688-9rhm-gjv2
+
+braces  <=3.0.3
+  markdownlint-cli2 › globby › fast-glob › micromatch › braces
+  workspace:safeword › @next/eslint-plugin-next
+  high: braces vulnerable to stack-exhaustion denial of service through deeply nested patterns - https://github.com/advisories/GHSA-vfj7-8cjw-p6xm
+
+fast-uri  >=3.0.0 <3.1.8
+  workspace:safeword › ajv
+  moderate: fast-uri vulnerable to inconsistent host case normalization via percent-encoded octets - https://github.com/advisories/GHSA-hrr3-gc8f-f4qj
+
+postcss-selector-parser  <7.1.6
+  workspace:safeword › eslint-plugin-astro
+  workspace:@safeword/website › @astrojs/starlight
+  moderate: PostCSS: Quadratic complexity in flat selector parsing allows CPU exhaustion - https://github.com/advisories/GHSA-rj75-hqrm-r3gf
+
+katex  >=0.11.0 <0.18.2
+  workspace:@safeword/website › mermaid
+  markdownlint-cli2 › markdownlint › micromark-extension-math › katex
+  low: KaTeX: Existing prototype pollution can bypass trust restrictions - https://github.com/advisories/GHSA-238p-pmpm-9mq7
+
+7 vulnerabilities (2 high, 2 moderate, 3 low)
+
+To update all dependencies to the latest compatible versions:
+  bun update
+
+To update all dependencies to the latest versions (including breaking changes):
+  bun update --latest
+
+warning: `uv audit` is experimental and may change without warning. Pass `--preview-features audit-command` to disable this warning.
+Resolved 40 packages in 3ms
+Found 2 known vulnerabilities and no adverse project statuses in 39 packages
+
+Vulnerabilities:
+
+certifi 2026.7.22 has 2 known vulnerabilities:
+
+- GHSA-6q48-6c7w-9gw2: certifi bundles emSign root CAs with compromised intermediate CA keys
+
+  Fixed in: 2026.10.19
+
+  Advisory information: https://github.com/certifi/python-certifi/security/advisories/GHSA-6q48-6c7w-9gw2
+
+- PYSEC-2026-4320: certifi bundles emSign root CAs with compromised intermediate CA keys
+
+  Fixed in: 2026.10.19
+
+  Advisory information: https://github.com/advisories/GHSA-6q48-6c7w-9gw2
+
+No known vulnerabilities found
+=== Symbol Results ===
+
+No vulnerabilities found.
+
+Your code is affected by 0 vulnerabilities.
+This scan also found 1 vulnerability in packages you import and 13
+vulnerabilities in modules you require, but your code doesn't appear to call
+these vulnerabilities.
+Use '-show verbose' for more details.

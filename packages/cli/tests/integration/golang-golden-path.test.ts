@@ -13,10 +13,10 @@
  */
 
 import { execSync, spawnSync } from 'node:child_process';
-import { unlinkSync } from 'node:fs';
+import { cpSync, unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   createGoProject,
@@ -34,6 +34,9 @@ import {
 } from '../helpers';
 
 const IS_GOLANGCI_LINT_AVAILABLE = isGolangciLintInstalled();
+const GO_HOOK_ENV = {
+  SAFEWORD_PLUGIN_CLI: nodePath.resolve(import.meta.dirname, '../../dist/cli.js'),
+};
 
 // golangci-lint's FIRST run cold-starts (~62s: type-checks the code, compiling
 // stdlib deps, then initializes the curated linter set and builds its cache),
@@ -46,21 +49,32 @@ vi.setConfig({ testTimeout: 120_000 });
 
 describe('E2E: Go Golden Path', () => {
   let projectDirectory: string;
+  let configuredProject: string;
 
   beforeAll(async () => {
-    projectDirectory = createTemporaryDirectory();
-    createGoProject(projectDirectory);
-    initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory, ['setup', '--yes', '--agents', 'cursor'], {
+    configuredProject = createTemporaryDirectory();
+    createGoProject(configuredProject);
+    initGitRepo(configuredProject);
+    await setupOrThrow(configuredProject, ['setup', '--yes', '--agents', 'cursor'], {
       env: SKIP_SKILLS_ENV,
     });
     // Inherits the 300s base hookTimeout, which contains setupOrThrow's retry.
   });
 
+  beforeEach(() => {
+    projectDirectory = createTemporaryDirectory();
+    cpSync(configuredProject, projectDirectory, {
+      recursive: true,
+      filter: source => nodePath.basename(source) !== 'node_modules',
+    });
+  });
+
+  afterEach(() => {
+    if (projectDirectory) removeTemporaryDirectory(projectDirectory);
+  });
+
   afterAll(() => {
-    if (projectDirectory) {
-      removeTemporaryDirectory(projectDirectory);
-    }
+    if (configuredProject) removeTemporaryDirectory(configuredProject);
   });
 
   it('creates .golangci.yml config', () => {
@@ -164,7 +178,7 @@ func hookTest(){println("test")}`,
     );
 
     // Run the lint hook
-    runLintHook(projectDirectory, filePath);
+    runLintHook(projectDirectory, filePath, GO_HOOK_ENV);
 
     // File should be formatted by golangci-lint fmt
     const result = readTestFile(projectDirectory, 'hook-test.go');
@@ -172,19 +186,31 @@ func hookTest(){println("test")}`,
   });
 
   describe('Lint Hook Graceful Handling', () => {
-    it('hook completes without crashing on syntax error file', () => {
-      writeTestFile(projectDirectory, 'syntax-error.go', 'package main\nfunc broken({{{{ invalid');
-      const filePath = nodePath.join(projectDirectory, 'syntax-error.go');
+    it.skipIf(!IS_GOLANGCI_LINT_AVAILABLE)(
+      'hook reports syntax errors without altering the invalid file',
+      () => {
+        const source = 'package main\nfunc broken({{{{ invalid';
+        writeTestFile(projectDirectory, 'syntax-error.go', source);
+        const filePath = nodePath.join(projectDirectory, 'syntax-error.go');
+        const result = runLintHook(projectDirectory, filePath, GO_HOOK_ENV);
 
-      // Should not throw - hook uses .nothrow()
-      expect(() => runLintHook(projectDirectory, filePath)).not.toThrow();
-    });
+        expect(result.status, result.stderr).toBe(0);
+        const feedback = JSON.parse(result.stdout).hookSpecificOutput.additionalContext as string;
+        expect(feedback).toContain('Go lint findings for package');
+        expect(feedback).toContain('syntax-error.go');
+        expect(feedback).toMatch(/expected|syntax error/i);
+        expect(readTestFile(projectDirectory, 'syntax-error.go')).toBe(source);
+      },
+    );
 
     it('hook completes without crashing on non-existent file', () => {
       const filePath = nodePath.join(projectDirectory, 'does-not-exist.go');
 
-      // Should not throw - hook uses .nothrow()
-      expect(() => runLintHook(projectDirectory, filePath)).not.toThrow();
+      const result = runLintHook(projectDirectory, filePath, GO_HOOK_ENV);
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout).toBe('');
+      expect(result.stderr).toBe('');
+      expect(fileExists(projectDirectory, 'does-not-exist.go')).toBe(false);
     });
   });
 });
@@ -279,8 +305,8 @@ func fallback(){println("test")}`,
     );
     const filePath = nodePath.join(projectDirectory, 'fallback.go');
 
-    // Hook should use fallback path (golangci-lint without --config)
-    runLintHook(projectDirectory, filePath);
+    // The hook resolves the customer config while using the CLI under test.
+    runLintHook(projectDirectory, filePath, GO_HOOK_ENV);
 
     // File should still be formatted by golangci-lint fmt
     const result = readTestFile(projectDirectory, 'fallback.go');
