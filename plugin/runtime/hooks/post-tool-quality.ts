@@ -14,7 +14,7 @@ import { getQualityMessage } from './lib/quality.ts';
 import {
   getStateFilePath,
   LOC_THRESHOLD,
-  META_PATHS,
+  projectMetaPaths,
   type QualityState,
 } from './lib/quality-state.ts';
 import { shouldReviewPhase } from './lib/review-trigger.ts';
@@ -138,7 +138,7 @@ function countLoc(): number {
   try {
     // execFileSync (no shell): pathspecs are args, so no shell-quoting needed
     // (`:!path`, not the shell-escaped `':!path'`).
-    const excludes = META_PATHS.map(p => `:!${p}`);
+    const excludes = projectMetaPaths(projectDirectory).map(p => `:!${p}`);
     const diffStat = execFileSync('git', ['diff', '--stat', 'HEAD', '--', '.', ...excludes], {
       cwd: projectDirectory,
       encoding: 'utf8',

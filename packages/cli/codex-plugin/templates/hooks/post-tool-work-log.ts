@@ -8,9 +8,12 @@
 // anything that isn't a tickets-namespace ticket.md phase transition.
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import nodePath from 'node:path';
 
-import { isNamespacePath, resolveOwningProjectDirectory } from './lib/namespace-root.ts';
+import {
+  canonicalEditTarget,
+  isNamespacePath,
+  resolveOwningProjectDirectory,
+} from './lib/namespace-root.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 import {
   appendWorkLogEntry,
@@ -23,6 +26,7 @@ installCrashCapture('post-tool-work-log');
 interface HookInput {
   tool_name?: string;
   tool_input?: EditToolInput;
+  cwd?: string;
 }
 
 const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
@@ -46,12 +50,10 @@ if (tool !== 'Edit' && tool !== 'MultiEdit') {
   process.exit(0);
 }
 
-const filePath = input.tool_input?.file_path ?? '';
-// A ticket inside a nested worktree reads that worktree's configured root.
-const ownerDirectory = resolveOwningProjectDirectory(
-  projectDirectory,
-  nodePath.resolve(projectDirectory, filePath),
-);
+// A relative target is relative to the session's cwd (maybe a worktree), and a
+// ticket inside a nested worktree reads that worktree's configured root.
+const filePath = canonicalEditTarget(input.tool_input?.file_path ?? '', input.cwd);
+const ownerDirectory = resolveOwningProjectDirectory(projectDirectory, filePath);
 if (!filePath.endsWith('/ticket.md') || !isNamespacePath(filePath, 'tickets/', ownerDirectory)) {
   process.exit(0);
 }

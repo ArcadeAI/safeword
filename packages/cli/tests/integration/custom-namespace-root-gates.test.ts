@@ -282,4 +282,53 @@ describe('configured-root edge cases', () => {
 
     expect(readFileSync(ticket, 'utf8')).toContain('Phase: intake → define-behavior');
   });
+
+  it('ticket edits under the configured root do not count toward the LOC gate', () => {
+    projectDirectory = createProject();
+    const ticket = `${ROOT}/tickets/099-test/notes.md`;
+    writeTestFile(projectDirectory, ticket, '# Notes\n');
+    execSync('git add . && git commit -m "ticket"', { cwd: projectDirectory, stdio: 'pipe' });
+    writeTestFile(projectDirectory, ticket, `# Notes\n${'line\n'.repeat(450)}`);
+
+    runHook(POST_TOOL_QUALITY, projectDirectory, 'Edit', nodePath.join(projectDirectory, ticket));
+
+    const state = JSON.parse(
+      readTestFile(projectDirectory, `${ROOT}/quality-state-${SESSION}.json`),
+    );
+    expect(state.locSinceCommit).toBe(0);
+    expect(state.gate).toBeNull();
+  });
+
+  it('resolves a relative work-log target against the session cwd, not the launch checkout', () => {
+    projectDirectory = createProject();
+    const relativeTicket = `${ROOT}/tickets/099-test/ticket.md`;
+    const launchContent = '---\nphase: define-behavior\n---\n';
+    writeTestFile(projectDirectory, relativeTicket, launchContent);
+    const worktree = nodePath.join(projectDirectory, '.claude/worktrees/w');
+    writeTestFile(worktree, '.git', 'gitdir: elsewhere\n');
+    writeTestFile(worktree, '.safeword/SAFEWORD.md', '# enrolled\n');
+    writeGateConfig(worktree, { paths: { projectRoot: ROOT } });
+    writeTestFile(worktree, relativeTicket, launchContent);
+
+    spawnSync('bun', [POST_TOOL_WORK_LOG], {
+      input: JSON.stringify({
+        session_id: SESSION,
+        hook_event_name: 'PostToolUse',
+        tool_name: 'Edit',
+        cwd: worktree,
+        tool_input: {
+          file_path: relativeTicket,
+          old_string: 'phase: intake',
+          new_string: 'phase: define-behavior',
+        },
+      }),
+      cwd: projectDirectory,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+      encoding: 'utf8',
+      timeout: TIMEOUT_QUICK,
+    });
+
+    expect(readTestFile(worktree, relativeTicket)).toContain('Phase: intake → define-behavior');
+    expect(readTestFile(projectDirectory, relativeTicket)).toBe(launchContent);
+  });
 });

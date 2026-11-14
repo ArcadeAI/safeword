@@ -6,7 +6,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import { getTicketInfo, type TicketDetails } from './active-ticket.js';
-import { configuredNamespaceRelativePath, resolveNamespaceRoot } from './namespace-root.js';
+import { resolveNamespaceRoot } from './namespace-root.js';
 import { getRunStorageKey, resolveRunIdentity, type RunIdentity } from './run-identity.js';
 import { captureGateEscalation } from './self-report.js';
 
@@ -73,15 +73,25 @@ export function isMetaPath(filePath: string, projectDirectory: string): boolean 
     : filePath;
   if (relative.startsWith('..')) return true; // outside the project — not ours to gate
   const normalized = relative.split(nodePath.sep).join('/');
-  if (META_PATHS.some(meta => normalized.startsWith(meta) || normalized === meta.slice(0, -1))) {
-    return true;
-  }
-  // A configured `paths.projectRoot` (e.g. `knowledge/`) is as meta as `.project/`
-  // — unless it is the project itself (`.`), which would exempt every file.
-  if (nodePath.relative(projectDirectory, resolveNamespaceRoot(projectDirectory)) === '') {
-    return false;
-  }
-  return configuredNamespaceRelativePath(filePath, projectDirectory) !== undefined;
+  return projectMetaPaths(projectDirectory).some(
+    meta => normalized.startsWith(meta) || normalized === meta.slice(0, -1),
+  );
+}
+
+/**
+ * META_PATHS plus a configured `paths.projectRoot` (e.g. `knowledge/`) inside
+ * the project. A root that is the project itself (`.`) or lies outside it adds
+ * nothing — `.` would exempt every file. Shared by the pre-tool exemption and
+ * the post-tool LOC count so the two never disagree.
+ */
+export function projectMetaPaths(projectDirectory: string): readonly string[] {
+  const root = nodePath
+    .relative(projectDirectory, resolveNamespaceRoot(projectDirectory))
+    .split(nodePath.sep)
+    .join('/');
+  const custom = `${root}/`;
+  if (root === '' || root.startsWith('..') || nodePath.isAbsolute(root)) return META_PATHS;
+  return META_PATHS.includes(custom) ? META_PATHS : [...META_PATHS, custom];
 }
 
 export interface FailureEntry {
