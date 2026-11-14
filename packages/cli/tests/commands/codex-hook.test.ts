@@ -710,8 +710,8 @@ describe('packagedNamespaceRootLabel', () => {
     expect(result.stderr).toContain('scope, out_of_scope, done_when');
   });
 
-  // The shared quality gate only recognises the default ticket roots, so a
-  // configured namespace is where Codex's own intake check is the one that blocks.
+  // A configured namespace root: the shared quality gate blocks Write here too;
+  // Codex's own intake check still covers apply_patch targets the gate can't see.
   const CUSTOM_NAMESPACE = { paths: { projectRoot: 'knowledge' } };
 
   it.each([
@@ -770,7 +770,9 @@ describe('packagedNamespaceRootLabel', () => {
     );
 
     expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(2);
-    expect(result.stderr).toContain(`until ticket.md declares ${expected}`);
+    // The shared PreToolUse gate honours the configured root, so it blocks
+    // before Codex's own apply_patch-oriented intake check runs.
+    expect(result.stderr).toContain(`Ticket frontmatter is missing: ${expected}`);
   });
 
   it.each([
