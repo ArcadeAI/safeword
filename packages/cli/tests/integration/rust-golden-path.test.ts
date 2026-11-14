@@ -19,6 +19,7 @@ import nodePath from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  assertLintHookSucceeded,
   createRustProject,
   createRustWorkspace,
   createTemporaryDirectory,
@@ -162,14 +163,15 @@ describe('E2E: Rust Golden Path', () => {
     expect(formatted).toContain('fn main() {');
   });
 
-  it.skipIf(!IS_RUSTFMT_AVAILABLE)('lint hook processes .rs files', () => {
+  it.skipIf(!IS_RUSTFMT_AVAILABLE)('lint hook preserves unfinished .rs files', () => {
     const filePath = nodePath.join(projectDirectory, 'src/hook-test.rs');
     writeTestFile(projectDirectory, 'src/hook-test.rs', `fn hook_test(){println!("test")}`);
 
-    runLintHook(projectDirectory, filePath);
-
+    const before = readTestFile(projectDirectory, 'src/hook-test.rs');
+    const feedback = assertLintHookSucceeded(runLintHook(projectDirectory, filePath));
     const result = readTestFile(projectDirectory, 'src/hook-test.rs');
-    expect(result).toContain('fn hook_test() {');
+    expect(result).toBe(before);
+    expect(feedback).toContain('Diff in');
   });
 });
 
@@ -604,7 +606,7 @@ describe('E2E: Rust Lint Hook Fallback', () => {
     }
   });
 
-  it.skipIf(!IS_RUSTFMT_AVAILABLE)('lint hook formats .rs files without safeword config', () => {
+  it.skipIf(!IS_RUSTFMT_AVAILABLE)('lint hook preserves .rs files without safeword config', () => {
     const filePath = nodePath.join(projectDirectory, 'src/fallback-test.rs');
     writeTestFile(projectDirectory, 'src/fallback-test.rs', `fn fallback_test(){println!("test")}`);
 
@@ -614,7 +616,9 @@ describe('E2E: Rust Lint Hook Fallback', () => {
     // it and the file is never touched, which is how this test flaked — and (b) RESTORES
     // the config, so the run lints via the normal configured path and the fallback this
     // test is named for is never exercised at all.
+    const before = readTestFile(projectDirectory, 'src/fallback-test.rs');
     const hook = runLintHook(projectDirectory, filePath, { SAFEWORD_NO_AUTO_UPGRADE: '1' });
+    const feedback = assertLintHookSucceeded(hook);
 
     // Assert the hook actually ran. Discarding this result is what let the flake surface
     // as a baffling content mismatch instead of "the hook was killed". A set `signal`
@@ -628,9 +632,9 @@ describe('E2E: Rust Lint Hook Fallback', () => {
     expect(fileExists(projectDirectory, '.safeword/rustfmt.toml')).toBe(false);
     expect(fileExists(projectDirectory, 'rustfmt.toml')).toBe(false);
 
-    // File should still be formatted (rustfmt works without config)
     const result = readTestFile(projectDirectory, 'src/fallback-test.rs');
-    expect(result).toContain('fn fallback_test() {');
+    expect(result).toBe(before);
+    expect(feedback).toContain('Diff in');
   });
 });
 
@@ -657,16 +661,21 @@ describe('E2E: Rust Lint Hook Graceful Handling', () => {
 
     const filePath = nodePath.join(projectDirectory, 'src/bad-syntax.rs');
 
-    // Hook should complete without throwing (uses .nothrow())
-    // This verifies graceful degradation - even if rustfmt fails to parse, hook doesn't crash
-    expect(() => runLintHook(projectDirectory, filePath)).not.toThrow();
+    const before = readTestFile(projectDirectory, 'src/bad-syntax.rs');
+    const output = assertLintHookSucceeded(runLintHook(projectDirectory, filePath));
+    expect(readTestFile(projectDirectory, 'src/bad-syntax.rs')).toBe(before);
+    if (IS_RUSTFMT_AVAILABLE) {
+      const context = JSON.parse(output).hookSpecificOutput.additionalContext;
+      expect(context).toMatch(/\berror:/u);
+    }
   });
 
   it('lint hook completes without crashing on non-existent file', () => {
     const filePath = nodePath.join(projectDirectory, 'src/does-not-exist.rs');
 
-    // Hook should complete without throwing
-    expect(() => runLintHook(projectDirectory, filePath)).not.toThrow();
+    const result = runLintHook(projectDirectory, filePath);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe('');
   });
 });
 
@@ -734,14 +743,15 @@ describe('E2E: Add Rust to Existing TypeScript Project', () => {
       expect(fileExists(projectDirectory, '.safeword/eslint.config.mjs')).toBe(true);
     });
 
-    it.skipIf(!IS_RUSTFMT_AVAILABLE)('rustfmt works on Rust files', () => {
+    it.skipIf(!IS_RUSTFMT_AVAILABLE)('Rust edits retain bytes while reporting formatting', () => {
       writeTestFile(projectDirectory, 'src/test.rs', `fn test(){println!("test")}`);
 
       const filePath = nodePath.join(projectDirectory, 'src/test.rs');
-      runLintHook(projectDirectory, filePath);
-
+      const before = readTestFile(projectDirectory, 'src/test.rs');
+      const feedback = assertLintHookSucceeded(runLintHook(projectDirectory, filePath));
       const result = readTestFile(projectDirectory, 'src/test.rs');
-      expect(result).toContain('fn test() {');
+      expect(result).toBe(before);
+      expect(feedback).toContain('Diff in');
     });
   });
 });
@@ -830,24 +840,29 @@ describe('E2E: Rust Lint Hook Package Targeting', () => {
         'fake-bin/cargo',
         String.raw`#!/usr/bin/env bash
 printf '%s\n' "$*" > "${invocationLog}"
+printf 'workspace-clippy-diagnostic\n' >&2
 `,
       );
       chmodSync(fakeCargo, 0o755);
 
       const filePath = nodePath.join(projectDirectory, 'crates/core/src/lib.rs');
+      const before = readTestFile(projectDirectory, 'crates/core/src/lib.rs');
       const result = runLintHook(projectDirectory, filePath, {
         PATH: `${fakeBin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
       });
 
       // Hook should complete successfully
       expect(result.status).toBe(0);
-      expect(readTestFile(projectDirectory, 'cargo-invocation.txt')).toBe(
-        'clippy -p core --fix --allow-dirty --allow-staged\n',
-      );
+      const invoked = readTestFile(projectDirectory, 'cargo-invocation.txt');
+      expect(invoked).toContain('clippy');
+      expect(invoked).toContain('-p core');
+      expect(invoked).not.toContain('--fix');
+      expect(assertLintHookSucceeded(result)).toContain('workspace-clippy-diagnostic');
+      expect(readTestFile(projectDirectory, 'crates/core/src/lib.rs')).toBe(before);
     },
   );
 
-  it.skipIf(!IS_CLIPPY_AVAILABLE)(
+  it.skipIf(!IS_CLIPPY_AVAILABLE || !IS_RUSTFMT_AVAILABLE)(
     'lint hook skips clippy for virtual workspace root files (no package)',
     () => {
       // Create a build.rs at workspace root (no [package] section in root Cargo.toml)
@@ -858,14 +873,15 @@ printf '%s\n' "$*" > "${invocationLog}"
       );
 
       const filePath = nodePath.join(projectDirectory, 'build.rs');
+      const before = readTestFile(projectDirectory, 'build.rs');
       const result = runLintHook(projectDirectory, filePath);
 
       // Hook should complete without error (rustfmt only, no clippy)
       expect(result.status).toBe(0);
 
-      // File should still be formatted
       const formatted = readTestFile(projectDirectory, 'build.rs');
-      expect(formatted).toContain('fn main() {');
+      expect(formatted).toBe(before);
+      expect(assertLintHookSucceeded(result)).toContain('Diff in');
     },
   );
 });

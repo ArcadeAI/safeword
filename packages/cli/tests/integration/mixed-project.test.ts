@@ -155,13 +155,11 @@ dependencies = ["ruff", "mypy", "deadcode", "pip-audit"]
       const filePath = nodePath.join(projectDirectory, 'src/lint-py.py');
       writeTestFile(projectDirectory, 'src/lint-py.py', 'x=1;y=2');
 
-      const result = runLintHook(projectDirectory, filePath);
-      expect(result.status).toBe(0);
-
-      // Ruff should format
+      const before = readTestFile(projectDirectory, 'src/lint-py.py');
+      const output = assertLintHookSucceeded(runLintHook(projectDirectory, filePath));
       const formatted = readTestFile(projectDirectory, 'src/lint-py.py');
-      expect(formatted).toContain('x = 1');
-      expect(formatted).toContain('y = 2');
+      expect(formatted).toBe(before);
+      expect(output).toMatch(/reformat|unformatted/iu);
     });
   });
 });

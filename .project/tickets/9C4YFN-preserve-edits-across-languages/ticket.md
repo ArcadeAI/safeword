@@ -8,7 +8,7 @@ scope: Check-only post-edit linting across all supported language branches
 out_of_scope: Explicit fix defaults, new hosts, dependencies, scheduling and live model evals
 done_when: Hook checks preserve edited and sibling source bytes and retain diagnostics; explicit fix mode still writes
 created: 2026-11-14T20:25:14.311Z
-last_modified: 2026-11-14T20:25:14.311Z
+last_modified: 2026-11-14T23:30:05Z
 ---
 
 # Preserve unfinished edits across supported languages
@@ -112,7 +112,57 @@ These explicit commands are deliberately allowed to change source.
   a longer supported wait now sequences targeted checks, mirror generation,
   and the complete verbatim verification plan. No lock was removed or test
   execution policy changed. Current full lint/Gherkin and all package types pass.
+- Canonical focused validation passed 80/80 across six files. Official mirror
+  sync and all five generators passed, including lifecycle update and verify;
+  pre-commit confirmed all generated surfaces current. Implementation checkpoint
+  committed as 7b31ad97b. No production code has changed after that checkpoint.
+- The first full verification exposed ten legacy write-expectation failures in
+  Go/Rust golden paths and Python hooks. Only our failing plan and its own
+  Vitest were interrupted; its wrapper completed normal lock cleanup. That
+  interrupted invocation is not passing evidence. User-approved test updates
+  now require exact preservation and positive findings, retaining explicit
+  formatter coverage. The clean-Python case initially inherited a missing-config
+  warning; it now supplies and finally restores its own config. All 136/136
+  tests in the three legacy files pass. Together, targeted runs cover 216 tests
+  across nine files; a fresh complete verification plan is running.
+- Complete code review c499adda approved after the stronger Python witnesses.
+  The phase-stamp helper nevertheless requires every file in the full branch's
+  change from main, including reviewed stack ancestry. With the three additional
+  legacy-test files that is 66 files; the coordinator rejects it before dispatch
+  at its 64-file limit, with recovery.requires_human=true. Exact public output:
+  .project/tmp/9C4YFN/phase-review-capacity.json. No review gate was disabled,
+  receipt forged, or phase exception granted. Ticket remains implement pending
+  this closure-policy decision; code verification continues independently.
 - Intake review fc3d5664 approved with warnings; clarified shell's writer,
   formatting diagnostics and explicit-fix compatibility. Frontmatter scope was
   added while that review ran, so its receipt was correctly rejected as stale;
   a fresh review is required before advancing.
+- Fresh intake c26ab12a earned the supported stamp and advanced to implement.
+  A second complete verification attempt exposed four more old writer
+  expectations in mixed Python/Go projects and Python golden paths; the run was
+  interrupted and is not green evidence. The approved test updates now require
+  exact bytes plus formatting feedback. Rust/Python missing-file and syntax
+  cases also assert observable results rather than merely that spawnSync did
+  not throw. One Rust assertion initially matched escaped JSON rather than the
+  parsed error; correcting that assertion produced 166/166 passing tests across
+  all six affected integration files. Together with the six focused files,
+  targeted validation covers 246 passing tests across twelve files.
+- Independent six-file test review d98613d5 approved. Sibling preservation and
+  explicit-fix coverage are deliberately in the dedicated boundary/helper tests,
+  not duplicated in each golden path. Root lint/Gherkin/typecheck, documentation
+  site build and refreshed scoped code/learning/domain audits pass. Complete
+  verification is running from frozen test sources. Current phase coverage is
+  67 files, exceeding the unchanged 64-file packet cap; no exception has been
+  granted. verify.md records evidence, limitations and the closure decision.
+- Complete verbatim verification finished with exit zero: 12095 distinct
+  workspace tests passed with 13 existing skips; the scheduled duplicate CLI
+  (11744) and collector (153) runs also passed. All 599 acceptance scenarios,
+  11786 steps and 52 proof tests passed. All detected builds/typechecks and
+  supply-chain lanes passed; Go reported zero reachable vulnerabilities while
+  identifying uncalled transitive advisories. No source/test code changed
+  during the final run. Raw evidence is .project/tmp/9C4YFN/verify-complete.log.
+- Final 67-file public review dispatch reproduced REVIEW_PACKET_INVALID and
+  recovery.requires_human=true before model dispatch. Code and tests are ready;
+  the ticket remains implement/in_progress pending explicit permission to use
+  the completed separate reviews for local closure. This does not request or
+  imply permission to publish, ready, merge or release the existing Draft PR.
