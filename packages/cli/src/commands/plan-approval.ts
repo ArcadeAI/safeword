@@ -540,6 +540,47 @@ function currentApprovalResult(
   );
 }
 
+/**
+ * The human answered for the bytes shown at the prompt. Before that answer becomes
+ * authority, confirm the plan still has those bytes and its review is still current
+ * (a bound planning dependency may have changed while the prompt was open).
+ */
+function presentedApproachDrift(context: ApprovalContext): string | undefined {
+  const planPath = nodePath.relative(context.cwd, context.planPath);
+  const recovery = `No decision was recorded. Obtain a current Implementation Plan review, then rerun safeword ticket approve-plan ${context.ticketId}.`;
+  let current: ApprovalContext;
+  try {
+    current = readContext(context.cwd, context.ticketId);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    return `${planPath} could not be reread after the approval prompt (${reason}). ${recovery}`;
+  }
+  if (current.digest !== context.digest) {
+    return `${planPath} changed while the approval prompt was open (presented ${context.digest}, now ${current.digest}). ${recovery}`;
+  }
+  const review = currentReview(current);
+  if (!review.ok) {
+    return `The Implementation Plan review stopped being current while the approval prompt was open: ${review.reason} ${recovery}`;
+  }
+  return undefined;
+}
+
+function presentedApproachRefusal(
+  context: ApprovalContext,
+  achievedIndependence: AchievedReviewIndependence,
+  returnedToPlanning: boolean,
+): CliResult | undefined {
+  const drift = presentedApproachDrift(context);
+  if (drift === undefined) return undefined;
+  return result(
+    context,
+    'pending',
+    returnedToPlanning ? [nodePath.relative(context.cwd, context.ticketPath)] : [],
+    drift,
+    { achievedIndependence },
+  );
+}
+
 async function approve(context: ApprovalContext, noInput: boolean): Promise<CliResult> {
   assertActivePlanningAuthorCopy(context.cwd, 'plan-implementation');
   const executionDiscovery = currentExecutionDiscovery(context);
@@ -579,12 +620,15 @@ async function approve(context: ApprovalContext, noInput: boolean): Promise<CliR
   }
 
   const accepted = await askForApproval(context.plan);
-  return settleInteractiveDecision(
-    context,
-    accepted,
-    ledgerTarget,
-    review.independence,
-    returnedToPlanning,
+  return (
+    presentedApproachRefusal(context, review.independence, returnedToPlanning) ??
+    settleInteractiveDecision(
+      context,
+      accepted,
+      ledgerTarget,
+      review.independence,
+      returnedToPlanning,
+    )
   );
 }
 
