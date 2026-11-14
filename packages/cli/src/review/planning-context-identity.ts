@@ -182,6 +182,11 @@ const HOOK_WORK_LOG_HEADING = '## Work Log';
  * on a ticket without one), so stripping the trailing run of stamp lines, then
  * a bare trailing heading, restores the prior text whatever Markdown surrounds
  * it. A stamp-shaped line anywhere else is content and stays bound.
+ *
+ * Accepted limitation: a ticket whose final lines are stamp-shaped text inside
+ * an unclosed code fence loses those lines from its identity, so editing them
+ * does not stale approvals. No surveyed ticket has that shape, and a hook
+ * marker could not close it for tickets already holding unmarked stamps.
  */
 function withoutPhaseStamps(body: string): string {
   const lines = body.trimEnd().split('\n');
