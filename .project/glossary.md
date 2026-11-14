@@ -34,7 +34,7 @@ and could mean two things. One-spec-only vocabulary stays in that ticket.
 
 ## Skill
 
-**Definition:** A markdown capability document under `.claude/skills/` (e.g. bdd, verify, refactor) that adds guidance to the agent's context. Slash-invocable and auto-triggerable; soft enforcement — the agent decides when to apply it.
+**Definition:** A folder with a `SKILL.md` (name, description, instructions) and optional references and scripts, following the [Agent Skills](https://agentskills.io) open standard (e.g. bdd, verify, refactor). Hosts install skills from many places (`.claude/skills/`, `.agents/skills/`, plugins, or a server) and load one when its description matches the request. Slash-invocable and auto-triggerable; soft enforcement — the agent decides when to apply it.
 
 **Do not confuse with:** Hook — a hook is shell-enforced and fires automatically; a skill is guidance the agent chooses to follow.
 
