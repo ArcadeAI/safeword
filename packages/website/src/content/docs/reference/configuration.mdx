@@ -330,7 +330,7 @@ With `designApprovalGate` off (the default), a current, independently reviewed I
 }
 ```
 
-When a new decision is required, `safeword ticket approve-plan <ticket-id>` presents the reviewed approach in an interactive terminal and records approval or decline. A current human decision is reused for unchanged plan bytes after semantic review is current. A headless invocation without required approval returns promptly with a pending ledger receipt and keeps the ticket in Implementation Planning. The agent surfaces the reviewed approach and pending action in its session output; pending status does not permit advancement.
+When a new decision is required, `safeword ticket approve-plan <ticket-id>` presents the reviewed approach in an interactive terminal and records approval or decline. If the plan or its semantic review changes while the prompt is open, the answer is not recorded and the ticket stays in Implementation Planning; obtain a current review and run the command again. A current human decision is reused for unchanged plan bytes after semantic review is current. A headless invocation without required approval returns promptly with a pending ledger receipt and keeps the ticket in Implementation Planning. The agent surfaces the reviewed approach and pending action in its session output; pending status does not permit advancement.
 
 ### Other settings
 
