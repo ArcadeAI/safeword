@@ -2,13 +2,13 @@
 id: 9C4YFN
 slug: preserve-edits-across-languages
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 scope: Check-only post-edit linting across all supported language branches
 out_of_scope: Explicit fix defaults, new hosts, dependencies, scheduling and live model evals
 done_when: Hook checks preserve edited and sibling source bytes and retain diagnostics; explicit fix mode still writes
 created: 2026-11-14T20:25:14.311Z
-last_modified: 2026-11-14T23:30:05Z
+last_modified: 2026-11-14T23:53:31.850Z
 ---
 
 # Preserve unfinished edits across supported languages
@@ -166,3 +166,24 @@ These explicit commands are deliberately allowed to change source.
   the ticket remains implement/in_progress pending explicit permission to use
   the completed separate reviews for local closure. This does not request or
   imply permission to publish, ready, merge or release the existing Draft PR.
+- 2026-11-14T23:32:41Z: User replied "accept" to the concrete recommendation
+  to use the completed separate independent reviews and close local ticket
+  9C4YFN. This explicitly authorizes the implementation-review exception for
+  the 67-file branch versus 64-file packet limit and confirms local closure;
+  it grants no publishing, Ready, merge or release authority.
+- Verification artifact review 0bdc520e-c2a6-42a6-a57f-07c282e90ea9 approved.
+  The frozen production/test sources from the successful complete plan are
+  delivered in e93a1071d: production checkpoint 7b31ad97b plus the six approved
+  integration-test updates. The final plan ran before that commit; the test
+  files passed read-only formatting checks, and pre-commit lint/format passed.
+  Subsequent edits only record ticket/verification metadata. Codex proof is
+  explicitly transitive through its existing packaged shared-hook dispatch;
+  no native-app installation or direct language-by-language Codex RED is claimed.
+- Native completion command (`safeword hook codex stop`, run from local source
+  through scripts/dev with the actual host identity) completed with exit zero
+  and the valid no-continuation response {}. Its shared done-evidence gate
+  reran the resolved test and acceptance lanes, then itself changed this ticket
+  to phase done/status done at 2026-11-14T23:53:31.850Z. No test result or
+  completion receipt was fabricated. Raw response is
+  .project/tmp/9C4YFN/native-completion.log. Only local closure metadata changed
+  after the verified production/test commit e93a1071d.

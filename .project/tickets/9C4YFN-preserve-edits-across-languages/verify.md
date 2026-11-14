@@ -19,7 +19,7 @@ JS/TS and eval work is stack ancestry. This follow-up has not been published.
 **Reconcile:** ✅ No pattern deviation — extends the existing fix:false option through each language branch and native checker modes.
 **Experience:** ✅ No new friction — automatic checks require no additional user action; explicit fixes remain available.
 **Surface Evidence:** ✅ 2/2 shared lint entrypoints have recorded process-boundary proof; the existing Codex adapter is covered by the full suite. Language-tool limitations are described below.
-**Evidence limits:** ⚠️ SQLFluff is not installed locally; SQL behavior is proven at the external-process boundary. Native profile upgrade failed as recorded below. Local verification passed; formal phase closure awaits the documented review-policy decision. No new-branch CI or published release is claimed.
+**Evidence limits:** ⚠️ SQLFluff is not installed locally; SQL behavior is proven at the external-process boundary. Native profile upgrade failed as recorded below. Local verification passed; the user accepted the documented implementation-review exception. No new-branch CI or published release is claimed.
 
 Audit passed with delivery base e40f35db0: dependency-cruiser checked 529 modules
 and 910 dependencies with no violations; learning and complete domain audits
@@ -77,9 +77,11 @@ while review packets accept at most 64. Actual 66-file and final 67-file
 dispatches were rejected in preflight with REVIEW_PACKET_INVALID and
 recovery.requires_human=true; the final output is
 .project/tmp/9C4YFN/phase-review-capacity-67.json. Separate approvals do not satisfy
-that single-receipt guard. No gate has been disabled, receipt forged, or review
-exception granted. Ticket remains implement/in_progress until the user decides
-whether to accept the separate reviews as an explicit local closure exception.
+that single-receipt guard. No gate was disabled or receipt forged. On
+2026-11-14T23:32:41Z the user replied "accept" to using the completed separate
+reviews for local closure. The supported write-review-stamp helper recorded
+that explicit implementation-phase exception with --skip and the actual review
+IDs. The ticket then advanced to verify; other phase gates remain applicable.
 
 Two earlier full verification attempts were interrupted after exposing old
 write expectations and are not green evidence. The later six-file regression
