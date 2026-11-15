@@ -13,7 +13,7 @@ import {
   writeDependencyReadinessState,
   writeInstallMarker,
 } from './lib/dependency-readiness.ts';
-import { resolveToolProjectDirectory } from './lib/namespace-root.ts';
+import { resolveLaunchDirectory, resolveToolProjectDirectory } from './lib/project-directory.ts';
 
 interface HookInput {
   tool_name?: string;
@@ -45,10 +45,11 @@ if (input.tool_name !== 'Bash') {
 
 // The host keeps CLAUDE_PROJECT_DIR at the launch checkout after a session
 // enters a git worktree; gate the dependencies of the tree the command runs in.
-const projectDirectory = resolveToolProjectDirectory(
-  process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
-  { tool: 'Bash', editedFile: '', cwd: input.cwd },
-);
+const projectDirectory = resolveToolProjectDirectory(resolveLaunchDirectory(), {
+  tool: 'Bash',
+  editedFile: '',
+  cwd: input.cwd,
+});
 
 if (!existsSync(`${projectDirectory}/.safeword`)) {
   process.exit(0);
