@@ -83,8 +83,8 @@ function bundledPluginCli(moduleDirectory: string): string | undefined {
     nodePath.basename(runtime) !== 'runtime'
   )
     return undefined;
-  const path = nodePath.join(runtime, 'cli.js');
-  return existsSync(path) ? path : undefined;
+  // The layout alone says a plugin is running; a missing cli.js must fail closed.
+  return nodePath.join(runtime, 'cli.js');
 }
 
 /**

@@ -118,6 +118,10 @@ console.log(JSON.stringify(clis.map(cli => cli.args.at(-1))));`,
     ]);
   });
 
+  it('answers nothing when the plugin it ships in has lost its CLI', () => {
+    expect(trustedClisInstalledAt(scratchDirectory(), 'runtime/hooks/lib')).toEqual([]);
+  });
+
   it('does not take a cli.js beside a project-local hooks copy for a plugin bundle', () => {
     const install = scratchDirectory();
     write(install, 'cli.js');
