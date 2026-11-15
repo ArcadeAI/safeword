@@ -51,6 +51,40 @@ describe('isNamespacePath (TAGWZ8)', () => {
   it('rejects paths outside the requested subpath', () => {
     expect(isNamespacePath('.project/learnings/foo.md', 'tickets/')).toBe(false);
   });
+
+  describe('with a configured paths.projectRoot', () => {
+    let project: string;
+
+    beforeEach(() => {
+      project = createTemporaryDirectory();
+      mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
+      writeFileSync(
+        nodePath.join(project, '.safeword', 'config.json'),
+        JSON.stringify({ paths: { projectRoot: 'knowledge' } }),
+      );
+    });
+
+    afterEach(() => {
+      removeTemporaryDirectory(project);
+    });
+
+    it('matches the configured root, absolute and relative', () => {
+      const absolute = nodePath.join(project, 'knowledge/tickets/T/ticket.md');
+      expect(isNamespacePath(absolute, 'tickets/', project)).toBe(true);
+      expect(isNamespacePath('knowledge/tickets/T/ticket.md', 'tickets/', project)).toBe(true);
+      expect(isNamespacePath('knowledge/learnings/foo.md', 'learnings/', project)).toBe(true);
+    });
+
+    it('rejects lookalikes and other subpaths', () => {
+      expect(isNamespacePath('not-knowledge/tickets/T/ticket.md', 'tickets/', project)).toBe(false);
+      expect(isNamespacePath('src/knowledge/tickets/T/ticket.md', 'tickets/', project)).toBe(false);
+      expect(isNamespacePath('knowledge/learnings/foo.md', 'tickets/', project)).toBe(false);
+    });
+
+    it('ignores the configured root when no project directory is given', () => {
+      expect(isNamespacePath('knowledge/tickets/T/ticket.md', 'tickets/')).toBe(false);
+    });
+  });
 });
 
 describe('resolveOwningProjectDirectory (#5247)', () => {

@@ -76,6 +76,10 @@ export function detectPhaseTransition(
  * when the heading is missing entirely, the section is created first. Every
  * prior byte survives — the result always starts with the (newline-
  * normalized) input.
+ *
+ * The review identity strips these stamp lines before parsing (#5766), so
+ * appending at end of file can never change a ticket's approval identity,
+ * whatever Markdown the ticket ends with.
  */
 export function appendWorkLogEntry(content: string, entry: string): string {
   const body = content.endsWith('\n') ? content : `${content}\n`;

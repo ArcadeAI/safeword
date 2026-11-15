@@ -807,13 +807,45 @@ function reviewStatusCommand(id: string): string {
   return `${shellQuote(process.execPath)} ${shellQuote(cliEntrypoint())} review status ${id}`;
 }
 
-function staleResult(record: ReviewJobRecord): CliResult {
+/**
+ * Planning sources whose recorded digest differs from the current identity, so
+ * a stale result can say what changed instead of sending the agent to diff
+ * files itself (issue #5766). Empty when either identity is unavailable.
+ */
+export function changedPlanningSources(
+  recorded: PlanningReviewIdentity | undefined,
+  current: PlanningReviewIdentity | undefined,
+): readonly string[] {
+  if (recorded === undefined || current === undefined) return [];
+  const before = planningSourceDigests(recorded);
+  const after = planningSourceDigests(current);
+  return [...new Set([...before.keys(), ...after.keys()])].filter(
+    key => before.get(key) !== after.get(key),
+  );
+}
+
+function planningSourceDigests(identity: PlanningReviewIdentity): ReadonlyMap<string, string> {
+  return new Map([
+    ...identity.targets.map(target => [`target ${target.path}`, target.digest] as const),
+    ...identity.dependencies.map(
+      source => [`${source.role} ${source.path}`, source.semantic_digest] as const,
+    ),
+  ]);
+}
+
+function staleMessage(changed: readonly string[]): string {
+  return changed.length === 0
+    ? 'The reviewed source changed after this review started; run a fresh review.'
+    : `The reviewed source changed after this review started (${changed.join(', ')}); run a fresh review.`;
+}
+
+function staleResult(record: ReviewJobRecord, changed: readonly string[] = []): CliResult {
   return createResult({
     state: 'action_required',
     findings: [
       {
         code: 'REVIEW_STALE',
-        message: 'The reviewed source changed after this review started; run a fresh review.',
+        message: staleMessage(changed),
         severity: 'warning',
       },
     ],
@@ -908,7 +940,12 @@ function terminalResult(cwd: string, record: ReviewJobRecord): CliResult {
       execution: record.execution,
       planningContractUse: 'currency',
     });
-    if (current.fingerprint !== record.source_fingerprint) return staleResult(record);
+    if (current.fingerprint !== record.source_fingerprint) {
+      return staleResult(
+        record,
+        changedPlanningSources(record.review_identity, current.reviewIdentity),
+      );
+    }
     if (record.result !== undefined)
       return withReviewProvenance(cwd, record, record.result, current.excludedTargets);
   } catch {
