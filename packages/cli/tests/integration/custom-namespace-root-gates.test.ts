@@ -376,6 +376,41 @@ describe('configured-root edge cases', () => {
     }
   });
 
+  it('stamps an enrolled ticket from a session launched outside Safeword (#5467)', () => {
+    projectDirectory = createProject();
+    const unenrolledLaunch = createTemporaryDirectory();
+    try {
+      const ticket = nodePath.join(projectDirectory, `${ROOT}/tickets/099-test/ticket.md`);
+      writeTestFile(
+        projectDirectory,
+        `${ROOT}/tickets/099-test/ticket.md`,
+        '---\nphase: define-behavior\n---\n',
+      );
+
+      spawnSync('bun', [POST_TOOL_WORK_LOG], {
+        input: JSON.stringify({
+          session_id: SESSION,
+          hook_event_name: 'PostToolUse',
+          tool_name: 'Edit',
+          cwd: projectDirectory,
+          tool_input: {
+            file_path: ticket,
+            old_string: 'phase: intake',
+            new_string: 'phase: define-behavior',
+          },
+        }),
+        cwd: unenrolledLaunch,
+        env: { ...process.env, CLAUDE_PROJECT_DIR: unenrolledLaunch },
+        encoding: 'utf8',
+        timeout: TIMEOUT_QUICK,
+      });
+
+      expect(readFileSync(ticket, 'utf8')).toContain('Phase: intake → define-behavior');
+    } finally {
+      removeTemporaryDirectory(unenrolledLaunch);
+    }
+  });
+
   it('a symlinked configured root is excluded from the LOC count by its real path', () => {
     projectDirectory = createTemporaryDirectory();
     writeGateConfig(projectDirectory, { reviewGate: false, paths: { projectRoot: ROOT } });

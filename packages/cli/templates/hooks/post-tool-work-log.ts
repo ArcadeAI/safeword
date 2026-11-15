@@ -32,11 +32,6 @@ interface HookInput {
 
 const projectDirectory = resolveLaunchDirectory();
 
-// Not a safeword project, skip silently
-if (!existsSync(`${projectDirectory}/.safeword`)) {
-  process.exit(0);
-}
-
 let input: HookInput;
 try {
   input = await Bun.stdin.json();
@@ -61,6 +56,11 @@ const ownerDirectory = resolveToolProjectDirectory(projectDirectory, {
   editedFile: requestedFile,
   cwd: input.cwd,
 });
+// Not a safeword project, skip silently. Checked on the owning project, so a
+// session launched outside Safeword still stamps a ticket in an enrolled tree.
+if (!existsSync(`${ownerDirectory}/.safeword`)) {
+  process.exit(0);
+}
 if (!filePath.endsWith('/ticket.md') || !isNamespacePath(filePath, 'tickets/', ownerDirectory)) {
   process.exit(0);
 }
