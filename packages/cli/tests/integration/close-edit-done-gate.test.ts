@@ -126,7 +126,7 @@ function commitTaskTicket(directory: string, ticketId: string, status: string): 
 function runPostToolUse(
   directory: string,
   sessionId: string,
-  toolName: 'Edit' | 'MultiEdit' | 'Write',
+  toolName: 'Edit' | 'MultiEdit' | 'Write' | 'Bash',
   toolInput: Record<string, unknown>,
 ): void {
   const result = spawnSync('bun', ['.safeword/hooks/post-tool-quality.ts'], {
@@ -635,6 +635,9 @@ describe('a session that edits a worktree from the launch checkout (#5467)', () 
         ticketFile,
         ticketMarkdown('5467', 'done', 'done'),
       );
+      // A later shell command back in the launch checkout must not move the
+      // session's project: only edits record it.
+      runPostToolUse(launch, sessionId, 'Bash', { command: 'git status' });
       const result = runDoneGate(launch, sessionId);
 
       expect(result.decision).toBe('block');
