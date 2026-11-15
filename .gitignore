@@ -65,6 +65,7 @@ brand/
 experiments/**/checker
 
 # Safeword - Local cache and transient state
+node_modules/
 **/architecture.generated.md
 .safeword/.update-cache.json
 .safeword/config.local.json
