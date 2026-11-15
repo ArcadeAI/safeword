@@ -18,11 +18,17 @@ afterEach(() => {
 
 const rustCase = { name: 'Rust', extension: 'rs', lint: true, format: true } as const;
 const shellCase = { name: 'shell', extension: 'sh', lint: true, format: true } as const;
+const sqlHostCase = {
+  name: 'SQL host Prettier',
+  extension: 'sql',
+  lint: false,
+  format: true,
+} as const;
 const cases = [
   rustCase,
   { name: 'Go', extension: 'go', lint: true, format: true },
   { name: 'SQL opt-in', extension: 'sql', lint: true, format: false },
-  { name: 'SQL host Prettier', extension: 'sql', lint: false, format: true },
+  sqlHostCase,
   { name: 'Markdown', extension: 'md', lint: false, format: true },
   { name: 'JSON', extension: 'json', lint: false, format: true },
   { name: 'CSS', extension: 'css', lint: false, format: true },
@@ -138,6 +144,25 @@ it('retains explicit Rust fix mode including its existing package-wide scope', (
   expect(result.status, result.stderr).toBe(0);
   expect(readFileSync(file, 'utf8')).toBe('rewritten\n');
   expect(readFileSync(sibling, 'utf8')).toBe('rewritten\n');
+});
+
+it('retains SQL formatting feedback when the fallback linter is unavailable', () => {
+  const { root, file, sibling, env } = fixture(sqlHostCase);
+  const runtime = spawnSync('bun', ['-p', 'process.execPath'], { encoding: 'utf8' });
+  expect(runtime.status, runtime.stderr).toBe(0);
+  rmSync(path.join(root, 'bin/sqlfluff'));
+  const result = spawnSync(runtime.stdout.trim(), [path.join(hooks, 'post-tool-lint.ts')], {
+    cwd: root,
+    input: JSON.stringify({ tool_input: { file_path: file } }),
+    env: { ...env, PATH: path.join(root, 'bin') },
+    encoding: 'utf8',
+    timeout: 15_000,
+  });
+  expect(result.status, result.stderr).toBe(0);
+  expect(readFileSync(file, 'utf8')).toBe('unfinished source\n');
+  expect(readFileSync(sibling, 'utf8')).toBe('unrelated source\n');
+  expect(result.stdout).toContain('format-diagnostic');
+  expect(result.stdout).toContain('SQL/dbt');
 });
 
 it('keeps shell lint feedback without parser errors when Prettier has no shell plugin', () => {

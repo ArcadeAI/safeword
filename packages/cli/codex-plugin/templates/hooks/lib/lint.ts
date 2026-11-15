@@ -609,7 +609,7 @@ export async function lintFile(
           warnings,
         ))
       ) {
-        return { warnings };
+        return { warnings, ...(formattingErrors && { errors: formattingErrors }) };
       }
       // SQL fixes require both explicit fix mode and the legacy sql.fix opt-in.
       // Post-edit checks preserve source even when that opt-in is configured.

@@ -3452,15 +3452,15 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/post-tool-bypass-warn.ts": "f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a",
         ".safeword/hooks/post-tool-dependency-readiness.ts": "0142957ea227b630a5ab17d0cee2d6ff2c6df24e7ca3f4bd7a57dbf6940060be",
         ".safeword/hooks/post-tool-lint.ts": "b469fbb75df70e9493fd5c5e117ef9ab0d129bf10fed3045c57f09eefb259d47",
-        ".safeword/hooks/post-tool-quality.ts": "21a850043772895828c0d75de6d7735bc5566da9711f2ed1eac6ecd8c8cbe5db",
+        ".safeword/hooks/post-tool-quality.ts": "a17e84c74644205067de301800981186d97158829ee0d876ce4ec18e0fd9b17f",
         ".safeword/hooks/post-tool-skill-nudge.ts": "a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4",
         ".safeword/hooks/post-tool-sync-learnings.ts": "de5f52c221b2f029841beded78d65af80217949072a99c2790d503f492528290",
-        ".safeword/hooks/post-tool-work-log.ts": "f8816f7799c564006aad2b6469fbd4d04a51ba2ca3d6f3bdbe93bb03d17b6978",
+        ".safeword/hooks/post-tool-work-log.ts": "f7d42a576cb979a4ab33366eec51922ca202d1edfe6a1404bd039bcd183cbb6c",
         ".safeword/hooks/pre-tool-architecture-stage.ts": "e57bfeb13ccb403159fc8b115122937eaf3d9ca808f2ec6c8c39632fb3a4d679",
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "32b7dc3cd73b8a0361625489238ce88bff32ce01ea27ffcec65d39ceafcb8fdb",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "8e65ae5f95226aa0911178003799dfd96ee328d2b05fb5e2f57af5bc0381dcd2",
+        ".safeword/hooks/pre-tool-quality.ts": "f824073f88425cf52c9d93e0b16d2f152bacbf9a73024fba06d424829206441a",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "9ab95529d1c7ca2ffc1a1303c4f08dc55e35e1e49bd951ca917dfbdf13a95a39",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -53087,38 +53087,64 @@ function semanticMarkdownIdentity(content) {
   const nodes = parseMarkdown(content);
   return identity2(normalizeNodes(nodes));
 }
-function ticketContractNodes(body) {
-  const nodes = parseMarkdown(body);
+function nestedDefinitions(node) {
+  if (node.type === "definition")
+    return [node];
+  return (node.children ?? []).flatMap((child) => nestedDefinitions(child));
+}
+function withoutPhaseStamps(body) {
+  const lines = body.trimEnd().split(`
+`);
+  while (lines.length > 0 && PHASE_STAMP_LINE.test(lines.at(-1) ?? "")) {
+    lines.pop();
+    while (lines.length > 0 && (lines.at(-1) ?? "").trim() === "")
+      lines.pop();
+  }
+  if (lines.at(-1) === HOOK_WORK_LOG_HEADING)
+    lines.pop();
+  return `${lines.join(`
+`).trimEnd()}
+`;
+}
+function isWorkLogHeading(node) {
+  return node.type === "heading" && node.depth === 2 && normalizedText(node) === "Work Log";
+}
+function withoutJournal(nodes) {
   let inWorkLog = false;
   const retained = nodes.filter((node) => {
     if (node.type === "heading" && (node.depth ?? 0) <= 2) {
-      inWorkLog = node.depth === 2 && headingText(node) === "Work Log";
+      inWorkLog = isWorkLogHeading(node);
+      if (inWorkLog)
+        return false;
     }
-    return !inWorkLog;
+    return !inWorkLog || !JOURNAL_NODE_TYPES.has(node.type);
   });
-  const definitions = referencedDefinitions(nodes, retained, false).filter((node) => !retained.includes(node));
+  const definitions = referencedDefinitions(nodes.flatMap((node) => nestedDefinitions(node)), retained, false).filter((node) => !retained.includes(node));
   return [...retained, ...definitions];
 }
 function semanticTicketIdentity(content, reviewKind) {
   const { metadata, body } = parseTicketMetadata(content);
-  const retained = Object.fromEntries(Object.entries(metadata).filter(([key]) => !["phase", "status", "last_modified", "review_dispositions"].includes(key)));
+  const retained = Object.fromEntries(Object.entries(metadata).filter(([key]) => !TICKET_BOOKKEEPING_KEYS.has(key)));
   if (reviewKind !== undefined && Array.isArray(metadata.review_dispositions)) {
     const matching = metadata.review_dispositions.filter((value) => value !== null && typeof value === "object" && !Array.isArray(value) && value.review_kind === reviewKind);
     if (matching.length > 0)
       retained.review_dispositions = matching;
   }
-  const nodes = ticketContractNodes(body);
+  const nodes = withoutJournal(parseMarkdown(withoutPhaseStamps(`${body}
+`)));
   return identity2({ version: 1, metadata: retained, body: normalizeNodes(nodes) });
 }
 function headingText(node) {
   return node.value ?? node.children?.map((child) => headingText(child)).join("") ?? "";
 }
+function normalizedText(node) {
+  return normalizeChildren(node).map((child) => headingText(child)).join("");
+}
 function requiredSection(nodes, depth, key, identifier = false) {
   const matches = nodes.flatMap((node, index) => {
     if (node.type !== "heading" || node.depth !== depth)
       return [];
-    const children = normalizeChildren(node);
-    const text = children.map((child) => headingText(child)).join("");
+    const text = normalizedText(node);
     const label = identifier ? text.split(/\s+/u, 1)[0] : text;
     return label === key ? [index] : [];
   });
@@ -53221,7 +53247,7 @@ function validatePlanningProductFrame(content) {
   const counts = new Map;
   const visit = (node, parent) => {
     if (node.type === "paragraph") {
-      const text = normalizeChildren(node).map((child) => headingText(child)).join("");
+      const text = normalizedText(node);
       const colon = text.indexOf(":");
       const label = text.slice(0, colon);
       if (productFrameFields.includes(label)) {
@@ -53512,7 +53538,7 @@ function createPlanningReviewIdentity(packet) {
     canonical_contract_digest: contractDigest
   };
 }
-var nodeTypes, productFrameFields;
+var nodeTypes, TICKET_BOOKKEEPING_KEYS, JOURNAL_NODE_TYPES, PHASE_STAMP_LINE, HOOK_WORK_LOG_HEADING = "## Work Log", productFrameFields;
 var init_planning_context_identity = __esm(() => {
   init_markdown();
   init_gherkin_feature();
@@ -53548,6 +53574,15 @@ var init_planning_context_identity = __esm(() => {
     "tableRow",
     "tableCell"
   ]);
+  TICKET_BOOKKEEPING_KEYS = new Set([
+    "phase",
+    "status",
+    "last_modified",
+    "review_dispositions",
+    "phase_anchors"
+  ]);
+  JOURNAL_NODE_TYPES = new Set(["list", "paragraph", "definition"]);
+  PHASE_STAMP_LINE = /^- \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[.\d]{0,10}Z Phase: [\w-]+ \u2192 [\w-]+$/u;
   productFrameFields = [
     "Expected outcome",
     "Persona outcome inventory",
@@ -59113,13 +59148,29 @@ function shellQuote4(value) {
 function reviewStatusCommand(id) {
   return `${shellQuote4(process.execPath)} ${shellQuote4(cliEntrypoint())} review status ${id}`;
 }
-function staleResult(record) {
+function changedPlanningSources(recorded, current) {
+  if (recorded === undefined || current === undefined)
+    return [];
+  const before = planningSourceDigests(recorded);
+  const after = planningSourceDigests(current);
+  return [...new Set([...before.keys(), ...after.keys()])].filter((key) => before.get(key) !== after.get(key));
+}
+function planningSourceDigests(identity) {
+  return new Map([
+    ...identity.targets.map((target) => [`target ${target.path}`, target.digest]),
+    ...identity.dependencies.map((source) => [`${source.role} ${source.path}`, source.semantic_digest])
+  ]);
+}
+function staleMessage(changed) {
+  return changed.length === 0 ? "The reviewed source changed after this review started; run a fresh review." : `The reviewed source changed after this review started (${changed.join(", ")}); run a fresh review.`;
+}
+function staleResult(record, changed = []) {
   return createResult({
     state: "action_required",
     findings: [
       {
         code: "REVIEW_STALE",
-        message: "The reviewed source changed after this review started; run a fresh review.",
+        message: staleMessage(changed),
         severity: "warning"
       }
     ],
@@ -59206,8 +59257,9 @@ function terminalResult(cwd, record) {
       execution: record.execution,
       planningContractUse: "currency"
     });
-    if (current.fingerprint !== record.source_fingerprint)
-      return staleResult(record);
+    if (current.fingerprint !== record.source_fingerprint) {
+      return staleResult(record, changedPlanningSources(record.review_identity, current.reviewIdentity));
+    }
     if (record.result !== undefined)
       return withReviewProvenance(cwd, record, record.result, current.excludedTargets);
   } catch {
@@ -65088,6 +65140,8 @@ last_modified: ${now}
 ${motivation}
 
 ## Work Log
+
+<!-- Progress history, not part of the accepted contract: record scope and decisions above. -->
 
 - ${now} Started: Created ticket ${id}
 `;
@@ -80865,6 +80919,7 @@ ${EXECUTION_DISCOVERY_HEADING}
 
 ${quoted.join(`
 `)}
+
 `;
 }
 function applyExecutionDiscovery(context, discovery) {

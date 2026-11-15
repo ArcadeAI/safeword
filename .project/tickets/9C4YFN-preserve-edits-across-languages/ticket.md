@@ -8,7 +8,7 @@ scope: Check-only post-edit linting across all supported language branches
 out_of_scope: Explicit fix defaults, new hosts, dependencies, scheduling and live model evals
 done_when: Hook checks preserve edited and sibling source bytes and retain diagnostics; explicit fix mode still writes
 created: 2026-11-14T20:25:14.311Z
-last_modified: 2026-11-14T23:53:31.850Z
+last_modified: 2026-11-15T03:01:58.968Z
 ---
 
 # Preserve unfinished edits across supported languages
@@ -43,6 +43,16 @@ format branches write independently of the option. This rules out host-specific
 dispatch and tool installation as causes: every affected branch directly
 requests mutation after the shared entry point has selected check-only mode.
 
+During main synchronization, final self-review found a diagnostic-loss edge:
+when host SQL Prettier fails and SQLFluff configuration exists but its executable
+is missing, the availability branch returns only warnings and drops the captured
+formatting output. A real-hook regression with a fixture-only PATH reproduced
+the lost diagnostic while preserving both files. This rules out formatter
+mutation and host-tool installation as the cause; the premature return is the
+cause. Earlier probe revisions exercised a shell builtin or parsed warning-only
+stdout incorrectly and are not valid RED evidence; the final RED fails specifically
+because `format-diagnostic` is absent. Preserve that captured output in this return.
+
 ## Inline test plan
 
 Use real hook/helper processes with external-tool process doubles that destroy
@@ -63,6 +73,20 @@ and Prettier --check, alongside lint diagnostics. Explicit fix mode retains Ruff
 fixes/format, package-wide Clippy fixes and rustfmt, edited-file Go formatting,
 SQL's configured fix opt-in or host Prettier, and generic/shell Prettier writes.
 These explicit commands are deliberately allowed to change source.
+
+## Final delivery refresh
+
+Integrated parent 9aa91155c without authored-source conflicts; generated-only
+conflicts were resolved by the official five-surface generators. Final self-review
+caught and corrected the SQL missing-fallback diagnostic loss recorded above.
+The final RED fails for missing formatter output; all 28 affected checks pass
+after the one-line repair. Earlier 80-test refresh, lint/types, generation,
+real-tool preservation probes, and scoped audit passed. Independent production
+review 3ac50dd9-8b45-4eb3-a4e8-6cab0603f869 approved with cross-agent independence;
+verify.md records dispositions and generator coverage. The actual source-CLI
+completion returned {} and automatically closed this ticket at
+2026-11-15T03:01:58.968Z. Production source is frozen; final-head hosted CI and
+parent-first administrative merges remain pending. No new live model eval ran.
 
 ## Work Log
 

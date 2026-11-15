@@ -2,7 +2,48 @@
 
 Implementation checkpoint: 7b31ad97b on codex/preserve-language-edits. Delivery
 scope is the change above e40f35db01396677042079c698ee9f2f671b4ae3; the existing
-JS/TS and eval work is stack ancestry. This follow-up has not been published.
+JS/TS and eval work is stack ancestry. This original report predates publication;
+Draft PR #7513 now carries the language follow-up and the delivery refresh below.
+
+## Delivery refresh — November 15, 2026 UTC
+
+Merged the verified parent through 9aa91155c; canonical language implementation
+merged cleanly and generated-only conflicts were rebuilt by the official
+generators. All five surfaces verified. The first refresh passed 80 targeted
+tests, root lint/Gherkin and CLI types. A fresh scoped audit passed 579 modules
+and 1013 edges without violations; learning and domain audits passed. Real Ruff
+and Prettier hook probes retained edited/sibling bytes and positive feedback.
+
+Final self-review found SQL formatting feedback was discarded when the fallback
+SQLFluff executable was missing. The final isolated RED failed specifically for
+missing formatting output; the one-line correction passed all 28 tests in the
+two affected files. Earlier fixture attempts failed for harness reasons and are
+not counted as RED evidence. Focused formatting/type checks and regeneration
+passed after the correction. No timeout, skip, or checker requirement changed.
+
+Independent Claude review 8e3288ad-d868-4b33-aae2-2b5017965abd approved all 39
+slice files, excluding three generated runtime carriers. Generated provenance is
+verified separately. A production-only refresh keeps subsequent status updates
+outside the durable source review. Its nonblocking notes are dispositioned:
+retain exact external-tool error text rather than add brittle output heuristics;
+SQLFluff remains a fallback after host Prettier failure, not an additional checker
+after a successful host check; Cargo's build-script effects remain outside the
+source-preservation claim. Historical separate-review authority is not a claim
+that this new review covered unmerged parent ancestry. Fresh source completion
+returned {} and automatically marked this ticket done at
+2026-11-15T03:01:58.968Z after running the configured test and acceptance plans.
+Final synchronized-head hosted CI remains pending; earlier full-suite counts
+below retain their historical scope rather than claiming a new-head run.
+
+Production-only Claude review 3ac50dd9-8b45-4eb3-a4e8-6cab0603f869 approved
+all 37 production/test/doc/mirror targets with cross-agent independence; its
+three excluded generated runtime carriers are covered by the official generator
+verification. JS host-toolchain behavior is reviewed/tested parent ancestry;
+this slice does not change it. Remaining notes preserve raw Cargo diagnostic
+output, existing plain-stdout warning delivery, tested output bounds, and the
+file-scoped heading for Go-only formatting differences; no source correction
+was required. Ticket bookkeeping is outside this receipt, so its future status
+updates do not stale production review coverage.
 
 ## Verify Checklist
 
