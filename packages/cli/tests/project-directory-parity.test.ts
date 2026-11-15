@@ -20,12 +20,14 @@ const SCANNED = ['templates/hooks', 'templates/scripts', 'src'];
 const RESOLVER = 'templates/hooks/lib/project-directory.ts';
 const LAUNCH_VARIABLE = 'CLAUDE_PROJECT_DIR';
 const GIT_TOPLEVEL = '--show-toplevel';
+const PROJECT_MARKERS = new Set(['.git', '.safeword', 'SAFEWORD.md']);
 
 /**
- * Whether `source` picks a project on its own: it reads the launch-checkout
- * variable (property, element or destructuring access; writing a child
- * environment is not a read), or asks git for its toplevel, which is the
- * launch checkout's view of a worktree only by accident. Parsed, not matched
+ * Whether `source` picks a project on its own, by any route the design names:
+ * it reads the launch-checkout variable (property, element or destructuring
+ * access; writing a child environment is not a read), falls back to
+ * `process.cwd()` as a root (`x ?? process.cwd()`), walks up looking for a
+ * `.git`/`.safeword` marker, or asks git for its toplevel. Parsed, not matched
  * as text, so comments never count. A tripwire, not a sandbox: a computed key
  * built at runtime can still slip past.
  */
@@ -47,9 +49,34 @@ function readsProjectChoice(source: string, fileName = 'scan.ts'): boolean {
 
 function choosesProject(node: ts.Node): boolean {
   if (ts.isStringLiteralLike(node) || ts.isTemplateLiteralToken(node)) {
-    return node.text.includes(GIT_TOPLEVEL);
+    return node.text.includes(GIT_TOPLEVEL) || walksForMarker(node);
   }
-  return readsLaunchVariable(node);
+  return readsLaunchVariable(node) || fallsBackToProcessCwd(node);
+}
+
+/** `x ?? process.cwd()` / `x || process.cwd()`: the process cwd as a root default. */
+function fallsBackToProcessCwd(node: ts.Node): boolean {
+  if (!ts.isBinaryExpression(node)) return false;
+  const operator = node.operatorToken.kind;
+  if (operator !== ts.SyntaxKind.QuestionQuestionToken && operator !== ts.SyntaxKind.BarBarToken) {
+    return false;
+  }
+  const fallback = node.right;
+  return (
+    ts.isCallExpression(fallback) &&
+    fallback.arguments.length === 0 &&
+    fallback.expression.getText() === 'process.cwd'
+  );
+}
+
+/** A `.git`/`.safeword` marker named inside a loop: a hand-rolled walk-up. */
+function walksForMarker(node: ts.StringLiteralLike | ts.TemplateLiteralToken): boolean {
+  if (!PROJECT_MARKERS.has(node.text)) return false;
+  for (let parent = node.parent; !ts.isSourceFile(parent); parent = parent.parent) {
+    if (ts.isIterationStatement(parent, false)) return true;
+    if (ts.isFunctionLike(parent)) return false;
+  }
+  return false;
 }
 
 function readsLaunchVariable(node: ts.Node): boolean {
@@ -117,6 +144,7 @@ const PENDING: Record<string, string> = {
   'templates/hooks/lib/test-runner.ts': 'PR 2',
   'templates/hooks/lib/self-report.ts': 'PR 2',
   'templates/hooks/lib/safeword-context.ts': 'PR 2',
+  'templates/hooks/lib/re-entry.ts': 'PR 2',
   // Retro spool and closeout binding (#5467 PR 3).
   'templates/hooks/stop-retro.ts': 'PR 3',
   'templates/hooks/stop-retro-filing.ts': 'PR 3',
@@ -134,6 +162,16 @@ const PENDING: Record<string, string> = {
   'src/commands/codex-hook.ts': 'PR 4',
   'src/commands/project-runtime.ts': 'PR 4',
   'src/self-report-capture.ts': 'PR 4',
+  'src/claude-plugin/runtime/dispatch.ts': 'PR 4',
+  'src/codex-plugin/operations.ts': 'PR 4',
+  'src/tracker-connect/run.ts': 'PR 4',
+  // Skill helper scripts: an explicit project argument, else the process cwd.
+  'templates/hooks/audit-principle-trace.ts': 'PR 4',
+  'templates/hooks/dependency-bootstrap.ts': 'PR 4',
+  'templates/hooks/record-skill-invocation.ts': 'PR 4',
+  'templates/hooks/resolve-namespace-root.ts': 'PR 4',
+  'templates/hooks/resolve-project-knowledge.ts': 'PR 4',
+  'templates/hooks/resolve-verify-ticket.ts': 'PR 4',
 };
 
 function sourceFiles(directory: string): string[] {
@@ -172,6 +210,10 @@ describe('project directory parity (#5467)', () => {
     '({ CLAUDE_PROJECT_DIR: launch } = process.env);',
     "spawnSync('git', ['rev-parse', '--show-toplevel']);",
     'run(`git rev-parse --show-toplevel`);',
+    'const project = process.argv[2] ?? process.cwd();',
+    'const project = options.cwd || process.cwd();',
+    "while (dir !== '/') { if (existsSync(join(dir, '.git'))) break; dir = dirname(dir); }",
+    "for (let d = start; ; d = dirname(d)) if (existsSync(join(d, '.safeword'))) return d;",
   ])('counts %s as a project choice', source => {
     expect(readsProjectChoice(source)).toBe(true);
   });
@@ -182,6 +224,9 @@ describe('project directory parity (#5467)', () => {
     'spawn(cmd, { env: { ...process.env, CLAUDE_PROJECT_DIR: workspace } });',
     '// git rev-parse --show-toplevel picks the launch checkout',
     '/* process.env.CLAUDE_PROJECT_DIR stays at the launch checkout */',
+    'const project = resolveProjectDirectory({ cwd: process.cwd() });',
+    "const marker = join(project, '.safeword');",
+    "for (const entry of entries) seen.add(entry); const ignored = ['.git'];",
   ])('does not count %s', source => {
     expect(readsProjectChoice(source)).toBe(false);
   });
