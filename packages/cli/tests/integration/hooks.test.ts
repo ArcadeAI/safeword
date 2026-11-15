@@ -1648,8 +1648,8 @@ describe('E2E: Python Lint Hook', () => {
     });
   });
 
-  describe('Test 2.4: Ruff fixes Python files via lint hook', () => {
-    it.skipIf(!IS_RUFF_AVAILABLE)('should format Python files when run through lint hook', () => {
+  describe('Test 2.4: Ruff reports Python problems without changing source', () => {
+    it.skipIf(!IS_RUFF_AVAILABLE)('preserves Python bytes while reporting formatting', () => {
       // Create badly formatted Python file
       const badCode = 'x=1;y=2';
       writeTestFile(shared.projectDirectory, 'format-test.py', badCode);
@@ -1661,13 +1661,14 @@ describe('E2E: Python Lint Hook', () => {
       );
       expect(result.status).toBe(0);
 
-      // File should now be formatted
       const formatted = readTestFile(shared.projectDirectory, 'format-test.py');
-      expect(formatted).toContain('x = 1');
-      expect(formatted).toContain('y = 2');
+      expect(formatted).toBe(badCode);
+      expect(JSON.parse(result.stdout).hookSpecificOutput.additionalContext).toMatch(
+        /reformat|unformatted/iu,
+      );
     });
 
-    it.skipIf(!IS_RUFF_AVAILABLE)('should fix auto-fixable lint issues', () => {
+    it.skipIf(!IS_RUFF_AVAILABLE)('preserves unused imports while reporting their findings', () => {
       // Create file with unused import (auto-fixable with --fix)
       const codeWithUnusedImport = 'import os\nx = 1\n';
       writeTestFile(shared.projectDirectory, 'fix-test.py', codeWithUnusedImport);
@@ -1679,10 +1680,9 @@ describe('E2E: Python Lint Hook', () => {
       );
       expect(result.status).toBe(0);
 
-      // Unused import should be removed
       const fixed = readTestFile(shared.projectDirectory, 'fix-test.py');
-      expect(fixed).not.toContain('import os');
-      expect(fixed).toContain('x = 1');
+      expect(fixed).toBe(codeWithUnusedImport);
+      expect(JSON.parse(result.stdout).hookSpecificOutput.additionalContext).toContain('F401');
     });
 
     it.skipIf(!IS_RUFF_AVAILABLE)(
@@ -1705,25 +1705,30 @@ describe('E2E: Python Lint Hook', () => {
         expect(output.hookSpecificOutput).toBeDefined();
         expect(output.hookSpecificOutput.hookEventName).toBe('PostToolUse');
         expect(output.hookSpecificOutput.additionalContext).toContain('unfixable-test.py');
+        expect(output.hookSpecificOutput.additionalContext).toContain('F841');
+        expect(readTestFile(shared.projectDirectory, 'unfixable-test.py')).toBe(codeWithUnfixable);
       },
     );
 
-    it.skipIf(!IS_RUFF_AVAILABLE)('should output no JSON when all errors are auto-fixed', () => {
-      // Unused import is fully auto-fixable — no remaining errors
-      const autoFixable = 'import os\nx = 1\n';
-      writeTestFile(shared.projectDirectory, 'clean-after-fix.py', autoFixable);
-
-      const result = runPostToolLint(
-        shared.projectDirectory,
-        `${shared.projectDirectory}/clean-after-fix.py`,
-      );
-      expect(result.status).toBe(0);
-
-      // No additionalContext should be output (file is clean after fix)
-      const stdout = result.stdout.trim();
-      // stdout should be empty or not contain hookSpecificOutput
-      if (stdout) {
-        expect(stdout).not.toContain('additionalContext');
+    it.skipIf(!IS_RUFF_AVAILABLE)('stays silent for already clean configured Python source', () => {
+      const cleanCode = 'x = 1\n';
+      writeTestFile(shared.projectDirectory, 'clean.py', cleanCode);
+      const config = '.safeword/ruff.toml';
+      const previous = fileExists(shared.projectDirectory, config)
+        ? readTestFile(shared.projectDirectory, config)
+        : undefined;
+      writeTestFile(shared.projectDirectory, config, '[lint]\nselect = ["F"]\n');
+      try {
+        const result = runPostToolLint(
+          shared.projectDirectory,
+          `${shared.projectDirectory}/clean.py`,
+        );
+        expect(result.status).toBe(0);
+        expect(result.stdout.trim()).toBe('');
+        expect(readTestFile(shared.projectDirectory, 'clean.py')).toBe(cleanCode);
+      } finally {
+        if (previous === undefined) rmSync(nodePath.join(shared.projectDirectory, config));
+        else writeTestFile(shared.projectDirectory, config, previous);
       }
     });
   });

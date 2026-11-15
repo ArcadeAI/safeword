@@ -185,12 +185,11 @@ func bad() {
 func lintGo(){println("test")}`,
       );
 
-      const result = runLintHook(projectDirectory, filePath);
-      expect(result.status).toBe(0);
-
-      // golangci-lint fmt should format
+      const before = readTestFile(projectDirectory, 'lint-go.go');
+      const output = assertLintHookSucceeded(runLintHook(projectDirectory, filePath));
       const formatted = readTestFile(projectDirectory, 'lint-go.go');
-      expect(formatted).toContain('func lintGo() {');
+      expect(formatted).toBe(before);
+      expect(output).toContain('diff ');
     });
   });
 });
