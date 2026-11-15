@@ -79,7 +79,7 @@ const toolWarnings = new Set<string>();
 export interface LintResult {
   /** Warnings for Claude (e.g., missing tool binaries) */
   warnings: string[];
-  /** Remaining lint errors after auto-fix (surfaced to Claude via additionalContext) */
+  /** Lint diagnostics (surfaced to Claude via additionalContext). */
   errors?: string;
   /** Go uses package scope and does not apply linter autofixes. */
   diagnosticContext?: string;
@@ -247,7 +247,7 @@ async function captureRemainingErrors(
   if (result.exitCode === 0) return undefined;
   const stdout = result.stdout.toString().trim();
   const stderr = result.stderr.toString().trim();
-  if (options.stderrIsLintOutput) return stdout || stderr || undefined;
+  if (options.stderrIsLintOutput) return [stdout, stderr].filter(Boolean).join('\n') || undefined;
   // Infra failure: linter crashed, not a lint error in the user's code
   if (!stdout && stderr && warnings) {
     warnings.push(`${command[0]} failed: ${stderr.split('\n')[0]}`);
@@ -279,9 +279,16 @@ function warnMissingSafewordConfig(
 }
 
 /** Run prettier with safeword config if available */
-async function runPrettier(file: string): Promise<void> {
+async function runPrettier(file: string, fix = true): Promise<string | undefined> {
   // A non-Prettier formatter owns this repo — defer to it, don't restyle (V7GGJZ).
   if (REPO_OWNS_ALTERNATIVE_FORMATTER) return;
+  if (!fix) {
+    return captureRemainingErrors(
+      ['bunx', 'prettier', ...configArgs(SAFEWORD_PRETTIER), '--check', '--ignore-unknown', file],
+      undefined,
+      { stderrIsLintOutput: true },
+    );
+  }
   if (hasConfig(SAFEWORD_PRETTIER)) {
     await $`bunx prettier --config ${SAFEWORD_PRETTIER} --write ${file}`.nothrow().quiet();
   } else {
@@ -290,7 +297,7 @@ async function runPrettier(file: string): Promise<void> {
 }
 
 /** Invoke the bundled Go helper and validate its JSON response. */
-function runGoLintHelper(file: string, projectRoot: string): LintResult {
+function runGoLintHelper(file: string, projectRoot: string, fix = true): LintResult {
   const cli = safewordCli(projectRoot);
   if (!cli)
     return {
@@ -310,6 +317,7 @@ function runGoLintHelper(file: string, projectRoot: string): LintResult {
       projectRoot,
       '--original-cwd',
       process.cwd(),
+      ...(fix ? [] : ['--no-fix']),
     ],
     { cwd: cli.cwd, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 },
   );
@@ -351,8 +359,13 @@ function runGoLintHelper(file: string, projectRoot: string): LintResult {
  *
  * @param file - Path to the file to lint
  * @param _projectDir - Project root directory (cached at module init, kept for backward compat)
+ * @param options - Set fix to false for observational checks between edits.
  */
-export async function lintFile(file: string, _projectDir: string): Promise<LintResult> {
+export async function lintFile(
+  file: string,
+  _projectDir: string,
+  options: { fix?: boolean } = {},
+): Promise<LintResult> {
   const normalizedFile = existsSync(file) ? realpathSync(file) : file;
   const extension = normalizedFile.split('.').pop()?.toLowerCase() ?? '';
   const warnings: string[] = [];
@@ -384,11 +397,15 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
         ],
       };
     }
-    if (host) return runHostToolchain(host);
+    if (host) return runHostToolchain(host, options.fix !== false);
     warnMissingSafewordConfig('TypeScript', 'ESLint', SAFEWORD_ESLINT, warnings);
     const configArguments = configArgs(SAFEWORD_ESLINT);
-    await $`bunx eslint ${configArguments} --fix ${normalizedFile}`.nothrow().quiet();
-    await runPrettier(normalizedFile);
+    // An edit may be one step of a larger change. Never remove imports or
+    // rewrite untouched lines while the agent is still composing that change.
+    if (options.fix !== false) {
+      await $`bunx eslint ${configArguments} --fix ${normalizedFile}`.nothrow().quiet();
+      await runPrettier(normalizedFile);
+    }
     const errors = await captureRemainingErrors(
       ['bunx', 'eslint', ...configArguments, normalizedFile],
       warnings,
@@ -410,6 +427,19 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     }
     warnMissingSafewordConfig('Python', 'Ruff', SAFEWORD_RUFF, warnings);
     const configArguments = configArgs(SAFEWORD_RUFF);
+    if (options.fix === false) {
+      const lintErrors = await captureRemainingErrors(
+        ['ruff', 'check', ...configArguments, '--no-fix', '--no-fix-only', normalizedFile],
+        warnings,
+      );
+      const formatErrors = await captureRemainingErrors(
+        ['ruff', 'format', ...configArguments, '--check', normalizedFile],
+        warnings,
+        { stderrIsLintOutput: true },
+      );
+      const errors = [lintErrors, formatErrors].filter(Boolean).join('\n');
+      return { warnings, ...(errors && { errors }) };
+    }
     await $`ruff check ${configArguments} --fix ${normalizedFile}`.nothrow().quiet();
     await $`ruff format ${configArguments} ${normalizedFile}`.nothrow().quiet();
     const errors = await captureRemainingErrors(
@@ -419,8 +449,8 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     return { warnings, ...(errors && { errors }) };
   }
 
-  // Go: the bundled helper preserves configuration policy paths while
-  // formatting only the edit and checking its complete package (no lint autofixes).
+  // Go preserves package configuration paths and checks the complete package.
+  // Check-only mode reports formatting diffs and overrides configured autofixes.
   if (GO_EXTENSIONS.has(extension)) {
     const root = normalizeExistingDirectory(_projectDir);
     const relative = nodePath.relative(root, normalizedFile);
@@ -462,7 +492,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
       }
       toolWarnings.add('golangci-lint-v2-ok');
     }
-    const lintResult = runGoLintHelper(normalizedFile, _projectDir);
+    const lintResult = runGoLintHelper(normalizedFile, _projectDir, options.fix !== false);
     lintResult.warnings = lintResult.warnings.filter(warning => {
       if (!warning.startsWith('Go Safeword config is missing')) return true;
       if (toolWarnings.has('pack:Go')) return false;
@@ -474,6 +504,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
 
   // Rust files - clippy for linting (package-level), rustfmt for formatting (file-level)
   if (RUST_EXTENSIONS.has(extension)) {
+    const diagnostics: string[] = [];
     const hasRustConfig = hasConfig(SAFEWORD_RUSTFMT);
     warnMissingSafewordConfig('Rust', 'rustfmt', SAFEWORD_RUSTFMT, warnings);
 
@@ -484,15 +515,42 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
         ? { CLIPPY_CONF_DIR: nodePath.dirname(SAFEWORD_CLIPPY) }
         : {};
 
-      await $`cargo clippy -p ${packageName} --fix --allow-dirty --allow-staged`
-        .env(clippyEnv)
-        .nothrow()
-        .quiet();
+      if (options.fix === false) {
+        // Quiet suppresses build progress, while keeping warnings (including
+        // those returned with exit 0) and compiler errors available to the agent.
+        const result = await $`cargo clippy --quiet -p ${packageName}`
+          .env(clippyEnv)
+          .nothrow()
+          .quiet();
+        const output = [result.stdout.toString().trim(), result.stderr.toString().trim()]
+          .filter(Boolean)
+          .join('\n');
+        if (output) diagnostics.push(output);
+        else if (result.exitCode !== 0)
+          warnings.push(`cargo clippy exited ${result.exitCode} without diagnostics.`);
+      } else {
+        await $`cargo clippy -p ${packageName} --fix --allow-dirty --allow-staged`
+          .env(clippyEnv)
+          .nothrow()
+          .quiet();
+      }
     }
 
     // Run rustfmt for file-level formatting
     if (await isCommandAvailable('rustfmt')) {
-      if (hasRustConfig) {
+      if (options.fix === false) {
+        const errors = await captureRemainingErrors(
+          [
+            'rustfmt',
+            ...(hasRustConfig ? ['--config-path', SAFEWORD_RUSTFMT] : []),
+            '--check',
+            normalizedFile,
+          ],
+          warnings,
+          { stderrIsLintOutput: true },
+        );
+        if (errors) diagnostics.push(errors);
+      } else if (hasRustConfig) {
         await $`rustfmt --config-path ${SAFEWORD_RUSTFMT} ${normalizedFile}`.nothrow().quiet();
       } else {
         await $`rustfmt ${normalizedFile}`.nothrow().quiet();
@@ -507,7 +565,8 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
           ),
       );
     }
-    return { warnings };
+    const errors = diagnostics.join('\n');
+    return { warnings, ...(errors && { errors }) };
   }
 
   // SQL files - host prettier when the host owns SQL formatting, else sqlfluff
@@ -515,6 +574,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
   // Only warn about missing sqlfluff if the sql pack is installed,
   // since .sql files exist in many non-SQL-focused contexts.
   if (SQL_EXTENSIONS.has(extension)) {
+    let formattingErrors: string | undefined;
     // Host formats SQL via prettier-plugin-sql (#636/#638): run the HOST's
     // prettier — no --config override, so the host config (which declares the
     // plugin) and its .prettierignore carve-outs (frozen DDL migrations) apply.
@@ -523,15 +583,20 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     // runPrettier's V7GGJZ guard deliberately: plugin presence means the host
     // formats SQL with prettier even when Biome/dprint owns its JS/TS style.
     if (hostFormatsSqlWithPrettier(projectDir)) {
-      const result = await $`bunx prettier --write ${normalizedFile}`.nothrow().quiet();
+      const mode = options.fix === false ? '--check' : '--write';
+      const result = await $`bunx prettier ${mode} ${normalizedFile}`.nothrow().quiet();
       if (result.exitCode === 0) return { warnings };
+      const output = [result.stdout.toString().trim(), result.stderr.toString().trim()]
+        .filter(Boolean)
+        .join('\n');
+      if (options.fix === false) formattingErrors = output;
       // Non-zero: the plugin is undeclared in the host config, or the edit
       // itself doesn't parse. Only fall through to sqlfluff when its config
       // already exists — in a host-owned repo it's absent by design. Surface
       // prettier's stderr so the agent sees the parse error instead of silence.
       if (!hasConfig(SAFEWORD_SQLFLUFF)) {
-        const stderr = result.stderr.toString().trim();
-        return { warnings, ...(stderr && { errors: stderr }) };
+        const errors = formattingErrors ?? result.stderr.toString().trim();
+        return { warnings, ...(errors && { errors }) };
       }
     }
     const hasSqlfluff = hasConfig(SAFEWORD_SQLFLUFF);
@@ -544,20 +609,18 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
           warnings,
         ))
       ) {
-        return { warnings };
+        return { warnings, ...(formattingErrors && { errors: formattingErrors }) };
       }
-      // Lint-and-report by default, like the ESLint/ruff branches; in-place
-      // rewriting (`sqlfluff fix`) mutates the file beyond the agent's
-      // intended edit, so it's opt-in via `sql.fix` (#638). Opted-in hosts
-      // carve out frozen files with .sqlfluffignore, which sqlfluff honors
-      // even for explicitly passed paths.
-      if (sqlFixOptedIn(projectDir)) {
+      // SQL fixes require both explicit fix mode and the legacy sql.fix opt-in.
+      // Post-edit checks preserve source even when that opt-in is configured.
+      if (options.fix !== false && sqlFixOptedIn(projectDir)) {
         await $`sqlfluff fix --config ${SAFEWORD_SQLFLUFF} ${normalizedFile}`.nothrow().quiet();
       }
-      const errors = await captureRemainingErrors(
+      const lintErrors = await captureRemainingErrors(
         ['sqlfluff', 'lint', '--config', SAFEWORD_SQLFLUFF, normalizedFile],
         warnings,
       );
+      const errors = [formattingErrors, lintErrors].filter(Boolean).join('\n');
       return { warnings, ...(errors && { errors }) };
     }
     return { warnings };
@@ -576,8 +639,8 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
 
   // Other supported formats - prettier only
   if (PRETTIER_EXTENSIONS.has(extension)) {
-    await runPrettier(normalizedFile);
-    return { warnings };
+    const errors = await runPrettier(normalizedFile, options.fix !== false);
+    return { warnings, ...(errors && { errors }) };
   }
 
   // Shell scripts - shellcheck (if available), then Prettier (if plugin installed)
@@ -601,7 +664,8 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
       hasConfig(SAFEWORD_PRETTIER) ||
       existsSync(`${projectDir}/node_modules/prettier-plugin-sh`)
     ) {
-      await runPrettier(normalizedFile);
+      const formattingErrors = await runPrettier(normalizedFile, options.fix !== false);
+      shellErrors = [shellErrors, formattingErrors].filter(Boolean).join('\n');
     }
     return { warnings, ...(shellErrors && { errors: shellErrors }) };
   }

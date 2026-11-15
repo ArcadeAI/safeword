@@ -133,19 +133,19 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
 After your agent writes or modifies a file, the right linter runs:
 
-| File type               | Linter        |
-| ----------------------- | ------------- |
-| TypeScript / JavaScript | ESLint        |
-| Python                  | Ruff          |
-| Go                      | golangci-lint |
-| Rust                    | clippy        |
-| SQL / dbt               | SQLFluff      |
+| File type               | Linter                                                 |
+| ----------------------- | ------------------------------------------------------ |
+| TypeScript / JavaScript | ESLint, or project-local Biome / Biome-based Ultracite |
+| Python                  | Ruff                                                   |
+| Go                      | golangci-lint                                          |
+| Rust                    | clippy                                                 |
+| SQL / dbt               | SQLFluff                                               |
 
-If a linter isn't installed, it's silently skipped.
+When a required checker is unavailable, Safeword reports a warning where the host supports hook feedback.
 
-**What you see:** Usually nothing — the linter auto-fixes quietly. If problems remain, your agent sees them and fixes them immediately.
+**What you see:** Post-edit checks leave source files unchanged across supported languages and formats. Where the host supports hook feedback, your agent receives findings from the applicable checkers. The default ESLint path reports lint findings; it does not run a separate Prettier formatting check between edits. Apply formatting and automatic fixes explicitly or through commit tooling.
 
-For Go, Safeword formats only the edited file and runs check-only lint on its complete package from that file's directory. Go lint findings are not auto-fixed. Where hook feedback is supported, findings identify their source files and may include issues that predate the edit.
+For Go, Safeword reports formatting differences for the edited file and checks its complete package from that file's directory. Configured autofixes are disabled during these checks. Where hook feedback is supported, findings identify their source files and may include issues that predate the edit.
 
 ---
 

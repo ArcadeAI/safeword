@@ -1,8 +1,7 @@
 Feature: Formatter-aware lint hook
-  Safeword's auto-lint hook defers to the formatter a repo already uses. When a
-  non-Prettier JS/TS formatter owns the repo, safeword skips Prettier; when the
-  repo owns a Prettier config, safeword formats with it; only greenfield repos
-  get safeword's defaults.
+  Post-edit JS/TS checks preserve unfinished text in alternative-formatter,
+  Prettier-owned, and greenfield repositories. Explicit formatting remains
+  a separate action. Non-JS/TS formatting behavior stays unchanged.
 
   Rule: A repo owned by a non-Prettier formatter keeps its own formatting
 
@@ -55,27 +54,27 @@ Feature: Formatter-aware lint hook
       When the agent edits that file
       Then ESLint makes no formatting change to the file
 
-  Rule: A repo with its own Prettier config is formatted with that config
+  Rule: Post-edit checks preserve text even when a Prettier config exists
 
     @formatter-aware-lint-hook.TB2.AC1
-    Scenario: Edits follow the customer's Prettier style, not safeword's
+    Scenario: Edits preserve unfinished text in a customer Prettier repo
       Given a repo with its own Prettier config that uses double quotes
       When the agent edits a TypeScript file
-      Then the file is formatted with double quotes
+      Then the file's formatting is left as written, not reformatted to Prettier's defaults
 
-  Rule: A greenfield repo is formatted with safeword's defaults
+  Rule: Post-edit checks preserve text in greenfield repos
 
     @formatter-aware-lint-hook.TB3.AC1
-    Scenario: Edits use safeword's Prettier config when the repo has no formatter
+    Scenario: Edits preserve unfinished text when the repo has no formatter
       Given a repo with no formatter configuration
       When the agent edits a TypeScript file
-      Then the file is formatted with safeword's Prettier style
+      Then the file's formatting is left as written, not reformatted to Prettier's defaults
 
     @formatter-aware-lint-hook.TB3.AC1
     Scenario: A disabled Prettier config does not count as a formatter
       Given a repo whose only Prettier-like file is a disabled ".prettierrc.bak"
       When the agent edits a TypeScript file
-      Then the file is formatted with safeword's Prettier style
+      Then the file's formatting is left as written, not reformatted to Prettier's defaults
 
   Rule: The session lint check does not push Prettier on non-Prettier shops
 

@@ -49,7 +49,12 @@ function registerInternalCommands(program: Command): void {
   const goLintHook = hook.command(goLintDefinition.registration.syntax, { hidden: true });
   addDefinitionOptions(goLintHook, goLintDefinition);
   goLintHook.action(
-    async (options: { file?: string; projectRoot?: string; originalCwd?: string }) => {
+    async (options: {
+      file?: string;
+      projectRoot?: string;
+      originalCwd?: string;
+      fix?: boolean;
+    }) => {
       const { goLint } = await import('../commands/go-lint.js');
       console.log(JSON.stringify(await goLint(options)));
     },

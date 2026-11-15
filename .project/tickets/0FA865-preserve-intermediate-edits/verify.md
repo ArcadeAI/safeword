@@ -1,0 +1,118 @@
+## Latest delivery baseline: intake-field sync
+
+Main advanced again to b96304887 while the first refresh ran. Merged it as
+379d6f9d3. This adds upstream YAML intake-field handling and Codex parsing; it is
+main ancestry rather than authored scope for this PR. Generated identity,
+inventory and lifecycle fixtures conflicted and were regenerated from source.
+The first generator attempt exited 75 on its one-minute shared-lock wait without
+starting a test, and pre-commit blocked stale fixtures. The supported longer-wait
+retry completed update and verification of all five generated surfaces before
+the merge was committed. No lifecycle behavior-result change was reported.
+
+On the combined code, 129 tests passed across five files: Codex commands,
+hierarchy, active-ticket lookup, post-edit preservation, and the eval grader.
+Root lint/Gherkin validation and all package typechecks passed. The audit was
+repeated with explicit base b96304887: no dependency violations across 545
+modules / 925 dependencies; learning and domain checks passed. Principle trace
+remains N/A for this task without an implementation plan. A fresh no-model
+experiment probe passed. The five preservation helpers and three evaluation
+source files are unchanged from 69f7e7f53; no paid eval rerun is warranted.
+
+Native completion passed on this baseline: the actual source CLI Codex Stop
+returned {} and marked the ticket done. The first preflight waited twenty
+minutes without starting tests; the later completion attempt passed 52 proof
+tests but blocked on test:done's 60-second timeout. The unchanged retry returned
+the successful empty decision. Both attempts remain recorded; no lock was
+removed or test policy changed. The reviewed source comparison is captured in
+.project/tmp/7158-intake-sync/source-comparison.json. Hosted CI remains pending
+publication of the final evidence commit. The earlier verification below is
+historical proof for its named baseline, not a substitute for final-head CI.
+
+## November 14 post-main delivery verification
+
+Reopened verification after the user authorized publication. New main through 07d01d3fe was merged as 8a280a919. Only generated plugin metadata conflicted; the complete source generators resolved the conflict and all five surfaces verified. Production preservation helpers and the evaluation source are byte-identical to 69f7e7f53. Main's dependency and plan-approval changes are inherited baseline, not additional authored work for this PR.
+
+Current checks: 172 targeted tests passed across nine files, including the incoming plan-approval regression and 14-case grader calibration. Root lint/Gherkin validation, all three package typechecks, and generated-surface checks passed. The scoped audit found no dependency violations across 545 modules / 925 dependencies; learning and domain checks passed. A truncated extraction of the domain shell block first failed to parse; running the complete verbatim block passed. Principle trace is N/A because this task has no impl-plan.md. Frozen dependencies were refreshed successfully; no new model run was made or is required for unchanged evaluated source.
+
+Native completion passed on the merged code: the actual source CLI Codex Stop returned {} and changed this ticket to done at 2026-11-14T15:32:32.131Z. Its proof lane waited behind another worktree before completion; no lock was removed or test policy changed. A fresh no-model experiment probe also passed on the merged dependency tree, preserving bytes and returning structured expected diagnostics. The new-head hosted CI is pending publication. CI 43608698981 on the superseded head was intentionally cancelled after GitHub reported merge conflicts. Historical results below remain attributed to their original runs and do not stand in for the pending hosted check.
+
+## Verify Checklist
+
+**Test Suite:** ✓ 38/38 surrounding Vitest tests pass after the test-quality follow-up, with no filtered or skipped tests in that run. All 10 targeted preservation checks rejected both controlled broken behaviors by assertion failures. Earlier broader proof remains recorded: 171 focused tests and native completion passed on November 13 morning; full CI passed on af56551c2, including 726 CLI files and 11,661 tests. Historical local timeout and lock-blocked runs remain non-green historical evidence, not relabeled successes.
+**Gherkin:** ✅ Scoped formatter acceptance passes 10/10 scenarios and 476 executed steps after restoring production code. The old mutating behavior caused the five affected scenarios to fail; skipping the checker caused all eight TypeScript scenarios to fail. Earlier full package acceptance passed 599 scenarios and 11,786 steps, and all 52 proof-tag checks passed. Root planning acceptance defects were separately reproduced on main, as described below.
+**Build:** ✅ Success — the prescribed full verification build lane completed, including CLI, relay, and collector builds.
+**Lint:** ✅ Clean — full root lint and Gherkin validation passed after merging main as 379d6f9d3.
+**Typecheck:** ✅ Clean — root typecheck passed for all three packages after merging main as 379d6f9d3.
+**Scenarios:** All 10 scoped formatter scenarios marked complete by execution; task hook-entry tests cover pending imports, unchanged bytes, diagnostics, markers, and explicit fix-mode compatibility.
+**Refactor:** ✅ No change warranted — one optional check-only mode fixes both failure classes without new state or scheduling.
+**PR Scope:** ✅ Diff matches ticket scope — post-edit JS/TS preservation, supporting tests, generated mirrors, and evidence only; main's planning changes are merged ancestry rather than this fix's scope.
+**Dep Drift:** ✅ Clean — no dependency manifest or lockfile changes relative to main.
+**Parent Epic:** N/A
+**Reconcile:** ✅ No pattern deviation — existing shared lint helper and host-toolchain resolution retained.
+**Experience:** ⚠️ Accepted formatting tradeoff — walked a developer through adding a pending import and using it in a second edit; worst step is the temporary unused-import warning; edit steps added = 0; formatting is deferred to an explicit command or commit tooling.
+**Surface Evidence:** ✅ 3/3 affected surfaces have recorded boundary proof, limited as noted below.
+**Evidence limits:** ⚠️ Historical full-local timeout and lock misses remain recorded; the November 13 native completion run passed without a blocking verdict. Root planning acceptance had baseline defects as detailed below. Native interactive host sessions were not rerun; surface proof is bounded to installed hooks and packaged dispatch commands. Earlier unfiltered audit advisories remain historical findings; this fix changes no dependencies relative to merged main.
+
+## November 13 test-quality follow-up
+
+The user explicitly authorized strengthening the weak tests after the earlier closeout. Four installed-hook preservation tests now require successful execution, exact unchanged bytes, and the real ESLint no-var diagnostic, using the existing infrastructure-failure assertion helper. Byte equality is checked before the diagnostic: the mutating control independently fails the byte check, while the no-checker control preserves bytes and fails the diagnostic check. Claude and Cursor hook-entry tests additionally require an external checker witness naming the target file. Cursor markers are cleaned even when an assertion fails. The Biome BDD fixture supplies a project-local executable double instead of accepting a missing-tool warning; every TypeScript scenario requires structured hook context containing its configured checker's distinct diagnostic. Biome and ESLint use different tokens, so ESLint cannot satisfy a Biome scenario. The double writes to the file passed in its arguments when mutation is requested.
+
+| Controlled behavior | Targeted Vitest checks | Formatter BDD scenarios |
+| --- | --- | --- |
+| Fixed production baseline | 10 passed; 28 unrelated tests filtered | 10 passed |
+| Original mutating entrypoints restored temporarily | All 10 failed by assertions | 5 affected scenarios failed; 5 unaffected scenarios passed |
+| Checker skipped and replaced with a missing-tool warning | All 10 failed by assertions | 8 TypeScript scenarios failed; JSON and session cases passed |
+| Only Biome bypassed; real ESLint still checks the source | Not rerun; this control targets BDD ownership | Both Biome TypeScript scenarios failed; 8 other scenarios passed |
+| Production restored; surrounding suites rerun | 38/38 passed, no filtering or skips | 10/10 passed; 476 steps |
+
+The first two counterexamples changed only the two production hook entrypoint calls; the Biome-only control temporarily bypassed that owner in the shared lint helper. Tracked mirrors were synchronized. A finally block restored every original hook byte; the complete tracked working-tree diff and status were also checked against the pre-experiment baseline. All five generated surfaces were current afterward. Raw reports show assertions about rewritten bytes, missing checker witnesses, missing no-var diagnostics, or the wrong checker token, not timeouts or failed fixture setup. An initial orchestration attempt stopped on a Cucumber summary-order assumption and restored production. After fixing the parser and addressing review findings, the final harness reran all three controls and directly generated its summary from those raw reports. The disposable harness and raw reports are ignored scratch artifacts, not shipped product code.
+
+This is present-day regression validation. The original implementation still lacks recorded pre-implementation RED evidence; no historical TDD claim is added. Production behavior is unchanged by this follow-up. Biome and Ultracite compatibility proof remains bounded to external process doubles and existing command-contract tests; full interactive host sessions were not rerun.
+
+## November 13 morning completion (before reopening for test quality)
+
+Merged origin/main through fd784a2fd as 4ea11f5e5. Conflicts were confined to six generated files; all five surfaces were regenerated and verified. The fix sources did not change. Installed pinned Bun 1.4.4 dependencies with the prescribed freshness acknowledgment. All 171 focused tests across seven suites, all package typechecks, parity, and the four scoped audit blocks passed (541 modules / 923 dependencies, no violations).
+
+Repeated the installed-hook walkthrough with real ESLint: the pending import and unrelated formatting survived both edits, the unused-import finding appeared before use, and cleared after use. The real source CLI Codex Stop command then returned an empty successful decision and changed status to done at 2026-11-13T14:43:35.433Z. This supersedes the earlier pending-proof and verify/in_progress state described in the historical follow-up below. No configured test lane was bypassed or replaced with an isolated retry.
+
+## Surface proof
+
+| Surface | Proof | Result |
+| --- | --- | --- |
+| Claude | Installed post-tool-lint hook with real ESLint in a temporary project, adding an import and later using it | Import and unrelated formatting preserved; diagnostic delivered before use and cleared after use; temporary project removed |
+| Codex | Packaged command tests in commands/codex-hook.test.ts, included in the November 13 morning 171-test run | File edits and apply_patch use observational linting and preserve contents |
+| Cursor | Real after-file-edit hook subprocess in post-edit-preservation.test.ts, included in current run | Imports and bytes preserved for ESLint/Biome/Ultracite; marker retained; diagnostics remain silently handled as before |
+
+## Baseline acceptance findings
+
+Structured root acceptance found one planning-review fixture failure: synthetic review b3f1c2d4-0000-4000-8000-000000000420 cannot be verified. The exact scenario failed identically on an untouched, separately built main checkout at e00ea1e65. A baseline dry run reproduced all 1,786 undefined steps across six unchanged planning features. The current merged branch still reproduces the same fixture error. These results are outside this bug fix and are not counted as green.
+
+## Earlier review and delivery
+
+Completion follow-up: two acceptance failures were traced to inherited hook routing rather than flaky assertions. Injecting CLAUDE_PROJECT_DIR reproduces the profile-priority failure; injecting SAFEWORD_PLUGIN_CLI reproduces the lockfile-receipt failure. The test runner now removes hook project/plugin routes from test subprocesses, extending its existing runtime-identity isolation. A real runTests fixture failed before the change and passed afterward. Both unchanged acceptance scenarios passed through the corrected boundary with injected host variables: 2/2 scenarios, 42/42 steps. Focused Vitest passed 19/19 tests across the new environment regression and existing test-runner suite. Typecheck, formatting, parity, and all five regenerated surfaces passed. Lifecycle fixture result hashes stayed unchanged; only installed-template tree hashes and their manifest moved. The native completion retry passed all 599 acceptance scenarios and 11,786 steps in 6m19s. Its aggregate result still blocked because the proof lane could not acquire the shared test lock (exit 75); no proof test started in that attempt. The ticket is returned to verify/in_progress, not marked done, pending an uncontended completion run.
+
+Independent Claude/Opus approved the follow-up in review 41baa72d-ba05-43ec-b078-81fefd551ad0. The accepted compatibility tradeoff applies to all hosts: suites receive ordinary application environment variables, but not the calling hook's project/plugin routes; a test command can explicitly set its own routes. Existing runtime-identity coverage is retained. The standalone RED fixture and committed regression use the same environment-leak predicate, but are separate executions; no Vitest RED result is claimed while the lock prevents that runner from starting. The scoped audit reran without findings: 538 modules and 915 dependencies, plus config/learning/principle/domain-reference checks.
+
+Independent Claude review 2bad5149-6174-4302-aad0-8fcf7e29bf62 approved the source packet before the latest main merge. The final coordinator receipt and phase-verification stamp are the authoritative final-review record; the PR readiness evidence names that receipt. Optional specificity, silent Cursor feedback, and other-language mutation limits remain disclosed.
+
+All five generated surfaces were regenerated and verified after the latest main merge. Parity passed for 276 pairs and 11 contracts. PR #7158 remains Draft. No Ready promotion, merge, release, or issue closure is claimed.
+
+## Scoped audit
+
+Audit passed with warnings. The four prescribed diff-audit blocks completed; dependency-cruiser found no violations across 527 modules and 906 dependencies, and config-drift, learning, principle-reference, and changed-domain-reference checks reported no findings. No agent configuration or dependency declarations changed. Whole-workspace Knip, clone discovery, and dependency freshness were intentionally skipped by diff-audit policy.
+
+Before the test-quality follow-up, manual review covered seven changed Vitest/Cucumber test files and the directly affected README and website documentation. That audit found stale automatic-fix promises; those passages were corrected, and the website built all nine pages successfully. The earlier documentation pass clarified three test titles without changing assertions; the later test-quality follow-up above strengthens the assertions themselves. The original supplemental selection was lock-blocked, then passed 3/3 with 29 tests filtered out. The existing Codex 1.2.0 profile was protected; the failed registry CLI retry did not change project hooks.
+
+The four identified preservation-only integration tests now prove hook/checker execution through real lint findings, and the hook-entry tests independently prove checker execution for both Claude and Cursor. Remaining limits: full native interactive host sessions were not rerun, external tool doubles do not prove every Biome/Ultracite version, and original pre-implementation RED evidence is absent. These limits are not represented as completed coverage or repaired history.
+
+## Test-quality follow-up review
+
+Independent Claude/Opus approved the final test proof (d0d27892-46df-4143-8354-99217c4ac34f) and the entire PR change set (8a7ac08c-daea-4dee-8045-284a7d624af7). The coordinator excluded only the three generated runtime bundles through its verified generated-file classification. The full-diff receipt earned the implement exit stamp.
+
+Review findings answered: Cursor's silent result handling and other-language mutation remain explicit scope limits. Biome/Ultracite formatting-diagnostic noise and real-version output volume remain unmeasured; checker doubles establish command ownership and preservation, not every tool version. The helper's ESLint-plus-Prettier comments describe its retained default fix mode; its adjacent options documentation explicitly describes observational mode, and the user-facing hook documentation already states check-only behavior. Completion test children no longer inherit the hook's project/plugin routes; suites needing those variables must set their own routes explicitly. Ordinary application variables and parent state are preserved by the regression test. The environment regression uses a single synchronous test with finally restoration; the current Vitest configuration uses isolated fork workers, so shared-worker mutation is a hypothetical configuration change rather than a current race.
+
+The fixture mutator covers the supported production mutation commands (--write and fix); speculative tool flags are not compatibility claims. The installed-hook no-var assertion intentionally follows the existing infrastructure helper to require actual checker feedback. Post-edit missing-config handling warns without auto-upgrade, so the older fixture upgrade flags do not establish the proof. No additional production behavior changed during this test-quality follow-up.
+
+The verification review requested current-code static-check evidence; full lint/Gherkin and all-package typecheck were rerun successfully after every test edit. Failure attribution above is a manual inspection of every failed assertion in the two raw Vitest JSON reports and three raw BDD logs, rather than a claim that the harness individually classifies each BDD assertion. The Biome-only bypass was exercised in BDD only; the hook-entry owner-specific bypass was not separately rerun. Ticket metadata was refreshed after the final green logs. Current follow-up CI remains pending publication; af56551c2 is explicitly the earlier remote PR head, not this follow-up's CI result.
+
+Final native completion: the first follow-up attempt blocked on the unit lane's 60-second timeout while another worktree held the shared test lock; its acceptance/proof command completed, including 52 proof tests. No source failure or successful aggregate verdict is claimed for that attempt. After waiting for the existing lock to clear, the source CLI Codex Stop retry returned an empty successful decision and changed this ticket to done at 2026-11-14T00:32:00.987Z. No lock was removed or policy changed. The current-code lint/typecheck commands were launched with HEAD f59300103 and no intervening code edits; their captured logs are supporting output, not independently signed commit attestations. Earlier full CI at af56551c2 is run 43446078194; follow-up CI will be recorded on the PR after publication. No new behavior or scenario semantics emerged, and no cross-scenario refactor was warranted.
