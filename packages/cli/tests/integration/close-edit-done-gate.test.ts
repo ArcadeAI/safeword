@@ -614,21 +614,41 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
   });
 });
 
-describe('a session that edits a worktree from the launch checkout (#5467)', () => {
+describe('a session that edits another checkout from the launch checkout (#5467)', () => {
   // The host keeps CLAUDE_PROJECT_DIR (and here the session cwd) at the launch
-  // checkout while the session edits files in a linked worktree by absolute
-  // path. PostToolUse records that worktree's state; Stop must read it there.
-  it('runs the done gate for the worktree ticket the session closed', () => {
+  // checkout while the session edits files in another enrolled checkout by
+  // absolute path: a linked worktree, or an independent repository. PostToolUse
+  // records that checkout's state; Stop must read it there.
+  const checkouts = [
+    {
+      kind: 'a linked worktree',
+      create: (launch: string, target: string) => {
+        git(launch, `worktree add -q --detach "${target}"`);
+      },
+      remove: (launch: string, target: string) => {
+        git(launch, `worktree remove --force "${target}"`);
+      },
+    },
+    {
+      kind: 'an independent repository',
+      create: (launch: string, target: string) => {
+        git(launch, `clone -q "${launch}" "${target}"`);
+      },
+      remove: () => {},
+    },
+  ];
+
+  it.each(checkouts)('runs the done gate for the ticket closed in $kind', checkout => {
     const launch = fixture.projectDirectory;
-    const worktree = createTemporaryDirectory();
-    git(launch, `worktree add -q --detach "${worktree}"`);
+    const other = createTemporaryDirectory();
+    checkout.create(launch, other);
     try {
-      setTestExitCode(worktree, 1);
+      setTestExitCode(other, 1);
       setTestExitCode(launch, 0);
       const launchBaseline = testRunCount(launch);
-      const sessionId = `session-5467-${process.pid}`;
+      const sessionId = `session-5467-${process.pid}-${checkout.kind.replaceAll(' ', '-')}`;
 
-      const ticketFile = commitTaskTicket(worktree, '5467', 'in_progress');
+      const ticketFile = commitTaskTicket(other, '5467', 'in_progress');
       editTicketThroughPostToolUse(
         launch,
         sessionId,
@@ -642,11 +662,11 @@ describe('a session that edits a worktree from the launch checkout (#5467)', () 
 
       expect(result.decision).toBe('block');
       expect(result.reason).toContain('Tests failed');
-      expect(testRunCount(worktree)).toBe(1);
+      expect(testRunCount(other)).toBe(1);
       expect(testRunCount(launch)).toBe(launchBaseline);
     } finally {
-      git(launch, `worktree remove --force "${worktree}"`);
-      removeTemporaryDirectory(worktree);
+      checkout.remove(launch, other);
+      removeTemporaryDirectory(other);
     }
   });
 });
