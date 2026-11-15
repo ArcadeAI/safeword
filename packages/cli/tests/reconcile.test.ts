@@ -485,14 +485,12 @@ describe('Reconcile - Reconciliation Engine', () => {
     it('ignores node_modules on a fresh install with no .gitignore (#6764)', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const gitignorePath = nodePath.join(temporaryDirectory, '.gitignore');
       createPackageJson();
 
       await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
 
-      const lines = readFileSync(nodePath.join(temporaryDirectory, '.gitignore'), 'utf8').split(
-        '\n',
-      );
-      expect(lines).toContain('node_modules/');
+      expect(readFileSync(gitignorePath, 'utf8').split('\n')).toContain('node_modules/');
     });
 
     it('keeps a customer-owned node_modules line when uninstall removes the managed block', async () => {
