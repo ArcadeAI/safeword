@@ -105,22 +105,20 @@ const EDIT_TOOL_NAMES = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 
 /** The first git working tree at or above `start`, when it is enrolled. */
 function enrolledWorkingTree(launchDirectory: string, start: string): string | undefined {
-  let directory = start;
-  for (;;) {
-    if (existsSync(nodePath.join(directory, '.git'))) {
-      if (!hasSafewordProjectMarker(directory)) return undefined;
-      return isSameDirectory(directory, launchDirectory) ? launchDirectory : directory;
-    }
-    const parent = nodePath.dirname(directory);
-    if (parent === directory) return undefined;
-    directory = parent;
-  }
+  const directory = nearestGitTree(start);
+  if (directory === undefined || !hasSafewordProjectMarker(directory)) return undefined;
+  return isSameDirectory(directory, launchDirectory) ? launchDirectory : directory;
 }
 
 function insideGitTree(start: string): boolean {
+  return nearestGitTree(start) !== undefined;
+}
+
+/** The first directory at or above `start` holding `.git` (a directory or gitfile). */
+function nearestGitTree(start: string): string | undefined {
   for (let directory = start; ; directory = nodePath.dirname(directory)) {
-    if (existsSync(nodePath.join(directory, '.git'))) return true;
-    if (nodePath.dirname(directory) === directory) return false;
+    if (existsSync(nodePath.join(directory, '.git'))) return directory;
+    if (nodePath.dirname(directory) === directory) return undefined;
   }
 }
 

@@ -339,7 +339,7 @@
     },
     {
       "path": "runtime/hooks/lib/project-directory.ts",
-      "sha256": "74e6ef40ab742d47627dbbb2e9a2b74e7c0b4ab7d4fab59a3753396562e6deb8"
+      "sha256": "2b70ba44ab01c7b0f2687d0cac3971c54d81498284551ee792595179fc9563a4"
     },
     {
       "path": "runtime/hooks/lib/project-knowledge.ts",
@@ -1335,7 +1335,7 @@
     },
     {
       "path": "templates/hooks/lib/project-directory.ts",
-      "sha256": "74e6ef40ab742d47627dbbb2e9a2b74e7c0b4ab7d4fab59a3753396562e6deb8"
+      "sha256": "2b70ba44ab01c7b0f2687d0cac3971c54d81498284551ee792595179fc9563a4"
     },
     {
       "path": "templates/hooks/lib/project-knowledge.ts",
