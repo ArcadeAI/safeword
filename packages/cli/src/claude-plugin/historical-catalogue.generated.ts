@@ -78,27 +78,27 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/post-tool-bypass-warn.ts':
         'f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a',
       '.safeword/hooks/post-tool-dependency-readiness.ts':
-        '0142957ea227b630a5ab17d0cee2d6ff2c6df24e7ca3f4bd7a57dbf6940060be',
+        '6418539671ace93e5df04b4ee4d74b9f28b241ec81bbcf2588017702d3b092f6',
       '.safeword/hooks/post-tool-lint.ts':
         'ca708ea4ff7d184441e8bc5e5d136c2a5f40ffc74bffb98b6d886451669df7d6',
       '.safeword/hooks/post-tool-quality.ts':
-        'a17e84c74644205067de301800981186d97158829ee0d876ce4ec18e0fd9b17f',
+        '198c86f62c6cff803d15ae9fc50c41c708b76f74220276f8a100340aa177273e',
       '.safeword/hooks/post-tool-skill-nudge.ts':
         'a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4',
       '.safeword/hooks/post-tool-sync-learnings.ts':
         'de5f52c221b2f029841beded78d65af80217949072a99c2790d503f492528290',
       '.safeword/hooks/post-tool-work-log.ts':
-        'f7d42a576cb979a4ab33366eec51922ca202d1edfe6a1404bd039bcd183cbb6c',
+        '8792eb3a44bc5766da80c9155690fbe3e79c67eb1d383580638c55d53e7d80c1',
       '.safeword/hooks/pre-tool-architecture-stage.ts':
         'e57bfeb13ccb403159fc8b115122937eaf3d9ca808f2ec6c8c39632fb3a4d679',
       '.safeword/hooks/pre-tool-config-guard.ts':
         '6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084',
       '.safeword/hooks/pre-tool-dependency-readiness.ts':
-        '32b7dc3cd73b8a0361625489238ce88bff32ce01ea27ffcec65d39ceafcb8fdb',
+        '83d1369a1db26474ce498565e1f67711834137276234ca697de3be0f1abbafff',
       '.safeword/hooks/pre-tool-git-bare-fix.sh':
         '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
       '.safeword/hooks/pre-tool-quality.ts':
-        'b55945d747192e11d8d3b3fa415086769f592c972e5ce2fc5df0fcd9f2cfd2da',
+        '679844e330d3c4121a6ff90a19ede2cba942acc2676dbdeefdd88070953f8b88',
       '.safeword/hooks/pre-tool-stale-main.ts':
         'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
       '.safeword/hooks/prompt-questions.ts':
