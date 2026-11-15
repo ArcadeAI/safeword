@@ -11,11 +11,15 @@
  */
 
 import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+import {
+  getDependencyReadiness,
+  writeInstallMarker,
+} from '../../templates/hooks/lib/dependency-readiness.js';
 import {
   createTemporaryDirectory,
   createTypeScriptPackageJson,
@@ -641,7 +645,14 @@ describe('a session that edits another checkout from the launch checkout (#5467)
   it.each(checkouts)('runs the done gate for the ticket closed in $kind', checkout => {
     const launch = fixture.projectDirectory;
     const other = createTemporaryDirectory();
+    // A fresh checkout's inputs are newer than the shared install, so stamp the
+    // content-fingerprint marker the install hook would; it then vouches for
+    // the other checkout's identical dependency inputs too.
+    writeInstallMarker(launch, getDependencyReadiness(launch));
     checkout.create(launch, other);
+    // Installed dependencies are gitignored, so a fresh checkout has none; share
+    // the launch checkout's install as a developer's checkout would have it.
+    symlinkSync(nodePath.join(launch, 'node_modules'), nodePath.join(other, 'node_modules'));
     try {
       setTestExitCode(other, 1);
       setTestExitCode(launch, 0);
