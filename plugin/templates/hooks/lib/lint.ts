@@ -79,7 +79,7 @@ const toolWarnings = new Set<string>();
 export interface LintResult {
   /** Warnings for Claude (e.g., missing tool binaries) */
   warnings: string[];
-  /** Remaining lint errors after auto-fix (surfaced to Claude via additionalContext) */
+  /** Lint diagnostics (surfaced to Claude via additionalContext). */
   errors?: string;
   /** Go uses package scope and does not apply linter autofixes. */
   diagnosticContext?: string;
@@ -351,8 +351,13 @@ function runGoLintHelper(file: string, projectRoot: string): LintResult {
  *
  * @param file - Path to the file to lint
  * @param _projectDir - Project root directory (cached at module init, kept for backward compat)
+ * @param options - Set fix to false for observational JS/TS checks between edits.
  */
-export async function lintFile(file: string, _projectDir: string): Promise<LintResult> {
+export async function lintFile(
+  file: string,
+  _projectDir: string,
+  options: { fix?: boolean } = {},
+): Promise<LintResult> {
   const normalizedFile = existsSync(file) ? realpathSync(file) : file;
   const extension = normalizedFile.split('.').pop()?.toLowerCase() ?? '';
   const warnings: string[] = [];
@@ -384,11 +389,15 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
         ],
       };
     }
-    if (host) return runHostToolchain(host);
+    if (host) return runHostToolchain(host, options.fix !== false);
     warnMissingSafewordConfig('TypeScript', 'ESLint', SAFEWORD_ESLINT, warnings);
     const configArguments = configArgs(SAFEWORD_ESLINT);
-    await $`bunx eslint ${configArguments} --fix ${normalizedFile}`.nothrow().quiet();
-    await runPrettier(normalizedFile);
+    // An edit may be one step of a larger change. Never remove imports or
+    // rewrite untouched lines while the agent is still composing that change.
+    if (options.fix !== false) {
+      await $`bunx eslint ${configArguments} --fix ${normalizedFile}`.nothrow().quiet();
+      await runPrettier(normalizedFile);
+    }
     const errors = await captureRemainingErrors(
       ['bunx', 'eslint', ...configArguments, normalizedFile],
       warnings,

@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "a92bf337eec81ed2a8dc84d64a3b981b2c8a8a9a56ea2745f96cb3b30c8fa739"
+      "sha256": "e9ed9b963a80686a57b31de6806e9d5ba371a28553a156765ec151778ca574c7"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "51ab29b98165c2052f6281047340c232e28681f4c8ce508a694ea8b15e668ae0"
+      "sha256": "934f0f7acd5eafdcf505e0b749e3e1aed934306ebe950f1041cd9e067e101275"
     },
     {
       "path": "runtime/event-groups.json",
@@ -259,7 +259,7 @@
     },
     {
       "path": "runtime/hooks/lib/host-toolchain.ts",
-      "sha256": "978442278e28a476b21acee45fd418ed16f89ba5957f0dc99f68a339e82493b2"
+      "sha256": "4282c736b3e9e1d11740d963fce12fd4ef31056f37532547e3c1e922011de45b"
     },
     {
       "path": "runtime/hooks/lib/impl-plan.ts",
@@ -295,7 +295,7 @@
     },
     {
       "path": "runtime/hooks/lib/lint.ts",
-      "sha256": "e091fa62640e153666cb5c19e88a45e2685faa3f730b762330ab3cc9214527d3"
+      "sha256": "c191fdc922f2641414819afa7e3a5f5a62ad2c29e901ec0602df2a1180776a62"
     },
     {
       "path": "runtime/hooks/lib/markdown-structure.ts",
@@ -455,7 +455,7 @@
     },
     {
       "path": "runtime/hooks/lib/test-runner.ts",
-      "sha256": "2b0375ec9856a0c636fd4c29695619f03ccde346b1956537446e381128bbff01"
+      "sha256": "39d660ca20465ade9725c00119fdab6d5d421a02c020f79900c84f34063a5049"
     },
     {
       "path": "runtime/hooks/lib/ticket-close.ts",
@@ -491,7 +491,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-lint.ts",
-      "sha256": "ca708ea4ff7d184441e8bc5e5d136c2a5f40ffc74bffb98b6d886451669df7d6"
+      "sha256": "70cc0df515e09ca0f786e758f6649c6339fd1f0ee52c74431ec59bb50e422abb"
     },
     {
       "path": "runtime/hooks/post-tool-quality.ts",
@@ -1143,7 +1143,7 @@
     },
     {
       "path": "templates/hooks/cursor/after-file-edit.ts",
-      "sha256": "686a31113e6969d6013efad0ab19470e274f810a97425f88aee96c96091bea75"
+      "sha256": "44163919d9aacc93470ac19b699754708b4455a348084f9c6546781b68e4ad1b"
     },
     {
       "path": "templates/hooks/cursor/before-shell-execution.ts",
@@ -1259,7 +1259,7 @@
     },
     {
       "path": "templates/hooks/lib/host-toolchain.ts",
-      "sha256": "978442278e28a476b21acee45fd418ed16f89ba5957f0dc99f68a339e82493b2"
+      "sha256": "4282c736b3e9e1d11740d963fce12fd4ef31056f37532547e3c1e922011de45b"
     },
     {
       "path": "templates/hooks/lib/impl-plan.ts",
@@ -1295,7 +1295,7 @@
     },
     {
       "path": "templates/hooks/lib/lint.ts",
-      "sha256": "e091fa62640e153666cb5c19e88a45e2685faa3f730b762330ab3cc9214527d3"
+      "sha256": "c191fdc922f2641414819afa7e3a5f5a62ad2c29e901ec0602df2a1180776a62"
     },
     {
       "path": "templates/hooks/lib/markdown-structure.ts",
@@ -1451,7 +1451,7 @@
     },
     {
       "path": "templates/hooks/lib/test-runner.ts",
-      "sha256": "2b0375ec9856a0c636fd4c29695619f03ccde346b1956537446e381128bbff01"
+      "sha256": "39d660ca20465ade9725c00119fdab6d5d421a02c020f79900c84f34063a5049"
     },
     {
       "path": "templates/hooks/lib/ticket-close.ts",
@@ -1487,7 +1487,7 @@
     },
     {
       "path": "templates/hooks/post-tool-lint.ts",
-      "sha256": "ca708ea4ff7d184441e8bc5e5d136c2a5f40ffc74bffb98b6d886451669df7d6"
+      "sha256": "70cc0df515e09ca0f786e758f6649c6339fd1f0ee52c74431ec59bb50e422abb"
     },
     {
       "path": "templates/hooks/post-tool-quality.ts",

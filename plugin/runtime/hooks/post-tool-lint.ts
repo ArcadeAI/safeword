@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // Safeword: Auto-lint changed files (PostToolUse)
-// Auto-fixes what it can, then surfaces remaining errors to Claude via additionalContext.
+// JS/TS checks preserve unfinished edits; diagnostics reach Claude via additionalContext.
 // Also surfaces missing tool warnings via plain stdout.
 
 import { lintFile } from './lib/lint.ts';
@@ -34,7 +34,7 @@ if (!file || !(await Bun.file(file).exists())) {
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 process.chdir(projectDir);
 
-const result = await lintFile(file, projectDir);
+const result = await lintFile(file, projectDir, { fix: false });
 
 // Build output parts
 const parts: string[] = [];
@@ -46,7 +46,7 @@ if (result.warnings.length > 0) {
 
 // Surface remaining lint errors via additionalContext so Claude can fix them
 if (result.errors) {
-  const heading = result.diagnosticContext ?? `Lint errors remain after auto-fix in ${file}:`;
+  const heading = result.diagnosticContext ?? `Lint diagnostics for ${file}:`;
   const text = [heading, ...parts, result.errors].join('\n');
   const bytes = Buffer.from(text);
   const notice = '\n[Additional lint output truncated; these are not all findings.]';

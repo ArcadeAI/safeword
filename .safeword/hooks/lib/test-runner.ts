@@ -210,13 +210,17 @@ function truncateOutput(output: string): string {
 
 /**
  * Test commands are application processes, not hook children. A Codex Stop
- * handler carries its own runtime identity in these variables; forwarding them
- * makes tests that intentionally exercise another runtime misidentify itself.
+ * handler carries its own runtime identity, project root, and plugin routes;
+ * forwarding them overrides the projects and runtimes tests create for themselves.
  */
 function testSubprocessEnvironment(): NodeJS.ProcessEnv {
   const environment = { ...process.env };
   delete environment.SAFEWORD_AGENT_RUNTIME;
   delete environment.CODEX_THREAD_ID;
+  delete environment.CLAUDE_PROJECT_DIR;
+  delete environment.CLAUDE_PLUGIN_ROOT;
+  delete environment.SAFEWORD_PLUGIN_CLI;
+  delete environment.SAFEWORD_PACKAGED_CONTEXT_PATH;
   return environment;
 }
 
