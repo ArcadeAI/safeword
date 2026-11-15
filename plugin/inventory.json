@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "b62190b9d24a00d4a160c68ba64eea63f2657d2ff12262f3970d9eb3703c0a29"
+      "sha256": "29e4fedee41be534cedf8ca4845735d4e497a82048c03b473da4c7cba212c9a8"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "4aa3c5107d7e7ca6642fe6cb87c7d612d4562eb5cd9f087bd1b3d6ff2c2db3eb"
+      "sha256": "630a41b9be4aa1f0bb554edc58c033ab9180732930909db25a200d9d65a6479d"
     },
     {
       "path": "runtime/event-groups.json",
@@ -303,7 +303,7 @@
     },
     {
       "path": "runtime/hooks/lib/namespace-root.ts",
-      "sha256": "347750c9b3f2fa38092b515268dbfb972d263bab6fcbb2702b73e900a0bfd529"
+      "sha256": "868e903dba9f524a01630f052e5721dc17495078593fd3ced6b9e8d6484edfb3"
     },
     {
       "path": "runtime/hooks/lib/owned-paths.ts",
@@ -339,7 +339,7 @@
     },
     {
       "path": "runtime/hooks/lib/project-directory.ts",
-      "sha256": "0928ea9f0fe61f0e9d92dcbd88b55573fb00e503ea12fdf047ba1245ff624eaf"
+      "sha256": "1855cdb9081e331c48a12c5f1835a23911fb9c3aa866c64a94a5c3d4caab3dca"
     },
     {
       "path": "runtime/hooks/lib/project-knowledge.ts",
@@ -351,7 +351,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality-state.ts",
-      "sha256": "939597a0cdf328d7eb244fb8179c427874547e92d09ab466c887e1be222e9fef"
+      "sha256": "5cf4e985b82a71c93afc66c61af48dacfd3f8718af9458232e17ae195b09a1ea"
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
@@ -479,7 +479,7 @@
     },
     {
       "path": "runtime/hooks/lib/work-log-stamp.ts",
-      "sha256": "4718424add825d95cee1dd4533c6ca8b8909109e346a86f2bf993ad02248dd0c"
+      "sha256": "3b0b0e8cc2cc25c06ffad9fde77b2959470cbdbd5de69a0e034c20925b06c581"
     },
     {
       "path": "runtime/hooks/post-tool-bypass-warn.ts",
@@ -495,7 +495,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-quality.ts",
-      "sha256": "99eb92a899352ea58561d225c354b6ccb295a5e3a39e6375f7aef98caa452847"
+      "sha256": "93a1be1221799d35af5bad592b772defc220399945431fc638941f704b3b1120"
     },
     {
       "path": "runtime/hooks/post-tool-skill-nudge.ts",
@@ -507,7 +507,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-work-log.ts",
-      "sha256": "f8816f7799c564006aad2b6469fbd4d04a51ba2ca3d6f3bdbe93bb03d17b6978"
+      "sha256": "8792eb3a44bc5766da80c9155690fbe3e79c67eb1d383580638c55d53e7d80c1"
     },
     {
       "path": "runtime/hooks/pre-tool-architecture-stage.ts",
@@ -527,7 +527,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "c359e40062e190f63d5f5d07380b48fe67d3d767acf35eb94f33f1c4997610f9"
+      "sha256": "200a8b2059b3b5dbb7b7c5d10b120bccfc090bede571758eb1ed743763350b0c"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -1303,7 +1303,7 @@
     },
     {
       "path": "templates/hooks/lib/namespace-root.ts",
-      "sha256": "347750c9b3f2fa38092b515268dbfb972d263bab6fcbb2702b73e900a0bfd529"
+      "sha256": "868e903dba9f524a01630f052e5721dc17495078593fd3ced6b9e8d6484edfb3"
     },
     {
       "path": "templates/hooks/lib/parse-annotation.ts",
@@ -1335,7 +1335,7 @@
     },
     {
       "path": "templates/hooks/lib/project-directory.ts",
-      "sha256": "0928ea9f0fe61f0e9d92dcbd88b55573fb00e503ea12fdf047ba1245ff624eaf"
+      "sha256": "1855cdb9081e331c48a12c5f1835a23911fb9c3aa866c64a94a5c3d4caab3dca"
     },
     {
       "path": "templates/hooks/lib/project-knowledge.ts",
@@ -1347,7 +1347,7 @@
     },
     {
       "path": "templates/hooks/lib/quality-state.ts",
-      "sha256": "939597a0cdf328d7eb244fb8179c427874547e92d09ab466c887e1be222e9fef"
+      "sha256": "5cf4e985b82a71c93afc66c61af48dacfd3f8718af9458232e17ae195b09a1ea"
     },
     {
       "path": "templates/hooks/lib/quality.ts",
@@ -1475,7 +1475,7 @@
     },
     {
       "path": "templates/hooks/lib/work-log-stamp.ts",
-      "sha256": "4718424add825d95cee1dd4533c6ca8b8909109e346a86f2bf993ad02248dd0c"
+      "sha256": "3b0b0e8cc2cc25c06ffad9fde77b2959470cbdbd5de69a0e034c20925b06c581"
     },
     {
       "path": "templates/hooks/post-tool-bypass-warn.ts",
@@ -1491,7 +1491,7 @@
     },
     {
       "path": "templates/hooks/post-tool-quality.ts",
-      "sha256": "99eb92a899352ea58561d225c354b6ccb295a5e3a39e6375f7aef98caa452847"
+      "sha256": "93a1be1221799d35af5bad592b772defc220399945431fc638941f704b3b1120"
     },
     {
       "path": "templates/hooks/post-tool-skill-nudge.ts",
@@ -1503,7 +1503,7 @@
     },
     {
       "path": "templates/hooks/post-tool-work-log.ts",
-      "sha256": "f8816f7799c564006aad2b6469fbd4d04a51ba2ca3d6f3bdbe93bb03d17b6978"
+      "sha256": "8792eb3a44bc5766da80c9155690fbe3e79c67eb1d383580638c55d53e7d80c1"
     },
     {
       "path": "templates/hooks/pre-tool-architecture-stage.ts",
@@ -1523,7 +1523,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "ea380445a34875d470260d981f0e285d36a06805307edcbef0f032e7851cd1bc"
+      "sha256": "8bad798f861ba4b883a7003b80ce2b949fd18ae3fc36507c2d8820022df9354a"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",

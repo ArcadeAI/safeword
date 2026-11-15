@@ -10,6 +10,7 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { semanticTicketIdentity } from '../../src/review/planning-context-identity.js';
 import { getTemplatesDirectory } from '../../src/utils/fs.js';
 import type { IdMinter } from '../../src/utils/id-minter.js';
 import { createTicket } from '../../src/utils/ticket-writer.js';
@@ -61,6 +62,19 @@ describe('ticket-writer — spec.md scaffold by type (Rule 1)', () => {
     });
     expect(existsSync(nodePath.join(folderPath, 'ticket.md'))).toBe(true);
     expect(existsSync(nodePath.join(folderPath, 'spec.md'))).toBe(false);
+  });
+
+  it('marks the Work Log as progress history that the review identity ignores', () => {
+    const { folderPath } = createTicket(cwd, fixedMinter('TASK02'), {
+      slug: 'log-note',
+      type: 'task',
+    });
+    const ticket = readFileSync(nodePath.join(folderPath, 'ticket.md'), 'utf8');
+    const workLog = ticket.slice(ticket.indexOf('## Work Log'));
+    expect(workLog).toMatch(/^## Work Log\n\n<!-- .*not part of the accepted contract.* -->\n/u);
+    expect(semanticTicketIdentity(ticket)).toBe(
+      semanticTicketIdentity(ticket.replace(/<!-- .* -->\n\n?/u, '')),
+    );
   });
 
   it('patch does not scaffold spec.md', () => {

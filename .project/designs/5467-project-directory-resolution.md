@@ -30,8 +30,13 @@ import `src/`; `src/` and `templates/scripts` already import `templates/hooks/li
 `resolveProjectDirectory({ editedFile?, cwd?, env? })`:
 
 1. Nearest enrolled git working tree (`.safeword/SAFEWORD.md`) of the canonical
-   (real-path) edited file.
-2. Else nearest enrolled working tree of the input `cwd`, else `process.cwd()`.
+   (real-path) edited file. An edited file outside every git tree (an absolute
+   configured namespace root) has no owner by location and resolves to the
+   launch checkout, whose config can name that root; it never falls to step 2.
+2. Else nearest enrolled working tree of the input `cwd`. `cwd` is a required
+   input — hooks pass the host-reported `cwd`, helpers and CLI commands pass
+   their own `process.cwd()` — and the resolver never reads ambient process
+   state for it.
 3. Else the launch checkout: `CLAUDE_PROJECT_DIR`, else `process.cwd()`.
 
 "Nearest working tree" means the walk stops at the first ancestor holding

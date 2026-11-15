@@ -10,6 +10,11 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 import { isNamespacePath } from './lib/namespace-root.ts';
+import {
+  canonicalEditTarget,
+  resolveLaunchDirectory,
+  resolveToolProjectDirectory,
+} from './lib/project-directory.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 import {
   appendWorkLogEntry,
@@ -22,14 +27,10 @@ installCrashCapture('post-tool-work-log');
 interface HookInput {
   tool_name?: string;
   tool_input?: EditToolInput;
+  cwd?: string;
 }
 
-const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-
-// Not a safeword project, skip silently
-if (!existsSync(`${projectDirectory}/.safeword`)) {
-  process.exit(0);
-}
+const projectDirectory = resolveLaunchDirectory();
 
 let input: HookInput;
 try {
@@ -45,8 +46,22 @@ if (tool !== 'Edit' && tool !== 'MultiEdit') {
   process.exit(0);
 }
 
-const filePath = input.tool_input?.file_path ?? '';
-if (!filePath.endsWith('/ticket.md') || !isNamespacePath(filePath, 'tickets/')) {
+// A relative target is relative to the session's cwd (maybe a worktree), and a
+// ticket inside a nested worktree reads that worktree's configured root; the
+// shared resolver gives a ticket outside every git tree to the launch checkout.
+const requestedFile = input.tool_input?.file_path ?? '';
+const filePath = canonicalEditTarget(projectDirectory, requestedFile, input.cwd);
+const ownerDirectory = resolveToolProjectDirectory(projectDirectory, {
+  tool,
+  editedFile: requestedFile,
+  cwd: input.cwd,
+});
+// Not a safeword project, skip silently. Checked on the owning project, so a
+// session launched outside Safeword still stamps a ticket in an enrolled tree.
+if (!existsSync(`${ownerDirectory}/.safeword`)) {
+  process.exit(0);
+}
+if (!filePath.endsWith('/ticket.md') || !isNamespacePath(filePath, 'tickets/', ownerDirectory)) {
   process.exit(0);
 }
 

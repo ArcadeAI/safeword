@@ -6,7 +6,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import { getTicketInfo, type TicketDetails } from './active-ticket.js';
-import { resolveNamespaceRoot } from './namespace-root.js';
+import { canonicalPathForGate, resolveNamespaceRoot } from './namespace-root.js';
 import { getRunStorageKey, resolveRunIdentity, type RunIdentity } from './run-identity.js';
 import { captureGateEscalation } from './self-report.js';
 
@@ -73,7 +73,30 @@ export function isMetaPath(filePath: string, projectDirectory: string): boolean 
     : filePath;
   if (relative.startsWith('..')) return true; // outside the project — not ours to gate
   const normalized = relative.split(nodePath.sep).join('/');
-  return META_PATHS.some(meta => normalized.startsWith(meta) || normalized === meta.slice(0, -1));
+  return projectMetaPaths(projectDirectory).some(
+    meta => normalized.startsWith(meta) || normalized === meta.slice(0, -1),
+  );
+}
+
+/**
+ * META_PATHS plus a configured `paths.projectRoot` (e.g. `knowledge/`) inside
+ * the project, in both its configured and its real (symlink-resolved)
+ * spelling. A root that is the project itself (`.`) or lies outside it adds
+ * nothing — `.` would exempt every file. Shared by the pre-tool exemption and
+ * the post-tool LOC count so the two never disagree.
+ */
+export function projectMetaPaths(projectDirectory: string): readonly string[] {
+  const root = resolveNamespaceRoot(projectDirectory);
+  const spellings = [
+    nodePath.relative(projectDirectory, root),
+    nodePath.relative(canonicalPathForGate(projectDirectory), canonicalPathForGate(root)),
+  ]
+    .filter(
+      relative => relative !== '' && !relative.startsWith('..') && !nodePath.isAbsolute(relative),
+    )
+    .map(relative => `${relative.split(nodePath.sep).join('/')}/`)
+    .filter(prefix => !META_PATHS.includes(prefix));
+  return [...new Set([...META_PATHS, ...spellings])];
 }
 
 export interface FailureEntry {
