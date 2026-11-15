@@ -81,31 +81,52 @@ describe('trusted Safeword CLI lookup', () => {
     ]);
   });
 
-  // Issue #7501: a skill runs the stamp writer from its Bash tool, where neither
-  // SAFEWORD_PLUGIN_CLI nor CLAUDE_PLUGIN_ROOT is set. The bundled module must
-  // still find the plugin it ships in, not the Codex cache of another build.
-  it('finds the plugin it ships in when no plugin variable is set', () => {
+  /**
+   * Install the shared module under `installRoot/moduleDirectory` and ask it,
+   * from a real Bun process with no plugin variables, which CLIs it trusts.
+   * Returns each candidate's last argument: a script path, or the bun x package.
+   */
+  function trustedClisInstalledAt(installRoot: string, moduleDirectory: string): unknown {
     const root = project();
-    const plugin = pluginRoot();
-    const module = nodePath.join(plugin, 'runtime/hooks/lib/safeword-cli.ts');
-    write(plugin, 'runtime/hooks/lib/safeword-cli.ts', readFileSync(SHARED_MODULE, 'utf8'));
+    const module = write(
+      installRoot,
+      nodePath.join(moduleDirectory, 'safeword-cli.ts'),
+      readFileSync(SHARED_MODULE, 'utf8'),
+    );
     const codexHome = scratchDirectory();
     write(codexHome, 'plugins/cache/safeword/safeword/1.2.3/runtime/cli.js');
     const probe = write(
       scratchDirectory(),
       'probe.ts',
       `import { trustedSafewordClis } from ${JSON.stringify(module)};
-console.log(JSON.stringify(trustedSafewordClis(${JSON.stringify(root)}, { CODEX_HOME: ${JSON.stringify(codexHome)} }).map(cli => cli.args.at(-1))));`,
+const clis = trustedSafewordClis(${JSON.stringify(root)}, { CODEX_HOME: ${JSON.stringify(codexHome)} });
+console.log(JSON.stringify(clis.map(cli => cli.args.at(-1))));`,
     );
-
     const run = spawnSync('bun', ['--no-env-file', probe], { encoding: 'utf8' });
-
     expect(run.stderr).toBe('');
-    expect(JSON.parse(run.stdout)).toEqual([real(nodePath.join(plugin, 'runtime/cli.js'))]);
+    return JSON.parse(run.stdout);
+  }
+
+  // Issue #7501: a skill runs the stamp writer from its Bash tool, where neither
+  // SAFEWORD_PLUGIN_CLI nor CLAUDE_PLUGIN_ROOT is set. The bundled module must
+  // still find the plugin it ships in, not the Codex cache of another build.
+  it('finds the plugin it ships in when no plugin variable is set', () => {
+    const plugin = pluginRoot();
+
+    expect(trustedClisInstalledAt(plugin, 'runtime/hooks/lib')).toEqual([
+      real(nodePath.join(plugin, 'runtime/cli.js')),
+    ]);
   });
 
-  it('does not treat a module outside a plugin runtime as a plugin bundle', () => {
-    expect(trustedSafewordClis(project(), {}, runtime()).map(cli => cli.args[0])).toEqual(['x']);
+  it('does not take a cli.js beside a project-local hooks copy for a plugin bundle', () => {
+    const install = scratchDirectory();
+    write(install, 'cli.js');
+    write(install, 'hooks/cli.js');
+
+    expect(trustedClisInstalledAt(install, 'hooks/lib')).toEqual([
+      expect.stringMatching(/plugins\/cache\/safeword\/safeword\/1\.2\.3\/runtime\/cli\.js$/u),
+      'safeword@1.2.3',
+    ]);
   });
 
   it('uses pinned bun x when no plugin is present', () => {
