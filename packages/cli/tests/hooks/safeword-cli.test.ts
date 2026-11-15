@@ -1,5 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import {
+  cpSync,
+  existsSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -230,6 +232,62 @@ console.log(JSON.stringify(clis.map(cli => cli.args.at(-1))));`,
 
   it('returns nothing for a project with no pinned version and no plugin', () => {
     expect(trustedSafewordClis(scratchDirectory(), {}, runtime())).toEqual([]);
+  });
+});
+
+// Issue #7501, end to end: the stamp writer verifies a review through
+// readReviewReceipt. Run from a plugin's bundled hooks with no plugin variable,
+// it must ask that plugin's CLI even when a same-version build is cached.
+describe('bundled stamp-writer receipt wiring', () => {
+  /** A fake CLI answering `review status` with `status`, recording that it was asked. */
+  function fakeCli(root: string, relative: string, status: string, marker: string): void {
+    write(
+      root,
+      relative,
+      `require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'asked');
+const id = process.argv[process.argv.indexOf('status') + 1];
+console.log(JSON.stringify({ data: { review_id: id, status: ${JSON.stringify(status)},
+  review_kind: 'quality-review', review_targets: ['src/a.ts'], independence: 'cross-agent' } }));`,
+    );
+  }
+
+  it('asks the plugin it ships in, not a cached build with the same version', () => {
+    const root = project();
+    const plugin = scratchDirectory();
+    cpSync(
+      nodePath.join(import.meta.dirname, '../../templates/hooks'),
+      nodePath.join(plugin, 'runtime/hooks'),
+      {
+        recursive: true,
+      },
+    );
+    const markers = scratchDirectory();
+    const pluginAsked = nodePath.join(markers, 'plugin');
+    const cacheAsked = nodePath.join(markers, 'cache');
+    fakeCli(plugin, 'runtime/cli.js', 'approved', pluginAsked);
+    const codexHome = scratchDirectory();
+    fakeCli(codexHome, 'plugins/cache/safeword/safeword/1.2.3/runtime/cli.js', 'stale', cacheAsked);
+    const probe = write(
+      scratchDirectory(),
+      'probe.ts',
+      `import { readReviewReceipt } from ${JSON.stringify(nodePath.join(plugin, 'runtime/hooks/lib/read-receipt.ts'))};
+console.log(JSON.stringify(readReviewReceipt('review-7501', ${JSON.stringify(root)})?.status ?? null));`,
+    );
+    const environment = Object.fromEntries(
+      Object.entries(process.env).filter(
+        ([name]) => name !== 'SAFEWORD_PLUGIN_CLI' && name !== 'CLAUDE_PLUGIN_ROOT',
+      ),
+    );
+
+    const run = spawnSync('bun', ['--no-env-file', probe], {
+      encoding: 'utf8',
+      env: { ...environment, CODEX_HOME: codexHome },
+    });
+
+    expect(run.stderr).toBe('');
+    expect(JSON.parse(run.stdout)).toBe('approved');
+    expect(existsSync(pluginAsked)).toBe(true);
+    expect(existsSync(cacheAsked)).toBe(false);
   });
 });
 
