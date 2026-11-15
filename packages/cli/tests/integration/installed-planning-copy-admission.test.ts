@@ -280,69 +280,55 @@ console.log(JSON.stringify({ state: 'healthy', data: {
     },
   );
 
-  // Issue #7501: a configured plugin whose CLI is gone must not hand the planning
-  // check to another build (a Codex cache with the same version), nor skip it.
-  it('fails closed when the configured plugin CLI is missing', { timeout: 90_000 }, () => {
-    const installed = fixture();
-    const version = readFileSync(
-      nodePath.join(installed.project, '.safeword/version'),
-      'utf8',
-    ).trim();
-    const cacheHome = nodePath.join(installed.root, 'owned-cache');
-    const versionRoot = nodePath.join(cacheHome, 'plugins/cache/safeword/safeword', version);
-    mkdirSync(nodePath.dirname(versionRoot), { recursive: true });
-    symlinkSync(installed.distribution, versionRoot, 'dir');
-    const environment: NodeJS.ProcessEnv = {
-      ...installed.environment,
-      CODEX_HOME: cacheHome,
-      SAFEWORD_PLUGIN_CLI: nodePath.join(installed.root, 'gone/runtime/cli.js'),
-    };
-    delete environment.SAFEWORD_AGENT_RUNTIME;
-    delete environment.CLAUDE_PLUGIN_ROOT;
-
-    const checked = spawnSync(
-      'bun',
-      [nodePath.join(installed.project, '.safeword/hooks/pre-tool-quality.ts')],
-      {
-        cwd: installed.project,
-        encoding: 'utf8',
-        timeout: 15_000,
-        env: environment,
-        input: JSON.stringify({
-          session_id: 'missing-plugin-cli',
-          tool_name: 'Edit',
-          tool_input: {
-            file_path: installed.ticketPath,
-            old_string: 'phase: plan-implementation',
-            new_string: 'phase: plan-execution',
+  // Issue #7501: an installed project with no trusted planning checker (a configured
+  // plugin whose CLI is gone, or a project-writable runtime) must deny the phase
+  // change: not skip the check, and not hand it to another build of the version.
+  it.each([
+    {
+      refusal: 'the configured plugin CLI is missing',
+      setUp: (installed: ReturnType<typeof fixture>) => {
+        const version = readFileSync(
+          nodePath.join(installed.project, '.safeword/version'),
+          'utf8',
+        ).trim();
+        const cacheHome = nodePath.join(installed.root, 'owned-cache');
+        const versionRoot = nodePath.join(cacheHome, 'plugins/cache/safeword/safeword', version);
+        mkdirSync(nodePath.dirname(versionRoot), { recursive: true });
+        symlinkSync(installed.distribution, versionRoot, 'dir');
+        return {
+          runtime: 'bun',
+          environment: {
+            CODEX_HOME: cacheHome,
+            SAFEWORD_PLUGIN_CLI: nodePath.join(installed.root, 'gone/runtime/cli.js'),
           },
-        }),
+        };
       },
-    );
-
-    expect(checked.status, `${checked.stdout}\n${checked.stderr}`).toBe(0);
-    expect(JSON.parse(checked.stdout).hookSpecificOutput.permissionDecision).toBe('deny');
-    expect(checked.stdout).toContain('could not validate its trusted planning contract checker');
-  });
-
-  // Issue #7501: an installed project whose only runtime is project-writable has
-  // no trusted checker; that is a refusal to fail closed on, not an absent install.
-  it('fails closed when the only runtime is project-writable', { timeout: 90_000 }, () => {
+    },
+    {
+      refusal: 'the only runtime is project-writable',
+      setUp: (installed: ReturnType<typeof fixture>) => {
+        const projectBun = nodePath.join(installed.project, 'bin/bun');
+        mkdirSync(nodePath.dirname(projectBun), { recursive: true });
+        try {
+          linkSync(realpathSync(bunBinary()), projectBun);
+        } catch {
+          copyFileSync(realpathSync(bunBinary()), projectBun);
+        }
+        return { runtime: projectBun, environment: {} };
+      },
+    },
+  ])('fails closed when $refusal', { timeout: 90_000 }, ({ setUp }) => {
     const installed = fixture();
-    const projectBun = nodePath.join(installed.project, 'bin/bun');
-    mkdirSync(nodePath.dirname(projectBun), { recursive: true });
-    try {
-      linkSync(realpathSync(bunBinary()), projectBun);
-    } catch {
-      copyFileSync(realpathSync(bunBinary()), projectBun);
-    }
+    const { runtime, environment: overrides } = setUp(installed);
+    // Only what each case configures names a plugin; nothing else does.
     const environment: NodeJS.ProcessEnv = { ...installed.environment };
     delete environment.SAFEWORD_AGENT_RUNTIME;
-    delete environment.SAFEWORD_PLUGIN_CLI;
     delete environment.CLAUDE_PLUGIN_ROOT;
+    delete environment.SAFEWORD_PLUGIN_CLI;
+    Object.assign(environment, overrides);
 
     const checked = spawnSync(
-      projectBun,
+      runtime,
       [nodePath.join(installed.project, '.safeword/hooks/pre-tool-quality.ts')],
       {
         cwd: installed.project,
@@ -350,7 +336,7 @@ console.log(JSON.stringify({ state: 'healthy', data: {
         timeout: 15_000,
         env: environment,
         input: JSON.stringify({
-          session_id: 'project-writable-runtime',
+          session_id: 'refused-planning-checker',
           tool_name: 'Edit',
           tool_input: {
             file_path: installed.ticketPath,

@@ -167,22 +167,23 @@ console.log(JSON.stringify(clis.map(cli => cli.args.at(-1))));`,
     expect(trustedSafewordClis(root, { SAFEWORD_PLUGIN_CLI: inside }, runtime())).toEqual([]);
   });
 
-  it('answers nothing when the configured plugin CLI is missing', () => {
-    const root = project();
+  it.each([
+    {
+      name: 'SAFEWORD_PLUGIN_CLI',
+      configure: (missing: string) => ({
+        SAFEWORD_PLUGIN_CLI: nodePath.join(missing, 'runtime/cli.js'),
+      }),
+    },
+    {
+      name: 'CLAUDE_PLUGIN_ROOT',
+      configure: (missing: string) => ({ CLAUDE_PLUGIN_ROOT: missing }),
+    },
+  ])('answers nothing when the plugin $name names has no CLI', ({ configure }) => {
     const codexHome = scratchDirectory();
     write(codexHome, 'plugins/cache/safeword/safeword/1.2.3/runtime/cli.js');
-    const missing = nodePath.join(scratchDirectory(), 'runtime/cli.js');
+    const environment = { ...configure(scratchDirectory()), CODEX_HOME: codexHome };
 
-    expect(
-      trustedSafewordClis(root, { SAFEWORD_PLUGIN_CLI: missing, CODEX_HOME: codexHome }, runtime()),
-    ).toEqual([]);
-    expect(
-      trustedSafewordClis(
-        root,
-        { CLAUDE_PLUGIN_ROOT: scratchDirectory(), CODEX_HOME: codexHome },
-        runtime(),
-      ),
-    ).toEqual([]);
+    expect(trustedSafewordClis(project(), environment, runtime())).toEqual([]);
   });
 
   it("runs a symlinked plugin CLI from its real directory, not the link's", () => {
