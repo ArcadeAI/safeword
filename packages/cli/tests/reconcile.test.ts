@@ -481,6 +481,22 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(readFileSync(gitignorePath, 'utf8')).toBe('customer-cache/\n');
     });
 
+    it('ignores node_modules on a fresh install without untracking committed dependencies (#6764)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA, SAFEWORD_TRANSIENT_PATHS } = await import('../src/schema.js');
+      const gitignorePath = nodePath.join(temporaryDirectory, '.gitignore');
+      createPackageJson();
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+      expect(readFileSync(gitignorePath, 'utf8').split('\n')).toContain('node_modules/');
+      // The transient list drives `git rm --cached` on upgrade; dependencies a
+      // project commits on purpose must never be untracked behind its back.
+      expect(SAFEWORD_TRANSIENT_PATHS).not.toContain('node_modules/');
+
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall', createContext());
+      expect(readFileSync(gitignorePath, 'utf8')).not.toContain('node_modules/');
+    });
+
     it('prettierignore excludes every safeword-owned dir on a fresh install (incl. .codex/ + wholesale .project/)', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');

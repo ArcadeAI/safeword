@@ -367,6 +367,14 @@ export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
 ];
 
 /**
+ * Lines of the repo-root managed `.gitignore` block. `node_modules/` rides here
+ * so a fresh project's `git add -A` never commits dependencies (#6764), but it
+ * stays out of `SAFEWORD_TRANSIENT_PATHS`: that list also drives the upgrade
+ * untrack, and a project that commits its dependencies on purpose must keep them.
+ */
+const GITIGNORE_BLOCK_PATHS: readonly string[] = ['node_modules/', ...SAFEWORD_TRANSIENT_PATHS];
+
+/**
  * Top-level `.safeword/` entries that carry no proof a project install ever ran.
  *
  * Every one of them is written by a hook or by the native Claude plugin, so a
@@ -1542,13 +1550,13 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.husky/pre-push': boundaryShimPatch('push'),
     '.gitignore': {
       operation: 'append',
-      content: `\n# Safeword - Local cache and transient state\n${SAFEWORD_TRANSIENT_PATHS.join('\n')}\n`,
+      content: `\n# Safeword - Local cache and transient state\n${GITIGNORE_BLOCK_PATHS.join('\n')}\n`,
       // A stable header plus rerender heals the block whenever the transient
       // path list grows and lets uninstall recognize older variants.
       rerender: true,
       // eslint-disable-next-line security/detect-non-literal-regexp -- derived only from the source-controlled constant above
       rerenderOwnedLinePattern: new RegExp(
-        `^(?:${SAFEWORD_TRANSIENT_PATHS.map(path =>
+        `^(?:${GITIGNORE_BLOCK_PATHS.map(path =>
           path.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`),
         ).join('|')})$`,
         'u',
