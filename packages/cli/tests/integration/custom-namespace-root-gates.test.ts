@@ -332,6 +332,85 @@ describe('configured-root edge cases', () => {
     expect(readTestFile(projectDirectory, relativeTicket)).toBe(launchContent);
   });
 
+  it('stamps a ticket under an absolute root outside any git tree from a worktree session (#5467)', () => {
+    projectDirectory = createProject();
+    const externalRoot = createTemporaryDirectory();
+    try {
+      // Only the launch checkout's config names the external root; the
+      // session's cwd is a worktree that keeps the default root.
+      writeGateConfig(projectDirectory, {
+        reviewGate: false,
+        paths: { projectRoot: externalRoot },
+      });
+      const worktree = nodePath.join(projectDirectory, '.claude/worktrees/w');
+      writeTestFile(worktree, '.git', 'gitdir: elsewhere\n');
+      writeTestFile(worktree, '.safeword/SAFEWORD.md', '# enrolled\n');
+      writeTestFile(
+        externalRoot,
+        'tickets/099-test/ticket.md',
+        '---\nphase: define-behavior\n---\n',
+      );
+      const ticket = nodePath.join(externalRoot, 'tickets/099-test/ticket.md');
+
+      spawnSync('bun', [POST_TOOL_WORK_LOG], {
+        input: JSON.stringify({
+          session_id: SESSION,
+          hook_event_name: 'PostToolUse',
+          tool_name: 'Edit',
+          cwd: worktree,
+          tool_input: {
+            file_path: ticket,
+            old_string: 'phase: intake',
+            new_string: 'phase: define-behavior',
+          },
+        }),
+        cwd: projectDirectory,
+        env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+        encoding: 'utf8',
+        timeout: TIMEOUT_QUICK,
+      });
+
+      expect(readFileSync(ticket, 'utf8')).toContain('Phase: intake → define-behavior');
+    } finally {
+      removeTemporaryDirectory(externalRoot);
+    }
+  });
+
+  it('stamps an enrolled ticket from a session launched outside Safeword (#5467)', () => {
+    projectDirectory = createProject();
+    const unenrolledLaunch = createTemporaryDirectory();
+    try {
+      const ticket = nodePath.join(projectDirectory, `${ROOT}/tickets/099-test/ticket.md`);
+      writeTestFile(
+        projectDirectory,
+        `${ROOT}/tickets/099-test/ticket.md`,
+        '---\nphase: define-behavior\n---\n',
+      );
+
+      spawnSync('bun', [POST_TOOL_WORK_LOG], {
+        input: JSON.stringify({
+          session_id: SESSION,
+          hook_event_name: 'PostToolUse',
+          tool_name: 'Edit',
+          cwd: projectDirectory,
+          tool_input: {
+            file_path: ticket,
+            old_string: 'phase: intake',
+            new_string: 'phase: define-behavior',
+          },
+        }),
+        cwd: unenrolledLaunch,
+        env: { ...process.env, CLAUDE_PROJECT_DIR: unenrolledLaunch },
+        encoding: 'utf8',
+        timeout: TIMEOUT_QUICK,
+      });
+
+      expect(readFileSync(ticket, 'utf8')).toContain('Phase: intake → define-behavior');
+    } finally {
+      removeTemporaryDirectory(unenrolledLaunch);
+    }
+  });
+
   it('a symlinked configured root is excluded from the LOC count by its real path', () => {
     projectDirectory = createTemporaryDirectory();
     writeGateConfig(projectDirectory, { reviewGate: false, paths: { projectRoot: ROOT } });
