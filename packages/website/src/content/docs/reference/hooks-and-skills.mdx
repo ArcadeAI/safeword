@@ -143,7 +143,7 @@ After your agent writes or modifies a file, the right linter runs:
 
 When a required checker is unavailable, Safeword reports a warning where the host supports hook feedback.
 
-**What you see:** Post-edit checks leave source files unchanged across supported languages and formats. Where the host supports hook feedback, your agent receives lint and formatting findings to address. Apply formatting and automatic fixes explicitly or through commit tooling.
+**What you see:** Post-edit checks leave source files unchanged across supported languages and formats. Where the host supports hook feedback, your agent receives findings from the applicable checkers. The default ESLint path reports lint findings; it does not run a separate Prettier formatting check between edits. Apply formatting and automatic fixes explicitly or through commit tooling.
 
 For Go, Safeword reports formatting differences for the edited file and checks its complete package from that file's directory. Configured autofixes are disabled during these checks. Where hook feedback is supported, findings identify their source files and may include issues that predate the edit.
 
