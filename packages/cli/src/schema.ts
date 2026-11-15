@@ -1553,9 +1553,13 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       // A stable header plus rerender heals the block whenever the transient
       // path list grows and lets uninstall recognize older variants.
       rerender: true,
+      // Recognizes only Safeword's own paths, never `node_modules/`: an older,
+      // shorter block can be followed by a customer's `node_modules/` rule,
+      // and the pattern must not absorb it. A current block's `node_modules/`
+      // line is still claimed by the exact in-order match.
       // eslint-disable-next-line security/detect-non-literal-regexp -- derived only from the source-controlled constant above
       rerenderOwnedLinePattern: new RegExp(
-        `^(?:${GITIGNORE_BLOCK_PATHS.map(path =>
+        `^(?:${SAFEWORD_TRANSIENT_PATHS.map(path =>
           path.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`),
         ).join('|')})$`,
         'u',

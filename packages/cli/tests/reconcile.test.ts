@@ -508,6 +508,20 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(readFileSync(gitignorePath, 'utf8')).toBe('node_modules/\n');
     });
 
+    it('keeps a customer-owned node_modules line that follows an older managed block through upgrade and uninstall', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA, SAFEWORD_TRANSIENT_PATHS } = await import('../src/schema.js');
+      const gitignorePath = nodePath.join(temporaryDirectory, '.gitignore');
+      const olderBlock = `# Safeword - Local cache and transient state\n${SAFEWORD_TRANSIENT_PATHS.join('\n')}\n`;
+      writeFileSync(gitignorePath, `${olderBlock}node_modules/\n`);
+      createPackageJson();
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', createContext());
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall', createContext());
+
+      expect(readFileSync(gitignorePath, 'utf8')).toBe('node_modules/\n');
+    });
+
     it('prettierignore excludes every safeword-owned dir on a fresh install (incl. .codex/ + wholesale .project/)', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');

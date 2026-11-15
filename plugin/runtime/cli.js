@@ -16878,7 +16878,7 @@ ${GITIGNORE_BLOCK_PATHS.join(`
 `)}
 `,
         rerender: true,
-        rerenderOwnedLinePattern: new RegExp(`^(?:${GITIGNORE_BLOCK_PATHS.map((path) => path.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`)).join("|")})$`, "u"),
+        rerenderOwnedLinePattern: new RegExp(`^(?:${SAFEWORD_TRANSIENT_PATHS.map((path) => path.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`)).join("|")})$`, "u"),
         marker: "# Safeword - Local cache and transient state"
       },
       ".prettierignore": {
