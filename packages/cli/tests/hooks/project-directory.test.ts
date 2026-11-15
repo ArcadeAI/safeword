@@ -11,6 +11,7 @@ import nodePath from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  canonicalEditTarget,
   resolveLaunchDirectory,
   resolveProjectDirectory,
   resolveToolProjectDirectory,
@@ -114,6 +115,17 @@ describe('resolveProjectDirectory (#5467)', () => {
       ).toBe(launch);
       expect(
         resolveProjectDirectory({ launchDirectory: launch, editedFile: '', cwd: undefined }),
+      ).toBe(launch);
+    });
+
+    it('in an unenrolled tree with no cwd falls back to the launch checkout', () => {
+      const vendored = tree(nodePath.join(root, 'vendor/lib'), { enrolled: false });
+      expect(
+        resolveProjectDirectory({
+          launchDirectory: launch,
+          editedFile: nodePath.join(vendored, 'index.ts'),
+          cwd: undefined,
+        }),
       ).toBe(launch);
     });
 
@@ -229,6 +241,43 @@ describe('resolveToolProjectDirectory (#5467)', () => {
         resolveToolProjectDirectory(launch, { tool, editedFile: ticket(launch), cwd: worktree }),
       ).toBe(worktree);
     }
+  });
+});
+
+describe('canonicalEditTarget (#5467)', () => {
+  let root: string;
+  let launch: string;
+  let worktree: string;
+
+  beforeEach(() => {
+    root = createTemporaryDirectory();
+    launch = realpathSync(tree(nodePath.join(root, 'launch'), { enrolled: true }));
+    worktree = tree(nodePath.join(launch, '.claude/worktrees/wt'), { enrolled: true });
+    // The hook process runs somewhere else entirely; it must never be the base.
+    vi.spyOn(process, 'cwd').mockReturnValue(root);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    removeTemporaryDirectory(root);
+  });
+
+  it('resolves a relative target from the reported cwd', () => {
+    expect(canonicalEditTarget(launch, 'src/a.ts', worktree)).toBe(
+      nodePath.join(worktree, 'src/a.ts'),
+    );
+  });
+
+  it('resolves a relative target from the launch checkout when no cwd is reported', () => {
+    expect(canonicalEditTarget(launch, 'src/a.ts', undefined)).toBe(
+      nodePath.join(launch, 'src/a.ts'),
+    );
+  });
+
+  it('keeps an absolute target and an empty target as given', () => {
+    const absolute = nodePath.join(worktree, 'src/a.ts');
+    expect(canonicalEditTarget(launch, absolute, launch)).toBe(absolute);
+    expect(canonicalEditTarget(launch, '', worktree)).toBe('');
   });
 });
 
