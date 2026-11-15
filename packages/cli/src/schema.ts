@@ -335,10 +335,9 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
 /**
  * Runtime/transient state files safeword's hooks write to the working tree
  * every turn (update-cache plus the namespace-root state above). They must be
- * gitignored — and untracked on upgrade if a customer committed them before the
- * ignore rule existed — because the hooks read/write these paths directly, so
- * git tracking is never consulted. Single source for the repo-root managed
- * `.gitignore` block (below) and the upgrade-time untrack.
+ * gitignored because the hooks read/write these paths directly, so git
+ * tracking is never consulted. Feeds the repo-root managed `.gitignore` block
+ * (`GITIGNORE_BLOCK_PATHS`, below).
  *
  * Both well-known namespace roots are listed: hooks write transient state under
  * the resolved root (TAGWZ8), which is `.project/` on fresh installs and
@@ -368,9 +367,9 @@ export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
 
 /**
  * Lines of the repo-root managed `.gitignore` block. `node_modules/` rides here
- * so a fresh project's `git add -A` never commits dependencies (#6764), but it
- * stays out of `SAFEWORD_TRANSIENT_PATHS`: that list also drives the upgrade
- * untrack, and a project that commits its dependencies on purpose must keep them.
+ * so a fresh project's `git add -A` never commits dependencies (#6764). It is
+ * not Safeword state, so it stays out of `SAFEWORD_TRANSIENT_PATHS` — that list
+ * also decides which `.safeword/` entries prove no install ran.
  */
 const GITIGNORE_BLOCK_PATHS: readonly string[] = ['node_modules/', ...SAFEWORD_TRANSIENT_PATHS];
 
