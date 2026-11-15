@@ -423,7 +423,7 @@
     },
     {
       "path": "runtime/hooks/lib/safeword-cli.ts",
-      "sha256": "b38b0094cea613e4b3c57c0d44e4346ed4314848317448e39565e0c1bdeea21d"
+      "sha256": "690608386ee56cb39b9d247a92ce7145b41e023354b062462fda42b7c2e42a49"
     },
     {
       "path": "runtime/hooks/lib/safeword-context.ts",
@@ -1415,7 +1415,7 @@
     },
     {
       "path": "templates/hooks/lib/safeword-cli.ts",
-      "sha256": "b38b0094cea613e4b3c57c0d44e4346ed4314848317448e39565e0c1bdeea21d"
+      "sha256": "690608386ee56cb39b9d247a92ce7145b41e023354b062462fda42b7c2e42a49"
     },
     {
       "path": "templates/hooks/lib/safeword-context.ts",

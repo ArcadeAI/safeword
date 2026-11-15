@@ -183,27 +183,27 @@ export function trustedSafewordClis(
   // can fingerprint differently and call every approved receipt stale (#7501).
   if (trustedPlugin !== undefined) return [trustedPlugin];
 
-  const scripts: string[] = [];
   const version = pinnedSafewordVersion(projectDirectory);
-  if (version !== undefined) {
-    const codexHome = environment.CODEX_HOME || nodePath.join(homedir(), '.codex');
-    scripts.push(
-      nodePath.join(
-        codexHome,
-        'plugins',
-        'cache',
-        'safeword',
-        'safeword',
-        version,
-        'runtime',
-        'cli.js',
-      ),
-    );
-  }
-
-  const candidates = scripts
-    .map(script => trustedScript(projectDirectory, script, runtimePath, runtime.isBun))
-    .filter((cli): cli is SafewordCli => cli !== undefined);
+  const codexHome = environment.CODEX_HOME || nodePath.join(homedir(), '.codex');
+  const codexCache =
+    version === undefined
+      ? undefined
+      : trustedScript(
+          projectDirectory,
+          nodePath.join(
+            codexHome,
+            'plugins',
+            'cache',
+            'safeword',
+            'safeword',
+            version,
+            'runtime',
+            'cli.js',
+          ),
+          runtimePath,
+          runtime.isBun,
+        );
+  const candidates: SafewordCli[] = codexCache === undefined ? [] : [codexCache];
   // Bun also reads bunfig.toml from the package runner's working directory, so it
   // must sit outside the project too (a project can be the home directory).
   const runnerDirectory = [homedir(), tmpdir(), nodePath.parse(homedir()).root].find(
