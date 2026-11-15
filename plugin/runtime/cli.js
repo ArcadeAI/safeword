@@ -3450,17 +3450,17 @@ var init_historical_catalogue_generated = __esm(() => {
       },
       hook_files: {
         ".safeword/hooks/post-tool-bypass-warn.ts": "f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a",
-        ".safeword/hooks/post-tool-dependency-readiness.ts": "0142957ea227b630a5ab17d0cee2d6ff2c6df24e7ca3f4bd7a57dbf6940060be",
+        ".safeword/hooks/post-tool-dependency-readiness.ts": "6418539671ace93e5df04b4ee4d74b9f28b241ec81bbcf2588017702d3b092f6",
         ".safeword/hooks/post-tool-lint.ts": "70cc0df515e09ca0f786e758f6649c6339fd1f0ee52c74431ec59bb50e422abb",
-        ".safeword/hooks/post-tool-quality.ts": "a17e84c74644205067de301800981186d97158829ee0d876ce4ec18e0fd9b17f",
+        ".safeword/hooks/post-tool-quality.ts": "198c86f62c6cff803d15ae9fc50c41c708b76f74220276f8a100340aa177273e",
         ".safeword/hooks/post-tool-skill-nudge.ts": "a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4",
         ".safeword/hooks/post-tool-sync-learnings.ts": "de5f52c221b2f029841beded78d65af80217949072a99c2790d503f492528290",
-        ".safeword/hooks/post-tool-work-log.ts": "f7d42a576cb979a4ab33366eec51922ca202d1edfe6a1404bd039bcd183cbb6c",
+        ".safeword/hooks/post-tool-work-log.ts": "8792eb3a44bc5766da80c9155690fbe3e79c67eb1d383580638c55d53e7d80c1",
         ".safeword/hooks/pre-tool-architecture-stage.ts": "e57bfeb13ccb403159fc8b115122937eaf3d9ca808f2ec6c8c39632fb3a4d679",
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
-        ".safeword/hooks/pre-tool-dependency-readiness.ts": "32b7dc3cd73b8a0361625489238ce88bff32ce01ea27ffcec65d39ceafcb8fdb",
+        ".safeword/hooks/pre-tool-dependency-readiness.ts": "83d1369a1db26474ce498565e1f67711834137276234ca697de3be0f1abbafff",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "f824073f88425cf52c9d93e0b16d2f152bacbf9a73024fba06d424829206441a",
+        ".safeword/hooks/pre-tool-quality.ts": "8bad798f861ba4b883a7003b80ce2b949fd18ae3fc36507c2d8820022df9354a",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "9ab95529d1c7ca2ffc1a1303c4f08dc55e35e1e49bd951ca917dfbdf13a95a39",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -16357,6 +16357,7 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       ".safeword/hooks/lib/ticket-close.ts": { template: "hooks/lib/ticket-close.ts" },
       ".safeword/hooks/lib/jsonl-spool.ts": { template: "hooks/lib/jsonl-spool.ts" },
       ".safeword/hooks/lib/namespace-root.ts": { template: "hooks/lib/namespace-root.ts" },
+      ".safeword/hooks/lib/project-directory.ts": { template: "hooks/lib/project-directory.ts" },
       ".safeword/hooks/lib/drain-retro-spool.ts": { template: "hooks/lib/drain-retro-spool.ts" },
       ".safeword/hooks/lib/retro-draft-spool.ts": { template: "hooks/lib/retro-draft-spool.ts" },
       ".safeword/hooks/lib/retro-debug.ts": { template: "hooks/lib/retro-debug.ts" },
@@ -79892,10 +79893,8 @@ function resolveNamespaceRoot2(projectDirectory) {
     return legacyRoot;
   return defaultRoot;
 }
-var NAMESPACE_ROOT_DEFAULT2 = ".project", NAMESPACE_ROOT_LEGACY2 = ".safeword-project", EDIT_TOOL_NAMES;
-var init_namespace_root2 = __esm(() => {
-  EDIT_TOOL_NAMES = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
-});
+var NAMESPACE_ROOT_DEFAULT2 = ".project", NAMESPACE_ROOT_LEGACY2 = ".safeword-project";
+var init_namespace_root2 = () => {};
 
 // templates/hooks/lib/project-knowledge.ts
 import { readFileSync as readFileSync85, statSync as statSync12 } from "fs";
