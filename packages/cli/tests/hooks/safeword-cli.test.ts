@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import {
   mkdirSync,
   readdirSync,
@@ -18,6 +19,11 @@ import {
   trustedSafewordClis,
 } from '../../templates/hooks/lib/safeword-cli.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers';
+
+const SHARED_MODULE = nodePath.join(
+  import.meta.dirname,
+  '../../templates/hooks/lib/safeword-cli.ts',
+);
 
 // Ticket 8VG20K: every hook finds the Safeword CLI through one shared lookup.
 const directories: string[] = [];
@@ -58,21 +64,48 @@ describe('trusted Safeword CLI lookup', () => {
   }
   const real = (path: string) => realpathSync(path);
 
-  it('prefers the plugin bundle, then bun x pinned to the project version from home', () => {
+  // Issue #7501: once the running plugin's CLI is known, a trust check must not
+  // fall back to another build that merely shares its version string.
+  it('trusts only the running plugin bundle when one is known', () => {
     const root = project();
     const plugin = pluginRoot();
+    const codexHome = scratchDirectory();
+    write(codexHome, 'plugins/cache/safeword/safeword/1.2.3/runtime/cli.js');
     const bun = runtime();
     const cli = real(nodePath.join(plugin, 'runtime/cli.js'));
 
-    expect(trustedSafewordClis(root, { CLAUDE_PLUGIN_ROOT: plugin }, bun)).toEqual([
+    expect(
+      trustedSafewordClis(root, { CLAUDE_PLUGIN_ROOT: plugin, CODEX_HOME: codexHome }, bun),
+    ).toEqual([
       { command: real(bun.path), args: ['--no-env-file', cli], cwd: nodePath.dirname(cli) },
-      {
-        command: real(bun.path),
-        args: ['x', '--bun', 'safeword@1.2.3'],
-        cwd: homedir(),
-        downloads: true,
-      },
     ]);
+  });
+
+  // Issue #7501: a skill runs the stamp writer from its Bash tool, where neither
+  // SAFEWORD_PLUGIN_CLI nor CLAUDE_PLUGIN_ROOT is set. The bundled module must
+  // still find the plugin it ships in, not the Codex cache of another build.
+  it('finds the plugin it ships in when no plugin variable is set', () => {
+    const root = project();
+    const plugin = pluginRoot();
+    const module = nodePath.join(plugin, 'runtime/hooks/lib/safeword-cli.ts');
+    write(plugin, 'runtime/hooks/lib/safeword-cli.ts', readFileSync(SHARED_MODULE, 'utf8'));
+    const codexHome = scratchDirectory();
+    write(codexHome, 'plugins/cache/safeword/safeword/1.2.3/runtime/cli.js');
+    const probe = write(
+      scratchDirectory(),
+      'probe.ts',
+      `import { trustedSafewordClis } from ${JSON.stringify(module)};
+console.log(JSON.stringify(trustedSafewordClis(${JSON.stringify(root)}, { CODEX_HOME: ${JSON.stringify(codexHome)} }).map(cli => cli.args.at(-1))));`,
+    );
+
+    const run = spawnSync('bun', ['--no-env-file', probe], { encoding: 'utf8' });
+
+    expect(run.stderr).toBe('');
+    expect(JSON.parse(run.stdout)).toEqual([real(nodePath.join(plugin, 'runtime/cli.js'))]);
+  });
+
+  it('does not treat a module outside a plugin runtime as a plugin bundle', () => {
+    expect(trustedSafewordClis(project(), {}, runtime()).map(cli => cli.args[0])).toEqual(['x']);
   });
 
   it('uses pinned bun x when no plugin is present', () => {

@@ -68,12 +68,32 @@ function isInside(projectDirectory: string, path: string): boolean {
   }
 }
 
-/** The plugin's bundled CLI, from the dispatcher's explicit path or the plugin root. */
+/**
+ * The CLI of the plugin this module ships in, found from the module's own path
+ * (`<plugin>/runtime/hooks/lib/`). A skill runs bundled helpers such as the
+ * stamp writer from its Bash tool, which inherits neither SAFEWORD_PLUGIN_CLI
+ * nor CLAUDE_PLUGIN_ROOT, yet the helper must still ask its own build (#7501).
+ */
+function bundledPluginCli(moduleDirectory: string): string | undefined {
+  const hooks = nodePath.dirname(moduleDirectory);
+  const runtime = nodePath.dirname(hooks);
+  if (
+    nodePath.basename(moduleDirectory) !== 'lib' ||
+    nodePath.basename(hooks) !== 'hooks' ||
+    nodePath.basename(runtime) !== 'runtime'
+  )
+    return undefined;
+  const path = nodePath.join(runtime, 'cli.js');
+  return existsSync(path) ? path : undefined;
+}
+
+/** The plugin's bundled CLI: the dispatcher's explicit path, the plugin root, or this module's own plugin. */
 function pluginCli(environment: NodeJS.ProcessEnv): string | undefined {
   const explicit = environment.SAFEWORD_PLUGIN_CLI?.trim();
   const root = environment.CLAUDE_PLUGIN_ROOT?.trim();
   const path = explicit || (root ? nodePath.join(root, 'runtime', 'cli.js') : undefined);
-  return path !== undefined && existsSync(path) ? path : undefined;
+  if (path !== undefined) return existsSync(path) ? path : undefined;
+  return bundledPluginCli(import.meta.dirname);
 }
 
 function pinnedBunx(projectDirectory: string, cwd: string): SafewordCli[] {
@@ -109,8 +129,32 @@ function currentRuntime(environment: NodeJS.ProcessEnv): TrustedRuntime {
   return { path: process.execPath, isBun: false };
 }
 
+/** A script run by the trusted runtime from its own real directory, unless project code could edit it. */
+function trustedScript(
+  projectDirectory: string,
+  script: string | undefined,
+  runtimePath: string,
+  isBun: boolean,
+): SafewordCli | undefined {
+  if (script === undefined) return undefined;
+  let real: string;
+  try {
+    real = realpathSync(script);
+  } catch {
+    return undefined;
+  }
+  if (isInside(projectDirectory, real)) return undefined;
+  return {
+    command: runtimePath,
+    args: isBun ? ['--no-env-file', real] : [real],
+    cwd: nodePath.dirname(real),
+  };
+}
+
 /**
- * CLIs a trust check may run. Nothing project files can change gets to answer:
+ * CLIs a trust check may run. When the running plugin's CLI is known it is the
+ * only answer; the Codex cache and published package serve hosts without one.
+ * Nothing project files can change gets to answer:
  * - the runtime is the absolute binary already running this hook, outside the
  *   project (a PATH lookup could find a project-owned `bun` or `bunx` shim);
  * - each script is canonicalized and must resolve outside the project, then runs
@@ -132,9 +176,14 @@ export function trustedSafewordClis(
   }
   if (isInside(projectDirectory, runtimePath)) return [];
 
-  const scripts: string[] = [];
   const plugin = pluginCli(environment);
-  if (plugin !== undefined) scripts.push(plugin);
+  const trustedPlugin = trustedScript(projectDirectory, plugin, runtimePath, runtime.isBun);
+  // The running plugin is the build this session answers to. Another build that
+  // merely carries the same version string (a Codex cache, the published package)
+  // can fingerprint differently and call every approved receipt stale (#7501).
+  if (trustedPlugin !== undefined) return [trustedPlugin];
+
+  const scripts: string[] = [];
   const version = pinnedSafewordVersion(projectDirectory);
   if (version !== undefined) {
     const codexHome = environment.CODEX_HOME || nodePath.join(homedir(), '.codex');
@@ -152,21 +201,9 @@ export function trustedSafewordClis(
     );
   }
 
-  const candidates: SafewordCli[] = [];
-  for (const script of scripts) {
-    let real: string;
-    try {
-      real = realpathSync(script);
-    } catch {
-      continue;
-    }
-    if (isInside(projectDirectory, real)) continue;
-    candidates.push({
-      command: runtimePath,
-      args: runtime.isBun ? ['--no-env-file', real] : [real],
-      cwd: nodePath.dirname(real),
-    });
-  }
+  const candidates = scripts
+    .map(script => trustedScript(projectDirectory, script, runtimePath, runtime.isBun))
+    .filter((cli): cli is SafewordCli => cli !== undefined);
   // Bun also reads bunfig.toml from the package runner's working directory, so it
   // must sit outside the project too (a project can be the home directory).
   const runnerDirectory = [homedir(), tmpdir(), nodePath.parse(homedir()).root].find(
