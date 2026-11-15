@@ -2,8 +2,8 @@
 id: EKG84P
 slug: session-project-pointer
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/5467
 created: 2026-10-08T22:36:01.878Z
 last_modified: 2026-10-08T22:36:01.878Z
@@ -31,3 +31,4 @@ Depends on PR #5655 (part 1). Design: `.project/designs/5467-project-directory-r
 
 - 2026-10-08T22:36:01.878Z Started: Created ticket EKG84P
 - 2026-10-08T22:50:00.000Z Implemented red-first (pointer unit tests; real PostToolUse→Stop worktree regression in close-edit-done-gate). Broad suites 5669/5670 with the one failure a mirror sync that pre-commit fixed (test-runner 15/15 after). Codex review pass 1: fixed missing `cwd` on stop-self-report's input; the test-plan exit-status gap predates this work and is a separate follow-up. Pass 2 approved (review 16361027).
+- 2026-11-15T16:42:45.642Z Phase: intake → done
