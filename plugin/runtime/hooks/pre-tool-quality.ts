@@ -18,9 +18,9 @@ import { detectInspirationArtifactWrite, detectLedgerWrite } from './lib/bash-le
 import { retrospectiveGateDenial } from './lib/retrospective-gate.ts';
 import {
   askTrustedSafeword,
-  projectWritablePluginCli,
+  configuredPluginCli,
+  pinnedSafewordVersion,
   trustedEnvironment,
-  trustedSafewordClis,
 } from './lib/safeword-cli.ts';
 import { commandInvokesCloseoutCleanup, rememberCloseoutBinding } from './lib/closeout-binding.ts';
 import { detectBroadProcessKill } from './lib/process-kill-guard.ts';
@@ -303,11 +303,13 @@ function receiptGateVerdict(
 }
 
 function assertPlanningContractCopy(ticket: string, phase: string): void {
-  const candidates = trustedSafewordClis(projectDirectory);
+  // Skip only when Safeword is not installed at all: no running plugin and no
+  // pinned version. An installation whose every CLI was refused (missing plugin
+  // CLI, project-writable runtime) leaves no trusted candidate, but fails closed.
   if (
     process.env.SAFEWORD_AGENT_RUNTIME !== 'cursor' &&
-    projectWritablePluginCli(projectDirectory) === undefined &&
-    candidates.length === 0
+    configuredPluginCli() === undefined &&
+    pinnedSafewordVersion(projectDirectory) === undefined
   )
     return;
   if (process.env.CODEX_HOME && trustedEnvironment(projectDirectory).CODEX_HOME === undefined) {
