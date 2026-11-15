@@ -637,6 +637,10 @@ describe('a session that edits another checkout from the launch checkout (#5467)
       kind: 'an independent repository',
       create: (launch: string, target: string) => {
         git(launch, `clone -q "${launch}" "${target}"`);
+        // A clone does not inherit repo-local config, and CI has no global
+        // identity: give it the same committer the fixture uses.
+        git(target, 'config user.email "test@test.com"');
+        git(target, 'config user.name "Test User"');
       },
       remove: () => {},
     },
