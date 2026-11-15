@@ -87,13 +87,26 @@ function bundledPluginCli(moduleDirectory: string): string | undefined {
   return existsSync(path) ? path : undefined;
 }
 
-/** The plugin's bundled CLI: the dispatcher's explicit path, the plugin root, or this module's own plugin. */
-function pluginCli(environment: NodeJS.ProcessEnv): string | undefined {
+/**
+ * Where the running plugin's CLI should be: the dispatcher's explicit path, the
+ * plugin root, or this module's own plugin. Undefined only when no plugin runs.
+ */
+export function configuredPluginCli(
+  environment: NodeJS.ProcessEnv = process.env,
+): string | undefined {
   const explicit = environment.SAFEWORD_PLUGIN_CLI?.trim();
   const root = environment.CLAUDE_PLUGIN_ROOT?.trim();
-  const path = explicit || (root ? nodePath.join(root, 'runtime', 'cli.js') : undefined);
-  if (path !== undefined) return existsSync(path) ? path : undefined;
-  return bundledPluginCli(import.meta.dirname);
+  return (
+    explicit ||
+    (root ? nodePath.join(root, 'runtime', 'cli.js') : undefined) ||
+    bundledPluginCli(import.meta.dirname)
+  );
+}
+
+/** The running plugin's CLI, when it exists. */
+function pluginCli(environment: NodeJS.ProcessEnv): string | undefined {
+  const path = configuredPluginCli(environment);
+  return path !== undefined && existsSync(path) ? path : undefined;
 }
 
 function pinnedBunx(projectDirectory: string, cwd: string): SafewordCli[] {
@@ -132,11 +145,10 @@ function currentRuntime(environment: NodeJS.ProcessEnv): TrustedRuntime {
 /** A script run by the trusted runtime from its own real directory, unless project code could edit it. */
 function trustedScript(
   projectDirectory: string,
-  script: string | undefined,
+  script: string,
   runtimePath: string,
   isBun: boolean,
 ): SafewordCli | undefined {
-  if (script === undefined) return undefined;
   let real: string;
   try {
     real = realpathSync(script);
@@ -152,8 +164,8 @@ function trustedScript(
 }
 
 /**
- * CLIs a trust check may run. When the running plugin's CLI is known it is the
- * only answer; the Codex cache and published package serve hosts without one.
+ * CLIs a trust check may run. When a plugin is running, its own CLI is the only
+ * possible answer; the Codex cache and published package serve hosts without one.
  * Nothing project files can change gets to answer:
  * - the runtime is the absolute binary already running this hook, outside the
  *   project (a PATH lookup could find a project-owned `bun` or `bunx` shim);
@@ -176,12 +188,15 @@ export function trustedSafewordClis(
   }
   if (isInside(projectDirectory, runtimePath)) return [];
 
-  const plugin = pluginCli(environment);
-  const trustedPlugin = trustedScript(projectDirectory, plugin, runtimePath, runtime.isBun);
-  // The running plugin is the build this session answers to. Another build that
+  // A running plugin is the build this session answers to. Another build that
   // merely carries the same version string (a Codex cache, the published package)
-  // can fingerprint differently and call every approved receipt stale (#7501).
-  if (trustedPlugin !== undefined) return [trustedPlugin];
+  // can fingerprint differently and call every approved receipt stale, so a
+  // plugin CLI that is missing or project-writable answers nothing (#7501).
+  const plugin = configuredPluginCli(environment);
+  if (plugin !== undefined) {
+    const trustedPlugin = trustedScript(projectDirectory, plugin, runtimePath, runtime.isBun);
+    return trustedPlugin === undefined ? [] : [trustedPlugin];
+  }
 
   const version = pinnedSafewordVersion(projectDirectory);
   const codexHome = environment.CODEX_HOME || nodePath.join(homedir(), '.codex');

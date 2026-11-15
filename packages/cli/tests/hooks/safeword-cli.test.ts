@@ -154,13 +154,31 @@ console.log(JSON.stringify(clis.map(cli => cli.args.at(-1))));`,
     });
   });
 
+  // A configured plugin that cannot be trusted fails closed: falling back would
+  // ask another build that shares only the version string (#7501).
   it('refuses a plugin path inside the project, which project code could edit', () => {
     const root = project();
     const inside = write(root, 'evil/runtime/cli.js');
 
+    expect(trustedSafewordClis(root, { SAFEWORD_PLUGIN_CLI: inside }, runtime())).toEqual([]);
+  });
+
+  it('answers nothing when the configured plugin CLI is missing', () => {
+    const root = project();
+    const codexHome = scratchDirectory();
+    write(codexHome, 'plugins/cache/safeword/safeword/1.2.3/runtime/cli.js');
+    const missing = nodePath.join(scratchDirectory(), 'runtime/cli.js');
+
     expect(
-      trustedSafewordClis(root, { SAFEWORD_PLUGIN_CLI: inside }, runtime()).map(cli => cli.args[0]),
-    ).toEqual(['x']);
+      trustedSafewordClis(root, { SAFEWORD_PLUGIN_CLI: missing, CODEX_HOME: codexHome }, runtime()),
+    ).toEqual([]);
+    expect(
+      trustedSafewordClis(
+        root,
+        { CLAUDE_PLUGIN_ROOT: scratchDirectory(), CODEX_HOME: codexHome },
+        runtime(),
+      ),
+    ).toEqual([]);
   });
 
   it("runs a symlinked plugin CLI from its real directory, not the link's", () => {

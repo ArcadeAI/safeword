@@ -272,6 +272,51 @@ console.log(JSON.stringify({ state: 'healthy', data: {
     },
   );
 
+  // Issue #7501: a configured plugin whose CLI is gone must not hand the planning
+  // check to another build (a Codex cache with the same version), nor skip it.
+  it('fails closed when the configured plugin CLI is missing', { timeout: 90_000 }, () => {
+    const installed = fixture();
+    const version = readFileSync(
+      nodePath.join(installed.project, '.safeword/version'),
+      'utf8',
+    ).trim();
+    const cacheHome = nodePath.join(installed.root, 'owned-cache');
+    const versionRoot = nodePath.join(cacheHome, 'plugins/cache/safeword/safeword', version);
+    mkdirSync(nodePath.dirname(versionRoot), { recursive: true });
+    symlinkSync(installed.distribution, versionRoot, 'dir');
+    const environment: NodeJS.ProcessEnv = {
+      ...installed.environment,
+      CODEX_HOME: cacheHome,
+      SAFEWORD_PLUGIN_CLI: nodePath.join(installed.root, 'gone/runtime/cli.js'),
+    };
+    delete environment.SAFEWORD_AGENT_RUNTIME;
+    delete environment.CLAUDE_PLUGIN_ROOT;
+
+    const checked = spawnSync(
+      'bun',
+      [nodePath.join(installed.project, '.safeword/hooks/pre-tool-quality.ts')],
+      {
+        cwd: installed.project,
+        encoding: 'utf8',
+        timeout: 15_000,
+        env: environment,
+        input: JSON.stringify({
+          session_id: 'missing-plugin-cli',
+          tool_name: 'Edit',
+          tool_input: {
+            file_path: installed.ticketPath,
+            old_string: 'phase: plan-implementation',
+            new_string: 'phase: plan-execution',
+          },
+        }),
+      },
+    );
+
+    expect(checked.status, `${checked.stdout}\n${checked.stderr}`).toBe(0);
+    expect(JSON.parse(checked.stdout).hookSpecificOutput.permissionDecision).toBe('deny');
+    expect(checked.stdout).toContain('could not validate its trusted planning contract checker');
+  });
+
   it.each([
     { state: 'canonical', permission: 'allow' },
     { state: 'comment drift', permission: 'deny' },

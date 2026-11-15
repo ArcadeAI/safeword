@@ -18,7 +18,7 @@ import { detectInspirationArtifactWrite, detectLedgerWrite } from './lib/bash-le
 import { retrospectiveGateDenial } from './lib/retrospective-gate.ts';
 import {
   askTrustedSafeword,
-  projectWritablePluginCli,
+  configuredPluginCli,
   trustedEnvironment,
   trustedSafewordClis,
 } from './lib/safeword-cli.ts';
@@ -301,9 +301,11 @@ function receiptGateVerdict(
 
 function assertPlanningContractCopy(ticket: string, phase: string): void {
   const candidates = trustedSafewordClis(projectDirectory);
+  // Skip only when no Safeword CLI is installed at all. A configured plugin whose
+  // CLI is missing or project-writable leaves no candidates too, but must fail closed.
   if (
     process.env.SAFEWORD_AGENT_RUNTIME !== 'cursor' &&
-    projectWritablePluginCli(projectDirectory) === undefined &&
+    configuredPluginCli() === undefined &&
     candidates.length === 0
   )
     return;
