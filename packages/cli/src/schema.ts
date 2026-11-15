@@ -335,10 +335,9 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
 /**
  * Runtime/transient state files safeword's hooks write to the working tree
  * every turn (update-cache plus the namespace-root state above). They must be
- * gitignored — and untracked on upgrade if a customer committed them before the
- * ignore rule existed — because the hooks read/write these paths directly, so
- * git tracking is never consulted. Single source for the repo-root managed
- * `.gitignore` block (below) and the upgrade-time untrack.
+ * gitignored because the hooks read/write these paths directly, so git
+ * tracking is never consulted. Feeds the repo-root managed `.gitignore` block
+ * (`GITIGNORE_BLOCK_PATHS`, below).
  *
  * Both well-known namespace roots are listed: hooks write transient state under
  * the resolved root (TAGWZ8), which is `.project/` on fresh installs and
@@ -365,6 +364,14 @@ export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
     NAMESPACE_TRANSIENT_BASENAMES.map(name => `${root}/${name}`),
   ),
 ];
+
+/**
+ * Lines of the repo-root managed `.gitignore` block. `node_modules/` rides here
+ * so a fresh project's `git add -A` never commits dependencies (#6764). It is
+ * not Safeword state, so it stays out of `SAFEWORD_TRANSIENT_PATHS` — that list
+ * also decides which `.safeword/` entries prove no install ran.
+ */
+const GITIGNORE_BLOCK_PATHS: readonly string[] = ['node_modules/', ...SAFEWORD_TRANSIENT_PATHS];
 
 /**
  * Top-level `.safeword/` entries that carry no proof a project install ever ran.
@@ -1543,10 +1550,14 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.husky/pre-push': boundaryShimPatch('push'),
     '.gitignore': {
       operation: 'append',
-      content: `\n# Safeword - Local cache and transient state\n${SAFEWORD_TRANSIENT_PATHS.join('\n')}\n`,
+      content: `\n# Safeword - Local cache and transient state\n${GITIGNORE_BLOCK_PATHS.join('\n')}\n`,
       // A stable header plus rerender heals the block whenever the transient
       // path list grows and lets uninstall recognize older variants.
       rerender: true,
+      // Recognizes only Safeword's own paths, never `node_modules/`: an older,
+      // shorter block can be followed by a customer's `node_modules/` rule,
+      // and the pattern must not absorb it. A current block's `node_modules/`
+      // line is still claimed by the exact in-order match.
       // eslint-disable-next-line security/detect-non-literal-regexp -- derived only from the source-controlled constant above
       rerenderOwnedLinePattern: new RegExp(
         `^(?:${SAFEWORD_TRANSIENT_PATHS.map(path =>
