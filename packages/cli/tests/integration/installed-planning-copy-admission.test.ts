@@ -1,10 +1,13 @@
 import { spawnSync } from 'node:child_process';
 import {
+  copyFileSync,
   cpSync,
   existsSync,
+  linkSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -22,6 +25,11 @@ import {
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '../..');
 const roots: string[] = [];
+
+/** The Bun binary on PATH, which runs the installed hooks. */
+function bunBinary(): string {
+  return spawnSync('which', ['bun'], { encoding: 'utf8' }).stdout.trim();
+}
 const folder = 'CPY123-canonical-planning';
 const plan =
   '# Impl Plan\n\n**Status:** planned\n\n## Approach\n\nPreserve accepted behavior through one implementation.\n\n## Decisions\n\nKeep the existing authority boundary.\n\n## Design alignment\n\nskip: no configured project principles\n\n## Known deviations\n\nskip: none\n\n## Doc impact\n\nskip: fixture has no customer documentation change\n\n## Assessment triggers\n\nRevisit if the authority boundary changes.\n';
@@ -302,6 +310,47 @@ console.log(JSON.stringify({ state: 'healthy', data: {
         env: environment,
         input: JSON.stringify({
           session_id: 'missing-plugin-cli',
+          tool_name: 'Edit',
+          tool_input: {
+            file_path: installed.ticketPath,
+            old_string: 'phase: plan-implementation',
+            new_string: 'phase: plan-execution',
+          },
+        }),
+      },
+    );
+
+    expect(checked.status, `${checked.stdout}\n${checked.stderr}`).toBe(0);
+    expect(JSON.parse(checked.stdout).hookSpecificOutput.permissionDecision).toBe('deny');
+    expect(checked.stdout).toContain('could not validate its trusted planning contract checker');
+  });
+
+  // Issue #7501: an installed project whose only runtime is project-writable has
+  // no trusted checker; that is a refusal to fail closed on, not an absent install.
+  it('fails closed when the only runtime is project-writable', { timeout: 90_000 }, () => {
+    const installed = fixture();
+    const projectBun = nodePath.join(installed.project, 'bin/bun');
+    mkdirSync(nodePath.dirname(projectBun), { recursive: true });
+    try {
+      linkSync(realpathSync(bunBinary()), projectBun);
+    } catch {
+      copyFileSync(realpathSync(bunBinary()), projectBun);
+    }
+    const environment: NodeJS.ProcessEnv = { ...installed.environment };
+    delete environment.SAFEWORD_AGENT_RUNTIME;
+    delete environment.SAFEWORD_PLUGIN_CLI;
+    delete environment.CLAUDE_PLUGIN_ROOT;
+
+    const checked = spawnSync(
+      projectBun,
+      [nodePath.join(installed.project, '.safeword/hooks/pre-tool-quality.ts')],
+      {
+        cwd: installed.project,
+        encoding: 'utf8',
+        timeout: 15_000,
+        env: environment,
+        input: JSON.stringify({
+          session_id: 'project-writable-runtime',
           tool_name: 'Edit',
           tool_input: {
             file_path: installed.ticketPath,
