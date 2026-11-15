@@ -82,9 +82,9 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/post-tool-lint.ts':
         'b469fbb75df70e9493fd5c5e117ef9ab0d129bf10fed3045c57f09eefb259d47',
       '.safeword/hooks/post-tool-quality.ts':
-        '198c86f62c6cff803d15ae9fc50c41c708b76f74220276f8a100340aa177273e',
+        '93a1be1221799d35af5bad592b772defc220399945431fc638941f704b3b1120',
       '.safeword/hooks/post-tool-skill-nudge.ts':
-        'a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4',
+        'd71158796facccdd5cbf7b64f460b36ebef0b92c41ee3a2f2a09625483e7af39',
       '.safeword/hooks/post-tool-sync-learnings.ts':
         'de5f52c221b2f029841beded78d65af80217949072a99c2790d503f492528290',
       '.safeword/hooks/post-tool-work-log.ts':
@@ -102,7 +102,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/pre-tool-stale-main.ts':
         'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
       '.safeword/hooks/prompt-questions.ts':
-        '9ab95529d1c7ca2ffc1a1303c4f08dc55e35e1e49bd951ca917dfbdf13a95a39',
+        'ac2f53a7c2e87cb4517b7a4c9d965bacdd262828aa28474d0441dc2edafc215d',
       '.safeword/hooks/prompt-retro-nudge.ts':
         '78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457',
       '.safeword/hooks/prompt-timestamp.ts':
@@ -114,9 +114,9 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/session-bun-check.sh':
         '47e97a2f787228347213521d8391ab6b001e19270aed8e2795f13d6ea0603c29',
       '.safeword/hooks/session-cleanup-quality.ts':
-        'b43a169e86d240ecc12ece40d5375a84c59db6dc9708c91849a55038144736a2',
+        'f86fa64073a8c1fd6c34be118d188f14bb5faa3c1ccf4811de7a53c0a5c805d2',
       '.safeword/hooks/session-compact-context.ts':
-        '4810e508b3ef79e162c6e74e169e24f8eb7ae7980549ba3f53e640424ae10773',
+        '9b5276e301d827172bc25bb19e72a52de36eab53b49e7b9bf9385e407e0f851b',
       '.safeword/hooks/session-dependency-readiness.ts':
         '295d14c5a3d8112b01259cf89ce718144a568e62e0baf5aaa19eca3fcfdc50ff',
       '.safeword/hooks/session-lint-check.ts':
@@ -130,7 +130,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/session-version.ts':
         'c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64',
       '.safeword/hooks/stop-quality.ts':
-        '8081f7d919d1432e519007ebbd658a3a9fb32e12266bc176604886b7cec1d163',
+        'fec90825342c80ecffa485e683267939e1ca85a38013be2cfd567372e8390b3b',
       '.safeword/hooks/stop-reentry.ts':
         'a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5',
       '.safeword/hooks/stop-retro-filing.ts':
@@ -138,7 +138,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/stop-retro.ts':
         'ecdb55e277a4188e5daf1c9a9de3f5e28bed724a14064e374eb4db10a9d0921e',
       '.safeword/hooks/stop-self-report.ts':
-        'baf9f946918f74d2ec2916024c6a5e9818b5468a45ac177bbdb73443f66399e0',
+        '52817f62bf1873883933568fcf29e98be59069d838216db371bf9a5ce4ee5fad',
     },
     hooks: {
       SessionStart: [

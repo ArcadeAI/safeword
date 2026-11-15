@@ -3452,8 +3452,8 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/post-tool-bypass-warn.ts": "f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a",
         ".safeword/hooks/post-tool-dependency-readiness.ts": "6418539671ace93e5df04b4ee4d74b9f28b241ec81bbcf2588017702d3b092f6",
         ".safeword/hooks/post-tool-lint.ts": "b469fbb75df70e9493fd5c5e117ef9ab0d129bf10fed3045c57f09eefb259d47",
-        ".safeword/hooks/post-tool-quality.ts": "198c86f62c6cff803d15ae9fc50c41c708b76f74220276f8a100340aa177273e",
-        ".safeword/hooks/post-tool-skill-nudge.ts": "a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4",
+        ".safeword/hooks/post-tool-quality.ts": "93a1be1221799d35af5bad592b772defc220399945431fc638941f704b3b1120",
+        ".safeword/hooks/post-tool-skill-nudge.ts": "d71158796facccdd5cbf7b64f460b36ebef0b92c41ee3a2f2a09625483e7af39",
         ".safeword/hooks/post-tool-sync-learnings.ts": "de5f52c221b2f029841beded78d65af80217949072a99c2790d503f492528290",
         ".safeword/hooks/post-tool-work-log.ts": "8792eb3a44bc5766da80c9155690fbe3e79c67eb1d383580638c55d53e7d80c1",
         ".safeword/hooks/pre-tool-architecture-stage.ts": "e57bfeb13ccb403159fc8b115122937eaf3d9ca808f2ec6c8c39632fb3a4d679",
@@ -3462,25 +3462,25 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
         ".safeword/hooks/pre-tool-quality.ts": "679844e330d3c4121a6ff90a19ede2cba942acc2676dbdeefdd88070953f8b88",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
-        ".safeword/hooks/prompt-questions.ts": "9ab95529d1c7ca2ffc1a1303c4f08dc55e35e1e49bd951ca917dfbdf13a95a39",
+        ".safeword/hooks/prompt-questions.ts": "ac2f53a7c2e87cb4517b7a4c9d965bacdd262828aa28474d0441dc2edafc215d",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
         ".safeword/hooks/prompt-timestamp.ts": "d7939e98528717fed556adf65dcb9fd3c24fac530ba76be2db9c5faebbac27f3",
         ".safeword/hooks/session-architecture-heal.ts": "142c5a5358d57c9a587019f6e37fe84ed604638d1963e1c28eea12db2a8439f3",
         ".safeword/hooks/session-auto-upgrade.ts": "51cb48954d5b6154d1b4f831f9689fc5044cc8abf6aa9eb664fcddbf6fa859c0",
         ".safeword/hooks/session-bun-check.sh": "47e97a2f787228347213521d8391ab6b001e19270aed8e2795f13d6ea0603c29",
-        ".safeword/hooks/session-cleanup-quality.ts": "b43a169e86d240ecc12ece40d5375a84c59db6dc9708c91849a55038144736a2",
-        ".safeword/hooks/session-compact-context.ts": "4810e508b3ef79e162c6e74e169e24f8eb7ae7980549ba3f53e640424ae10773",
+        ".safeword/hooks/session-cleanup-quality.ts": "f86fa64073a8c1fd6c34be118d188f14bb5faa3c1ccf4811de7a53c0a5c805d2",
+        ".safeword/hooks/session-compact-context.ts": "9b5276e301d827172bc25bb19e72a52de36eab53b49e7b9bf9385e407e0f851b",
         ".safeword/hooks/session-dependency-readiness.ts": "295d14c5a3d8112b01259cf89ce718144a568e62e0baf5aaa19eca3fcfdc50ff",
         ".safeword/hooks/session-lint-check.ts": "6d8e5819bd52208799089d19bfdbd569fc46b9d518df4c45ab2c3b605d9647dc",
         ".safeword/hooks/session-reply-format.ts": "41f7578e93188d5efacdd9ecbf29f72753a6fe98bca71fe321c61f547aeb8532",
         ".safeword/hooks/session-safeword-context.ts": "0c54231000694c482d4b2c92fa1bf55f4c6211910c310f2d29836cdb61719937",
         ".safeword/hooks/session-start-reentry.ts": "b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d",
         ".safeword/hooks/session-version.ts": "c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64",
-        ".safeword/hooks/stop-quality.ts": "8081f7d919d1432e519007ebbd658a3a9fb32e12266bc176604886b7cec1d163",
+        ".safeword/hooks/stop-quality.ts": "fec90825342c80ecffa485e683267939e1ca85a38013be2cfd567372e8390b3b",
         ".safeword/hooks/stop-reentry.ts": "a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5",
         ".safeword/hooks/stop-retro-filing.ts": "ae5693347a530547701c7fd9efd9d76ee4f690cd235b7e28b409d59d6090417d",
         ".safeword/hooks/stop-retro.ts": "ecdb55e277a4188e5daf1c9a9de3f5e28bed724a14064e374eb4db10a9d0921e",
-        ".safeword/hooks/stop-self-report.ts": "baf9f946918f74d2ec2916024c6a5e9818b5468a45ac177bbdb73443f66399e0"
+        ".safeword/hooks/stop-self-report.ts": "52817f62bf1873883933568fcf29e98be59069d838216db371bf9a5ce4ee5fad"
       },
       hooks: {
         SessionStart: [
@@ -83480,11 +83480,10 @@ var init_retrospective_gate2 = __esm(() => {
   init_safeword_cli();
 });
 // templates/hooks/lib/test-runner.ts
-var BDD_TEST_TIMEOUT_MS, projectDir;
+var BDD_TEST_TIMEOUT_MS;
 var init_test_runner = __esm(() => {
   init_safeword_cli();
   BDD_TEST_TIMEOUT_MS = 20 * 60000;
-  projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 });
 
 // templates/hooks/lib/done-gate.ts
