@@ -202,3 +202,15 @@ including large values, and verify no pass-count cap prevents fresh review.
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
+
+## Local persistence evidence
+
+This records the first local producer/consumer substep, not completion of the
+multi-host recovery outline. All full-scenario checkboxes above remain unchecked.
+
+| Step | Evidence | Limit |
+| --- | --- | --- |
+| RED | 3fb417805; current cross-agent Claude receipt 4000a6bb-7f86-4680-8f75-e51253c82b00 | Intended missing durable pending disposition through the real CLI; simulated reviewer process |
+| GREEN | 032f5525b; 80/80 tests in the four targeted suites; typecheck and focused lint pass | Legacy no-input persistence only; explicit routing, broader key checks and admission proof remain outstanding |
+| Refactoring assessment | Reused the existing atomic writer and identity owner; additional extraction skipped after lint cleanup | No full-feature refactor completion claimed |
+| Native checkpoint | Missing; execution Task 3 remains required before Tasks 4–8 or the prescribed design reassessment | Main-based isolated plugin has not been overwritten with feature code; no native/cloud or NTB proof supplied |

@@ -1,0 +1,42 @@
+{
+  "red_commit": "3fb417805",
+  "green_commit": "032f5525b",
+  "red_review_id": "4000a6bb-7f86-4680-8f75-e51253c82b00",
+  "red_independence": "cross-agent",
+  "targeted_tests": {
+    "suites_passed": 4,
+    "suites_total": 4,
+    "tests_passed": 80,
+    "tests_total": 80,
+    "duration_seconds": 72.84
+  },
+  "sandbox_regression_attempt": {
+    "tests_failed": 32,
+    "tests_passed": 48,
+    "failure": "home-cache reviewer-fixture EPERM; not product failure proof"
+  },
+  "typecheck": "passed",
+  "focused_lint": "passed",
+  "logs": [
+    {
+      "path": "/tmp/26fk42-first-green.log",
+      "sha256": "02e78be5644e808621ac3a80c19f02e6eaa243710598e2a3dbfee02ff1d1de77"
+    },
+    {
+      "path": "/tmp/26fk42-first-green-regressions.log",
+      "sha256": "530e32ef72f2a5cd8f2dbcacc302fffb6960e5946fa5297d91b41d6b01efdfc3"
+    },
+    {
+      "path": "/tmp/26fk42-first-green-regressions-native.log",
+      "sha256": "70437e215d6d6fdd5644e4c897c4b30b448824074530b9dde36c4ec552dd163a"
+    }
+  ],
+  "full_scenario_completion": false,
+  "native_handoff": "missing; do not begin Tasks 4\u20138 without native checkpoint or required design reassessment",
+  "remaining_warnings": [
+    "Legacy decline proof does not prove explicit dispute-class/evidence routing.",
+    "Key assertion checks exact fixture-key text only in ticket and plan.",
+    "Review status and absent design_approval do not establish plan admission safety.",
+    "No native-local, reclaimed-cloud or NTB evidence."
+  ]
+}
