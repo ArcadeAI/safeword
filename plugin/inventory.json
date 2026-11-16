@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "bcab6dad07c8ae969143a331e80de9cd6dcfd1f4d70c7e32d974043dba2e175b"
+      "sha256": "53d09226f9c5f9f5d435a12deaa6d7fbee4b9ece3c93771e0ee7a0e0b2061840"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "86accf04ee3b7f0ecb2a883c4afe6be0353169d93cea463292328dafd7ffe3f3"
+      "sha256": "a93bda55db8feac54de3e78832afea5877aee1bbda634962da5dbb7d52d7d94d"
     },
     {
       "path": "runtime/event-groups.json",
@@ -211,7 +211,7 @@
     },
     {
       "path": "runtime/hooks/lib/checkbox-transitions.ts",
-      "sha256": "60f4ec6b1d19d96b9969e436963b5d79ef5d282783ceb4d117e236ab16f73a84"
+      "sha256": "b9e4ae4b080289b2423db34488dc388646033abd3085657cad4500622bc95cdb"
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
@@ -283,7 +283,7 @@
     },
     {
       "path": "runtime/hooks/lib/ledger-git.ts",
-      "sha256": "c09cedbf74875a3f4aaf08bda560313716edbb14ab2e1b1889f1f9bf1d9bd976"
+      "sha256": "3c6d0b2da576ad39b30071477f45c19d5885ad237e1c73163db0f0e3149d1808"
     },
     {
       "path": "runtime/hooks/lib/ledger-validation.ts",
@@ -527,7 +527,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "19c327fe72a0369973ad8c40543ad517726f3a40767529705e4056a69c247a05"
+      "sha256": "2ffce9205b9cab0c627b019bef42c4c4f1203fa6920d7402f5c2e50465e0a2c7"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -1211,7 +1211,7 @@
     },
     {
       "path": "templates/hooks/lib/checkbox-transitions.ts",
-      "sha256": "60f4ec6b1d19d96b9969e436963b5d79ef5d282783ceb4d117e236ab16f73a84"
+      "sha256": "b9e4ae4b080289b2423db34488dc388646033abd3085657cad4500622bc95cdb"
     },
     {
       "path": "templates/hooks/lib/closeout-binding.ts",
@@ -1283,7 +1283,7 @@
     },
     {
       "path": "templates/hooks/lib/ledger-git.ts",
-      "sha256": "c09cedbf74875a3f4aaf08bda560313716edbb14ab2e1b1889f1f9bf1d9bd976"
+      "sha256": "3c6d0b2da576ad39b30071477f45c19d5885ad237e1c73163db0f0e3149d1808"
     },
     {
       "path": "templates/hooks/lib/ledger-validation.ts",
@@ -1523,7 +1523,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "679844e330d3c4121a6ff90a19ede2cba942acc2676dbdeefdd88070953f8b88"
+      "sha256": "0143981d3659fd2e17105f6dfef037e401f1bfa08a6161395c4ccc0b0535039c"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",

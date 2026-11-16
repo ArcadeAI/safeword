@@ -22,6 +22,8 @@ export interface CheckboxTransition {
   evidenceMode?: 'live' | 'manual';
   evidenceModeChanged?: boolean;
   historicalEvidenceRemoved?: boolean;
+  /** Annotation of the historical row that was removed or rewritten. */
+  priorAnnotation?: string;
   editReconstructionFailed?: boolean;
   retrospective?: RetrospectiveAnnotation;
 }
@@ -176,6 +178,7 @@ function findTransitions(
   const transitions: CheckboxTransition[] = [];
 
   const preservedHistoricalRows = new Set<number>();
+  const removedHistoricalRows: CheckboxState[] = [];
   // cross-scenario is validated as supporting evidence, but it is not a TDD
   // phase transition and therefore is not immutable completion credit here.
   for (const oldState of oldStates.filter(
@@ -193,14 +196,28 @@ function findTransitions(
         sameEvidenceBinding(oldState, newState),
     );
     if (preservedIndex >= 0) preservedHistoricalRows.add(preservedIndex);
-    else {
-      transitions.push({
-        step: oldState.step,
-        annotation: '',
-        scenario: oldState.scenario,
-        historicalEvidenceRemoved: true,
-      });
-    }
+    else removedHistoricalRows.push(oldState);
+  }
+  // Pair each removed historical row with an in-place rewrite (same step and
+  // binding, still checked) so the gate can tell a corrected annotation from a
+  // deletion. Pairing runs after preservation so a swap cannot steal a row.
+  for (const oldState of removedHistoricalRows) {
+    const replacementIndex = newStates.findIndex(
+      (newState, index) =>
+        !preservedHistoricalRows.has(index) &&
+        newState.step === oldState.step &&
+        newState.checked &&
+        newState.annotation !== '' &&
+        sameEvidenceBinding(oldState, newState),
+    );
+    if (replacementIndex >= 0) preservedHistoricalRows.add(replacementIndex);
+    transitions.push({
+      step: oldState.step,
+      annotation: replacementIndex >= 0 ? (newStates[replacementIndex]?.annotation ?? '') : '',
+      scenario: oldState.scenario,
+      historicalEvidenceRemoved: true,
+      priorAnnotation: oldState.annotation,
+    });
   }
 
   const consumeOld = (
@@ -276,6 +293,7 @@ function findTransitions(
       evidenceMode,
       evidenceModeChanged,
       historicalEvidenceRemoved,
+      priorAnnotation,
       retrospective,
     }) => ({
       step,
@@ -287,6 +305,7 @@ function findTransitions(
       evidenceMode,
       evidenceModeChanged,
       historicalEvidenceRemoved,
+      ...(priorAnnotation !== undefined && { priorAnnotation }),
       ...(retrospective !== undefined && { retrospective }),
     }),
   );
