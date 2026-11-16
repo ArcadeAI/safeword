@@ -66,8 +66,10 @@ dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\
  * current-user-owned directory so tests exercise the real trust policy instead
  * of bypassing it. Rejection tests should continue to use ordinary temp roots.
  */
-export function createTrustedReviewerDirectory(prefix: string): string {
-  const root = nodePath.join(homedir(), '.cache', 'safeword-test-reviewers');
+export function createTrustedReviewerDirectory(
+  prefix: string,
+  root = nodePath.join(homedir(), '.cache', 'safeword-test-reviewers'),
+): string {
   mkdirSync(root, { recursive: true, mode: 0o700 });
   chmodSync(root, 0o700);
   const directory = mkdtempSync(nodePath.join(root, prefix));
