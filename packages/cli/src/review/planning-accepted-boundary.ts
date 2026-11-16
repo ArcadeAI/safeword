@@ -6,6 +6,67 @@ import {
 } from '../utils/product-plan-contract.js';
 import { parseTicketMetadata } from '../utils/ticket-metadata.js';
 
+export interface PendingReviewDecision {
+  readonly version: 2;
+  readonly ticket_id: string;
+  readonly review_id: string;
+  readonly review_kind: string;
+  readonly finding_number: number;
+  readonly finding_fingerprint: string;
+  readonly finding_severity: 'info' | 'warning';
+  readonly finding_message: string;
+  readonly origin_agent: string;
+  readonly plan_digest: string;
+  readonly accepted_boundary_digest: string;
+  readonly disposition: 'pending-user-decision';
+  readonly dispute_class: 'scope';
+  readonly reason: string;
+  readonly evidence: string;
+  readonly question: string;
+  readonly action: string;
+}
+
+function hasPendingIdentity(value: Record<string, unknown>): boolean {
+  const digests = ['finding_fingerprint', 'plan_digest', 'accepted_boundary_digest'];
+  return (
+    ['quality-review', 'plan-implementation', 'plan-execution'].includes(
+      String(value.review_kind),
+    ) &&
+    ['claude', 'codex', 'cursor', 'opencode'].includes(String(value.origin_agent)) &&
+    ['info', 'warning'].includes(String(value.finding_severity)) &&
+    typeof value.finding_number === 'number' &&
+    Number.isSafeInteger(value.finding_number) &&
+    value.finding_number > 0 &&
+    digests.every(field => typeof value[field] === 'string' && /^[a-f\d]{64}$/u.test(value[field]))
+  );
+}
+
+/** Pending questions are portable bookkeeping, never approval or a user decision. */
+export function isPendingReviewDecision(value: unknown): value is PendingReviewDecision {
+  if (!isRecord(value)) return false;
+  const textFields = [
+    'ticket_id',
+    'review_id',
+    'finding_message',
+    'reason',
+    'evidence',
+    'question',
+    'action',
+  ];
+  return (
+    value.version === 2 &&
+    value.disposition === 'pending-user-decision' &&
+    value.dispute_class === 'scope' &&
+    hasPendingIdentity(value) &&
+    textFields.every(field => typeof value[field] === 'string' && value[field].trim() !== '') &&
+    value.finding_fingerprint ===
+      reviewDispositionFindingFingerprint(
+        value.finding_severity as 'info' | 'warning',
+        value.finding_message as string,
+      )
+  );
+}
+
 export interface ReviewDispositionContext {
   readonly schema_version: 1;
   readonly current_boundary_digest: string;
@@ -106,8 +167,10 @@ export function reviewDispositionContext(
   const dispositions = metadata.review_dispositions;
   if (dispositions === undefined) return undefined;
   if (!Array.isArray(dispositions)) throw new Error('The ticket review dispositions are invalid.');
+  const declines = dispositions.filter(value => !isPendingReviewDecision(value));
+  if (declines.length === 0) return undefined;
   const current = acceptedBoundaryDigest(ticketContent, productSpec);
-  const records = dispositions
+  const records = declines
     // eslint-disable-next-line complexity -- Validate every persisted authority field before exposing a decline.
     .map((value): ReviewDispositionContext['records'][number] => {
       if (

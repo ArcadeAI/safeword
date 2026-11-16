@@ -18,6 +18,7 @@ import {
   type PlanEvidenceRecordV1,
 } from './evidence-record.js';
 import { ReviewPacketError } from './packet-error.js';
+import { isPendingReviewDecision } from './planning-accepted-boundary.js';
 import { PlanningContextError } from './planning-context-error.js';
 import type { PlanningReviewIdentity } from './planning-role-context.js';
 import { scenarioReviewRubric } from './review-rubric.js';
@@ -236,6 +237,7 @@ export function semanticTicketIdentity(content: string, reviewKind?: string): st
   if (reviewKind !== undefined && Array.isArray(metadata.review_dispositions)) {
     const matching = metadata.review_dispositions.filter(
       value =>
+        !isPendingReviewDecision(value) &&
         value !== null &&
         typeof value === 'object' &&
         !Array.isArray(value) &&

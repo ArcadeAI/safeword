@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
@@ -12,6 +12,8 @@ import { reviewJobStatus, withFileLock } from '../review/job.js';
 import { toReviewPath } from '../review/packet.js';
 import {
   acceptedBoundaryDigest,
+  isPendingReviewDecision,
+  type PendingReviewDecision,
   reviewDispositionFindingFingerprint,
 } from '../review/planning-accepted-boundary.js';
 import { resolveTicketDirectory } from '../utils/product-plan-contract.js';
@@ -42,6 +44,7 @@ function pending(
   request: RecordReviewDispositionRequest,
   kind: PlanningReviewKind,
   finding: Finding,
+  decision?: PendingReviewDecision,
 ): CliResult {
   return createResult({
     state: 'action_required',
@@ -60,6 +63,11 @@ function pending(
       review_kind: kind,
       finding: finding.message,
       reason: request.reason,
+      ...(decision !== undefined && {
+        disposition: decision.disposition,
+        question: decision.question,
+        action: decision.action,
+      }),
     },
   });
 }
@@ -79,7 +87,7 @@ function addDisposition(
   request: RecordReviewDispositionRequest,
   kind: PlanningReviewKind,
   finding: Finding,
-  boundaryDigest: string,
+  boundary: { readonly digest: string; readonly decision?: PendingReviewDecision },
 ): string {
   const match = /^(---\r?\n)([\s\S]*?)(\r?\n---(?:\r?\n|$))/u.exec(content);
   if (match === null) throw new Error('The ticket has no valid frontmatter.');
@@ -93,14 +101,14 @@ function addDisposition(
   const records = Array.isArray(existing) ? existing : [];
   document.set('review_dispositions', [
     ...records,
-    {
+    boundary.decision ?? {
       version: 1,
       review_id: request.reviewId,
       review_kind: kind,
       finding_fingerprint: reviewDispositionFindingFingerprint(finding.severity, finding.message),
       finding_severity: finding.severity,
       finding_message: finding.message,
-      accepted_boundary_digest: boundaryDigest,
+      accepted_boundary_digest: boundary.digest,
       disposition: 'declined',
       reason: request.reason,
     },
@@ -173,6 +181,7 @@ function writeDisposition(
   finding: Finding,
   before: string,
   boundaryDigest: string,
+  decision?: PendingReviewDecision,
 ): CliResult {
   const lockPath = `${ticketPath}.review-disposition.lock`;
   try {
@@ -194,7 +203,10 @@ function writeDisposition(
           ],
           data: { command, status: 'pending', review_id: request.reviewId },
         });
-      const next = addDisposition(before, request, kind, finding, boundaryDigest);
+      const next = addDisposition(before, request, kind, finding, {
+        digest: boundaryDigest,
+        decision,
+      });
       const temporary = `${ticketPath}.${randomUUID()}.tmp`;
       try {
         writeFileSync(temporary, next, { flag: 'wx', mode: statSync(ticketPath).mode & 0o777 });
@@ -202,8 +214,10 @@ function writeDisposition(
       } finally {
         if (existsSync(temporary)) unlinkSync(temporary);
       }
+      const result = decision === undefined ? undefined : pending(request, kind, finding, decision);
       return createResult({
-        state: 'changed',
+        ...result,
+        state: decision === undefined ? 'changed' : 'action_required',
         changed: true,
         effects: {
           files: [
@@ -214,7 +228,7 @@ function writeDisposition(
             },
           ],
         },
-        data: {
+        data: result?.data ?? {
           command,
           status: 'recorded',
           ticket_id: request.ticketId,
@@ -227,6 +241,115 @@ function writeDisposition(
     return writeUnavailable(
       `The ticket or lock could not be updated atomically: ${reason}. Check the ticket before retrying.`,
     );
+  }
+}
+
+function savedPendingDecision(
+  content: string,
+  request: RecordReviewDispositionRequest,
+): PendingReviewDecision | undefined {
+  const { metadata } = parseTicketMetadata(content);
+  if (!Array.isArray(metadata.review_dispositions)) return undefined;
+  const records: unknown[] = metadata.review_dispositions;
+  const index = records.findLastIndex(
+    value =>
+      isPendingReviewDecision(value) &&
+      value.ticket_id === request.ticketId &&
+      value.review_id === request.reviewId &&
+      value.finding_number === Number(request.findingNumber),
+  );
+  const record = records[index];
+  if (!isPendingReviewDecision(record)) return undefined;
+  const declined = records
+    .slice(index + 1)
+    .some(
+      value =>
+        isRecord(value) &&
+        value.version === 1 &&
+        value.disposition === 'declined' &&
+        value.review_id === record.review_id &&
+        value.finding_fingerprint === record.finding_fingerprint,
+    );
+  return declined ? undefined : record;
+}
+
+// This first persistence slice covers legacy declines in the two planning phases.
+// Explicit dispute-class routing is separate work; a saved question grants no authority.
+function pendingDecision(
+  request: RecordReviewDispositionRequest,
+  kind: PlanningReviewKind,
+  finding: Finding,
+  source: { readonly origin: unknown; readonly plan: string; readonly boundary: string },
+): PendingReviewDecision {
+  const question = `Decline this suggestion outside accepted scope? ${finding.message}`;
+  const record = {
+    version: 2 as const,
+    ticket_id: request.ticketId,
+    review_id: request.reviewId,
+    review_kind: kind,
+    finding_number: Number(request.findingNumber),
+    finding_fingerprint: reviewDispositionFindingFingerprint(finding.severity, finding.message),
+    finding_severity: finding.severity,
+    finding_message: finding.message,
+    origin_agent: source.origin,
+    plan_digest: createHash('sha256').update(source.plan).digest('hex'),
+    accepted_boundary_digest: source.boundary,
+    disposition: 'pending-user-decision' as const,
+    dispute_class: 'scope' as const,
+    reason: request.reason,
+    evidence: request.reason,
+    question,
+    action: `Ask the user to decide: ${question}`,
+  };
+  if (!isPendingReviewDecision(record))
+    throw new Error('The pending finding lacks valid provenance.');
+  return record;
+}
+
+function recoveredPending(
+  content: string,
+  request: RecordReviewDispositionRequest,
+): CliResult | undefined {
+  const saved = savedPendingDecision(content, request);
+  return saved === undefined
+    ? undefined
+    : pending(
+        { ...request, reason: saved.reason },
+        saved.review_kind as PlanningReviewKind,
+        { severity: saved.finding_severity, message: saved.finding_message },
+        saved,
+      );
+}
+
+function writePendingDecision(
+  request: RecordReviewDispositionRequest,
+  ticketPath: string,
+  source: {
+    readonly kind: PlanningReviewKind;
+    readonly finding: Finding;
+    readonly before: string;
+    readonly boundary: string;
+    readonly origin: unknown;
+    readonly targetPath: string;
+  },
+): CliResult {
+  try {
+    const decision = pendingDecision(request, source.kind, source.finding, {
+      origin: source.origin,
+      plan: readFileSync(source.targetPath, 'utf8'),
+      boundary: source.boundary,
+    });
+    return writeDisposition(
+      request,
+      ticketPath,
+      source.kind,
+      source.finding,
+      source.before,
+      source.boundary,
+      decision,
+    );
+  } catch (error) {
+    return writeUnavailable(error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -258,6 +381,10 @@ export async function recordReviewDisposition(
       data: { command },
     });
   }
+  const before = readFileSync(ticketPath, 'utf8');
+  const noninteractive = request.noInput || !process.stdin.isTTY || !process.stderr.isTTY;
+  const recovered = noninteractive ? recoveredPending(before, request) : undefined;
+  if (recovered !== undefined) return recovered;
   const data = currentReview(request.cwd, request.reviewId);
   if (data === undefined) {
     return createResult({
@@ -294,9 +421,9 @@ export async function recordReviewDisposition(
       data: { command },
     });
   }
-  if (request.noInput || !process.stdin.isTTY || !process.stderr.isTTY)
-    return pending(request, kind, selected);
-  const before = readFileSync(ticketPath, 'utf8');
+  const { metadata } = parseTicketMetadata(before);
+  const planningPhase = ['plan-implementation', 'plan-execution'].includes(String(metadata.phase));
+  if (noninteractive && !planningPhase) return pending(request, kind, selected);
   let boundaryDigest: string;
   try {
     boundaryDigest = currentBoundaryDigest(request.cwd, ticketPath, before);
@@ -312,6 +439,16 @@ export async function recordReviewDisposition(
         },
       ],
       data: { command },
+    });
+  }
+  if (noninteractive) {
+    return writePendingDecision(request, ticketPath, {
+      kind,
+      finding: selected,
+      before,
+      boundary: boundaryDigest,
+      origin: data.actual_reviewer,
+      targetPath,
     });
   }
   if (!(await confirm(selected, boundaryDigest, request.reason)))
