@@ -2,103 +2,202 @@
 
 Feature source: `features/resolve-disputed-plan-findings.feature`
 
-test-definitions.md is the R/G/R ledger.
+OpenCode CLI/TUI/Desktop delivery and proof are excluded by the user's 2026-11-14 decision (#7491). The three OpenCode example rows were removed from the active outlines. Review added the exhausted-classification fallback example; all 27 scenario headings remain unchecked. Historical RED, failures and 33 deferred cases are unchanged.
 
-## Rule: plan-implementability.TBU5.26FK42.R1 — The originating reviewer cannot be the sole adjudicator of its disputed finding
+test-definitions.md is the R/G/R ledger. The previous unchecked ledger is preserved in `historical-test-definitions.md`.
 
-### Scenario: A disputed finding requires a resolver other than its originating reviewer alone
+## Rule: plan-implementability.TBU5.26FK42.R1 — An originating reviewer cannot be the sole adjudicator of its disputed finding
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Missing originating-reviewer provenance blocks adjudication
+### Scenario: A reviewer cannot unilaterally settle its own disputed finding
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: plan-implementability.TBU5.26FK42.R2 — Scope and optional-strengthening disputes route to the user, currency disputes resolve from bound provenance, and correctness or relevance disputes route to a fresh adjudicator applying the accepted contract and scope
-
-### Scenario: Dispute classification selects one explicit resolver
+### Scenario: Exhausted classification routes cannot reuse the originating reviewer
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: An unsupported dispute class is not assigned a default resolver
+### Scenario: Missing reviewer provenance prevents adjudication
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Provenance resolves review currency without a preference vote
+### Scenario: A fresh adjudicator can settle optional classification
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: plan-implementability.TBU5.26FK42.R3 — When a reviewer disputes whether a finding is optional strengthening, the fresh adjudicator applies the nonblocking classification owned by 5F5ZZA; the dispute itself cannot make the finding blocking, and only user acceptance can change the accepted scope
+## Rule: plan-implementability.TBU5.26FK42.R2 — Disagreements have explicit effects on progress and user-owned scope
 
-### Scenario: Optional advice changes state only through user scope authority
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: An adjudicator cannot turn scope expansion into required work
+### Scenario: Nonblocking advice can be disputed without stopping progress
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: The plan gate respects user authority over optional advice
+### Scenario: An unsupported dispute class is refused
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: plan-implementability.TBU5.26FK42.R4 — Headless and cloud work preserves current nonblocking human-approval behavior, records unresolved dispositions for later review, and never turns an unresolved correctness dispute into approval
-
-### Scenario: Unavailable human authority returns pending without waiting
+### Scenario: A disputed blocking finding remains unapproved
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A later review recovers the durable pending disposition
+### Scenario: A disagreement without supporting evidence is refused
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Available interactive authority resolves instead of remaining pending
+### Scenario: Unrelated work continues while a blocking finding is unresolved
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: An unresolved correctness dispute cannot become approval
+### Scenario: Every change to accepted product scope belongs to the user
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: plan-implementability.TBU5.26FK42.R5 — Every dispute reaches an honest typed result without a fixed correctness-pass cap, reviewer-owned scope, or silent retry loop
-
-### Scenario: Supported dispute outcomes terminate explicitly
+### Scenario: Correcting an in-scope omission does not change scope
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Closed disputes distinguish later corrections from silent retries
+### Scenario: Provenance determines review currency
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Correctness adjudication follows available routes rather than a fixed pass count
+### Scenario: A currency dispute is settled by provenance rather than either party
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementability.TBU5.26FK42.R3 — A disputed optional classification cannot make unaccepted advice blocking
+
+### Scenario: A disputed optional classification follows the existing nonblocking rule
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A blocking label no longer blocks after independent optional classification
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An adjudicator cannot make unaccepted scope required
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A genuine in-scope defect cannot be dismissed as optional advice
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Calling a blocking in-scope finding optional does not approve the plan
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Accepted unfinished scope blocks the plan gate
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementability.TBU5.26FK42.R4 — Headless work records pending decisions without inventing approval
+
+### Scenario: A headless run returns promptly with a pending decision
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A later session recovers the pending decision
+
+2026-11-16 corrected executable-RED review ca0022ad-bfd1-47d6-845e-aee54eb9721d
+attests the intended missing durable pending disposition (matched literal, exit 1,
+no timeout). Independent review remains blocked on reviewer authentication, with
+no verdict or GREEN authority. Full result: `2026-11-16-corrected-executable-red.json`.
+Earlier lock, EPERM and unreviewed run records remain historical evidence.
+
+2026-11-16 local persistence RED observed: corrected sandbox-compatible fixture fails
+on `missing durable pending disposition`. Review 7b142a46-d0a0-4b6f-9b3a-e9f8fbf5e609
+remains blocked with no independent verdict; its attested run predates the fixture
+correction and failed on EPERM. See `2026-11-16-persistence-red-evidence.json` and
+`2026-11-16-executable-red-failure.json`. No full-scenario RED completion or GREEN
+is claimed, and native recovery remains unproven.
+
+Task 1 local process-survival proof: `packages/cli/tests/integration/planning-dispute-persistence.test.ts`.
+2026-11-14 runs exited 75 while waiting for the shared package-test lock (60 seconds,
+then ten minutes); neither started a test. RED is unproven and no executable-RED
+review was dispatched. This proof cannot satisfy reclaimed-cloud recovery or the
+Execution Plan's native-handoff checkpoint.
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An available user resolves the pending choice
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Headless unresolved correctness is not reported as approval
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementability.TBU5.26FK42.R5 — A fresh review follows material correction, not silent redispatch
+
+### Scenario: Every supported disagreement records a disposition and recovery action
+
+Lower-level proof enumerates every supported dispute class and its typed
+disposition and recovery action, including unsupported-class refusal.
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A correction requires a fresh passing verdict before approval
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A review request distinguishes correction from retry
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Later material corrections remain eligible for review
+
+Lower-level proof must vary the number of prior materially corrected passes,
+including large values, and verify no pass-count cap prevents fresh review.
 
 - [ ] RED
 - [ ] GREEN

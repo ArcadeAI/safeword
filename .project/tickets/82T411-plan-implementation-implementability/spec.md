@@ -209,7 +209,7 @@
 
 #### plan-implementability.TBU1.R27 — A plan created or revised after implementation exists reconciles its claims against current behavior and records discrepancies without relabeling them as accepted, proven, or approved design
 
-#### plan-implementability.TBU1.R28 — When semantic review finds an incomplete or incorrect Implementation Plan, Safeword returns to Implementation Planning, surfaces the full current set of blocking defects, resolves missing decisions through the existing decision-discovery and authority rules, corrects the plan, and repeats review on the new exact bytes until the plan is complete and correct or an honestly named external decision remains pending; each pass must materially correct the plan or review basis, including a recorded scope disposition or dispute result; when neither changes, Safeword stops with the remaining findings and owner rather than redispatching unchanged bytes; the repair loop is the workflow, not merely a terminal rejection
+#### plan-implementability.TBU1.R28 — When semantic review finds an incomplete or incorrect Implementation Plan, Safeword returns to Implementation Planning, surfaces the full current set of blocking defects, resolves missing decisions through the existing decision-discovery and authority rules, corrects the plan, and repeats review on the new exact bytes until the plan is complete and correct or an honestly named external decision remains pending; each pass must materially correct the plan or review basis, including a recorded scope disposition or dispute result that changes that basis; logging disagreement alone is not a correction; when neither changes, Safeword stops with the remaining findings and owner rather than redispatching unchanged bytes; the repair loop is the workflow, not merely a terminal rejection
 
 #### plan-implementability.TBU1.R29 — On each supported authoritative host, a plain feature request can travel through intake, behavior definition, Implementation Planning, Execution Planning, TDD implementation, verification, Delivery Checklist completion, and pull-request preparation without requiring the user to manually invoke or recreate the workflow; the resulting Product Plan, Implementation Plan, and Execution Plan each satisfy their own approved contract, and the completed pull request remains subject to normal human review and merge authority
 
@@ -341,20 +341,20 @@
 
 **Persona:** Technical Builder (TBU)
 
-> When a plan author and reviewer disagree about a finding, I want the dispute
-> routed to an authority that did not create it, so work reaches an honest
-> per-finding terminal result without reviewer-owned scope or silent
-> redispatch.
+> When a plan author and reviewer disagree about a finding, I want the
+> disagreement recorded and its effect on progress made explicit, so optional
+> advice does not delay work and unresolved correctness is never approved or
+> silently retried.
 
 #### plan-implementability.TBU5.R1 — The reviewer that raised a disputed finding cannot be the sole adjudicator of that finding
 
-#### plan-implementability.TBU5.R2 — Disputes are typed before routing: scope and optional strengthening belong to the user, review currency is resolved from bound provenance, and correctness or relevance requires a fresh adjudicator applying the accepted contract and scope
+#### plan-implementability.TBU5.R2 — Disputes are typed before routing: scope changes belong to the user, review currency is resolved from bound provenance, and an author records its disagreement and supporting accepted requirement or plan text; nonblocking advice does not stop progress, while a disputed blocking correctness or relevance finding remains unresolved and cannot approve the plan
 
 #### plan-implementability.TBU5.R3 — A dispute over whether a finding is optional strengthening applies the baseline nonblocking rule in TBU4.R15; the dispute itself cannot make the finding blocking, and only user acceptance can change the scope boundary
 
 #### plan-implementability.TBU5.R4 — A headless or cloud flow never invents human authority or waits indefinitely for an unavailable person; it records the unresolved disposition, preserves the nonblocking invocation behavior and approval gate in TBU1.R16, and never reports an unresolved correctness finding as approved
 
-#### plan-implementability.TBU5.R5 — Each disputed finding reaches a typed terminal result—upheld, reclassified, rejected, pending user-owned scope decision, or unresolved after available independent routes—without an arbitrary correctness-pass cap, silent redispatch, or silent scope expansion; this job does not claim to bound every future author-correct-re-review cycle
+#### plan-implementability.TBU5.R5 — Each disputed finding has an explicit recorded disposition and recovery action: nonblocking advice may proceed, a user-owned scope decision may remain pending, and disputed blocking correctness stays unresolved until the plan or review basis is materially corrected and freshly reviewed; unchanged work is not silently redispatched, scope never expands silently, and no fixed correctness-pass cap is imposed
 
 ### plan-implementability.NTB1 — Recover from a planning gate without reading code
 
@@ -447,7 +447,7 @@ Affected:
 - Claude Code Cloud — affected cloud delivery; authoritative only where M2 proves the same lifecycle gate, otherwise a justified advisory skip under TBU1.R24
 - OpenAI Codex — authoritative local planning gate
 - OpenAI Codex Cloud — advisory guidance label only: it reads repository `AGENTS.md` without the local Codex plugin or planning hooks, so it must not claim review or approval; the label is verified at the CLI generated-guidance boundary, and complete workflow support needs a separate delivery contract
-- OpenCode — advisory profile catalogue only, not an authoritative planning host until native hook dispatch is independently proven
+- OpenCode — skip: CLI, TUI and Desktop excluded from this epic by user decision on 2026-11-14; follow-up #7491. This scoped exclusion does not change the inventory's general CLI/TUI support status. Every-host delivery and proof obligations above apply to the remaining in-scope hosts.
 - Cursor — authoritative local planning gate
 - Cursor Cloud Agents — affected cloud delivery; authoritative only where M2 proves the same lifecycle gate, otherwise a justified advisory skip under TBU1.R24
 

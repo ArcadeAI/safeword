@@ -21,6 +21,8 @@ scope:
   - keep accepted plans current when implementation-time decisions change the approach or execution, preserving still-valid work and evidence before resuming
   - prove that a plain feature request can travel automatically from intake through contract-quality plans and tested delivery into a completed review-ready pull request
 out_of_scope:
+  - automatic mixed-version protection for this dispute-handling feature; the user requires updated Safeword on participating hosts and no rollback while disputes remain unresolved (2026-11-14)
+  - OpenCode CLI, TUI and Desktop delivery and proof for this epic, excluded by the user on 2026-11-14; follow-up https://github.com/ArcadeAI/safeword/issues/7491
   - external tracker storage or tracker-specific project-management ceremony
   - splitting the two plans by human versus agent audience
   - adding formal planning artifacts or independent planning reviews to tasks and patches
@@ -61,6 +63,13 @@ workflow phases with distinct, canonical author-review contracts.
 ## Work Log
 
 - 2026-11-09 Completion evidence reconciliation: mapped all 17 existing done_when obligations to the saved main-only CSV trial and earlier bounded proof inventory in [completion-evidence-2026-11-09.md](./completion-evidence-2026-11-09.md). Claude's local feature journey and a behavior-change/replan instance have bounded evidence; selective invalidation, exact receipt checks, migration/dispute coverage, native host boundaries and PR preparation retain explicit gaps. Corrected acceptance counts to 16 converter scenarios plus one starter. No ledger, status, historical RED, failed result or 33-case deferral was changed; no new tests, qualification or implementation performed.
+- 2026-11-14 User chose “require updating”: dispute handling requires updated feature-capable Safeword on every participating host, without rollback over unresolved dispute records. Automatic protection against mixed old/new runtimes is excluded; older-runtime enforcement is not claimed. YCFFNC owns coordinated activation and confirmation. This records the user's compatibility boundary, not a review-policy, qualification or route change.
+
+- 2026-11-14 User explicitly excluded OpenCode from this work. Recorded CLI/TUI/Desktop delivery and proof in out_of_scope, reconciled parent/child surfaces and the child plan, and removed the three OpenCode example rows/tags from active child scenarios. All 26 scenario headings remain unchecked; historical evidence and the 33 deferred cases are unchanged. Noted the decision in #7491 (comment 6885460805); general OpenCode support inventory is unchanged. The child returned to define-behavior for this scope correction. Prior affected reviews do not approve changed bytes; fresh review remains required before advancement.
+
+- 2026-11-14 User deferred the OpenCode host-boundary decision (“not yet. file a ticket for it”). Filed https://github.com/ArcadeAI/safeword/issues/7491 with verified evidence, later options and acceptance boundaries. Host scope remains unchanged; filing is not resolution or parent approval.
+
+- 2026-11-14 Fresh installed-runtime Product review `01e477c3-4a2b-4bb7-8470-3b000ccaf6d5` requested changes with reduced author-identity assurance. Its blocking finding identifies a verified host-boundary conflict: this spec calls all OpenCode advisory, but `.project/surfaces.md` identifies CLI/TUI 1.x as implemented after exact-version conformance (CI pins 1.18.23), with Desktop advisory. Pending user scope decision: align the parent to authoritative CLI/TUI and advisory Desktop, or explicitly exclude CLI/TUI from this epic. No scope change or approval has been recorded. Review warnings remain nonblocking; the child's design review is still pending.
 
 - 2026-09-24T21:44:25.000Z Independent Product Plan review found two blocking lineage gaps. Bound each phase approval to the exact canonical contract digest so changed contract bytes require fresh dependent review, and made ZSHVEB's already accepted writing-guide and decision-conversation work an explicit parent scope, completion, and Rule obligation. The corrected exact packet requires fresh review; no approval is carried forward.
 

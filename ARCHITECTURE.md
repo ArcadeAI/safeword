@@ -847,6 +847,23 @@ machinery but owns the narrow semantic question of whether the earlier receipt
 still proves its retained boundary across the supplied complete diff.
 Compatibility evidence grants neither human approval nor merge authority.
 
+### Disputed Planning Findings
+
+**Status:** Proposed; not implemented or approved.
+
+Ticket 26FK42 extends the existing disposition writer and admission boundary.
+Users own scope changes. Evidence-backed correctness disagreements remain logged
+and blocking until material correction and fresh passing review; optional advice
+does not block. Only optional classification retains fresh adjudication.
+Portable ticket records preserve the question and reviewed plan, while local
+authenticated coordinator records retain approval authority. Never export review
+keys or treat copied receipts as approval. Existing locking and atomic writes
+preserve history; logging alone cannot justify retry or stale a review.
+This replaces the abandoned proposal preserved in the ticket's historical plan.
+The alternative separate arbitration service adds unnecessary ownership. Revisit
+if real-host recovery cannot preserve the question without splitting authority.
+See [.project implementation plan](.project/tickets/26FK42-resolve-disputed-plan-findings/impl-plan.md).
+
 ### Semantically Projected Planning Review Provenance
 
 **Status:** Proposed

@@ -1,0 +1,27 @@
+{
+  "status": "red_observed_review_not_approved",
+  "original_log": {
+    "path": "/tmp/26fk42-persistence-red.log",
+    "sha256": "dfd97597e85621aaf44d641ee32152927dc72c31c989de6cbc049a3c80fc0855"
+  },
+  "review_id": "7b142a46-d0a0-4b6f-9b3a-e9f8fbf5e609",
+  "review_status": "blocked",
+  "review_attestation_failure": "Sandbox EPERM creating the reviewer fixture; expected-failure literal did not match.",
+  "corrected_proof": {
+    "path": "/tmp/26fk42-persistence-red-sandbox.log",
+    "sha256": "10cc06969c5caaa8c5d9662e69ac240ecdc9c82c933fce1afaed1947d8f51ac6",
+    "exit_code": 1,
+    "test_count": 1,
+    "expected_failure": "missing durable pending disposition",
+    "duration_ms": 1385
+  },
+  "fixture_correction": "Optional workspace-owned root for trusted reviewer fixture; real runtime ancestry/ownership checks unchanged; existing callers retain their default.",
+  "authentication_recovery": "claude auth login requested interactive sign-in; cancelled without collecting authorization code in chat.",
+  "limitations": [
+    "No independent executable-RED approval.",
+    "Corrected proof not resubmitted pending reviewer authentication.",
+    "No production edits or GREEN.",
+    "Native-handoff checkpoint not reached.",
+    "Prior no-test-started records unchanged."
+  ]
+}
