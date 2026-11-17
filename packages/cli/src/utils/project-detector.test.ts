@@ -7,6 +7,7 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
+import process from 'node:process';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -373,21 +374,38 @@ describe('detectProjectType', () => {
     });
 
     it('ignores the Bun global install cache when the CLI runs under Bun', () => {
-      // Bun's resolver falls back to ~/.bun/install/cache, where typescript sits
-      // whenever any Bun project installed it; that is not the project's compiler.
-      const detector = nodePath.join(import.meta.dirname, 'project-detector.ts');
-      const result = spawnSync(
-        'bun',
-        [
-          '--eval',
-          `const { detectProjectType } = await import(${JSON.stringify(detector)});
-           console.log(detectProjectType({}, ${JSON.stringify(cwd)}).typescriptAvailable);`,
-        ],
-        { cwd, encoding: 'utf8' },
-      );
+      // Bun's resolver falls back to its install cache, auto-installing a missing
+      // package from the registry. Isolate that cache, prove Bun's own resolver
+      // finds typescript through it, then require detection to ignore it.
+      const bunCache = createTemporaryDirectory();
+      try {
+        const detector = nodePath.join(import.meta.dirname, 'project-detector.ts');
+        const manifest = JSON.stringify(nodePath.join(cwd, 'package.json'));
+        const script = `
+          const { createRequire } = await import('node:module');
+          const { detectProjectType } = await import(${JSON.stringify(detector)});
+          let resolved = null;
+          try { resolved = createRequire(${manifest}).resolve('typescript/package.json'); } catch {}
+          console.log(JSON.stringify({
+            resolved,
+            available: detectProjectType({}, ${JSON.stringify(cwd)}).typescriptAvailable,
+          }));`;
+        writeTestFile(cwd, 'package.json', '{"name":"fixture"}\n');
+        const result = spawnSync('bun', ['--eval', script], {
+          cwd,
+          encoding: 'utf8',
+          env: { ...process.env, BUN_INSTALL_CACHE_DIR: bunCache },
+        });
+        const { resolved, available } = JSON.parse(result.stdout) as {
+          resolved: string | null;
+          available: boolean;
+        };
 
-      expect(result.stderr).toBe('');
-      expect(result.stdout.trim()).toBe('false');
+        expect(resolved, 'Bun did not resolve typescript through its cache').toContain(bunCache);
+        expect(available).toBe(false);
+      } finally {
+        removeTemporaryDirectory(bunCache);
+      }
     });
 
     it('counts a declared typescript as available before it is installed', () => {
