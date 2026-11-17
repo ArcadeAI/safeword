@@ -2,8 +2,8 @@
 id: 8MZJQA
 slug: bdd-option-values
 type: patch
-phase: intake
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/7724
 created: 2026-11-17T15:46:26.635Z
 last_modified: 2026-11-17T15:46:26.635Z
@@ -30,3 +30,6 @@ last_modified: 2026-11-17T15:46:26.635Z
 <!-- Progress history, not part of the accepted contract: record scope and decisions above. -->
 
 - 2026-11-17T15:46:26.635Z Started: Created ticket 8MZJQA
+- 2026-11-17T17:35:00.000Z Implemented red-first: `--name option-value.feature` ran 0 scenarios and passed. Fixed option values, then replaced the name-shape classifier with Cucumber's positional rule after cross-agent review found directory forms; two further review passes added combined short options and `--name --`. Pass 4 approved; the ticket-level review added a lone `-` (e2b2f7fa4) and then approved (ce967590). Verify and audit passed (see verify.md).
+- 2026-11-17T17:35:00.000Z Phase: intake → done
+- 2026-11-17T18:21:28.819Z Phase: intake → done
