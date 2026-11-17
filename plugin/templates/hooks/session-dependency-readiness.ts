@@ -14,7 +14,7 @@ interface SessionStartOutput {
   };
 }
 
-const projectDirectory = await readSessionProjectDirectory();
+const projectDirectory = readSessionProjectDirectory();
 
 if (!existsSync(`${projectDirectory}/.safeword`)) {
   process.exit(0);

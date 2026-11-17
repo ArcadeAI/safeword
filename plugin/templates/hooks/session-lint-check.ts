@@ -13,7 +13,7 @@ import {
 import { BIOME_CONFIG_FILES, resolveHostToolchain } from './lib/host-toolchain.ts';
 import { readSessionProjectDirectory } from './lib/project-directory.ts';
 
-const projectDir = await readSessionProjectDirectory();
+const projectDir = readSessionProjectDirectory();
 const safewordDir = `${projectDir}/.safeword`;
 
 // Not a safeword project, skip silently

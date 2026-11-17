@@ -11,7 +11,7 @@ import { readSessionProjectDirectory } from './lib/project-directory.ts';
 // reach through the registry or mutate legacy project framework code here.
 if (process.env.SAFEWORD_PLUGIN_CLI !== undefined) process.exit(0);
 
-const projectDir = await readSessionProjectDirectory();
+const projectDir = readSessionProjectDirectory();
 const outcome = await runAutoUpgrade({ projectDir, filterSafewordFiles });
 const response = toClaudeAutoUpgradeResponse(outcome);
 

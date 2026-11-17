@@ -13,7 +13,7 @@ import { safewordCli } from './lib/safeword-cli.ts';
 import process from 'node:process';
 import { projectEnvironment, readSessionProjectDirectory } from './lib/project-directory.ts';
 
-const projectDir = await readSessionProjectDirectory();
+const projectDir = readSessionProjectDirectory();
 
 // Not a safeword project — nothing to do.
 if (!existsSync(nodePath.join(projectDir, '.safeword'))) {

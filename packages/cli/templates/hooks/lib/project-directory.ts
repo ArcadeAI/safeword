@@ -180,10 +180,10 @@ export function resolveSessionProjectDirectory(input: {
  * `resolveSessionProjectDirectory`. A hook with no input resolves from the
  * launch checkout.
  */
-export async function readSessionProjectDirectory(): Promise<string> {
+export function readSessionProjectDirectory(): string {
   let input: { session_id?: string; cwd?: string } = {};
   try {
-    input = await Bun.stdin.json();
+    input = JSON.parse(readFileSync(0, 'utf8')) as typeof input;
   } catch {
     // No input: resolve from the launch checkout.
   }

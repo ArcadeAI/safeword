@@ -8,7 +8,7 @@ import nodePath from 'node:path';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 import { readSessionProjectDirectory } from './lib/project-directory.ts';
 
-const projectDirectory = await readSessionProjectDirectory();
+const projectDirectory = readSessionProjectDirectory();
 const stateDirectory = nodePath.join(resolveNamespaceRoot(projectDirectory));
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 

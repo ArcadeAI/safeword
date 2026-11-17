@@ -174,8 +174,12 @@ describe('session-level hooks follow the session pointer (#5467)', () => {
       nodePath.join(repoB, '.safeword', '.update-cache.json'),
       JSON.stringify({ latestVersion: '99.0.0', checkedAt: Date.now() }),
     );
-    const environment = { ...process.env, CLAUDE_PROJECT_DIR: launch };
+    // A real session: not under CI (auto-upgrade stays off in CI), not opted
+    // out, and not a native-plugin run.
+    const environment: NodeJS.ProcessEnv = { ...process.env, CLAUDE_PROJECT_DIR: launch };
     delete environment.SAFEWORD_PLUGIN_CLI;
+    delete environment.CI;
+    delete environment.SAFEWORD_NO_AUTO_UPGRADE;
 
     // The installed copy: the template imports a file generated at install.
     // It must be byte-identical to the shipped template, so this proves the
