@@ -511,6 +511,31 @@ describe('pre-tool architecture staging hook', () => {
     expect(git('diff', '--cached', '--name-only')).not.toContain('src/checkout/index.ts');
   });
 
+  it('stages from the shell cwd when the launch checkout is elsewhere (#5467)', () => {
+    writeCheckoutModule(directory);
+    // CLAUDE_PROJECT_DIR and the hook process stay at an unrelated launch
+    // directory; the shell reported by the host runs in the project.
+    const launch = createTemporaryDirectory();
+    try {
+      const hook = spawnSync('bun', [HOOK_PATH], {
+        cwd: launch,
+        encoding: 'utf8',
+        env: { ...process.env, CLAUDE_PROJECT_DIR: launch },
+        input: JSON.stringify({
+          tool_name: 'Bash',
+          cwd: directory,
+          tool_input: { command: 'bun run lint && git add -A && git commit -m "add checkout"' },
+        }),
+      });
+
+      expect(hook.status).toBe(0);
+      const output = JSON.parse(hook.stdout) as { systemMessage?: string };
+      expect(output.systemMessage).toContain('skipped architecture auto-staging');
+    } finally {
+      removeTemporaryDirectory(launch);
+    }
+  });
+
   it.each([
     ['from the project root', 'git add src/checkout'],
     ['relative to a subdirectory', 'cd src && git add checkout'],
