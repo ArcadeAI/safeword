@@ -272,6 +272,71 @@ describe('review-receipt wiring (write-review-stamp.ts ↔ review status --json)
     expect(result.stdout).toMatch(/reviewer/u);
   });
 
+  describe('implement phase on a branch that regenerates mirrors (#5870)', () => {
+    const git = (...args: string[]): void => {
+      const result = spawnSync('git', ['-C', projectRoot, ...args], { encoding: 'utf8' });
+      if (result.status !== 0) throw new Error(`git ${args.join(' ')}: ${result.stderr}`);
+    };
+    const writeProjectFile = (relative: string, content: string): void => {
+      mkdirSync(nodePath.dirname(nodePath.join(projectRoot, relative)), { recursive: true });
+      writeFileSync(nodePath.join(projectRoot, relative), content);
+    };
+
+    /** A branch that edits src/ and mirror/; `.gitattributes` differs per side. */
+    function branchWithMirror(baseAttributes: string, branchAttributes: string): void {
+      git('init', '-q', '-b', 'main');
+      git('config', 'user.email', 'test@example.com');
+      git('config', 'user.name', 'Test');
+      git('config', 'commit.gpgsign', 'false');
+      writeProjectFile('.gitattributes', baseAttributes);
+      writeProjectFile('src/feature.ts', 'export const a = 1;\n');
+      writeProjectFile('mirror/feature.js', 'export const a = 1;\n');
+      git('add', '-A');
+      git('commit', '-q', '-m', 'base');
+      git('checkout', '-q', '-b', 'work');
+      writeProjectFile('.gitattributes', branchAttributes);
+      writeProjectFile('src/feature.ts', 'export const a = 2;\n');
+      writeProjectFile('mirror/feature.js', 'export const a = 2;\n');
+      git('add', '-A');
+      git('commit', '-q', '-m', 'work');
+    }
+
+    const stampSourceOnlyReview = (): ReturnType<typeof runStamp> => {
+      stubCoordinator({
+        ...approvedEnvelope,
+        review_kind: 'quality-review',
+        review_targets: ['src/feature.ts'],
+      });
+      return runStamp(
+        '--independence',
+        'cross-agent',
+        '--review-id',
+        REVIEW_ID,
+        '--phase',
+        'implement',
+      );
+    };
+
+    it('stamps a review of only the hand-written files when the base marks the mirror', () => {
+      branchWithMirror('mirror/** linguist-generated\n', 'mirror/** linguist-generated\n');
+
+      const result = stampSourceOnlyReview();
+
+      expect(result.status).toBe(0);
+      expect(readLog()).toContain('phase@implement');
+    });
+
+    it('refuses, naming the mirror, when only the branch marks it generated', () => {
+      branchWithMirror('', 'mirror/** linguist-generated\n');
+
+      const result = stampSourceOnlyReview();
+
+      expect(result.status).not.toBe(0);
+      expect(result.stdout).toMatch(/not reviewed: .*mirror\/feature\.js/u);
+      expect(readLog()).toBe('');
+    });
+  });
+
   it('still writes a stamp naming a model, which the receipt does not record', () => {
     const result = stampImplPlan('--model', 'claude-opus-5');
 
