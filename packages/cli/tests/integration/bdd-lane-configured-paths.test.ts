@@ -78,6 +78,54 @@ describe('scaffolded runner honors configured paths (TB2.AC2 + TB2.AC3)', () => 
   });
 
   it(
+    'runs only the selected scenario when a feature path carries a line selector',
+    () => {
+      writeTestFile(
+        directory,
+        'features/line-selector.feature',
+        [
+          'Feature: Line selector',
+          '',
+          '  Scenario: unselected scenario',
+          '    When the line selector step runs',
+          '',
+          '  Scenario: selected scenario',
+          '    When the line selector step runs',
+          '',
+        ].join('\n'),
+      );
+      writeTestFile(
+        directory,
+        'steps/line-selector.steps.ts',
+        [
+          "import { When } from '@cucumber/cucumber';",
+          '',
+          "When('the line selector step runs', function () {",
+          '  // Scenario reached.',
+          '});',
+          '',
+        ].join('\n'),
+      );
+      try {
+        const result = spawnSync(
+          'bun',
+          ['run', 'test:bdd', '--', 'features/line-selector.feature:6', '--format', 'summary'],
+          { cwd: directory, encoding: 'utf8', timeout: TIMEOUT_SETUP },
+        );
+        const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
+        expect(result.status, output).toBe(0);
+        // Without the line selector honored, the starter feature and the
+        // unselected scenario would run too.
+        expect(output).toContain('1 scenario (1 passed)');
+      } finally {
+        rmSync(nodePath.join(directory, 'features/line-selector.feature'), { force: true });
+        rmSync(nodePath.join(directory, 'steps/line-selector.steps.ts'), { force: true });
+      }
+    },
+    TIMEOUT_SETUP,
+  );
+
+  it(
     'bdd-lane-collision-detection-and-paths.TB2.AC3.runner_defaults_apply_without_a_config_file',
     () => {
       rmSync(nodePath.join(directory, '.safeword/config.json'), { force: true });

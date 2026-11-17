@@ -29,6 +29,8 @@ const CUCUMBER_TEMPLATE_REVISION_HASHES: ReadonlySet<string> = new Set([
   '1295e832b1b3bdd0faa963e218bd489c9c252a981fc8e315d4814d4208384a5f',
   // ECGEP9 — automated lane distinguishes Vitest-backed proof from unfinished work
   '0ec4cb6d65b39e01f8aff27c4ca3841e0271a43b5435492676450f0fb3cfac27',
+  // CLI feature paths with Cucumber line selectors (`example.feature:12`)
+  '8a7df82ba68b703459279a48677e341e64e63703d48d2a8ea7dbb0788f56a777',
 ]);
 
 /** True when `content` is a shipped revision of safeword's lane template. */
