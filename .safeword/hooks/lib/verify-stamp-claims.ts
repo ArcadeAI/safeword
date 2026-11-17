@@ -47,6 +47,21 @@ const EXEMPT_ATTRIBUTES = ['linguist-generated', 'linguist-vendored'] as const;
 const ENABLED = new Set(['set', 'true']);
 
 /**
+ * The files whose `check-attr -z` records (path, attribute, value) carry an
+ * enabled exemption. A malformed response exempts nothing.
+ */
+function enabledFiles(stdout: string, byRepoPath: ReadonlyMap<string, string>): Set<string> {
+  const exempt = new Set<string>();
+  const fields = stdout.split('\0');
+  if (fields.pop() !== '' || fields.length % 3 !== 0) return exempt;
+  for (let offset = 0; offset < fields.length; offset += 3) {
+    const file = byRepoPath.get(fields[offset] ?? '');
+    if (file !== undefined && ENABLED.has(fields[offset + 2] ?? '')) exempt.add(file);
+  }
+  return exempt;
+}
+
+/**
  * The work files the merge base marks generated or vendored (issue #5870).
  *
  * Attributes come from the base commit's own `.gitattributes`, read through an
@@ -107,14 +122,8 @@ function baseExemptFiles(projectDirectory: string, base: string, files: string[]
       },
     );
     if (result.status !== 0 || typeof result.stdout !== 'string') return exempt;
-    const fields = result.stdout.split('\0');
-    if (fields.pop() !== '' || fields.length % 3 !== 0) return exempt;
     const byRepoPath = new Map(repoPaths.map((repoPath, index) => [repoPath, files[index]]));
-    for (let offset = 0; offset < fields.length; offset += 3) {
-      const file = byRepoPath.get(fields[offset] ?? '');
-      if (file !== undefined && ENABLED.has(fields[offset + 2] ?? '')) exempt.add(file);
-    }
-    return exempt;
+    return enabledFiles(result.stdout, byRepoPath);
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
