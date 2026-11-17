@@ -30,6 +30,19 @@ export function resolveLaunchDirectory(environment: NodeJS.ProcessEnv = process.
 }
 
 /**
+ * The environment for a child process acting on `projectDirectory`, such as
+ * the Safeword CLI. The CLI still picks its project from CLAUDE_PROJECT_DIR
+ * when it is set, and the host keeps that at the launch checkout in a
+ * worktree session, so every child must be told which project it works on.
+ */
+export function projectEnvironment(
+  projectDirectory: string,
+  environment: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  return { ...environment, CLAUDE_PROJECT_DIR: projectDirectory };
+}
+
+/**
  * The project a surface should read and write, by the rule above. `cwd` is
  * required so each caller states which working directory it means; the
  * resolver never reads ambient process state for it.
@@ -159,6 +172,22 @@ export function resolveSessionProjectDirectory(input: {
     }
   }
   return resolveProjectDirectory({ launchDirectory: input.launchDirectory, cwd: input.cwd });
+}
+
+/**
+ * The project for a session-level hook that needs nothing else from its input:
+ * reads the hook's stdin (session id and cwd) and applies
+ * `resolveSessionProjectDirectory`. A hook with no input resolves from the
+ * launch checkout.
+ */
+export function readSessionProjectDirectory(): string {
+  let input: { session_id?: string; cwd?: string } = {};
+  try {
+    input = JSON.parse(readFileSync(0, 'utf8')) as typeof input;
+  } catch {
+    // No input: resolve from the launch checkout.
+  }
+  return resolveSessionProjectDirectory({ sessionId: input.session_id, cwd: input.cwd });
 }
 
 /** The first git working tree at or above `start`, when it is enrolled. */

@@ -5,6 +5,7 @@
 import { existsSync } from 'node:fs';
 
 import { bootstrapDependencies, wireGitHooksIfNeeded } from './lib/dependency-readiness.ts';
+import { readSessionProjectDirectory } from './lib/project-directory.ts';
 
 interface SessionStartOutput {
   hookSpecificOutput: {
@@ -13,7 +14,7 @@ interface SessionStartOutput {
   };
 }
 
-const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const projectDirectory = readSessionProjectDirectory();
 
 if (!existsSync(`${projectDirectory}/.safeword`)) {
   process.exit(0);

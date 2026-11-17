@@ -3,9 +3,11 @@
 // Warns when bypass patterns are added to code
 
 import { existsSync } from 'node:fs';
+import { resolveLaunchDirectory, resolveToolProjectDirectory } from './lib/project-directory.ts';
 
 interface HookInput {
   tool_name?: string;
+  cwd?: string;
   tool_input?: {
     file_path?: string;
     notebook_path?: string;
@@ -54,19 +56,22 @@ const BYPASS_PATTERNS: Array<{
   },
 ];
 
-const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-const safewordDir = `${projectDir}/.safeword`;
-
-// Not a safeword project, skip silently
-if (!existsSync(safewordDir)) {
-  process.exit(0);
-}
-
 // Read hook input from stdin
 let input: HookInput;
 try {
   input = await Bun.stdin.json();
 } catch {
+  process.exit(0);
+}
+
+const projectDir = resolveToolProjectDirectory(resolveLaunchDirectory(), {
+  tool: input.tool_name ?? '',
+  editedFile: input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? '',
+  cwd: input.cwd,
+});
+
+// Not a safeword project, skip silently
+if (!existsSync(`${projectDir}/.safeword`)) {
   process.exit(0);
 }
 

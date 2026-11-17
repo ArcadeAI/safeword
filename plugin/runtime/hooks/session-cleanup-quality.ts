@@ -6,18 +6,9 @@
 import { readdirSync, statSync, unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
-import { resolveSessionProjectDirectory } from './lib/project-directory.ts';
+import { readSessionProjectDirectory } from './lib/project-directory.ts';
 
-let input: { session_id?: string; cwd?: string } = {};
-try {
-  input = await Bun.stdin.json();
-} catch {
-  // No input: clean the project the host cwd resolves to.
-}
-const projectDirectory = resolveSessionProjectDirectory({
-  sessionId: input.session_id,
-  cwd: input.cwd,
-});
+const projectDirectory = readSessionProjectDirectory();
 const stateDirectory = nodePath.join(resolveNamespaceRoot(projectDirectory));
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
