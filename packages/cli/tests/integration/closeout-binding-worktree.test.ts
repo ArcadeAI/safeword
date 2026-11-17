@@ -1,0 +1,206 @@
+/**
+ * Closeout finds the session binding wherever it runs (#5467 part 3a).
+ *
+ * The real pre-tool hooks write the binding before closeout runs, and closeout
+ * reads it from the git root of its own cwd. These tests launch the session in
+ * the primary checkout of a real repository, run closeout's command in a
+ * linked worktree, and read the binding the way closeout does: from that
+ * worktree's root.
+ */
+
+import { spawnSync } from 'node:child_process';
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+import {
+  readFreshCloseoutBinding,
+  rememberCloseoutBinding,
+} from '../../templates/hooks/lib/closeout-binding.ts';
+import {
+  createTemporaryDirectory,
+  removeTemporaryDirectory,
+  repoRoot,
+  testCliPath,
+} from '../helpers';
+
+const HOOKS = nodePath.join(repoRoot, 'packages/cli/templates/hooks');
+const CLOSEOUT = 'bun .safeword/scripts/closeout-cleanup.ts --pr 42';
+
+function git(cwd: string, ...arguments_: string[]): void {
+  const result = spawnSync('git', arguments_, { cwd, encoding: 'utf8' });
+  if (result.status !== 0) throw new Error(`git ${arguments_.join(' ')}: ${result.stderr}`);
+}
+
+/** A host environment with no ambient agent session, launched in `launch`. */
+function hostEnvironment(launch: string): NodeJS.ProcessEnv {
+  const environment: NodeJS.ProcessEnv = { ...process.env, CLAUDE_PROJECT_DIR: launch };
+  for (const key of [
+    'CLAUDE_SESSION_ID',
+    'CLAUDE_CODE_SESSION_ID',
+    'CLAUDE_PLUGIN_ROOT',
+    'SAFEWORD_PLUGIN_CLI',
+    'SAFEWORD_AGENT_RUNTIME',
+    'CODEX_THREAD_ID',
+  ]) {
+    delete environment[key];
+  }
+  return environment;
+}
+
+describe('closeout binding follows the worktree closeout runs in (#5467)', () => {
+  let root: string;
+  let primary: string;
+  let worktreeA: string;
+  let worktreeB: string;
+
+  function repository(config?: Record<string, unknown>): void {
+    mkdirSync(nodePath.join(primary, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(primary, '.safeword', 'SAFEWORD.md'), '# enrolled\n');
+    if (config) {
+      writeFileSync(nodePath.join(primary, '.safeword', 'config.json'), JSON.stringify(config));
+    }
+    git(primary, 'init', '-q', '-b', 'main');
+    git(primary, 'config', 'user.email', 'test@example.com');
+    git(primary, 'config', 'user.name', 'Test');
+    git(primary, 'add', '-A');
+    git(primary, 'commit', '-q', '-m', 'init');
+    git(primary, 'worktree', 'add', '-q', worktreeA, '-b', 'topic-a');
+    git(primary, 'worktree', 'add', '-q', worktreeB, '-b', 'topic-b');
+  }
+
+  function runClaudeHook(shellCwd: string, command: string, id: string) {
+    return spawnSync('bun', [nodePath.join(HOOKS, 'pre-tool-quality.ts')], {
+      cwd: primary,
+      env: hostEnvironment(primary),
+      input: JSON.stringify({
+        session_id: id,
+        hook_event_name: 'PreToolUse',
+        cwd: shellCwd,
+        tool_name: 'Bash',
+        tool_input: { command },
+      }),
+      encoding: 'utf8',
+    });
+  }
+
+  beforeEach(() => {
+    root = createTemporaryDirectory();
+    primary = nodePath.join(root, 'primary');
+    worktreeA = nodePath.join(root, 'worktree-a');
+    worktreeB = nodePath.join(root, 'worktree-b');
+    mkdirSync(primary);
+  });
+
+  afterEach(() => {
+    removeTemporaryDirectory(root);
+  });
+
+  it('closeout run inside a worktree finds the binding the Claude hook recorded', () => {
+    repository();
+
+    const result = runClaudeHook(worktreeA, CLOSEOUT, 'claude-session-a');
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(readFreshCloseoutBinding({ projectDirectory: worktreeA })).toMatchObject({
+      runtime: 'claude',
+      id: 'claude-session-a',
+    });
+  });
+
+  it('follows a leading cd into the worktree closeout runs in', () => {
+    repository();
+
+    const result = runClaudeHook(primary, `cd ${worktreeA} && ${CLOSEOUT}`, 'claude-session-cd');
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(readFreshCloseoutBinding({ projectDirectory: primary })).toBeUndefined();
+    expect(readFreshCloseoutBinding({ projectDirectory: worktreeA })).toMatchObject({
+      id: 'claude-session-cd',
+    });
+  });
+
+  it('keeps each worktree binding when worktrees share one absolute namespace root', () => {
+    const shared = nodePath.join(root, 'shared-project-state');
+    mkdirSync(shared);
+    repository({ paths: { projectRoot: shared } });
+
+    expect(runClaudeHook(worktreeA, CLOSEOUT, 'session-a').status).toBe(0);
+    expect(runClaudeHook(worktreeB, CLOSEOUT, 'session-b').status).toBe(0);
+
+    expect(readFreshCloseoutBinding({ projectDirectory: worktreeA })).toMatchObject({
+      id: 'session-a',
+    });
+    expect(readFreshCloseoutBinding({ projectDirectory: worktreeB })).toMatchObject({
+      id: 'session-b',
+    });
+  });
+
+  it('denies closeout behind a cd it cannot follow, leaving a waiting binding alone', () => {
+    repository();
+    rememberCloseoutBinding({ projectDirectory: worktreeA, runtime: 'claude', id: 'earlier' });
+    const stateDirectory = nodePath.join(worktreeA, '.project');
+    const before = readdirSync(stateDirectory)
+      .filter(name => name.startsWith('closeout-session-binding'))
+      .map(name => readFileSync(nodePath.join(stateDirectory, name), 'utf8'));
+
+    const result = runClaudeHook(primary, `cd "$TARGET" && ${CLOSEOUT}`, 'claude-session-var');
+
+    expect(result.status, result.stderr).toBe(0);
+    const output = JSON.parse(result.stdout) as {
+      hookSpecificOutput?: { permissionDecision?: string; permissionDecisionReason?: string };
+    };
+    expect(output.hookSpecificOutput?.permissionDecision).toBe('deny');
+    expect(output.hookSpecificOutput?.permissionDecisionReason).toContain(CLOSEOUT.split(' --')[0]);
+    const after = readdirSync(stateDirectory)
+      .filter(name => name.startsWith('closeout-session-binding'))
+      .map(name => readFileSync(nodePath.join(stateDirectory, name), 'utf8'));
+    expect(after).toEqual(before);
+  });
+
+  it('closeout run inside a worktree finds the binding the Codex hook recorded', () => {
+    repository();
+    const environment = hostEnvironment(primary);
+
+    const result = spawnSync(process.execPath, [testCliPath, 'hook', 'codex', 'pre-tool-use'], {
+      cwd: primary,
+      env: environment,
+      input: JSON.stringify({
+        session_id: 'codex-session-a',
+        cwd: worktreeA,
+        tool_name: 'Bash',
+        tool_input: { command: CLOSEOUT },
+      }),
+      encoding: 'utf8',
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(readFreshCloseoutBinding({ projectDirectory: worktreeA })).toMatchObject({
+      runtime: 'codex',
+      id: 'codex-session-a',
+    });
+  });
+
+  it('closeout run inside a worktree finds the binding the Cursor hook recorded', () => {
+    repository();
+
+    const result = spawnSync('bun', [nodePath.join(HOOKS, 'cursor/before-shell-execution.ts')], {
+      cwd: primary,
+      env: hostEnvironment(primary),
+      input: JSON.stringify({
+        workspace_roots: [primary],
+        conversation_id: 'cursor-conversation-a',
+        cwd: worktreeA,
+        command: CLOSEOUT,
+      }),
+      encoding: 'utf8',
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(readFreshCloseoutBinding({ projectDirectory: worktreeA })).toMatchObject({
+      runtime: 'cursor',
+      id: 'cursor-conversation-a',
+    });
+  });
+});
