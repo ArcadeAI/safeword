@@ -4,6 +4,7 @@
 import { existsSync } from "node:fs";
 import { URL } from "node:url";
 
+import { ESLint } from "eslint";
 import safeword from "safeword/eslint";
 const eslintConfigPrettier = safeword.prettierConfig;
 
@@ -75,11 +76,20 @@ const safewordStrictRules = {
   },
 };
 
+// ESLint 10 lints each file with its nearest config, which for vendored files
+// under .safeword/ is this one. Ignore this directory by absolute path so it
+// holds whether ESLint found this file itself or the hook passed --config.
+const ownDirectoryIgnore =
+  Number(ESLint.version.split(".", 1)[0]) >= 10
+    ? [{ basePath: import.meta.dirname, ignores: ["**"] }]
+    : [];
+
 // Composition order (ticket 138): safeword rules FIRST, customer config LAST.
 // Flat config is "later wins" — this makes the customer's project config
 // authoritative for the LLM hook. Customer overrides (e.g. 'no-unused-vars': 'off')
 // take effect here instead of being silently overridden by safeword's strict layer.
 export default [
+  ...ownDirectoryIgnore,
   safewordStrictRules,
   ...projectConfig,
   eslintConfigPrettier,

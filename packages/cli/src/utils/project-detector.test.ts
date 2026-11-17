@@ -344,6 +344,32 @@ describe('detectProjectType', () => {
     });
   });
 
+  describe('Detects an available TypeScript compiler (#6966)', () => {
+    let cwd: string;
+
+    beforeEach(() => {
+      cwd = createTemporaryDirectory();
+    });
+
+    afterEach(() => {
+      removeTemporaryDirectory(cwd);
+    });
+
+    it('reports none for a fresh project without typescript', () => {
+      expect(detectProjectType({}, cwd).typescriptAvailable).toBe(false);
+    });
+
+    it('counts typescript hoisted from monorepo workspaces as available', () => {
+      writeTestFile(cwd, 'node_modules/typescript/package.json', '{"version":"5.9.3"}\n');
+      expect(detectProjectType({}, cwd).typescriptAvailable).toBe(true);
+    });
+
+    it('counts a declared typescript as available before it is installed', () => {
+      const declared: PackageJson = { devDependencies: { typescript: '^5.9.0' } };
+      expect(detectProjectType(declared, cwd).typescriptAvailable).toBe(true);
+    });
+  });
+
   describe('Detects existing prettier config (cwd-based)', () => {
     let cwd: string;
 

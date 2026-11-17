@@ -9,7 +9,9 @@
  * These tests validate that configuration leads to working enforcement.
  */
 
-import { execSync } from 'node:child_process';
+import { execSync, spawnSync } from 'node:child_process';
+import { realpathSync } from 'node:fs';
+import nodePath from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -19,6 +21,7 @@ import {
   createTypeScriptPackageJson,
   fileExists,
   initGitRepo,
+  INSTALL_DEPENDENCIES_ENV,
   readTestFile,
   removeTemporaryDirectory,
   runEslint,
@@ -114,6 +117,23 @@ export function main(): void {
     expect(result.status).toBe(0);
   });
 
+  it('passes its own lint across the whole fresh install (#6966)', () => {
+    const result = runEslint(projectDirectory, '.');
+
+    expect(result.stdout).toBe('');
+    expect(result.status).toBe(0);
+  });
+
+  it('type-checks the fresh install, including the scaffolded BDD steps (#6966)', () => {
+    const result = spawnSync('bunx', ['tsc', '--noEmit', '-p', '.'], {
+      cwd: projectDirectory,
+      encoding: 'utf8',
+    });
+
+    expect(result.stdout).toBe('');
+    expect(result.status).toBe(0);
+  });
+
   it('catches floating promises (missing await)', () => {
     writeTestFile(
       projectDirectory,
@@ -192,7 +212,12 @@ describe('E2E: JavaScript-Only Project', () => {
     createPackageJson(projectDirectory);
     writeTestFile(projectDirectory, 'src/index.js', 'module.exports = { hello: "world" };\n');
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory, ['setup'], { timeout: TIMEOUT_SETUP });
+    // Real installs: the claims below are about what install adds to package.json.
+    await setupOrThrow(projectDirectory, ['setup'], {
+      env: INSTALL_DEPENDENCIES_ENV,
+      timeout: TIMEOUT_SETUP,
+    });
+    execSync('bun install', { cwd: projectDirectory, stdio: 'pipe' });
   });
 
   afterAll(() => {
@@ -211,12 +236,32 @@ describe('E2E: JavaScript-Only Project', () => {
   });
 
   it('ESLint works on JavaScript files', () => {
-    // Install deps and run ESLint
-    execSync('bun install', { cwd: projectDirectory, stdio: 'pipe' });
-
     const result = runEslint(projectDirectory, 'src/index.js');
 
     // Should run without crashing: 0=success, 1=lint errors, 2=fatal, null=spawn failed
     expect(result.status === 0 || result.status === 1).toBe(true);
+  });
+
+  it('installs a compiler for the TypeScript BDD steps (#6966)', () => {
+    const manifest = JSON.parse(readTestFile(projectDirectory, 'package.json')) as {
+      devDependencies: Record<string, string>;
+    };
+    expect(manifest.devDependencies.typescript).toBe('~6.0.0');
+  });
+
+  it('reports no lint findings in any file safeword scaffolded (#6966)', () => {
+    const result = runEslint(projectDirectory, '.', ['--format', 'json']);
+    const root = realpathSync(projectDirectory);
+    const findings = (
+      JSON.parse(result.stdout) as { filePath: string; messages: { ruleId: string | null }[] }[]
+    )
+      .map(report => ({
+        file: nodePath.relative(root, report.filePath),
+        rules: report.messages.map(message => message.ruleId ?? 'parse'),
+      }))
+      // src/ is the fixture's own code; everything else came from safeword.
+      .filter(report => !report.file.startsWith('src/') && report.rules.length > 0);
+
+    expect(findings).toEqual([]);
   });
 });

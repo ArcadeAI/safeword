@@ -14910,6 +14910,7 @@ function getSafewordEslintConfigExtending(existingConfig, hasExistingFormatter, 
 import { existsSync } from "node:fs";
 import { URL } from "node:url";
 
+import { ESLint } from "eslint";
 ${safewordImport}${prettier.import}
 
 // Ticket 139: existsSync gate + no try/catch.
@@ -14953,11 +14954,14 @@ ${existsSyncDirective}if (existsSync(projectConfigPath)) {
 
 ${SAFEWORD_STRICT_RULES_FULL}
 
+${SAFEWORD_DIRECTORY_IGNORE}
+
 // Composition order (ticket 138): safeword rules FIRST, customer config LAST.
 // Flat config is "later wins" \u2014 this makes the customer's project config
 // authoritative for the LLM hook. Customer overrides (e.g. 'no-unused-vars': 'off')
 // take effect here instead of being silently overridden by safeword's strict layer.
 export default [
+  ...ownDirectoryIgnore,
   safewordStrictRules,
   ...projectConfig,
 ${prettier.configEntry}
@@ -14972,6 +14976,7 @@ function getSafewordEslintConfigLegacy(existingConfig, hasExistingFormatter) {
 // Used by hooks for LLM enforcement. Human pre-commits use project config.
 // NOTE: Legacy .eslintrc.* format is deprecated. Consider migrating to eslint.config.mjs
 import { FlatCompat } from "@eslint/eslintrc";
+import { ESLint } from "eslint";
 ${safewordImport}${prettier.import}
 
 console.warn("Safeword: Legacy .eslintrc.* detected. Consider migrating to eslint.config.mjs");
@@ -14989,9 +14994,12 @@ try {
 
 ${SAFEWORD_STRICT_RULES_FULL}
 
+${SAFEWORD_DIRECTORY_IGNORE}
+
 // Composition order (ticket 138): safeword rules FIRST, customer config LAST.
 // See getSafewordEslintConfigExtending for rationale.
 export default [
+  ...ownDirectoryIgnore,
   safewordStrictRules,
   ...projectConfig,
 ${prettier.configEntry}
@@ -15054,7 +15062,13 @@ const safewordStrictRules = {
     "no-var": "error",
     "prefer-const": "error",
   },
-};`, COMPLETION_HOOK_TIMEOUT_SECONDS, CURSOR_HOOKS, HOOKS_DIR = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks', EDIT_TOOLS = "Edit|Write|MultiEdit|NotebookEdit", SETTINGS_HOOKS;
+};`, SAFEWORD_DIRECTORY_IGNORE = `// ESLint 10 lints each file with its nearest config, which for vendored files
+// under .safeword/ is this one. Ignore this directory by absolute path so it
+// holds whether ESLint found this file itself or the hook passed --config.
+const ownDirectoryIgnore =
+  Number(ESLint.version.split(".", 1)[0]) >= 10
+    ? [{ basePath: import.meta.dirname, ignores: ["**"] }]
+    : [];`, COMPLETION_HOOK_TIMEOUT_SECONDS, CURSOR_HOOKS, HOOKS_DIR = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks', EDIT_TOOLS = "Edit|Write|MultiEdit|NotebookEdit", SETTINGS_HOOKS;
 var init_config = __esm(() => {
   COMPLETION_HOOK_TIMEOUT_SECONDS = 40 * 60;
   CURSOR_HOOKS = {

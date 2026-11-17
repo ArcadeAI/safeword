@@ -113,6 +113,21 @@ const safewordStrictRules = {
 };`;
 
 /**
+ * ESLint 10 lints every file with the config nearest to it, so `eslint .` would
+ * lint the vendored files under `.safeword/` (hook sources included) with this
+ * config. An absolute `basePath` ignores this directory in both nearest-config
+ * lookup and the hook's explicit `--config` run. `basePath` needs ESLint 9.30+,
+ * and nearest-config lookup is only the default from ESLint 10, so gate on 10.
+ */
+const SAFEWORD_DIRECTORY_IGNORE = `// ESLint 10 lints each file with its nearest config, which for vendored files
+// under .safeword/ is this one. Ignore this directory by absolute path so it
+// holds whether ESLint found this file itself or the hook passed --config.
+const ownDirectoryIgnore =
+  Number(ESLint.version.split(".", 1)[0]) >= 10
+    ? [{ basePath: import.meta.dirname, ignores: ["**"] }]
+    : [];`;
+
+/**
  * Generates an ESLint config using safeword.
  *
  * The generated config uses safeword.detect utilities to detect frameworks
@@ -232,6 +247,7 @@ function getSafewordEslintConfigExtending(
 import { existsSync } from "node:fs";
 import { URL } from "node:url";
 
+import { ESLint } from "eslint";
 ${safewordImport}${prettier.import}
 
 // Ticket 139: existsSync gate + no try/catch.
@@ -275,11 +291,14 @@ ${existsSyncDirective}if (existsSync(projectConfigPath)) {
 
 ${SAFEWORD_STRICT_RULES_FULL}
 
+${SAFEWORD_DIRECTORY_IGNORE}
+
 // Composition order (ticket 138): safeword rules FIRST, customer config LAST.
 // Flat config is "later wins" — this makes the customer's project config
 // authoritative for the LLM hook. Customer overrides (e.g. 'no-unused-vars': 'off')
 // take effect here instead of being silently overridden by safeword's strict layer.
 export default [
+  ...ownDirectoryIgnore,
   safewordStrictRules,
   ...projectConfig,
 ${prettier.configEntry}
@@ -302,6 +321,7 @@ function getSafewordEslintConfigLegacy(
 // Used by hooks for LLM enforcement. Human pre-commits use project config.
 // NOTE: Legacy .eslintrc.* format is deprecated. Consider migrating to eslint.config.mjs
 import { FlatCompat } from "@eslint/eslintrc";
+import { ESLint } from "eslint";
 ${safewordImport}${prettier.import}
 
 console.warn("Safeword: Legacy .eslintrc.* detected. Consider migrating to eslint.config.mjs");
@@ -319,9 +339,12 @@ try {
 
 ${SAFEWORD_STRICT_RULES_FULL}
 
+${SAFEWORD_DIRECTORY_IGNORE}
+
 // Composition order (ticket 138): safeword rules FIRST, customer config LAST.
 // See getSafewordEslintConfigExtending for rationale.
 export default [
+  ...ownDirectoryIgnore,
   safewordStrictRules,
   ...projectConfig,
 ${prettier.configEntry}
