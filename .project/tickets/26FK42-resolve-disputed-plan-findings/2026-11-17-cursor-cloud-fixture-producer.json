@@ -1,0 +1,19 @@
+{
+  "reviewer": "simulated",
+  "host": "cursor-cloud",
+  "handoff": "real",
+  "runtime": "cursor",
+  "build": "bld-20261117-43b9130d-1633-4c30-a4fb-98834a730887",
+  "base": "dc5033ddd7660eaf991544a70a4697c2ed47c078",
+  "review_id": "6687956e-4ba0-49b0-ad4c-51140236d5e4",
+  "plan_sha256": "2430088b9888d81d45b2c0b63f298de4b99977cbd4f1b2cb58c02b5344a7566f",
+  "integrity_key_absent_from_every_committed_file": true,
+  "independent_model_review": false,
+  "cross_agent_approval": false,
+  "scenario_approval": false,
+  "lost_review_not_reconstructed": "25345426-fd62-4435-93ae-c6eef49af02a",
+  "disposition_exit_code": 2,
+  "disposition_state": "action_required",
+  "disposition_status": "pending",
+  "statement": "The reviewer process is the simulated trusted external reviewer from the planning-dispute persistence test. The host and git handoff are real. This is not an independent model review, a cross-agent approval, or full scenario approval. Lost review 25345426-fd62-4435-93ae-c6eef49af02a was not reconstructed."
+}
