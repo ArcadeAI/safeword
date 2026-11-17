@@ -392,6 +392,9 @@ const CLOSEOUT_COMMAND = new RegExp(
   'u',
 );
 
+/** Programs that can execute the closeout script, in any of their invocation forms. */
+const SCRIPT_RUNNERS = new Set(['bun', 'bunx', 'node', 'npx', 'tsx', 'deno']);
+
 export type CloseoutBindingTarget =
   { kind: 'tree'; projectDirectory: string } | { kind: 'unresolved' };
 
@@ -399,8 +402,8 @@ export type CloseoutBindingTarget =
  * Where a closeout command will run, so its binding lands where closeout reads it: the git working
  * tree of the shell cwd, or of a leading `cd <plain path>`. Closeout reads its binding from
  * `git rev-parse --show-toplevel` of its own cwd. `unresolved` means the command runs a closeout
- * script in any other shape, or runs one other than this project's or the plugin's. Returns
- * undefined when the command runs no closeout script.
+ * script in any other shape or through any other program, or runs one other than this project's
+ * or the plugin's. Returns undefined when the command runs no closeout script.
  */
 export function closeoutBindingTarget(
   command: string,
@@ -408,10 +411,12 @@ export function closeoutBindingTarget(
   pluginRoot: string | undefined = process.env.CLAUDE_PLUGIN_ROOT,
 ): CloseoutBindingTarget | undefined {
   const runsCloseoutScript = splitShellSegments(command).some(segment => {
-    const words = commandWords(segment);
+    const words = commandWords(segment).map(word => word.replaceAll('"', '').replaceAll("'", ''));
+    const program = nodePath.basename(words[0] ?? '');
     return (
-      nodePath.basename(words[0] ?? '') === 'bun' &&
-      (words[1] ?? '').replaceAll('"', '').endsWith('/closeout-cleanup.ts')
+      program === 'closeout-cleanup.ts' ||
+      (SCRIPT_RUNNERS.has(program) &&
+        words.slice(1).some(word => word.endsWith('closeout-cleanup.ts')))
     );
   });
   if (!runsCloseoutScript) return undefined;

@@ -192,6 +192,10 @@ describe('closeout binding follows the worktree closeout runs in (#5467)', () =>
     'cd WORKTREE & CLOSEOUT',
     'env -C WORKTREE CLOSEOUT',
     'cd "${CLAUDE_PLUGIN_ROOT}" && CLOSEOUT',
+    'cd "$TARGET" && bun run .safeword/scripts/closeout-cleanup.ts --pr 42',
+    'bun run .safeword/scripts/closeout-cleanup.ts --pr 42',
+    './.safeword/scripts/closeout-cleanup.ts --pr 42',
+    'node .safeword/scripts/closeout-cleanup.ts --pr 42',
   ])('denies closeout behind a directory change it does not follow: %s', form => {
     repo();
 
