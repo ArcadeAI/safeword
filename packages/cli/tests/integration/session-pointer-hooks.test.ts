@@ -170,6 +170,11 @@ describe('session-level hooks follow the session pointer (#5467)', () => {
     delete environment.SAFEWORD_PLUGIN_CLI;
 
     // The installed copy: the template imports a file generated at install.
+    // It must be byte-identical to the shipped template, so this proves the
+    // template's behavior.
+    expect(readFileSync(DOGFOOD_AUTO_UPGRADE, 'utf8')).toBe(
+      readFileSync(nodePath.join(HOOKS, 'session-auto-upgrade.ts'), 'utf8'),
+    );
     const result = spawnSync('bun', [DOGFOOD_AUTO_UPGRADE], {
       input: JSON.stringify({
         session_id: sessionId,
