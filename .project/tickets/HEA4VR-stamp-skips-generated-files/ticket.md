@@ -2,8 +2,8 @@
 id: HEA4VR
 slug: stamp-skips-generated-files
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-11-15T18:07:29.778Z
 last_modified: 2026-11-15T18:07:29.778Z
 issue: '#5870'
@@ -36,3 +36,4 @@ done_when:
 - 2026-11-15T18:07:29.778Z Started: Created ticket HEA4VR
 - 2026-11-15T18:08:34.454Z Phase: intake → implement
 - 2026-11-17T04:44:06.089Z Phase: implement → verify
+- 2026-11-17T05:26:30.892Z Phase: verify → done

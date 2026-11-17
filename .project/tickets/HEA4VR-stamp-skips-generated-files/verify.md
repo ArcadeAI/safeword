@@ -2,7 +2,7 @@
 
 ## Verify Checklist
 
-**Test Suite:** ⚠️ Local environment limitation: 11848/11852 pass (14 skipped); the 4 failures are the local Go toolchain mismatch (`compile: version "go1.25.14" does not match go tool version "go1.27.1"`, 2 tests in `tests/hooks/lint-go-context.test.ts`) and OpenCode/review-probe timeouts (`bunx --bun opencode-ai@1.18.23 --version` timed out; `REVIEW_ROUTES_EXHAUSTED` in `tests/cli-protocol/review-wiring.test.ts`). Targeted: `tests/hooks/stamp-coverage-generated.test.ts`, `tests/hooks/review-receipt.test.ts`, `tests/integration/review-receipt-wiring.test.ts` ✓ 80/80 tests pass. CI was fully green at `170b2c4` (Go lint context and OpenCode conformance included), confirming the local failures are environment-only.
+**Test Suite:** ⚠️ Local environment limitation: 11848/11852 pass (14 skipped); the 4 failures are the local Go toolchain mismatch (`compile: version "go1.25.14" does not match go tool version "go1.27.1"`, 2 tests in `tests/hooks/lint-go-context.test.ts`) and OpenCode/review-probe timeouts (`bunx --bun opencode-ai@1.18.23 --version` timed out; `REVIEW_ROUTES_EXHAUSTED` in `tests/cli-protocol/review-wiring.test.ts`). Targeted: `tests/hooks/stamp-coverage-generated.test.ts`, `tests/hooks/review-receipt.test.ts`, `tests/integration/review-receipt-wiring.test.ts` ✓ 80/80 tests pass. CI is fully green at `24e03d8`, which contains the final implementation and all follow-up tests (later commits touch only this ticket folder): test (node 22.23.2), test (node 24.18.1), lint, Go lint context 2.0.0 and 2.13.2, OpenCode conformance, Dogfood parity, CLI contract and Dependency audit all pass. The same Go and OpenCode lanes fail only locally, which confirms those failures are environment-only.
 **Gherkin:** ✅ Acceptance lane passes (599/599 scenarios, 11786 steps)
 **Build:** ⚠️ Local environment limitation: build lane fails only on the same Go toolchain mismatch; the TypeScript build (tsup/DTS) succeeds.
 **Lint:** ✅ Clean (eslint + prettier via pre-commit)
@@ -15,7 +15,7 @@
 **Reconcile:** ✅ No pattern deviation — reuses the isolated `git check-attr --source` approach from `review/packet.ts`
 **Experience:** ⏭️ N/A — not persona-facing (agent workflow gate internals)
 **Surface Evidence:** ✅ 1/1 affected surfaces have recorded proof — implement-phase stamp: `bun .safeword/hooks/write-review-stamp.ts --phase implement` on this branch accepted review `c22c0d71-3ef9-4aea-9169-b553e14d8b74` and, after the test additions, `ada533f1-7abc-4058-939e-647d73d60d62`; both covered only the hand-written files and left out the 8 `plugin/` and `packages/cli/codex-plugin/` mirrors
-**Evidence limits:** ⚠️ Go toolchain mismatch and OpenCode/review-probe timeouts are local-only; CI passes the same lanes
+**Evidence limits:** ⚠️ Go toolchain mismatch and OpenCode/review-probe timeouts are local-only; CI at `24e03d8` passes the same lanes
 
 ## Review and audit
 
