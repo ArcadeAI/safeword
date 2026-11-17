@@ -10,7 +10,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -170,9 +170,7 @@ describe('closeout binding follows the worktree closeout runs in (#5467)', () =>
         hookSpecificOutput?: { permissionDecision?: string; permissionDecisionReason?: string };
       };
       expect(output.hookSpecificOutput?.permissionDecision).toBe('deny');
-      expect(output.hookSpecificOutput?.permissionDecisionReason).toContain(
-        CLOSEOUT.split(' --', 1)[0],
-      );
+      expect(output.hookSpecificOutput?.permissionDecisionReason).toContain('as its own command');
       const after = readdirSync(stateDirectory)
         .filter(name => name.startsWith('closeout-session-binding'))
         .map(name => readFileSync(nodePath.join(stateDirectory, name), 'utf8'));

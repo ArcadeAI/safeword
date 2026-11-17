@@ -467,9 +467,9 @@ export function closeoutBindingTarget(
 
 /** The plain recovery for a closeout command whose working tree the hook cannot tell. */
 export const CLOSEOUT_UNRESOLVED_DIRECTORY_MESSAGE =
-  'Closeout must confirm this session in the worktree it runs in, so it runs only as its own ' +
-  "command with the worktree's own script, optionally after one `cd <absolute path> &&`: " +
-  '`bun "\${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts --pr <number>`. Run it that way.';
+  'Closeout must confirm this session in the worktree it runs in, so this command is blocked. ' +
+  "Run the closeout skill's cleanup command exactly as the skill gives it, as its own command, " +
+  'from the worktree (or after one `cd <absolute path> &&`), with no wrapper or other commands.';
 
 export function rememberCloseoutBinding(input: RememberCloseoutBindingInput): boolean {
   const id = nonEmptyString(input.id);
