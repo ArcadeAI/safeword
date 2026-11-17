@@ -53,38 +53,6 @@ const workspaceStepImports = [
 const defaultTags = 'not @wip and not @proof.vitest and not @manual and not @live';
 const liveTags = '@live and not @manual';
 
-const cliFeatureDirectories = new Set([
-  'features',
-  'packages',
-  'apps',
-  'libs',
-  'modules',
-  // A bare configured directory passed as a positional arg is a feature path
-  // too — without this, `cucumber-js tests/behaviors` would still get the
-  // config's default paths merged in.
-  ...(configuredFeaturesDirectory
-    ? [configuredFeaturesDirectory, configuredFeaturesDirectory.split('/', 1)[0]]
-    : []),
-]);
-
-// A `.feature` path, optionally with Cucumber line selectors
-// (`example.feature:12`, `example.feature:12:30`).
-function isFeatureFileArgument(argument) {
-  const marker = '.feature';
-  const markerIndex = argument.lastIndexOf(marker);
-  if (markerIndex === -1) return false;
-  const [leading, ...lines] = argument.slice(markerIndex + marker.length).split(':');
-  return leading === '' && lines.every(line => /^\d+$/.test(line));
-}
-
-function isCliFeaturePathArgument(argument) {
-  return (
-    isFeatureFileArgument(argument) ||
-    argument.includes('*.feature') ||
-    cliFeatureDirectories.has(argument)
-  );
-}
-
 // Cucumber options that take a value as the next argument (`--name <REGEXP>`).
 // That value is never a feature path, even when it ends in `.feature`; the
 // `--option=value` form is a single argument and needs no special case.
@@ -118,8 +86,9 @@ const valueTakingOptions = new Set([
   '--world-parameters',
 ]);
 
-// Positional (feature path) arguments: everything except options and their
-// values, plus every argument after a bare `--`.
+// Cucumber reads every positional argument as a feature path (a file, a
+// directory, a glob, or `file.feature:12`): everything except options and
+// their values, plus every argument after a bare `--`.
 function positionalArguments(argv) {
   const positionals = [];
   let skipNext = false;
@@ -136,8 +105,10 @@ function positionalArguments(argv) {
   return positionals;
 }
 
+// Any CLI feature path replaces the default globs, so a targeted run never
+// picks up unselected scenarios.
 export function hasCliFeaturePath(argv = process.argv.slice(2)) {
-  return positionalArguments(argv).some(argument => isCliFeaturePathArgument(argument));
+  return positionalArguments(argv).length > 0;
 }
 
 export function buildCucumberConfig(argv = process.argv.slice(2)) {

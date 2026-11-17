@@ -131,6 +131,66 @@ describe('scaffolded runner honors configured paths (TB2.AC2 + TB2.AC3)', () => 
   );
 
   it(
+    'runs only the targeted directory when a directory path is passed',
+    () => {
+      writeTestFile(
+        directory,
+        'features/targeted/targeted.feature',
+        [
+          'Feature: Targeted directory',
+          '',
+          '  Scenario: targeted scenario',
+          '    When the targeted scenario runs',
+          '',
+        ].join('\n'),
+      );
+      writeTestFile(
+        directory,
+        'features/untargeted.feature',
+        [
+          'Feature: Untargeted',
+          '',
+          '  Scenario: untargeted scenario',
+          '    When the untargeted scenario runs',
+          '',
+        ].join('\n'),
+      );
+      writeTestFile(
+        directory,
+        'steps/targeted.steps.ts',
+        [
+          "import { When } from '@cucumber/cucumber';",
+          '',
+          "When('the targeted scenario runs', function () {",
+          '  // Scenario reached.',
+          '});',
+          '',
+          "When('the untargeted scenario runs', function () {",
+          "  throw new Error('untargeted scenario ran despite the directory path');",
+          '});',
+          '',
+        ].join('\n'),
+      );
+      try {
+        // A trailing slash is a valid Cucumber directory path that no exact
+        // directory-name match recognizes.
+        const { output, status } = runTestBdd(directory, [
+          'features/targeted/',
+          '--format',
+          'summary',
+        ]);
+        expect(status, output).toBe(0);
+        expect(output).toContain('1 scenario (1 passed)');
+      } finally {
+        rmSync(nodePath.join(directory, 'features/targeted'), { force: true, recursive: true });
+        rmSync(nodePath.join(directory, 'features/untargeted.feature'), { force: true });
+        rmSync(nodePath.join(directory, 'steps/targeted.steps.ts'), { force: true });
+      }
+    },
+    TIMEOUT_SETUP,
+  );
+
+  it(
     'keeps workspace feature directories when an option value ends in .feature',
     () => {
       writeTestFile(

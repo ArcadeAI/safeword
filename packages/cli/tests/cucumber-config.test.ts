@@ -124,13 +124,15 @@ describe('Cucumber config targeted path handling', () => {
   );
 
   it.each(CONFIG_SURFACES)(
-    '%s rejects malformed line selectors as feature paths',
+    '%s treats any positional directory form as a CLI feature path',
     async (_label, relativePath) => {
-      const { hasCliFeaturePath } = await loadConfigModule(relativePath);
+      const { buildCucumberConfig, hasCliFeaturePath } = await loadConfigModule(relativePath);
 
-      expect(hasCliFeaturePath(['features/example.feature:'])).toBe(false);
-      expect(hasCliFeaturePath(['features/example.feature:abc'])).toBe(false);
-      expect(hasCliFeaturePath(['features/example.featurex'])).toBe(false);
+      expect(hasCliFeaturePath(['./features'])).toBe(true);
+      expect(hasCliFeaturePath(['features/'])).toBe(true);
+      expect(hasCliFeaturePath(['features/checkout'])).toBe(true);
+      expect(hasCliFeaturePath(['tests/behaviors/subset'])).toBe(true);
+      expect(buildCucumberConfig(['features/checkout/'])).not.toHaveProperty('paths');
     },
   );
 
