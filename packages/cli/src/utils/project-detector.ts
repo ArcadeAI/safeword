@@ -6,6 +6,7 @@
  */
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import nodePath from 'node:path';
 
 import { LANGUAGE_PACKS } from '../packs/registry.js';
@@ -584,6 +585,20 @@ export function detectCucumberLane(cwd: string | undefined): CucumberLaneDetecti
   };
 }
 
+/**
+ * True if Node resolves `typescript` from the project, the way the project's
+ * own tools would: its node_modules or any ancestor's (hoisted workspaces).
+ */
+function resolvesTypescript(cwd: string | undefined): boolean {
+  if (cwd === undefined) return false;
+  try {
+    createRequire(nodePath.join(cwd, 'package.json')).resolve('typescript/package.json');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function detectProjectType(packageJson: PackageJsonWithScripts, cwd?: string): ProjectType {
   const dependencies = packageJson.dependencies ?? {};
   const developmentDependencies = packageJson.devDependencies ?? {};
@@ -595,9 +610,7 @@ export function detectProjectType(packageJson: PackageJsonWithScripts, cwd?: str
     publishableLibrary: detectPublishable(packageJson),
     shell: cwd ? hasShellScripts(cwd) : false,
     hasJsSource: cwd ? hasJsSource(cwd) : false,
-    typescriptAvailable:
-      'typescript' in allDependencies ||
-      (cwd !== undefined && existsSync(nodePath.join(cwd, 'node_modules/typescript/package.json'))),
+    typescriptAvailable: 'typescript' in allDependencies || resolvesTypescript(cwd),
     ...detectCucumberLane(cwd),
     ...detectExistingTooling(cwd, scripts),
   };

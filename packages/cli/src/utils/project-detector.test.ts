@@ -364,6 +364,13 @@ describe('detectProjectType', () => {
       expect(detectProjectType({}, cwd).typescriptAvailable).toBe(true);
     });
 
+    it('counts typescript that Node resolves from a parent folder as available', () => {
+      writeTestFile(cwd, 'node_modules/typescript/package.json', '{"version":"5.9.3"}\n');
+      writeTestFile(cwd, 'apps/web/package.json', '{"name":"web"}\n');
+      const workspaceMember = nodePath.join(cwd, 'apps/web');
+      expect(detectProjectType({}, workspaceMember).typescriptAvailable).toBe(true);
+    });
+
     it('counts a declared typescript as available before it is installed', () => {
       const declared: PackageJson = { devDependencies: { typescript: '^5.9.0' } };
       expect(detectProjectType(declared, cwd).typescriptAvailable).toBe(true);
