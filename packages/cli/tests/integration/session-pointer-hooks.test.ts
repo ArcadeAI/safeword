@@ -124,4 +124,17 @@ describe('session-level hooks follow the session pointer (#5467)', () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('TypeError@post-tool-quality');
   });
+
+  it('a SessionStart hook reports the edited repository after the session returns', () => {
+    writeFileSync(nodePath.join(repoB, '.safeword', 'version'), '9.9.9-edited\n');
+
+    const result = runHook('session-version.ts', launch, {
+      session_id: sessionId,
+      hook_event_name: 'SessionStart',
+      cwd: launch,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('v9.9.9-edited');
+  });
 });

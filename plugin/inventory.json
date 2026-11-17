@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "6f6dd8550d2c4180a7c2f012beb9759838010399f775653b37a4aed487991fe5"
+      "sha256": "8a50562dc46947d3033ed20d6d65fd2ed89b6dd77f975514b73f72cb6f656f49"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "2830e4d34846164a9b7929d9eacd5f7825c9df1224656e228f46c6c47d66cf87"
+      "sha256": "fda5d01ad196de7a93208995f310a1caebdab571def11439e4abfc076dc70b9a"
     },
     {
       "path": "runtime/event-groups.json",
@@ -531,7 +531,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
-      "sha256": "7bb05938c06c15ce412d2c1d816c9678898fe341eb787fd0ae1cb88f1bf9dbdf"
+      "sha256": "effed19c66d305536e3f529fd82e8b6c4f42b983eb677dc2ebe86f717d9f0df9"
     },
     {
       "path": "runtime/hooks/prompt-questions.ts",
@@ -1527,7 +1527,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",
-      "sha256": "7bb05938c06c15ce412d2c1d816c9678898fe341eb787fd0ae1cb88f1bf9dbdf"
+      "sha256": "effed19c66d305536e3f529fd82e8b6c4f42b983eb677dc2ebe86f717d9f0df9"
     },
     {
       "path": "templates/hooks/prompt-questions.ts",
