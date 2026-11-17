@@ -5,7 +5,7 @@
 import { existsSync } from 'node:fs';
 
 import { bootstrapDependencies, wireGitHooksIfNeeded } from './lib/dependency-readiness.ts';
-import { resolveSessionProjectDirectory } from './lib/project-directory.ts';
+import { readSessionProjectDirectory } from './lib/project-directory.ts';
 
 interface SessionStartOutput {
   hookSpecificOutput: {
@@ -14,16 +14,7 @@ interface SessionStartOutput {
   };
 }
 
-let input: { session_id?: string; cwd?: string } = {};
-try {
-  input = await Bun.stdin.json();
-} catch {
-  // No input: resolve from the launch checkout.
-}
-const projectDirectory = resolveSessionProjectDirectory({
-  sessionId: input.session_id,
-  cwd: input.cwd,
-});
+const projectDirectory = await readSessionProjectDirectory();
 
 if (!existsSync(`${projectDirectory}/.safeword`)) {
   process.exit(0);

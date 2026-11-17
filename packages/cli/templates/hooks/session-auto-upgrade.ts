@@ -5,19 +5,13 @@ import process from 'node:process';
 
 import { filterSafewordFiles } from './lib/owned-paths.ts';
 import { runAutoUpgrade, toClaudeAutoUpgradeResponse } from './lib/auto-upgrade.ts';
-import { resolveSessionProjectDirectory } from './lib/project-directory.ts';
+import { readSessionProjectDirectory } from './lib/project-directory.ts';
 
 // Native plugin releases are upgraded by Claude's plugin lifecycle. Never
 // reach through the registry or mutate legacy project framework code here.
 if (process.env.SAFEWORD_PLUGIN_CLI !== undefined) process.exit(0);
 
-let input: { session_id?: string; cwd?: string } = {};
-try {
-  input = await Bun.stdin.json();
-} catch {
-  // No input: resolve from the launch checkout.
-}
-const projectDir = resolveSessionProjectDirectory({ sessionId: input.session_id, cwd: input.cwd });
+const projectDir = await readSessionProjectDirectory();
 const outcome = await runAutoUpgrade({ projectDir, filterSafewordFiles });
 const response = toClaudeAutoUpgradeResponse(outcome);
 

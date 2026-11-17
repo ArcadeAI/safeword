@@ -161,6 +161,22 @@ export function resolveSessionProjectDirectory(input: {
   return resolveProjectDirectory({ launchDirectory: input.launchDirectory, cwd: input.cwd });
 }
 
+/**
+ * The project for a session-level hook that needs nothing else from its input:
+ * reads the hook's stdin (session id and cwd) and applies
+ * `resolveSessionProjectDirectory`. A hook with no input resolves from the
+ * launch checkout.
+ */
+export async function readSessionProjectDirectory(): Promise<string> {
+  let input: { session_id?: string; cwd?: string } = {};
+  try {
+    input = await Bun.stdin.json();
+  } catch {
+    // No input: resolve from the launch checkout.
+  }
+  return resolveSessionProjectDirectory({ sessionId: input.session_id, cwd: input.cwd });
+}
+
 /** The first git working tree at or above `start`, when it is enrolled. */
 function enrolledWorkingTree(launchDirectory: string, start: string): string | undefined {
   const directory = nearestGitTree(start);

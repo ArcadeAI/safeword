@@ -9372,19 +9372,19 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/prompt-timestamp.ts':
         'd7939e98528717fed556adf65dcb9fd3c24fac530ba76be2db9c5faebbac27f3',
       '.safeword/hooks/session-architecture-heal.ts':
-        '7d1f6735333add896852115f8e554311358ac5930dd8c03604cc148a07d9ce12',
+        'cdc754075083e02e0f7197cfd3f2db2c8958478db0e956a17de70baa91c1719c',
       '.safeword/hooks/session-auto-upgrade.ts':
-        '3a0cf9d49d0c89a1f9144d45c62345da7dadfd5428e1a8fef0919483eea1a7ff',
+        '0ebb81093758bf5149d91310d4f630e4abb18fd25dc2ccb9cd59519633f8ca13',
       '.safeword/hooks/session-bun-check.sh':
         '47e97a2f787228347213521d8391ab6b001e19270aed8e2795f13d6ea0603c29',
       '.safeword/hooks/session-cleanup-quality.ts':
-        'f86fa64073a8c1fd6c34be118d188f14bb5faa3c1ccf4811de7a53c0a5c805d2',
+        'bfd60a346a87a015b10128a01e48cdcd3e2fb6418598c2e6a59cb4cfd548080d',
       '.safeword/hooks/session-compact-context.ts':
         '9b5276e301d827172bc25bb19e72a52de36eab53b49e7b9bf9385e407e0f851b',
       '.safeword/hooks/session-dependency-readiness.ts':
-        '976dee8deaf71d819c15e36b71b0be54ff5ef49267e5ff82c01eaad9ab98bd66',
+        '4921538436e71530a426f13c789cdefec84e229a325603f0fbb605f297e4705e',
       '.safeword/hooks/session-lint-check.ts':
-        '2ee5e2e4dc6b1bdfc7f95789c52d20bdef9a31af13ecaaeba5cd38529715ba01',
+        '48b7358184db9663dde153dd57328f696ff99276daa11dd8ba9dbc2eb6eb6535',
       '.safeword/hooks/session-reply-format.ts':
         '41f7578e93188d5efacdd9ecbf29f72753a6fe98bca71fe321c61f547aeb8532',
       '.safeword/hooks/session-safeword-context.ts':
@@ -9392,7 +9392,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/session-start-reentry.ts':
         'b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d',
       '.safeword/hooks/session-version.ts':
-        '93f99d48724c0fcb3745a738cae66555dc33ac93153cc62fe44496fe9d48fe74',
+        '29cc8138df8477660764239420c9dc8c545653b07c5c89ffb7aa10d2987cc9b3',
       '.safeword/hooks/stop-quality.ts':
         'f02e31d37039957088f08b91394962268dd6f3c50c52228ae39aced8ac58dbd3',
       '.safeword/hooks/stop-reentry.ts':

@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "e1901dbe16a15e95ad4bd1d4d0c7e590dfe4153cc0a97c9d6da8890fc5cf9b23"
+      "sha256": "6f6dd8550d2c4180a7c2f012beb9759838010399f775653b37a4aed487991fe5"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "f999945ec9c0d21617748db5cd0c9c3137a56e818a26e312ae7f482aba89b161"
+      "sha256": "2830e4d34846164a9b7929d9eacd5f7825c9df1224656e228f46c6c47d66cf87"
     },
     {
       "path": "runtime/event-groups.json",
@@ -339,7 +339,7 @@
     },
     {
       "path": "runtime/hooks/lib/project-directory.ts",
-      "sha256": "1855cdb9081e331c48a12c5f1835a23911fb9c3aa866c64a94a5c3d4caab3dca"
+      "sha256": "b3f07a935b171994193ee6fa91fea6611e6df1a7ed4350bf30a5b178c81cdb11"
     },
     {
       "path": "runtime/hooks/lib/project-knowledge.ts",
@@ -567,11 +567,11 @@
     },
     {
       "path": "runtime/hooks/session-architecture-heal.ts",
-      "sha256": "7d1f6735333add896852115f8e554311358ac5930dd8c03604cc148a07d9ce12"
+      "sha256": "cdc754075083e02e0f7197cfd3f2db2c8958478db0e956a17de70baa91c1719c"
     },
     {
       "path": "runtime/hooks/session-auto-upgrade.ts",
-      "sha256": "3a0cf9d49d0c89a1f9144d45c62345da7dadfd5428e1a8fef0919483eea1a7ff"
+      "sha256": "0ebb81093758bf5149d91310d4f630e4abb18fd25dc2ccb9cd59519633f8ca13"
     },
     {
       "path": "runtime/hooks/session-bun-check.sh",
@@ -579,7 +579,7 @@
     },
     {
       "path": "runtime/hooks/session-cleanup-quality.ts",
-      "sha256": "f86fa64073a8c1fd6c34be118d188f14bb5faa3c1ccf4811de7a53c0a5c805d2"
+      "sha256": "bfd60a346a87a015b10128a01e48cdcd3e2fb6418598c2e6a59cb4cfd548080d"
     },
     {
       "path": "runtime/hooks/session-codex-start.ts",
@@ -595,11 +595,11 @@
     },
     {
       "path": "runtime/hooks/session-dependency-readiness.ts",
-      "sha256": "976dee8deaf71d819c15e36b71b0be54ff5ef49267e5ff82c01eaad9ab98bd66"
+      "sha256": "4921538436e71530a426f13c789cdefec84e229a325603f0fbb605f297e4705e"
     },
     {
       "path": "runtime/hooks/session-lint-check.ts",
-      "sha256": "2ee5e2e4dc6b1bdfc7f95789c52d20bdef9a31af13ecaaeba5cd38529715ba01"
+      "sha256": "48b7358184db9663dde153dd57328f696ff99276daa11dd8ba9dbc2eb6eb6535"
     },
     {
       "path": "runtime/hooks/session-reply-format.ts",
@@ -615,7 +615,7 @@
     },
     {
       "path": "runtime/hooks/session-version.ts",
-      "sha256": "93f99d48724c0fcb3745a738cae66555dc33ac93153cc62fe44496fe9d48fe74"
+      "sha256": "29cc8138df8477660764239420c9dc8c545653b07c5c89ffb7aa10d2987cc9b3"
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
@@ -1335,7 +1335,7 @@
     },
     {
       "path": "templates/hooks/lib/project-directory.ts",
-      "sha256": "1855cdb9081e331c48a12c5f1835a23911fb9c3aa866c64a94a5c3d4caab3dca"
+      "sha256": "b3f07a935b171994193ee6fa91fea6611e6df1a7ed4350bf30a5b178c81cdb11"
     },
     {
       "path": "templates/hooks/lib/project-knowledge.ts",
@@ -1563,11 +1563,11 @@
     },
     {
       "path": "templates/hooks/session-architecture-heal.ts",
-      "sha256": "7d1f6735333add896852115f8e554311358ac5930dd8c03604cc148a07d9ce12"
+      "sha256": "cdc754075083e02e0f7197cfd3f2db2c8958478db0e956a17de70baa91c1719c"
     },
     {
       "path": "templates/hooks/session-auto-upgrade.ts",
-      "sha256": "3a0cf9d49d0c89a1f9144d45c62345da7dadfd5428e1a8fef0919483eea1a7ff"
+      "sha256": "0ebb81093758bf5149d91310d4f630e4abb18fd25dc2ccb9cd59519633f8ca13"
     },
     {
       "path": "templates/hooks/session-bun-check.sh",
@@ -1575,7 +1575,7 @@
     },
     {
       "path": "templates/hooks/session-cleanup-quality.ts",
-      "sha256": "f86fa64073a8c1fd6c34be118d188f14bb5faa3c1ccf4811de7a53c0a5c805d2"
+      "sha256": "bfd60a346a87a015b10128a01e48cdcd3e2fb6418598c2e6a59cb4cfd548080d"
     },
     {
       "path": "templates/hooks/session-codex-start.ts",
@@ -1591,11 +1591,11 @@
     },
     {
       "path": "templates/hooks/session-dependency-readiness.ts",
-      "sha256": "976dee8deaf71d819c15e36b71b0be54ff5ef49267e5ff82c01eaad9ab98bd66"
+      "sha256": "4921538436e71530a426f13c789cdefec84e229a325603f0fbb605f297e4705e"
     },
     {
       "path": "templates/hooks/session-lint-check.ts",
-      "sha256": "2ee5e2e4dc6b1bdfc7f95789c52d20bdef9a31af13ecaaeba5cd38529715ba01"
+      "sha256": "48b7358184db9663dde153dd57328f696ff99276daa11dd8ba9dbc2eb6eb6535"
     },
     {
       "path": "templates/hooks/session-reply-format.ts",
@@ -1611,7 +1611,7 @@
     },
     {
       "path": "templates/hooks/session-version.ts",
-      "sha256": "93f99d48724c0fcb3745a738cae66555dc33ac93153cc62fe44496fe9d48fe74"
+      "sha256": "29cc8138df8477660764239420c9dc8c545653b07c5c89ffb7aa10d2987cc9b3"
     },
     {
       "path": "templates/hooks/stop-quality.ts",

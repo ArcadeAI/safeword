@@ -11,15 +11,9 @@ import {
   shouldWarnMissingPrettier,
 } from './lib/lint-config.ts';
 import { BIOME_CONFIG_FILES, resolveHostToolchain } from './lib/host-toolchain.ts';
-import { resolveSessionProjectDirectory } from './lib/project-directory.ts';
+import { readSessionProjectDirectory } from './lib/project-directory.ts';
 
-let input: { session_id?: string; cwd?: string } = {};
-try {
-  input = await Bun.stdin.json();
-} catch {
-  // No input: resolve from the launch checkout.
-}
-const projectDir = resolveSessionProjectDirectory({ sessionId: input.session_id, cwd: input.cwd });
+const projectDir = await readSessionProjectDirectory();
 const safewordDir = `${projectDir}/.safeword`;
 
 // Not a safeword project, skip silently
