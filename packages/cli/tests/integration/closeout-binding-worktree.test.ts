@@ -143,29 +143,42 @@ describe('closeout binding follows the worktree closeout runs in (#5467)', () =>
     });
   });
 
-  it('denies closeout behind a cd it cannot follow, leaving a waiting binding alone', () => {
-    repo();
-    rememberCloseoutBinding({ projectDirectory: worktreeA, runtime: 'claude', id: 'earlier' });
-    const stateDirectory = nodePath.join(worktreeA, '.project');
-    const before = readdirSync(stateDirectory)
-      .filter(name => name.startsWith('closeout-session-binding'))
-      .map(name => readFileSync(nodePath.join(stateDirectory, name), 'utf8'));
+  it.each([
+    { script: 'the relative', path: () => '.safeword/scripts/closeout-cleanup.ts' },
+    {
+      script: "another worktree's absolute",
+      path: () => nodePath.join(worktreeB, '.safeword/scripts/closeout-cleanup.ts'),
+    },
+  ])(
+    'denies $script closeout script behind a cd it cannot follow, leaving a waiting binding alone',
+    ({ path }) => {
+      repo();
+      rememberCloseoutBinding({ projectDirectory: worktreeA, runtime: 'claude', id: 'earlier' });
+      const stateDirectory = nodePath.join(worktreeA, '.project');
+      const before = readdirSync(stateDirectory)
+        .filter(name => name.startsWith('closeout-session-binding'))
+        .map(name => readFileSync(nodePath.join(stateDirectory, name), 'utf8'));
 
-    const result = runClaudeHook(primary, `cd "$TARGET" && ${CLOSEOUT}`, 'claude-session-var');
+      const result = runClaudeHook(
+        primary,
+        `cd "$TARGET" && bun ${path()} --pr 42`,
+        'claude-session-var',
+      );
 
-    expect(result.status, result.stderr).toBe(0);
-    const output = JSON.parse(result.stdout) as {
-      hookSpecificOutput?: { permissionDecision?: string; permissionDecisionReason?: string };
-    };
-    expect(output.hookSpecificOutput?.permissionDecision).toBe('deny');
-    expect(output.hookSpecificOutput?.permissionDecisionReason).toContain(
-      CLOSEOUT.split(' --', 1)[0],
-    );
-    const after = readdirSync(stateDirectory)
-      .filter(name => name.startsWith('closeout-session-binding'))
-      .map(name => readFileSync(nodePath.join(stateDirectory, name), 'utf8'));
-    expect(after).toEqual(before);
-  });
+      expect(result.status, result.stderr).toBe(0);
+      const output = JSON.parse(result.stdout) as {
+        hookSpecificOutput?: { permissionDecision?: string; permissionDecisionReason?: string };
+      };
+      expect(output.hookSpecificOutput?.permissionDecision).toBe('deny');
+      expect(output.hookSpecificOutput?.permissionDecisionReason).toContain(
+        CLOSEOUT.split(' --', 1)[0],
+      );
+      const after = readdirSync(stateDirectory)
+        .filter(name => name.startsWith('closeout-session-binding'))
+        .map(name => readFileSync(nodePath.join(stateDirectory, name), 'utf8'));
+      expect(after).toEqual(before);
+    },
+  );
 
   it('closeout run inside a worktree finds the binding the Codex hook recorded', () => {
     repo();

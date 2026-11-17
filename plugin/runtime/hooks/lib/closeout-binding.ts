@@ -394,7 +394,8 @@ export function closeoutBindingTarget(
     const tree: string = nearestGitTree(directory ?? shellDirectory) ?? directory ?? shellDirectory;
     if (
       nodePath.basename(words[0] ?? '') === 'bun' &&
-      isCloseoutCleanupPath(words[1], pluginRoot, tree)
+      (isCloseoutCleanupPath(words[1], pluginRoot, tree) ||
+        isCloseoutCleanupPath(words[1], pluginRoot, scriptProjectRoot(words[1])))
     ) {
       return directory === undefined
         ? { kind: 'unresolved' }
@@ -409,6 +410,18 @@ export function closeoutBindingTarget(
     }
   }
   return undefined;
+}
+
+/**
+ * The enrolled project an absolute closeout script path lives in. Closeout reads its binding from
+ * its cwd wherever the script lives, so any enrolled project's closeout script is closeout.
+ */
+function scriptProjectRoot(token: string | undefined): string | undefined {
+  const suffix = '/"\${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts';
+  const path = token?.replaceAll('"', '').replaceAll("'", '');
+  if (path === undefined || !nodePath.isAbsolute(path) || !path.endsWith(suffix)) return undefined;
+  const root = path.slice(0, -suffix.length);
+  return hasSafewordProjectMarker(root) ? root : undefined;
 }
 
 /** The plain recovery for a closeout command whose working tree the hook cannot tell. */
