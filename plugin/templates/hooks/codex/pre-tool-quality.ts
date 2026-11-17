@@ -27,7 +27,7 @@ import {
   rememberCodexRunIdentity,
 } from '../lib/cursor-run-identity.ts';
 import {
-  commandInvokesCloseoutCleanup,
+  closeoutBindingTarget,
   rememberCloseoutBinding,
   resolveExactCodexTranscript,
 } from '../lib/closeout-binding.ts';
@@ -183,19 +183,21 @@ if (failedResult === undefined && commandInvokesWriteReviewStamp(input.tool_inpu
   });
 }
 
-if (
-  failedResult === undefined &&
-  commandInvokesCloseoutCleanup(
-    input.tool_input?.command ?? '',
-    process.env.CLAUDE_PLUGIN_ROOT,
-    resolveProjectRoot(),
-  )
-) {
+// Record the binding where closeout will read it: the working tree its command
+// runs in. The Claude gate above denies a closeout behind an unfollowable `cd`.
+const closeoutTarget =
+  failedResult === undefined
+    ? closeoutBindingTarget(
+        input.tool_input?.command ?? '',
+        nodePath.resolve(resolveProjectRoot(), input.cwd ?? '.'),
+      )
+    : undefined;
+if (closeoutTarget?.kind === 'tree') {
   const transcriptPath = input.session_id
     ? resolveExactCodexTranscript(input.session_id)
     : undefined;
   rememberCloseoutBinding({
-    projectDirectory: resolveProjectRoot(),
+    projectDirectory: closeoutTarget.projectDirectory,
     runtime: 'codex',
     id: input.session_id,
     transcriptPath,

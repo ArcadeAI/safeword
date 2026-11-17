@@ -458,11 +458,11 @@ describe('closeout host identity bridge (93C14D NTB1.R2/TBU1.R4)', () => {
     const now = new Date('2026-08-02T12:00:00.000Z');
     rememberCloseoutBinding({ projectDirectory, runtime: 'codex', id: 'thread-42', now });
 
-    const bindingPath = nodePath.join(
-      projectDirectory,
-      '.project',
-      'closeout-session-binding.json',
+    const bindingFiles = readdirSync(nodePath.join(projectDirectory, '.project')).filter(name =>
+      name.startsWith('closeout-session-binding-'),
     );
+    expect(bindingFiles).toHaveLength(1);
+    const bindingPath = nodePath.join(projectDirectory, '.project', bindingFiles[0] ?? '');
     expect(existsSync(bindingPath)).toBe(true);
     expect(readFreshCloseoutBinding({ projectDirectory, now })?.id).toBe('thread-42');
     expect(existsSync(bindingPath)).toBe(false);

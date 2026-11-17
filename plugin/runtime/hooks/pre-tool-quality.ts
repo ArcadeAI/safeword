@@ -22,7 +22,11 @@ import {
   pinnedSafewordVersion,
   trustedEnvironment,
 } from './lib/safeword-cli.ts';
-import { commandInvokesCloseoutCleanup, rememberCloseoutBinding } from './lib/closeout-binding.ts';
+import {
+  CLOSEOUT_UNRESOLVED_DIRECTORY_MESSAGE,
+  closeoutBindingTarget,
+  rememberCloseoutBinding,
+} from './lib/closeout-binding.ts';
 import { detectBroadProcessKill } from './lib/process-kill-guard.ts';
 import { evaluateBlockedOnGate } from './lib/blocked-on-gate.ts';
 import { isGitOperationInProgress } from './lib/git-operation.ts';
@@ -610,19 +614,21 @@ if (tool === 'Bash') {
   if (GIT_COMMIT_COMMAND.test(command)) {
     enforceRefactorCommitGate(input.session_id);
   }
+  // Closeout reads its binding from the working tree it runs in, so record it
+  // there: the shell's cwd after any leading `cd`. Every host runs this gate,
+  // so an unfollowable `cd` is denied for all of them.
+  const closeoutTarget = closeoutBindingTarget(
+    command,
+    nodePath.resolve(launchProjectDirectory, input.cwd ?? '.'),
+  );
+  if (closeoutTarget?.kind === 'unresolved') deny(CLOSEOUT_UNRESOLVED_DIRECTORY_MESSAGE);
   if (
-    // Closeout runs against the launch checkout (it removes the worktree), so
-    // its session binding stays there regardless of the shell's cwd.
-    commandInvokesCloseoutCleanup(
-      command,
-      process.env.CLAUDE_PLUGIN_ROOT,
-      launchProjectDirectory,
-    ) &&
+    closeoutTarget?.kind === 'tree' &&
     (process.env.SAFEWORD_AGENT_RUNTIME === undefined ||
       process.env.SAFEWORD_AGENT_RUNTIME === 'claude')
   ) {
     rememberCloseoutBinding({
-      projectDirectory: launchProjectDirectory,
+      projectDirectory: closeoutTarget.projectDirectory,
       runtime: 'claude',
       id: input.session_id,
       transcriptPath: input.transcript_path,

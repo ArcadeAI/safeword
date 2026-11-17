@@ -15,9 +15,10 @@ import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 import { hasSafewordProjectMarker, resolveNamespaceRoot } from './namespace-root.js';
+import { nearestGitTree } from './project-directory.js';
 import { commandWords, splitShellSegments } from './shell-segments.js';
 
-const CLOSEOUT_BINDING_CACHE = 'closeout-session-binding.json';
+const CLOSEOUT_BINDING_PREFIX = 'closeout-session-binding';
 const DEFAULT_MAX_AGE_MS = 5 * 60 * 1000;
 const CLOSEOUT_RUNTIMES = ['claude', 'codex', 'cursor'] as const;
 const CLOSEOUT_HANDOFF_TTL_MS = 24 * 60 * 60 * 1000;
@@ -360,15 +361,68 @@ export function commandInvokesCloseoutCleanup(
   });
 }
 
+/**
+ * The binding file for one working tree. Worktrees can share an absolute configured namespace
+ * root, and the reader claims and deletes its whole file, so each tree gets its own name.
+ */
+function closeoutBindingPath(projectDirectory: string): string {
+  const tree = createHash('sha256').update(realpathSync(projectDirectory)).digest('hex');
+  return nodePath.join(
+    resolveNamespaceRoot(projectDirectory),
+    `${CLOSEOUT_BINDING_PREFIX}-${tree.slice(0, 16)}.json`,
+  );
+}
+
+export type CloseoutBindingTarget =
+  { kind: 'tree'; projectDirectory: string } | { kind: 'unresolved' };
+
+/**
+ * Where a closeout command will run, so its binding lands where closeout reads it: the git
+ * working tree of the shell cwd after any `cd`/`pushd` that precedes the closeout segment.
+ * Closeout reads from `git rev-parse --show-toplevel` of its own cwd. `unresolved` means a
+ * preceding directory change the hook cannot follow (a variable, `~`, `-`, or no argument).
+ * Returns undefined when the command does not run closeout.
+ */
+export function closeoutBindingTarget(
+  command: string,
+  shellDirectory: string,
+  pluginRoot: string | undefined = process.env.CLAUDE_PLUGIN_ROOT,
+): CloseoutBindingTarget | undefined {
+  let directory: string | undefined = shellDirectory;
+  for (const segment of splitShellSegments(command)) {
+    const words = commandWords(segment);
+    const tree: string = nearestGitTree(directory ?? shellDirectory) ?? directory ?? shellDirectory;
+    if (
+      nodePath.basename(words[0] ?? '') === 'bun' &&
+      isCloseoutCleanupPath(words[1], pluginRoot, tree)
+    ) {
+      return directory === undefined
+        ? { kind: 'unresolved' }
+        : { kind: 'tree', projectDirectory: tree };
+    }
+    if (directory !== undefined && (words[0] === 'cd' || words[0] === 'pushd')) {
+      const target = words[1]?.replaceAll('"', '').replaceAll("'", '');
+      directory =
+        target === undefined || target === '-' || /[$`~]/.test(target)
+          ? undefined
+          : nodePath.resolve(directory, target);
+    }
+  }
+  return undefined;
+}
+
+/** The plain recovery for a closeout command whose working tree the hook cannot tell. */
+export const CLOSEOUT_UNRESOLVED_DIRECTORY_MESSAGE =
+  'Closeout must confirm this session in the worktree it runs in, and this command changes ' +
+  'directory in a way the hook cannot follow. Change into the worktree first, then run ' +
+  'closeout as its own command: `bun .safeword/scripts/closeout-cleanup.ts --pr <number>`.';
+
 export function rememberCloseoutBinding(input: RememberCloseoutBindingInput): boolean {
   const id = nonEmptyString(input.id);
   if (id === undefined || !hasSafewordProjectMarker(input.projectDirectory)) return false;
   const transcriptPath = nonEmptyString(input.transcriptPath);
   try {
-    const cachePath = nodePath.join(
-      resolveNamespaceRoot(input.projectDirectory),
-      CLOSEOUT_BINDING_CACHE,
-    );
+    const cachePath = closeoutBindingPath(input.projectDirectory);
     mkdirSync(nodePath.dirname(cachePath), { recursive: true });
     appendFileSync(
       cachePath,
@@ -390,10 +444,12 @@ export function rememberCloseoutBinding(input: RememberCloseoutBindingInput): bo
 export function readFreshCloseoutBinding(
   input: ReadFreshCloseoutBindingInput,
 ): CloseoutBinding | undefined {
-  const cachePath = nodePath.join(
-    resolveNamespaceRoot(input.projectDirectory),
-    CLOSEOUT_BINDING_CACHE,
-  );
+  let cachePath: string;
+  try {
+    cachePath = closeoutBindingPath(input.projectDirectory);
+  } catch {
+    return undefined;
+  }
   if (!existsSync(cachePath)) return undefined;
   const claimPath = `${cachePath}.claim-${randomUUID()}`;
   try {

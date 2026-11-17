@@ -16,7 +16,11 @@ import {
   rememberCursorReviewStampIdentity,
   rememberCursorRunIdentity,
 } from '../lib/cursor-run-identity.ts';
-import { commandInvokesCloseoutCleanup, rememberCloseoutBinding } from '../lib/closeout-binding.ts';
+import {
+  CLOSEOUT_UNRESOLVED_DIRECTORY_MESSAGE,
+  closeoutBindingTarget,
+  rememberCloseoutBinding,
+} from '../lib/closeout-binding.ts';
 import { stashCursorShellCwd, stashCursorTranscript } from '../lib/cursor-state.ts';
 import { AUTO_UPGRADE_LOCK_MESSAGE, isAutoUpgradeLockActive } from '../lib/auto-upgrade-lock.ts';
 import {
@@ -74,11 +78,23 @@ function stashReviewStampIdentity(): void {
   });
 }
 
+// Closeout reads its binding from the working tree it runs in: the shell's cwd
+// after any leading `cd`. One it cannot follow is denied before anything runs.
+const closeoutTarget = closeoutBindingTarget(
+  command,
+  nodePath.resolve(process.cwd(), input.cwd ?? '.'),
+);
+if (closeoutTarget?.kind === 'unresolved') {
+  process.stdout.write(
+    JSON.stringify(toCursorDecision(CLOSEOUT_UNRESOLVED_DIRECTORY_MESSAGE)) + '\n',
+  );
+  process.exit(0);
+}
+
 function stashCloseoutBinding(): void {
-  if (!commandInvokesCloseoutCleanup(command, process.env.CLAUDE_PLUGIN_ROOT, process.cwd()))
-    return;
+  if (closeoutTarget?.kind !== 'tree') return;
   rememberCloseoutBinding({
-    projectDirectory: process.cwd(),
+    projectDirectory: closeoutTarget.projectDirectory,
     runtime: 'cursor',
     id: input.conversation_id,
     transcriptPath: input.transcript_path,

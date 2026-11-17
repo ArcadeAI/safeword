@@ -314,9 +314,9 @@ const CODEX_RUNTIME_ASSETS: Record<string, ManagedFileDefinition> = Object.fromE
  * skill-invocations, re-entry, dependency-readiness). Single source for both
  * the per-root `.gitignore` managed file (`NAMESPACE_GITIGNORE_CONTENT`) and the
  * repo-root `.gitignore` block (`SAFEWORD_TRANSIENT_PATHS`). Patterns are exact
- * filenames plus the one `quality-state*` glob — never a bare `*` — so durable
- * siblings (tickets/, learnings/, principles.md, personas.md, glossary.md,
- * surfaces.md) stay tracked.
+ * filenames plus the `quality-state*` and per-worktree `closeout-session-binding*`
+ * globs — never a bare `*` — so durable siblings (tickets/, learnings/,
+ * principles.md, personas.md, glossary.md, surfaces.md) stay tracked.
  */
 const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
   'quality-state*.json',
@@ -327,7 +327,7 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
   're-entry.md',
   'dependency-readiness.json',
   'readiness-ticket.json',
-  'closeout-session-binding.json',
+  'closeout-session-binding*.json',
   'codex-review-stamp-identity.json',
   'cursor-review-stamp-identity.json',
 ];
