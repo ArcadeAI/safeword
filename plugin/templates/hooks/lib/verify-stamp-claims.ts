@@ -43,6 +43,8 @@ function addPaths(paths: Set<string>, output: string | undefined): boolean {
 }
 
 const EXEMPT_ATTRIBUTES = ['linguist-generated', 'linguist-vendored'] as const;
+// check-attr reports `path attr` as "set" and `path attr=true` as "true".
+const ENABLED = new Set(['set', 'true']);
 
 /**
  * The work files the merge base marks generated or vendored (issue #5870).
@@ -110,7 +112,7 @@ function baseExemptFiles(projectDirectory: string, base: string, files: string[]
     const byRepoPath = new Map(repoPaths.map((repoPath, index) => [repoPath, files[index]]));
     for (let offset = 0; offset < fields.length; offset += 3) {
       const file = byRepoPath.get(fields[offset] ?? '');
-      if (file !== undefined && fields[offset + 2] === 'true') exempt.add(file);
+      if (file !== undefined && ENABLED.has(fields[offset + 2] ?? '')) exempt.add(file);
     }
     return exempt;
   } finally {

@@ -42,7 +42,7 @@ describe('implement-phase coverage set', () => {
     write(
       root,
       '.gitattributes',
-      'mirror/** linguist-generated=true\nvendor/** linguist-vendored=true\nmirror/README.md -linguist-generated\n',
+      'mirror/** linguist-generated=true\nvendor/** linguist-vendored\nmirror/README.md -linguist-generated\n',
     );
     write(root, 'src/feature.ts', 'export const a = 1;\n');
     write(root, 'mirror/feature.js', 'export const a = 1;\n');
