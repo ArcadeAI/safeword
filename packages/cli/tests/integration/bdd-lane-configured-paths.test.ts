@@ -131,6 +131,51 @@ describe('scaffolded runner honors configured paths (TB2.AC2 + TB2.AC3)', () => 
   );
 
   it(
+    'keeps workspace feature directories when an option value ends in .feature',
+    () => {
+      writeTestFile(
+        directory,
+        'packages/demo/features/option-value.feature',
+        [
+          'Feature: Option value',
+          '',
+          '  Scenario: option-value feature in a workspace package',
+          '    When the workspace package scenario runs',
+          '',
+        ].join('\n'),
+      );
+      writeTestFile(
+        directory,
+        'packages/demo/features/steps/option-value.steps.ts',
+        [
+          "import { When } from '@cucumber/cucumber';",
+          '',
+          "When('the workspace package scenario runs', function () {",
+          '  // Scenario reached.',
+          '});',
+          '',
+        ].join('\n'),
+      );
+      try {
+        // `--name` takes a regular expression; this one ends in `.feature` and
+        // matches the workspace scenario's name. Read as a feature path, it
+        // would drop the workspace globs and the scenario would never be found.
+        const { output, status } = runTestBdd(directory, [
+          '--name',
+          'option-value.feature',
+          '--format',
+          'summary',
+        ]);
+        expect(status, output).toBe(0);
+        expect(output).toContain('1 scenario (1 passed)');
+      } finally {
+        rmSync(nodePath.join(directory, 'packages'), { force: true, recursive: true });
+      }
+    },
+    TIMEOUT_SETUP,
+  );
+
+  it(
     'bdd-lane-collision-detection-and-paths.TB2.AC3.runner_defaults_apply_without_a_config_file',
     () => {
       rmSync(nodePath.join(directory, '.safeword/config.json'), { force: true });

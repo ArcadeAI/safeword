@@ -151,6 +151,29 @@ describe('Cucumber config targeted path handling', () => {
       expect(hasCliFeaturePath(['--import', 'features/support.ts'])).toBe(false);
     },
   );
+
+  it.each(CONFIG_SURFACES)(
+    '%s does not treat a value-taking option argument as a feature path',
+    async (_label, relativePath) => {
+      const { buildCucumberConfig, hasCliFeaturePath } = await loadConfigModule(relativePath);
+
+      expect(hasCliFeaturePath(['--name', 'checkout.feature'])).toBe(false);
+      expect(hasCliFeaturePath(['-p', 'features'])).toBe(false);
+      expect(hasCliFeaturePath(['--format', 'summary', '--name', 'checkout.feature'])).toBe(false);
+      expect(buildCucumberConfig(['--name', 'checkout.feature'])).toHaveProperty('paths');
+    },
+  );
+
+  it.each(CONFIG_SURFACES)(
+    '%s still finds a feature path after option values and a bare --',
+    async (_label, relativePath) => {
+      const { hasCliFeaturePath } = await loadConfigModule(relativePath);
+
+      expect(hasCliFeaturePath(['--name', 'checkout', 'features/example.feature'])).toBe(true);
+      expect(hasCliFeaturePath(['--dry-run', 'features/example.feature'])).toBe(true);
+      expect(hasCliFeaturePath(['--', '--name.feature'])).toBe(true);
+    },
+  );
 });
 
 // A relocated lane (`paths.features` in .safeword/config.json) run directly as
