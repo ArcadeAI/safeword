@@ -67,7 +67,7 @@ describe('runCliWithoutInstall', () => {
   it('disables installation while preserving unrelated caller environment', async () => {
     const calls: {
       args: string[];
-      options?: { cwd?: string; env?: Record<string, string>; timeout?: number };
+      options?: { cwd?: string; env?: Record<string, string | undefined>; timeout?: number };
     }[] = [];
     const runner = ((args, options) => {
       calls.push({ args, options });
@@ -119,7 +119,7 @@ describe('setupOrThrow retry policy', () => {
   });
 
   it('skips package installation by default while allowing an explicit override', async () => {
-    const calls: { env?: Record<string, string> }[] = [];
+    const calls: { env?: Record<string, string | undefined> }[] = [];
     const runner = ((_, options) => {
       calls.push(options ?? {});
       return Promise.resolve({ stdout: '', stderr: '', exitCode: 0, timedOut: false });

@@ -1,0 +1,38 @@
+[
+  {
+    "mutation": "accept-all",
+    "exit_code": 1,
+    "summary": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 23 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "Test Files  1 failed (1)",
+      "Tests  23 failed | 1 passed (24)"
+    ]
+  },
+  {
+    "mutation": "reject-all",
+    "exit_code": 1,
+    "summary": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 13 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "Test Files  1 failed (1)",
+      "Tests  13 failed | 11 passed (24)"
+    ]
+  },
+  {
+    "mutation": "raw-bytes-only",
+    "exit_code": 1,
+    "summary": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 12 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "Test Files  1 failed (1)",
+      "Tests  12 failed | 12 passed (24)"
+    ]
+  },
+  {
+    "mutation": "body-only",
+    "exit_code": 1,
+    "summary": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 18 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "Test Files  1 failed (1)",
+      "Tests  18 failed | 6 passed (24)"
+    ]
+  }
+]

@@ -1,0 +1,48 @@
+diff --git a/packages/cli/src/commands/plan-approval.ts b/packages/cli/src/commands/plan-approval.ts
+index 5ecbc974f..2f5800ea3 100644
+--- a/packages/cli/src/commands/plan-approval.ts
++++ b/packages/cli/src/commands/plan-approval.ts
+@@ -542,6 +542,7 @@ function currentApprovalResult(
+ 
+ async function approve(context: ApprovalContext, noInput: boolean): Promise<CliResult> {
+   assertActivePlanningAuthorCopy(context.cwd, 'plan-implementation');
++  const approvalRequired = designApprovalEnabled(context.cwd);
+   const executionDiscovery = currentExecutionDiscovery(context);
+   if (executionDiscovery !== undefined) {
+     return applyExecutionDiscovery(context, executionDiscovery);
+@@ -553,7 +554,7 @@ async function approve(context: ApprovalContext, noInput: boolean): Promise<CliR
+ 
+   const ledgerTarget = nodePath.relative(context.cwd, context.ledgerPath);
+   const ticketTarget = nodePath.relative(context.cwd, context.ticketPath);
+-  if (!designApprovalEnabled(context.cwd)) {
++  if (!approvalRequired) {
+     appendReceipt(context, 'not-required');
+     const advanced = advanceToExecutionPlanning(context);
+     return result(context, 'not-required', [ledgerTarget, ...advanced], undefined, {
+diff --git a/packages/cli/templates/skills/bdd/PLAN_IMPLEMENTATION.md b/packages/cli/templates/skills/bdd/PLAN_IMPLEMENTATION.md
+index be34bd846..2ca27b083 100644
+--- a/packages/cli/templates/skills/bdd/PLAN_IMPLEMENTATION.md
++++ b/packages/cli/templates/skills/bdd/PLAN_IMPLEMENTATION.md
+@@ -377,7 +377,7 @@ receipt controls eligibility for approval and phase advancement.
+    a continuation remains blocked. Never substitute another surface-private reviewer
+    or hand-written independent evidence. Under `prefer`, a current approving
+    receipt with actual reviewer and `independence: reduced` may satisfy this
+-   phase when `architectureReviewGate` is disabled. State before any finding
++   planning phase. State before any finding
+    that the actual reviewer was not independent; never call it cross-agent
+    coverage. Under `require`, or for a stale, rejected, blocked, or unreceipted
+    result, do not stamp or advance.
+diff --git a/packages/cli/tests/integration/native-planning-copy-dispatch.test.ts b/packages/cli/tests/integration/native-planning-copy-dispatch.test.ts
+index a8600e792..a4dd2f304 100644
+--- a/packages/cli/tests/integration/native-planning-copy-dispatch.test.ts
++++ b/packages/cli/tests/integration/native-planning-copy-dispatch.test.ts
+@@ -228,7 +228,8 @@ describe('Complete native planning author-copy dispatch', () => {
+           review_kind: kind,
+           author_agent: author,
+           actual_reviewer: reviewerAgent,
+-          independence: 'cross-agent',
++          // These reviewer fakes provide no confirmed model provenance.
++          independence: 'reduced',
+         },
+       });
+       expect(readFileSync(reviewer.calls, 'utf8')).toBe('review\n');

@@ -17,6 +17,7 @@ import {
   parseReviewStamps,
   readCrossAgentReviewPolicy,
   reviewGateAppliesToPhase,
+  reviewGateForIndependentDesign,
   reviewGateForNextAsset,
   reviewScope,
   type ReviewStamp,
@@ -24,6 +25,34 @@ import {
 
 /** A coordinator review id, as write-review-stamp.ts records it. */
 const REVIEW_ID = 'b3f1c2d4-0000-4000-8000-000000000001';
+
+describe('independent design review gate', () => {
+  const scope = reviewScope('DES123', 'impl-plan', hashArtifact('plan'));
+  const reduced: ReviewStamp = {
+    scope,
+    reviewId: REVIEW_ID,
+    author: 'claude',
+    reviewer: 'claude',
+    independence: 'reduced',
+  };
+
+  it('accepts an authenticated reduced receipt: independence never blocks', () => {
+    expect(reviewGateForIndependentDesign(scope, [reduced])).toEqual({ ok: true });
+  });
+
+  it('accepts an independent receipt or an explicit reasoned skip', () => {
+    expect(
+      reviewGateForIndependentDesign(scope, [
+        { ...reduced, reviewer: 'codex', independence: 'cross-agent' },
+      ]),
+    ).toEqual({ ok: true });
+    expect(
+      reviewGateForIndependentDesign(scope, [
+        { scope, skipReason: 'Reviewed by architecture owner' },
+      ]),
+    ).toEqual({ ok: true });
+  });
+});
 
 describe('reviewGateForNextAsset (TB1.AC1 — per-asset stamp gates the next asset)', () => {
   it('unstamped_prior_blocks_next: denies, naming the unreviewed prior asset', () => {
@@ -82,35 +111,25 @@ describe('gatePhaseAdvance (TB2.AC1 — phase advance needs an independent revie
     expect(gatePhaseAdvance('define-behavior', stamps)).toEqual({ ok: true });
   });
 
-  it('hard cross-agent enforcement rejects degraded or opted-out evidence', () => {
-    const degraded: ReviewStamp[] = [
-      {
+  it.each(['degraded', 'reduced'] as const)(
+    'lets a cited %s review advance the phase: independence never blocks',
+    independence => {
+      const stamp: ReviewStamp = {
         scope: 'scenario-gate',
         author: 'claude',
         reviewer: 'claude',
-        independence: 'degraded',
-      },
-    ];
-
-    expect(gatePhaseAdvance('scenario-gate', degraded, 'require').ok).toBe(false);
-    expect(gatePhaseAdvance('scenario-gate', [], 'require').ok).toBe(false);
-  });
-
-  it('hard cross-agent enforcement accepts distinct validated provenance', () => {
-    const independent: ReviewStamp[] = [
-      {
-        scope: 'scenario-gate',
-        author: 'claude',
-        reviewer: 'codex',
-        independence: 'cross-agent',
+        independence,
         reviewId: REVIEW_ID,
-      },
-    ];
+      };
+      expect(gatePhaseAdvance('scenario-gate', [stamp])).toEqual({ ok: true });
+    },
+  );
 
-    expect(gatePhaseAdvance('scenario-gate', independent, 'require')).toEqual({ ok: true });
+  it('still requires a review or a logged skip to advance', () => {
+    expect(gatePhaseAdvance('scenario-gate', []).ok).toBe(false);
   });
 
-  it('hard cross-agent enforcement accepts OpenCode as a distinct reviewer', () => {
+  it('accepts OpenCode as a distinct reviewer', () => {
     const independent: ReviewStamp[] = [
       {
         scope: 'scenario-gate',
@@ -121,10 +140,10 @@ describe('gatePhaseAdvance (TB2.AC1 — phase advance needs an independent revie
       },
     ];
 
-    expect(gatePhaseAdvance('scenario-gate', independent, 'require')).toEqual({ ok: true });
+    expect(gatePhaseAdvance('scenario-gate', independent)).toEqual({ ok: true });
   });
 
-  it('hard cross-agent enforcement rejects OpenCode reviewing its own work', () => {
+  it('rejects OpenCode reviewing its own work as an independent claim', () => {
     const contradictory: ReviewStamp[] = [
       {
         scope: 'scenario-gate',
@@ -134,10 +153,10 @@ describe('gatePhaseAdvance (TB2.AC1 — phase advance needs an independent revie
       },
     ];
 
-    expect(gatePhaseAdvance('scenario-gate', contradictory, 'require').ok).toBe(false);
+    expect(gatePhaseAdvance('scenario-gate', contradictory).ok).toBe(false);
   });
 
-  it('hard cross-agent enforcement rejects a same-agent stamp that claims independence', () => {
+  it('rejects an uncited same-agent stamp that claims independence', () => {
     const contradictory: ReviewStamp[] = [
       {
         scope: 'scenario-gate',
@@ -147,29 +166,7 @@ describe('gatePhaseAdvance (TB2.AC1 — phase advance needs an independent revie
       },
     ];
 
-    expect(gatePhaseAdvance('scenario-gate', contradictory, 'require').ok).toBe(false);
-  });
-
-  it.each([
-    { author: 'claude', independence: 'cross-agent' as const },
-    { author: 'claude', reviewer: 'codex', independence: 'none' as const },
-  ] as const)(
-    'hard cross-agent enforcement rejects incomplete or opted-out evidence: %j',
-    stamp => {
-      expect(
-        gatePhaseAdvance('scenario-gate', [{ scope: 'scenario-gate', ...stamp }], 'require').ok,
-      ).toBe(false);
-    },
-  );
-
-  it('keeps the explicit logged skip available under hard enforcement', () => {
-    expect(
-      gatePhaseAdvance(
-        'scenario-gate',
-        [{ scope: 'scenario-gate', skipReason: 'review unavailable' }],
-        'require',
-      ),
-    ).toEqual({ ok: true });
+    expect(gatePhaseAdvance('scenario-gate', contradictory).ok).toBe(false);
   });
 });
 
@@ -189,20 +186,19 @@ describe('an independence claim must cite a review to satisfy a gate', () => {
   };
 
   it('rejects a hand-written cross-agent stamp with no review id', () => {
-    expect(gatePhaseAdvance('scenario-gate', [uncited], 'require').ok).toBe(false);
-    expect(gatePhaseAdvance('scenario-gate', [uncited], 'prefer').ok).toBe(false);
+    expect(gatePhaseAdvance('scenario-gate', [uncited]).ok).toBe(false);
   });
 
   it('rejects an uncited degraded claim', () => {
-    expect(
-      gatePhaseAdvance('scenario-gate', [{ ...uncited, independence: 'degraded' }], 'prefer').ok,
-    ).toBe(false);
+    expect(gatePhaseAdvance('scenario-gate', [{ ...uncited, independence: 'degraded' }]).ok).toBe(
+      false,
+    );
   });
 
   it('accepts the same stamp once it cites one', () => {
-    expect(
-      gatePhaseAdvance('scenario-gate', [{ ...uncited, reviewId: REVIEW_ID }], 'require'),
-    ).toEqual({ ok: true });
+    expect(gatePhaseAdvance('scenario-gate', [{ ...uncited, reviewId: REVIEW_ID }])).toEqual({
+      ok: true,
+    });
   });
 
   it('gates the per-asset path on the same rule', () => {
@@ -435,9 +431,9 @@ describe('readCrossAgentReviewPolicy', () => {
     expect(readCrossAgentReviewPolicy('{"crossAgentReview":"future"}')).toBe('prefer');
   });
 
-  it('reads require and off exactly', () => {
-    expect(readCrossAgentReviewPolicy('{"crossAgentReview":"require"}')).toBe('require');
+  it('reads off exactly and treats the retired require policy as prefer', () => {
     expect(readCrossAgentReviewPolicy('{"crossAgentReview":"off"}')).toBe('off');
+    expect(readCrossAgentReviewPolicy('{"crossAgentReview":"require"}')).toBe('prefer');
   });
 });
 

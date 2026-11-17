@@ -1,0 +1,510 @@
+import { isDeepStrictEqual } from 'node:util';
+
+import { DELIVERY_CHECKLIST_CATEGORIES } from '../execution-plan/delivery-checklist.js';
+import type {
+  ExecutionPlanDeliveryDefinition,
+  ExecutionPlanProofSpecification,
+  ExecutionPlanRecord,
+  UnverifiedReviewerOutput,
+} from './contract.js';
+
+type ValidatedExecutionPlanOutput =
+  | {
+      readonly kind: 'approved';
+      readonly output: UnverifiedReviewerOutput & {
+        readonly execution_plan_record: ExecutionPlanRecord;
+      };
+    }
+  | {
+      readonly kind: 'denied';
+      readonly output: UnverifiedReviewerOutput & {
+        readonly verdict: 'request_changes';
+        readonly execution_plan_record: null;
+      };
+    }
+  | { readonly kind: 'invalid_output'; readonly reason: string };
+
+const NULL_EXECUTION_PLAN_RECORD = JSON.parse('null') as null;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
+  const expected = new Set(keys);
+  return (
+    Object.keys(value).length === keys.length && Object.keys(value).every(key => expected.has(key))
+  );
+}
+
+function isNonblank(value: unknown): value is string {
+  return typeof value === 'string' && value.trim() !== '';
+}
+
+function isSha256(value: unknown): value is string {
+  return typeof value === 'string' && /^[a-f0-9]{64}$/u.test(value);
+}
+
+function uniqueNonblankStrings(value: unknown, allowEmpty: boolean): value is string[] {
+  if (!Array.isArray(value) || (!allowEmpty && value.length === 0)) return false;
+  if (!value.every(isNonblank)) return false;
+  return new Set(value).size === value.length;
+}
+
+function commandArguments(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    isNonblank(value[0]) &&
+    value.every(argument => typeof argument === 'string')
+  );
+}
+
+function deniedOutput(
+  output: UnverifiedReviewerOutput,
+  messages: readonly string[] = [],
+): Extract<ValidatedExecutionPlanOutput, { kind: 'denied' }> {
+  return {
+    kind: 'denied',
+    output: {
+      ...output,
+      verdict: 'request_changes',
+      execution_plan_record: NULL_EXECUTION_PLAN_RECORD,
+      findings: [
+        ...output.findings,
+        ...messages.map(message => ({ severity: 'error' as const, message })),
+      ],
+    },
+  };
+}
+
+function successorTripwireFinding(value: unknown, index: number): string | undefined {
+  if (!isRecord(value) || value.relies_on_unmerged_successor !== true) return undefined;
+  const name = isNonblank(value.name) ? value.name : `slice ${index + 1}`;
+  return `Execution Plan slice "${name}" relies on an unmerged successor.`;
+}
+
+function decisionTripwireFinding(value: unknown, index: number): string | undefined {
+  if (!isRecord(value) || !isNonblank(value.status) || value.status === 'unchanged') {
+    return undefined;
+  }
+  const name = isNonblank(value.decision) ? value.decision : `decision ${index + 1}`;
+  return `Execution Plan decision "${name}" has status "${value.status}" instead of unchanged.`;
+}
+
+function readableTripwireFindings(record: Record<string, unknown>): string[] {
+  const sliceFindings = Array.isArray(record.slices)
+    ? record.slices
+        .map((slice, index) => successorTripwireFinding(slice, index))
+        .filter(finding => finding !== undefined)
+    : [];
+  const decisionFindings = Array.isArray(record.decision_statuses)
+    ? record.decision_statuses
+        .map((decision, index) => decisionTripwireFinding(decision, index))
+        .filter(finding => finding !== undefined)
+    : [];
+  return [...sliceFindings, ...decisionFindings];
+}
+
+function isValidSlice(value: unknown): value is ExecutionPlanRecord['slices'][number] {
+  if (!isRecord(value)) return false;
+  if (
+    !hasExactKeys(value, [
+      'name',
+      'purpose',
+      'boundary',
+      'prerequisites',
+      'proof',
+      'completion_signal',
+      'relies_on_unmerged_successor',
+    ])
+  ) {
+    return false;
+  }
+  return (
+    isNonblank(value.name) &&
+    isNonblank(value.purpose) &&
+    isNonblank(value.boundary) &&
+    uniqueNonblankStrings(value.prerequisites, true) &&
+    isNonblank(value.proof) &&
+    isNonblank(value.completion_signal) &&
+    value.relies_on_unmerged_successor === false
+  );
+}
+
+function hasValidRecordHeader(value: Record<string, unknown>): boolean {
+  const decisionIsValid =
+    value.slicing_decision === 'one_pull_request' ||
+    value.slicing_decision === 'multiple_pull_requests';
+  return (
+    hasExactKeys(value, [
+      'slicing_decision',
+      'rationale',
+      'slices',
+      'obligation_owners',
+      'decision_statuses',
+      'accepted_scenarios_covered',
+      'accepted_approach_preserved',
+      'normalized_plan_digest',
+      'delivery_definition',
+    ]) &&
+    decisionIsValid &&
+    isNonblank(value.rationale) &&
+    Array.isArray(value.slices) &&
+    value.slices.every(isValidSlice) &&
+    Array.isArray(value.obligation_owners) &&
+    Array.isArray(value.decision_statuses) &&
+    isSha256(value.normalized_plan_digest) &&
+    hasValidPlanJudgmentHeader(value)
+  );
+}
+
+function hasValidPlanJudgmentHeader(value: Record<string, unknown>): boolean {
+  return (
+    value.accepted_scenarios_covered === true &&
+    value.accepted_approach_preserved === true &&
+    isRecord(value.delivery_definition)
+  );
+}
+
+function isProjectContainedPath(value: string): boolean {
+  if (value === '' || value.startsWith('/') || value.startsWith('\\')) return false;
+  if (/^[A-Za-z]:[\\/]/u.test(value) || value.includes('\0')) return false;
+  return !value.split(/[\\/]/u).includes('..');
+}
+
+function commandInvocationFailure(
+  value: Record<string, unknown>,
+  path: string,
+): string | undefined {
+  if (!hasExactKeys(value, ['type', 'cwd', 'argv'])) {
+    return `${path} must contain exactly type, cwd, and argv`;
+  }
+  if (typeof value.cwd !== 'string' || !isProjectContainedPath(value.cwd)) {
+    return `${path}.cwd must be a project-contained path`;
+  }
+  if (!commandArguments(value.argv)) {
+    return `${path}.argv must be a non-empty array of strings with a nonblank executable`;
+  }
+  return undefined;
+}
+
+function receiptInvocationFailure(
+  value: Record<string, unknown>,
+  path: string,
+): string | undefined {
+  if (!hasExactKeys(value, ['type', 'kind', 'targets'])) {
+    return `${path} must contain exactly type, kind, and targets`;
+  }
+  if (!isNonblank(value.kind)) return `${path}.kind must be a nonblank string`;
+  if (!uniqueNonblankStrings(value.targets, false)) {
+    return `${path}.targets must be a non-empty array of unique nonblank strings`;
+  }
+  if (value.targets.some(target => !isProjectContainedPath(target))) {
+    return `${path}.targets must contain only project-contained paths`;
+  }
+  return undefined;
+}
+
+function proofInvocationFailure(
+  value: unknown,
+  method: ExecutionPlanProofSpecification['method'],
+  path: string,
+): string | undefined {
+  if (!isRecord(value)) return `${path} must be an object`;
+  if (value.type !== method) return `${path}.type must match the proof method`;
+  return method === 'command'
+    ? commandInvocationFailure(value, path)
+    : receiptInvocationFailure(value, path);
+}
+
+function proofSpecificationFailure(value: unknown, path: string): string | undefined {
+  if (
+    !isRecord(value) ||
+    !hasExactKeys(value, [
+      'proof_id',
+      'method',
+      'scope',
+      'boundary_exercised',
+      'qualifies_as',
+      'currency',
+      'invocation',
+    ])
+  ) {
+    return `${path} has an invalid object shape`;
+  }
+  const methodIsValid = value.method === 'command' || value.method === 'review_receipt';
+  const scopeIsValid = ['unit', 'integration', 'E2E', 'eval'].includes(String(value.scope));
+  const qualificationIsValid = ['real_boundary', 'partial_or_structural'].includes(
+    String(value.qualifies_as),
+  );
+  const currencyIsValid = ['current_required', 'compatible_earlier_allowed'].includes(
+    String(value.currency),
+  );
+  if (!isNonblank(value.proof_id)) return `${path}.proof_id must be a nonblank string`;
+  if (!isNonblank(value.boundary_exercised)) {
+    return `${path}.boundary_exercised must be a nonblank string`;
+  }
+  if (!methodIsValid) return `${path}.method is unsupported`;
+  if (!scopeIsValid) return `${path}.scope is unsupported`;
+  if (!qualificationIsValid) return `${path}.qualifies_as is unsupported`;
+  if (!currencyIsValid) return `${path}.currency is unsupported`;
+  return proofInvocationFailure(
+    value.invocation,
+    value.method as ExecutionPlanProofSpecification['method'],
+    `${path}.invocation`,
+  );
+}
+
+function isValidProofSpecification(value: unknown): value is ExecutionPlanProofSpecification {
+  return proofSpecificationFailure(value, 'proof specification') === undefined;
+}
+
+function hasValidChecklistItemBase(value: Record<string, unknown>): boolean {
+  return (
+    isNonblank(value.id) &&
+    DELIVERY_CHECKLIST_CATEGORIES.includes(
+      value.category as (typeof DELIVERY_CHECKLIST_CATEGORIES)[number],
+    ) &&
+    isNonblank(value.obligation)
+  );
+}
+
+function contributorDefinitionIsValid(value: Record<string, unknown>): boolean {
+  if (value.reviewed_disposition === 'not_applicable') {
+    return value.required_proof === '' && isNonblank(value.reviewed_detail);
+  }
+  return (
+    value.reviewed_disposition === null &&
+    value.reviewed_detail === null &&
+    isNonblank(value.required_proof)
+  );
+}
+
+function humanDefinitionIsValid(value: Record<string, unknown>): boolean {
+  return (
+    value.required_proof === '' &&
+    (value.reviewed_disposition === 'not_applicable' ||
+      value.reviewed_disposition === 'pending_human') &&
+    isNonblank(value.reviewed_detail)
+  );
+}
+
+function isValidChecklistDefinitionItem(value: unknown): boolean {
+  if (
+    !isRecord(value) ||
+    !hasExactKeys(value, [
+      'id',
+      'category',
+      'obligation',
+      'owner',
+      'required_proof',
+      'reviewed_disposition',
+      'reviewed_detail',
+    ])
+  ) {
+    return false;
+  }
+  if (!hasValidChecklistItemBase(value)) return false;
+  if (value.owner === 'contributor') return contributorDefinitionIsValid(value);
+  return value.owner === 'human' && humanDefinitionIsValid(value);
+}
+
+function hasValidDeliveryDefinitionHeader(definition: ExecutionPlanDeliveryDefinition): boolean {
+  return (
+    hasExactKeys(definition as unknown as Record<string, unknown>, [
+      'schema_version',
+      'design_approval_gate',
+      'proof_specifications',
+      'checklist_items',
+    ]) &&
+    definition.schema_version === 1 &&
+    typeof definition.design_approval_gate === 'boolean' &&
+    Array.isArray(definition.proof_specifications) &&
+    Array.isArray(definition.checklist_items) &&
+    definition.proof_specifications.length > 0 &&
+    definition.checklist_items.length > 0
+  );
+}
+
+function hasUniqueDefinitionIds(definition: ExecutionPlanDeliveryDefinition): boolean {
+  const proofIds = definition.proof_specifications.map(proof => proof.proof_id);
+  const itemIds = definition.checklist_items.map(item => item.id);
+  return new Set(proofIds).size === proofIds.length && new Set(itemIds).size === itemIds.length;
+}
+
+function hasEveryDefinitionCategory(definition: ExecutionPlanDeliveryDefinition): boolean {
+  const presentCategories = new Set(definition.checklist_items.map(item => item.category));
+  return DELIVERY_CHECKLIST_CATEGORIES.every(category => presentCategories.has(category));
+}
+
+function contributorProofsAreReal(definition: ExecutionPlanDeliveryDefinition): boolean {
+  const realProofs = new Set(
+    definition.proof_specifications
+      .filter(proof => proof.qualifies_as === 'real_boundary')
+      .map(proof => proof.proof_id),
+  );
+  return definition.checklist_items.every(
+    item =>
+      item.owner !== 'contributor' ||
+      item.reviewed_disposition === 'not_applicable' ||
+      realProofs.has(item.required_proof),
+  );
+}
+
+function hasValidDeliveryDefinition(definition: ExecutionPlanDeliveryDefinition): boolean {
+  if (!hasValidDeliveryDefinitionHeader(definition)) return false;
+  if (definition.proof_specifications.some(proof => !isValidProofSpecification(proof))) {
+    return false;
+  }
+  if (definition.checklist_items.some(item => !isValidChecklistDefinitionItem(item))) {
+    return false;
+  }
+  return (
+    hasUniqueDefinitionIds(definition) &&
+    hasEveryDefinitionCategory(definition) &&
+    contributorProofsAreReal(definition)
+  );
+}
+
+function deliveryDefinitionFailure(value: unknown): string | undefined {
+  if (!isRecord(value)) return 'execution_plan_record.delivery_definition must be an object';
+  const definition = value as unknown as ExecutionPlanDeliveryDefinition;
+  if (!hasValidDeliveryDefinitionHeader(definition)) {
+    return 'execution_plan_record.delivery_definition has an invalid header';
+  }
+  for (const [index, proof] of definition.proof_specifications.entries()) {
+    const failure = proofSpecificationFailure(
+      proof,
+      `execution_plan_record.delivery_definition.proof_specifications[${index}]`,
+    );
+    if (failure !== undefined) return failure;
+  }
+  if (!hasValidDeliveryDefinition(definition)) {
+    return 'execution_plan_record.delivery_definition failed structural validation';
+  }
+  return undefined;
+}
+
+function hasValidSliceGraph(record: ExecutionPlanRecord): boolean {
+  const slices = record.slices;
+  const countMatchesDecision =
+    record.slicing_decision === 'one_pull_request' ? slices.length === 1 : slices.length >= 2;
+  const sliceNames = slices.map(slice => slice.name);
+  const namesAreUnique = new Set(sliceNames).size === sliceNames.length;
+  const prerequisitesAreEarlier = slices.every((slice, index) => {
+    const earlier = new Set(sliceNames.slice(0, index));
+    return slice.prerequisites.every(prerequisite => earlier.has(prerequisite));
+  });
+  return countMatchesDecision && namesAreUnique && prerequisitesAreEarlier;
+}
+
+function isValidObligationOwner(
+  value: unknown,
+  sliceNames: readonly string[],
+  seen: Set<string>,
+): value is ExecutionPlanRecord['obligation_owners'][number] {
+  if (!isRecord(value) || !hasExactKeys(value, ['obligation', 'slices'])) return false;
+  if (!isNonblank(value.obligation) || seen.has(value.obligation)) return false;
+  if (!uniqueNonblankStrings(value.slices, false)) return false;
+  if (value.slices.some(slice => !sliceNames.includes(slice))) return false;
+  seen.add(value.obligation);
+  return true;
+}
+
+function hasValidObligationOwners(record: ExecutionPlanRecord): boolean {
+  if (record.obligation_owners.length === 0) return false;
+  const sliceNames = record.slices.map(slice => slice.name);
+  const seen = new Set<string>();
+  const valid = record.obligation_owners.every(owner =>
+    isValidObligationOwner(owner, sliceNames, seen),
+  );
+  if (!valid) return false;
+  const owned = new Set(record.obligation_owners.flatMap(owner => owner.slices));
+  return sliceNames.every(slice => owned.has(slice));
+}
+
+function hasValidDecisionStatuses(record: ExecutionPlanRecord): boolean {
+  if (record.decision_statuses.length === 0) return false;
+  const seen = new Set<string>();
+  return record.decision_statuses.every(decision => {
+    if (!isRecord(decision) || !hasExactKeys(decision, ['decision', 'status'])) return false;
+    if (!isNonblank(decision.decision) || seen.has(decision.decision)) return false;
+    if (decision.status !== 'unchanged') return false;
+    seen.add(decision.decision);
+    return true;
+  });
+}
+
+function isValidExecutionPlanRecord(value: unknown): value is ExecutionPlanRecord {
+  if (!isRecord(value) || !hasValidRecordHeader(value)) return false;
+  const record = value as unknown as ExecutionPlanRecord;
+  return (
+    hasValidSliceGraph(record) &&
+    hasValidObligationOwners(record) &&
+    hasValidDecisionStatuses(record) &&
+    hasValidDeliveryDefinition(record.delivery_definition)
+  );
+}
+
+function executionPlanRecordFailure(value: unknown): string | undefined {
+  if (!isRecord(value)) return 'execution_plan_record must be an object';
+  if (!isRecord(value.delivery_definition)) {
+    return deliveryDefinitionFailure(value.delivery_definition);
+  }
+  if (!hasValidRecordHeader(value)) return 'execution_plan_record has an invalid header';
+  const deliveryFailure = deliveryDefinitionFailure(value.delivery_definition);
+  if (deliveryFailure !== undefined) return deliveryFailure;
+  if (!isValidExecutionPlanRecord(value)) {
+    return 'execution_plan_record failed structural validation';
+  }
+  return undefined;
+}
+
+function hasValidPlanningDestination(output: UnverifiedReviewerOutput): boolean {
+  const destination = output.planning_destination;
+  return (
+    (destination === 'plan-execution' || destination === 'plan-implementation') &&
+    (output.verdict !== 'approve' || destination === 'plan-execution')
+  );
+}
+
+/** Classify one already parsed plan-execution result without interpreting plan prose. */
+export function validateExecutionPlanOutput(
+  output: UnverifiedReviewerOutput,
+  expectedDefinition?: ExecutionPlanDeliveryDefinition,
+  expectedNormalizedPlanDigest?: string,
+): ValidatedExecutionPlanOutput {
+  if (!hasValidPlanningDestination(output)) {
+    return { kind: 'invalid_output', reason: 'planning_destination is invalid' };
+  }
+  if (output.verdict === 'request_changes') return deniedOutput(output);
+
+  const candidate = output.execution_plan_record;
+  if (isRecord(candidate)) {
+    const tripwires = readableTripwireFindings(candidate);
+    if (tripwires.length > 0) return deniedOutput(output, tripwires);
+  }
+  const recordFailure = executionPlanRecordFailure(candidate);
+  if (recordFailure !== undefined) return { kind: 'invalid_output', reason: recordFailure };
+  const validatedCandidate = candidate as ExecutionPlanRecord;
+  if (
+    expectedDefinition !== undefined &&
+    !isDeepStrictEqual(validatedCandidate.delivery_definition, expectedDefinition)
+  ) {
+    return {
+      kind: 'invalid_output',
+      reason: 'execution_plan_record.delivery_definition differs from the trusted definition',
+    };
+  }
+  if (
+    expectedNormalizedPlanDigest !== undefined &&
+    validatedCandidate.normalized_plan_digest !== expectedNormalizedPlanDigest
+  ) {
+    return {
+      kind: 'invalid_output',
+      reason: 'execution_plan_record.normalized_plan_digest differs from the trusted digest',
+    };
+  }
+  return { kind: 'approved', output: { ...output, execution_plan_record: validatedCandidate } };
+}

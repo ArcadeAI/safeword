@@ -1,0 +1,5 @@
+markdownlint-cli2 v0.23.3 (markdownlint v0.41.1)
+Finding: 
+Linting: 1 file
+Summary: 1 issue in 1 file
+stdin:3:4 error MD042/no-empty-links No empty links [Context: "[empty link]()"]

@@ -1,0 +1,82 @@
+[
+  {
+    "stage": "full",
+    "exit": 0,
+    "seconds": 1577.425,
+    "command": [
+      "scripts/dev",
+      "bun",
+      "run",
+      "test"
+    ],
+    "cwd": "/Users/alex/.codex/worktrees/e24e/safeword",
+    "log": "/tmp/5086-finish-full.log"
+  },
+  {
+    "stage": "release",
+    "exit": 0,
+    "seconds": 21.121,
+    "command": [
+      "../../scripts/dev",
+      "bun",
+      "run",
+      "test:release"
+    ],
+    "cwd": "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli",
+    "log": "/tmp/5086-finish-release.log"
+  },
+  {
+    "stage": "cli-contract",
+    "exit": 0,
+    "seconds": 38.659,
+    "command": [
+      "scripts/dev",
+      "bun",
+      "run",
+      "check:cli-contract"
+    ],
+    "cwd": "/Users/alex/.codex/worktrees/e24e/safeword",
+    "log": "/tmp/5086-finish-cli-contract.log"
+  },
+  {
+    "stage": "bdd",
+    "exit": 0,
+    "seconds": 17.363,
+    "command": [
+      "../../scripts/dev",
+      "bun",
+      "run",
+      "test:bdd:acceptance",
+      "--config",
+      "../../../../../../../../private/tmp/5086-cucumber-targeted.mjs"
+    ],
+    "cwd": "/Users/alex/.codex/worktrees/e24e/safeword/packages/cli",
+    "log": "/tmp/5086-finish-bdd.log"
+  },
+  {
+    "stage": "smoke",
+    "exit": 0,
+    "seconds": 52.807,
+    "command": [
+      "scripts/dev",
+      "bun",
+      "run",
+      "test:smoke:fast"
+    ],
+    "cwd": "/Users/alex/.codex/worktrees/e24e/safeword",
+    "log": "/tmp/5086-finish-smoke.log"
+  },
+  {
+    "stage": "typecheck",
+    "exit": 0,
+    "seconds": 5.838,
+    "command": [
+      "scripts/dev",
+      "bun",
+      "run",
+      "typecheck"
+    ],
+    "cwd": "/Users/alex/.codex/worktrees/e24e/safeword",
+    "log": "/tmp/5086-finish-typecheck.log"
+  }
+]

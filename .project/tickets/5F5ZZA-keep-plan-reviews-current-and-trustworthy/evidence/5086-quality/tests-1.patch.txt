@@ -1,0 +1,2751 @@
+diff --git a/packages/cli/features/clarify-review-coverage.feature b/packages/cli/features/clarify-review-coverage.feature
+index 6bc9bd00f..b3353ec78 100644
+--- a/packages/cli/features/clarify-review-coverage.feature
++++ b/packages/cli/features/clarify-review-coverage.feature
+@@ -264,9 +264,9 @@ Feature: Make review coverage clear without false alarms
+ 
+     Examples:
+       | contract       | required_text                                                    |
+-      | finish-review  | Provide supplemental review feedback in this foreground session. |
+-      | finish-review  | Required independent coverage remains unsatisfied.               |
+-      | finish-review  | Include the coordinator's recovery command exactly as provided. |
++      | finish-review  | Report the verdict, summary, and every finding as supplemental feedback in |
++      | finish-review  | unsatisfied regardless of this verdict. |
++      | finish-review  | it creates no machine receipt or review stamp. |
+       | quality-review | Show review coverage details.                                     |
+ 
+   @clarify-review-coverage.SWM1.R1 @contract.host @rejection
+diff --git a/packages/cli/features/review-with-the-best-available-agent.feature b/packages/cli/features/review-with-the-best-available-agent.feature
+index b51a916c8..eeda57258 100644
+--- a/packages/cli/features/review-with-the-best-available-agent.feature
++++ b/packages/cli/features/review-with-the-best-available-agent.feature
+@@ -3,8 +3,8 @@ Feature: Keep review available with the best supported fallback
+   Review assurance may degrade when capabilities are absent, but the main agent
+   still receives bounded findings and the result never overstates independence.
+   The CLI coordinator owns every CLI route through same-agent headless review.
+-  Only REVIEW_ROUTES_EXHAUSTED enters the host fallback, which owns in-session
+-  review and then main-thread self-review.
++  Typed non-planning exhaustion enters supplemental host fallback. A planning
++  review enters only through a sealed continuation from the same review job.
+ 
+   @review-with-the-best-available-agent.TBU1.R6 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents
+   Scenario Outline: Every advertised host installs a typed-exhaustion entry point
+@@ -12,8 +12,8 @@ Feature: Keep review available with the best supported fallback
+     When its shipped fallback wiring is inspected
+     Then it points to the shared finish-review contract
+     And its public entry point and continuation are schema-owned or generated for that host
+-    And it enters that contract only for REVIEW_ROUTES_EXHAUSTED
+-    And it preserves every non-exhaustion coordinator result unchanged
++    And it enters that contract only for typed planning continuation or non-planning exhaustion
++    And it preserves every other coordinator result unchanged
+ 
+     Examples:
+       | surface             | entry point                                                    |
+@@ -63,50 +63,22 @@ Feature: Keep review available with the best supported fallback
+       | Cursor              |
+       | Cursor Cloud Agents |
+ 
+-  @review-with-the-best-available-agent.TBU1.R1 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents @manual
++  @review-with-the-best-available-agent.TBU1.R1 @surface.claude-code
+   Rule: review-with-the-best-available-agent.TBU1.R1 — Every independent reviewer precedes every degraded route
+ 
+-    @review-with-the-best-available-agent.TBU1.R1 @review-with-the-best-available-agent.NTB1.R1
+-    Scenario: The first available opposite local agent completes the review
+-      Given an opposite local agent can review the accepted packet
+-      When the CLI coordinator runs
+-      Then the builder receives that agent's findings
+-      And the result explains that an independent reviewer completed the review
+-      And that reviewer route is attempted exactly once
+-      And no coordinator route restarts
+-
+-    @review-with-the-best-available-agent.TBU1.R1 @review-with-the-best-available-agent.NTB1.R1
+-    Scenario: A failed opposite default model falls through to its independent alternate model
+-      Given the opposite local agent's default model cannot complete the review
+-      And its configured alternate model can complete an independent review
+-      And a degraded reviewer is also available
+-      When the CLI coordinator runs
+-      Then the builder receives the opposite agent's alternate-model findings
+-      And no degraded reviewer is used
+-      And the result explains that an independent reviewer completed the review
+-      And each eligible independent route is attempted at most once
+-      And no coordinator route restarts
+-
+-    @review-with-the-best-available-agent.TBU1.R1 @review-with-the-best-available-agent.NTB1.R1
+-    Scenario: A later compatible independent reviewer still precedes degradation
+-      Given two compatible independent reviewers fail to complete
+-      And a later compatible independent reviewer can complete the accepted packet
+-      And a same-agent headless reviewer is also available
+-      When the CLI coordinator runs
+-      Then the builder receives the later independent reviewer's findings
+-      And no degraded reviewer is used
+-      And the result explains that an independent reviewer completed the review
+-      And each eligible independent route is attempted at most once
+-      And no coordinator route restarts
+-
+-    @review-with-the-best-available-agent.TBU1.R1
+-    Scenario: An alternate model route without model selection is skipped before degradation
+-      Given the opposite default reviewer fails
+-      And its configured alternate reviewer does not support explicit model selection
+-      And the author's headless CLI can review the accepted packet
+-      When the CLI coordinator runs
+-      Then the unsupported alternate route consumes no review attempt
+-      And the builder receives the headless review's findings
++    Scenario Outline: Ranked planning routes honor <case> eligibility and stop after completion
++      Given a ranked planning review with "<case>" routes
++      When the real planning review CLI runs
++      Then reviewer processes launch exactly in this order: "<launches>"
++      And the completed planning review names "<reviewer>" with "<assurance>" assurance
++      And <packets> reviewer packets retain the complete target and the same sealed dispatch
++
++      Examples:
++        | case        | launches                                      | reviewer | assurance   | packets |
++        | first       | codex:gpt-6-astra                              | codex    | cross-agent | 1       |
++        | alternate   | codex:default,codex:gpt-6-astra                | codex    | cross-agent | 2       |
++        | later       | codex:default,codex:gpt-6-sol,codex:gpt-6-astra | codex    | cross-agent | 3       |
++        | unsupported | codex:default,claude:default                  | claude   | reduced     | 1       |
+ 
+   @review-with-the-best-available-agent.TBU1.R2 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents @manual
+   Rule: review-with-the-best-available-agent.TBU1.R2 — Same-agent headless review is the first degraded route
+diff --git a/packages/cli/features/steps/clarify-review-coverage.steps.ts b/packages/cli/features/steps/clarify-review-coverage.steps.ts
+index 67c6fa200..9828263e4 100644
+--- a/packages/cli/features/steps/clarify-review-coverage.steps.ts
++++ b/packages/cli/features/steps/clarify-review-coverage.steps.ts
+@@ -1316,12 +1316,6 @@ function assertRequiredUnsupportedAuthor(result: CliExecution): void {
+     envelope.recovery?.map(item => item.command),
+     ['safeword review run quality-review -- spec.md'],
+   );
+-  assert.ok(
+-    readFileSync(
+-      nodePath.join(repoRoot, 'packages/cli/templates/skills/finish-review/SKILL.md'),
+-      'utf8',
+-    ).includes("Include the coordinator's recovery command exactly as provided."),
+-  );
+ }
+ 
+ const REQUIRED_OUTCOME_ASSERTIONS: Readonly<Record<string, (result: CliExecution) => void>> = {
+@@ -1447,25 +1441,12 @@ function distributedContractPaths(name: ReviewContractName): readonly string[] {
+   ];
+ }
+ 
+-const mandatoryFinishPolicyBlock = `Under \`prefer\`, map \`approve\` to \`State: approved\` and \`request_changes\` to
+-\`State: action required\`; an \`approve\` verdict is not action required under
+-\`prefer\`. Under \`require\`, always use
+-\`Policy: require unsatisfied\` and \`State: action required\`, regardless of the
+-supplemental verdict. A \`request_changes\` verdict must never be reported as
+-approval.
+-
+-- Under \`prefer\`, supplemental findings complete the requested review with the
+-  verdict above. Do not call them standard or independent coverage and do not
+-  write machine provenance or a review stamp.
+-- Under \`require\`, report the supplemental findings as additional feedback, keep
+-  the coordinator's unsatisfied-independence verdict action required, and say:
+-  "Required independent coverage remains unsatisfied. Use an environment with a
+-  usable independent reviewer. Alternatively, explicitly choose \`prefer\`."
+-  Include the coordinator's recovery command exactly as provided.
+-
+-Never describe either supplemental route as completed standard or independent
+-coverage, and never write an
+-independent review stamp from this workflow.`;
++const mandatoryFinishPolicyBlock = `Report the verdict, summary, and every finding as supplemental feedback in
++the foreground, with the actual reviewer and \`degraded\` for fresh context or
++\`none\` for self-review. Under \`require\`, the independent gate remains
++unsatisfied regardless of this verdict. Under \`prefer\`, an approval completes
++only this supplemental request; it creates no machine receipt or review stamp.
++`;
+ 
+ const mandatoryQualityPolicyBlock = `Keep optional setup advice quiet by default. When the user asks
+ \`Show review coverage details.\`, report the typed result's achieved coverage,
+@@ -1591,9 +1572,10 @@ Then(
+     assert.equal(this.distributedContract, 'finish-review');
+     const contractPaths = distributedContractPaths('finish-review');
+     const allowedClauses = [
+-      'Do not call them standard or independent coverage and do not write machine provenance or a review stamp.',
+-      'Required independent coverage remains unsatisfied.',
+-      'Never describe either supplemental route as completed standard or independent coverage, and never write an independent review stamp from this workflow.',
++      'Never describe this as packet-only or independent coverage.',
++      'Under `require`, the independent gate remains unsatisfied regardless of this verdict.',
++      'Under `prefer`, an approval completes only this supplemental request; it creates no machine receipt or review stamp.',
++      'Under `require`, report `State: action required` regardless of the supplemental verdict; independent coverage remains unsatisfied.',
+     ];
+     for (const relativePath of contractPaths) {
+       assertPointerOnlyWrapper(relativePath, 'finish-review');
+diff --git a/packages/cli/features/steps/ranked-planning-review.steps.ts b/packages/cli/features/steps/ranked-planning-review.steps.ts
+new file mode 100644
+index 000000000..662521379
+--- /dev/null
++++ b/packages/cli/features/steps/ranked-planning-review.steps.ts
+@@ -0,0 +1,89 @@
++import assert from 'node:assert/strict';
++import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import nodePath from 'node:path';
++
++import { After, Given, Then, When } from '@cucumber/cucumber';
++
++import {
++  type RankedCase,
++  rankedPlanningReview,
++} from '../../tests/fixtures/ranked-planning-review.js';
++import { createTrustedReviewerDirectory } from '../../tests/review-fixtures.js';
++import type { SafewordWorld } from './world.js';
++
++interface RankedState {
++  project: string;
++  bin: string;
++  example: RankedCase;
++  result?: Awaited<ReturnType<typeof rankedPlanningReview>>;
++}
++const states = new WeakMap<SafewordWorld, RankedState>();
++function state(world: SafewordWorld): RankedState {
++  const current = states.get(world);
++  assert.ok(current, 'ranked planning fixture must exist');
++  return current;
++}
++Given(
++  'a ranked planning review with {string} routes',
++  function (this: SafewordWorld, example: RankedCase) {
++    assert.ok(['first', 'alternate', 'later', 'unsupported'].includes(example));
++    const prefix = nodePath.join(tmpdir(), 'safeword-ranked-');
++    states.set(this, {
++      project: mkdtempSync(prefix),
++      bin: createTrustedReviewerDirectory('safeword-ranked-bin-'),
++      example,
++    });
++  },
++);
++When(
++  'the real planning review CLI runs',
++  { timeout: 40_000 },
++  async function (this: SafewordWorld) {
++    const current = state(this);
++    current.result = await rankedPlanningReview(current.project, current.bin, current.example);
++  },
++);
++Then(
++  'reviewer processes launch exactly in this order: {string}',
++  function (this: SafewordWorld, expected: string) {
++    const result = state(this).result;
++    assert.ok(result);
++    assert.deepEqual(
++      result.launches.map(({ agent, model }) => `${agent}:${model}`),
++      expected.split(','),
++    );
++  },
++);
++Then(
++  'the completed planning review names {string} with {string} assurance',
++  function (this: SafewordWorld, reviewer: string, assurance: string) {
++    const data = state(this).result?.output.data;
++    assert.equal(data?.status, 'approved');
++    assert.equal(data.actual_reviewer, reviewer);
++    assert.equal(data.independence, assurance);
++  },
++);
++Then(
++  '{int} reviewer packets retain the complete target and the same sealed dispatch',
++  function (this: SafewordWorld, count: number) {
++    const packets = state(this)
++      .result?.launches.filter(launch => launch.packet !== undefined)
++      .map(launch => launch.packet);
++    assert.ok(packets);
++    assert.equal(packets.length, count);
++    const target = '.project/tickets/RNK123-ranked/impl-plan.md';
++    const content = readFileSync(nodePath.join(state(this).project, target), 'utf8');
++    for (const packet of packets)
++      assert.deepEqual(packet.logical_files, [{ path: target, content }]);
++    for (const packet of packets) assert.deepEqual(packet, packets[0]);
++    assert.ok(packets[0].dispatch_id);
++  },
++);
++After(function (this: SafewordWorld) {
++  const current = states.get(this);
++  if (current) {
++    rmSync(current.project, { recursive: true, force: true });
++    rmSync(current.bin, { recursive: true, force: true });
++  }
++});
+diff --git a/packages/cli/features/steps/review-best-available.steps.ts b/packages/cli/features/steps/review-best-available.steps.ts
+index 88f39ee7a..61901515e 100644
+--- a/packages/cli/features/steps/review-best-available.steps.ts
++++ b/packages/cli/features/steps/review-best-available.steps.ts
+@@ -120,7 +120,7 @@ When('its shipped fallback wiring is inspected', function (this: SafewordWorld)
+ Then('it points to the shared finish-review contract', function (this: SafewordWorld) {
+   const wiring = reviewWiring(this);
+   assert.match(wiring.entryPoint, /(?:\/|\$safeword:)finish-review/u);
+-  assert.match(wiring.contract, /Finish Review After Route Exhaustion/u);
++  assert.match(wiring.contract, /Finish a Review After Route Exhaustion/u);
+ });
+ 
+ Then(
+@@ -146,22 +146,39 @@ Then(
+   },
+ );
+ 
+-Then('it enters that contract only for REVIEW_ROUTES_EXHAUSTED', function (this: SafewordWorld) {
+-  const wiring = reviewWiring(this);
+-  assert.match(
+-    wiring.entryPoint.replaceAll(/\s+/gu, ' '),
+-    /Only when[^.]{0,240}REVIEW_ROUTES_EXHAUSTED/u,
+-  );
+-  assert.match(wiring.contract, /Continue only when.*REVIEW_ROUTES_EXHAUSTED/su);
+-  assert.match(wiring.contract, /For every other result[\s\S]*return the original/u);
+-});
+-
+ Then(
+-  'it preserves every non-exhaustion coordinator result unchanged',
++  'it enters that contract only for typed planning continuation or non-planning exhaustion',
+   function (this: SafewordWorld) {
+     const wiring = reviewWiring(this);
+-    const normalized = `${wiring.entryPoint} ${wiring.contract}`.replaceAll(/\s+/gu, ' ');
+-    assert.match(normalized, /For every other result[^.]*return the original[^.]*unchanged/iu);
+-    assert.match(normalized, /Do not delegate or self-review/iu);
++    const entry = wiring.entryPoint.replaceAll(/\s+/gu, ' ');
++    assert.match(entry, /REVIEW_CONTINUATION_REQUIRED[^.]*sealed packet/u);
++    assert.match(
++      entry,
++      /non-planning work, only typed `REVIEW_ROUTES_EXHAUSTED` without reviewer findings/u,
++    );
++    assert.match(
++      wiring.contract,
++      /planning receipt path applies only[^.]*REVIEW_CONTINUATION_REQUIRED/u,
++    );
++    assert.match(
++      wiring.contract,
++      /legacy non-planning supplemental path[^.]*REVIEW_ROUTES_EXHAUSTED/u,
++    );
++    assert.match(
++      wiring.contract,
++      /planning\s+`REVIEW_ROUTES_EXHAUSTED` result does not authorize fallback/u,
++    );
+   },
+ );
++
++Then('it preserves every other coordinator result unchanged', function (this: SafewordWorld) {
++  const wiring = reviewWiring(this);
++  assert.match(
++    wiring.entryPoint.replaceAll(/\s+/gu, ' '),
++    /For every other result, return it unchanged/u,
++  );
++  assert.match(
++    wiring.contract.replaceAll(/\s+/gu, ' '),
++    /For every other result, return the coordinator result unchanged/u,
++  );
++});
+diff --git a/packages/cli/tests/cli-protocol/catalog.test.ts b/packages/cli/tests/cli-protocol/catalog.test.ts
+index fef3b151a..3f28304a6 100644
+--- a/packages/cli/tests/cli-protocol/catalog.test.ts
++++ b/packages/cli/tests/cli-protocol/catalog.test.ts
+@@ -154,6 +154,7 @@ describe('CLI command catalog', () => {
+       'ticket record-delivery-proof',
+       'review run',
+       'review status',
++      'review continue',
+       'review gate executable-red',
+       'review gate retrospective',
+       'review attest retrospective',
+diff --git a/packages/cli/tests/cli-protocol/review-routes-wiring.test.ts b/packages/cli/tests/cli-protocol/review-routes-wiring.test.ts
+index 570c7fd86..217ead279 100644
+--- a/packages/cli/tests/cli-protocol/review-routes-wiring.test.ts
++++ b/packages/cli/tests/cli-protocol/review-routes-wiring.test.ts
+@@ -143,6 +143,46 @@ describe('review routes CLI wiring', () => {
+     });
+   });
+ 
++  it('configures Cursor authors without offering Cursor as a reviewer CLI', async () => {
++    const root = createTemporaryDirectory();
++    directories.push(root);
++    vi.stubEnv('XDG_CONFIG_HOME', nodePath.join(root, 'profile'));
++    const set = await invoke(root, [
++      'review',
++      'routes',
++      'set',
++      '--scope',
++      'project',
++      '--author',
++      'cursor',
++      '--route',
++      'codex',
++    ]);
++    expect(set).toMatchObject({
++      state: 'changed',
++      data: { author: 'cursor', routes: [{ reviewer: 'codex', independence: 'cross-agent' }] },
++    });
++    expect(await invoke(root, ['review', 'routes', 'list', '--author', 'cursor'])).toMatchObject({
++      data: { source: 'project', routes: [{ reviewer: 'codex' }] },
++    });
++    expect(
++      await invoke(root, [
++        'review',
++        'routes',
++        'set',
++        '--scope',
++        'project',
++        '--author',
++        'cursor',
++        '--route',
++        'cursor',
++      ]),
++    ).toMatchObject({ state: 'failed' });
++    expect(
++      await invoke(root, ['review', 'routes', 'reset', '--scope', 'project', '--author', 'cursor']),
++    ).toMatchObject({ state: 'changed' });
++  });
++
+   it('resolves each author independently across project and user scopes', async () => {
+     const root = createTemporaryDirectory();
+     directories.push(root);
+@@ -260,11 +300,12 @@ describe('review routes CLI wiring', () => {
+     const listed = await invoke(root, ['review', 'routes', 'list']);
+     expect(listed).toMatchObject({ state: 'healthy', data: { command: 'review routes list' } });
+     const authors = (listed.data as { authors: { author: string }[] }).authors;
+-    expect(authors.map(entry => entry.author)).toEqual(['claude', 'codex', 'opencode']);
++    expect(authors.map(entry => entry.author)).toEqual(['claude', 'codex', 'cursor', 'opencode']);
+ 
+     const human = await invokeHuman(root, ['review', 'routes', 'list']);
+     expect(human).toContain('claude review routes');
+     expect(human).toContain('codex review routes');
++    expect(human).toContain('cursor review routes');
+     expect(human).toContain('opencode review routes');
+   });
+ 
+@@ -275,7 +316,7 @@ describe('review routes CLI wiring', () => {
+     const listed = await invoke(root, ['review', 'routes', 'list', '--author', 'gemini']);
+     expect(listed).toMatchObject({ state: 'failed' });
+     expect((listed.errors as { message: string }[])[0]?.message).toContain(
+-      'Provide --author as claude, codex, or opencode.',
++      'Provide --author as claude, codex, cursor, or opencode.',
+     );
+   });
+ 
+diff --git a/packages/cli/tests/cli-protocol/review-wiring.test.ts b/packages/cli/tests/cli-protocol/review-wiring.test.ts
+index cfcd7f2db..a9f72d738 100644
+--- a/packages/cli/tests/cli-protocol/review-wiring.test.ts
++++ b/packages/cli/tests/cli-protocol/review-wiring.test.ts
+@@ -506,6 +506,42 @@ describe('cross-agent review public-command wiring', () => {
+     });
+   });
+ 
++  it('rejects a host continuation without an enforced local agent origin', async () => {
++    const directory = createTemporaryDirectory();
++    writeFileSync(nodePath.join(directory, 'review-output.json'), '{}\n');
++
++    const result = await runCli(
++      [
++        'review',
++        'continue',
++        'not-a-review-id',
++        '--tier',
++        'fresh-context',
++        '--output',
++        'review-output.json',
++        '--offline',
++        '--json',
++        '--no-input',
++        '--cwd',
++        directory,
++      ],
++      {
++        cwd: directory,
++        env: {
++          SAFEWORD_AGENT_RUNTIME: 'unknown',
++          CODEX_THREAD_ID: '',
++          CLAUDE_SESSION_ID: '',
++          CLAUDE_CODE_SESSION_ID: '',
++        },
++      },
++    );
++
++    expect(result.exitCode).toBe(1);
++    expect(JSON.parse(result.stdout)).toMatchObject({
++      errors: [{ code: 'REVIEW_CONTINUATION_ORIGIN_UNVERIFIED' }],
++    });
++  });
++
+   it('dispatches delivery compatibility through the real review command', async () => {
+     const directory = createTemporaryDirectory();
+     const request = nodePath.join(directory, 'compatibility-request.md');
+diff --git a/packages/cli/tests/fixtures/delivery-cli.ts b/packages/cli/tests/fixtures/delivery-cli.ts
+index 09c2cbcb2..2e164fc5d 100644
+--- a/packages/cli/tests/fixtures/delivery-cli.ts
++++ b/packages/cli/tests/fixtures/delivery-cli.ts
+@@ -170,7 +170,7 @@ function admitPlanExecutionFixture(
+       review_targets: [target],
+       author_agent: 'codex',
+       actual_reviewer: 'claude',
+-      independence: 'cross-agent',
++      independence: 'reduced',
+       reviewer_output: {
+         schema_version: 1,
+         dispatch_id: 'plan-execution-fixture',
+@@ -373,8 +373,10 @@ export async function admitThroughInstalledCli(
+       },
+     );
+     const id = admittedReviewId(root, reviewKind, target, record, reviewed);
++    // This Codex host supplies no verified author model. Preserve the real
++    // coordinator's reduced assurance while testing the downstream gates.
+     stamps.push(
+-      `2026-09-13T00:00:00.000Z fixture review:ABC123-feature:phase@${reviewKind} author:codex reviewer:claude independence:cross-agent review-id:${id}`,
++      `2026-09-13T00:00:00.000Z fixture review:ABC123-feature:phase@${reviewKind} author:codex reviewer:claude independence:reduced review-id:${id}`,
+     );
+   }
+   writeFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), `${stamps.join('\n')}\n`);
+diff --git a/packages/cli/tests/fixtures/ranked-planning-review.ts b/packages/cli/tests/fixtures/ranked-planning-review.ts
+new file mode 100644
+index 000000000..fc5b9f34f
+--- /dev/null
++++ b/packages/cli/tests/fixtures/ranked-planning-review.ts
+@@ -0,0 +1,145 @@
++import { execFile } from 'node:child_process';
++import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
++import nodePath from 'node:path';
++import { promisify } from 'node:util';
++
++import { writePlanningInventories } from '../planning-fixtures.js';
++import { PLANNING_ROLE_PRODUCT } from '../planning-role-fixtures.js';
++import { REVIEWER_CAPABILITIES } from '../review-fixtures.js';
++
++const execFileAsync = promisify(execFile);
++export type RankedCase = 'first' | 'alternate' | 'later' | 'unsupported';
++
++function writeRankedReviewerExecutables(bin: string, example: RankedCase): string {
++  const log = nodePath.join(bin, 'launches.jsonl');
++  writeFileSync(log, '');
++  for (const agent of ['codex', 'claude'] as const) {
++    const help =
++      example === 'unsupported' && agent === 'codex'
++        ? REVIEWER_CAPABILITIES.codex.replace('--model', '')
++        : REVIEWER_CAPABILITIES[agent];
++    writeFileSync(
++      nodePath.join(bin, agent),
++      String.raw`#!${process.execPath}
++const { appendFileSync } = require('node:fs');
++const agent = ${JSON.stringify(agent)};
++if (process.argv.includes('--version')) { console.log(agent + ' 1.0.0'); process.exit(0); }
++if (process.argv.includes('--help')) { console.log(process.argv.includes('app-server') ? ${example === 'unsupported' ? "''" : "'--stdio --config'"} : ${JSON.stringify(help)}); process.exit(0); }
++function log(model, packet) { appendFileSync(${JSON.stringify(log)}, JSON.stringify({agent, model, packet}) + '\n'); }
++function output(packet) { return {schema_version:1, dispatch_id:packet.dispatch_id, reviewer_agent:agent, verdict:'approve', summary:'Qualified route completed.', findings:[]}; }
++if (agent === 'codex' && !process.argv.includes('app-server')) { log('default'); process.exit(7); }
++let buffer = '', model = '';
++process.stdin.setEncoding('utf8');
++process.stdin.on('data', chunk => {
++ buffer += chunk;
++ if (agent === 'claude') return;
++ let end;
++ while ((end = buffer.indexOf('\n')) !== -1) {
++  const m = JSON.parse(buffer.slice(0,end)); buffer = buffer.slice(end+1);
++  if (m.id === 1) console.log(JSON.stringify({id:1,result:{}}));
++  if (m.id === 2) { model=m.params.model; console.log(JSON.stringify({id:2,result:{thread:{id:'t'},model,modelProvider:'openai'}})); }
++  if (m.id === 3) {
++   const packet=JSON.parse(m.params.input[0].text.trim().split('\n').pop()); log(model ?? 'default',packet);
++   console.log(JSON.stringify({id:3,result:{turn:{id:'u'}}}));
++   console.log(JSON.stringify({method:'turn/completed',params:{threadId:'t',turn:{id:'u',status:model === 'gpt-6-astra' ? 'completed' : 'failed',items:[{type:'agentMessage',phase:'final_answer',text:JSON.stringify(output(packet))}]}}}));
++  }
++ }
++});
++process.stdin.on('end', () => { if (agent === 'claude') { const packet=JSON.parse(buffer.trim().split('\n').pop()); log('default',packet); console.log(JSON.stringify({structured_output:output(packet)})); } });
++`,
++      { mode: 0o755 },
++    );
++  }
++  return log;
++}
++
++function writeRankedPlanningProject(project: string, example: RankedCase): string {
++  const codex = (model?: string) => ({ reviewer: 'codex', ...(model && { model }) });
++  const same = { reviewer: 'claude' };
++  const routes = {
++    first: [same, codex('gpt-6-astra')],
++    alternate: [codex(), same, codex('gpt-6-astra')],
++    later: [codex(), same, codex('gpt-6-sol'), codex('gpt-6-astra')],
++    unsupported: [codex(), codex('gpt-6-astra'), same],
++  }[example];
++  mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
++  writeFileSync(
++    nodePath.join(project, '.safeword/config.json'),
++    JSON.stringify({
++      crossAgentReview: 'prefer',
++      crossAgentReviewRoutes: { claude: routes },
++    }),
++  );
++  writePlanningInventories(project);
++  const ticket = '.project/tickets/RNK123-ranked';
++  mkdirSync(nodePath.join(project, ticket), { recursive: true });
++  writeFileSync(
++    nodePath.join(project, ticket, 'ticket.md'),
++    '---\nid: RNK123\ntype: feature\nphase: plan-implementation\nstatus: in_progress\nproduct_plan_contract: v1\nscope: truthful review\nout_of_scope: bypass\ndone_when: qualified reviewer wins\n---\n',
++  );
++  writeFileSync(nodePath.join(project, ticket, 'spec.md'), PLANNING_ROLE_PRODUCT);
++  writeFileSync(
++    nodePath.join(project, ticket, 'impl-plan.md'),
++    '# Implementation Plan\n\n**Status:** planned\n\n## Approach\n\nKeep the existing approval authority.\n\n## Decisions\n\nTry every eligible independent route before same-agent review.\n\n## Design alignment\n\nPreserve truthful approval.\n\n## Architecture applicability\n\nskip: no architecture records apply\n\n## Data applicability\n\nskip: no product data changes\n\n## Known deviations\n\nskip: none\n\n## Doc impact\n\nskip: no customer docs change\n\n## Assessment triggers\n\nRevisit if review authority changes.\n',
++  );
++  mkdirSync(nodePath.join(project, 'features'), { recursive: true });
++  writeFileSync(
++    nodePath.join(project, 'features/ranked.feature'),
++    '@ranked.BU1.R1\nFeature: Ranked review\n  Scenario: Independent review precedes fallback\n    Given eligible routes\n    When review runs\n    Then the qualified route wins\n',
++  );
++  return ticket;
++}
++
++/** Real CLI/config/catalogue/job wiring; only the external reviewer processes are fake. */
++export async function rankedPlanningReview(project: string, bin: string, example: RankedCase) {
++  const ticket = writeRankedPlanningProject(project, example);
++  const log = writeRankedReviewerExecutables(bin, example);
++  const cli = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
++  let result;
++  try {
++    result = await execFileAsync(
++      process.execPath,
++      [
++        cli,
++        'review',
++        'run',
++        'plan-implementation',
++        `${ticket}/impl-plan.md`,
++        '--context',
++        `${ticket}/spec.md`,
++        '--cwd',
++        project,
++        '--json',
++        '--no-input',
++      ],
++      {
++        cwd: project,
++        timeout: 30_000,
++        env: {
++          ...process.env,
++          PATH: `${bin}:/usr/bin:/bin`,
++          SAFEWORD_AGENT_RUNTIME: 'claude',
++          SAFEWORD_AUTHOR_MODEL: 'claude-opus-5',
++          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(bin, 'keys'),
++          SAFEWORD_REVIEW_FOREGROUND_MS: '25000',
++          SAFEWORD_REVIEW_TIMEOUT_MS: '3000',
++          SAFEWORD_REVIEW_RUN_BOUND_MS: '20000',
++          SAFEWORD_NO_UPDATE_CHECK: '1',
++        },
++      },
++    );
++  } catch (error) {
++    const failure = error as { stdout?: string; stderr?: string; message: string };
++    throw new Error(`${failure.message}\n${failure.stdout ?? ''}\n${failure.stderr ?? ''}`, {
++      cause: error,
++    });
++  }
++  return {
++    output: JSON.parse(result.stdout),
++    launches: readFileSync(log, 'utf8')
++      .trim()
++      .split('\n')
++      .filter(Boolean)
++      .map(line => JSON.parse(line)),
++  };
++}
+diff --git a/packages/cli/tests/fixtures/reviewer-capability-corpus.ts b/packages/cli/tests/fixtures/reviewer-capability-corpus.ts
+new file mode 100644
+index 000000000..b838a6e5d
+--- /dev/null
++++ b/packages/cli/tests/fixtures/reviewer-capability-corpus.ts
+@@ -0,0 +1,344 @@
++import {
++  createExecutionPlanDeliveryDefinition,
++  DELIVERY_CHECKLIST_CATEGORIES,
++  normalizedExecutionPlanDigest,
++  parseDeliveryPlanContract,
++} from '../../src/execution-plan/delivery-checklist.js';
++import type { CapabilityManifest } from '../../src/review/capability-eval.js';
++import type { ReviewPacket } from '../../src/review/contract.js';
++import { reviewerPromptInstructions } from '../../src/review/review-rubric.js';
++import { reviewOutputSchema } from '../../src/review/runtime.js';
++
++const reviewerPlaceholder = '{{reviewer}}';
++export const REVIEWER_CAPABILITY_RUBRICS = {
++  product: reviewerPromptInstructions('quality-review', reviewerPlaceholder, 'product-plan'),
++  product_schema: reviewOutputSchema('quality-review'),
++  implementation: reviewerPromptInstructions(
++    'plan-implementation',
++    reviewerPlaceholder,
++    'plan-implementation',
++  ),
++  implementation_schema: reviewOutputSchema('plan-implementation'),
++  execution: reviewerPromptInstructions('plan-execution', reviewerPlaceholder, 'plan-execution'),
++  execution_schema: reviewOutputSchema('plan-execution'),
++};
++
++const ticket = `# Ticket: Show current review status to builders
++
++Goal: A builder can distinguish Pending, Approved, and Rejected plan reviews in the CLI. Rejected reviews show the actual blocking findings and permit repair and retry. Approval still requires the existing authenticated approval receipt. No new approval authority, storage system, or notification channel is in scope.`;
++
++const productPlan = `# Product Plan: Show current review status
++
++## Accepted behavior
++
++- Persona: the builder requesting a plan review.
++- Surface: the CLI review status display.
++- Pending means the current review has not finished.
++- Approved means the current review has an authenticated approval receipt.
++- Rejected means the current review concluded with blocking findings. Show those actual findings, and allow the builder to repair the plan and start a new review.
++- A stale approval never changes the current review to Approved.
++- A stale approval is a receipt for a different review job or different plan bytes. The display begins only after a review is requested; a never-requested state is outside this ticket.
++
++## Scope and exclusions
++
++Only the status display and retry path change. Existing approval authority and storage remain in place. Notifications and automatic repair are excluded.
++
++## Evidence and decisions
++
++The existing authenticated receipt is a supported project constraint. No quantitative target is promised. The user has accepted these three statuses; no product choice remains open.
++
++## Observable done state
++
++A builder can distinguish all three current outcomes, see the actual blocking findings after rejection, and retry a repaired plan. A missing or stale receipt cannot appear as approval.`;
++
++const productWithoutRejection = `# Product Plan: Show current review status
++
++## Accepted behavior
++
++- Persona: the builder requesting a plan review.
++- Surface: the CLI review status display.
++- Pending means the review has not finished.
++- Approved means the review has an authenticated approval receipt.
++
++## Scope and exclusions
++
++Only the status display changes. New approval authority and notifications are excluded.
++
++## Observable done state
++
++A builder can distinguish Pending from Approved.`;
++
++const scenarios = `# Accepted scenarios
++
++1. An unfinished current review displays Pending.
++2. A current authenticated approval displays Approved.
++3. A completed review with blocking findings displays Rejected and those actual findings.
++4. After repairing a rejected plan, the builder can request a new review; a stale approval cannot approve it.`;
++
++const implementationPlan = `# Implementation Plan: Show current review status
++
++## Architecture at a glance
++
++The CLI reads the existing coordinator's current job and authenticated receipt. One presentation mapper turns that trusted state into Pending, Approved, or Rejected; it creates no second authority or store.
++
++## Approach decisions and consequences
++
++- Use the current job identifier and plan digest to bind the display to the active review. A previous job or receipt cannot supply Approved for changed plan bytes.
++- The coordinator's authenticated approval receipt is the only source of Approved. Reviewer prose and an unauthenticated verdict cannot grant approval.
++- A terminal rejected job supplies its recorded error findings verbatim to the CLI. The mapper does not synthesize rejection reasons or hide a real blocking finding.
++- Retry creates a new review for repaired plan bytes; the old rejection and receipt remain historical evidence, never current authority.
++- The coordinator atomically binds each retry to its new job identifier and plan digest. Concurrent retries may finish in any order; only the job currently bound to the plan may drive the displayed status. A crash before that binding leaves the prior terminal state visible and retryable, never falsely Approved.
++- A running or interrupted review without a terminal receipt displays Pending with its actual error state; it never displays Approved.
++
++The alternative of persisting a separate CLI status loses synchronization with the coordinator after a retry or plan edit, so the mapper reads existing trusted records instead. This is a reversible local presentation change; no durable architecture record is needed.
++
++## Contracts, failure behavior, and proof
++
++The CLI status contract has exactly Pending, Approved, and Rejected. Missing or stale receipt means no approval. A failed status read reports unavailable state rather than inventing approval. Exercise each accepted scenario through the real CLI and coordinator boundary, including a stale receipt and actual rejection findings. An isolated mapper test cannot prove the public wiring; the CLI integration proof has that limit. Roll out with the existing CLI release, and roll back the presentation mapper if the user-visible state is wrong.
++
++Architecture applicability: the CLI-to-coordinator contract is affected; no shared API or data owner changes. Data applicability: skip: no store, schema, ownership, retention, migration, or cross-system flow changes. Compatibility: the existing coordinator record and CLI exit codes stay unchanged; the new displayed Rejected label is additive to the human-readable status. Measurement applicability: skip: the Product Plan promises no quantitative target. Authorization stays with the existing authenticated receipt. Documentation impact: update the CLI status help text. Known deviations: none. Revisit the mapper only if the coordinator's receipt or job contract changes. No load-bearing external library choice is needed.`;
++
++const implementationWithoutReceipt = implementationPlan.replace(
++  "- The coordinator's authenticated approval receipt is the only source of Approved. Reviewer prose and an unauthenticated verdict cannot grant approval.\n",
++  '- The reviewer output verdict is enough to display Approved, even before an authenticated approval receipt exists.\n',
++);
++
++const proofId = 'cli-status-integration';
++const proofBoundary = 'CLI status command through the coordinator and authenticated receipt';
++const proofInvocation = {
++  type: 'command',
++  cwd: 'packages/cli',
++  argv: ['bun', 'run', 'test', 'tests/integration/review-status.test.ts'],
++};
++const checklistObligations = [
++  'Show Pending, Approved, and Rejected with actual blocking findings and retry.',
++  'Keep the authenticated receipt as the only approval authority.',
++  'Complete the one status slice without a later merge dependency.',
++  'Prove all four accepted scenarios through the CLI and coordinator.',
++  'Preserve coordinator storage and CLI exit-code compatibility.',
++  'Report status-read failures without inventing approval.',
++  'Reject stale or missing approval receipts and preserve actual findings.',
++  'Ship with the CLI release and revert the mapper if status is wrong.',
++  'Update CLI status help text for all three states.',
++  'Keep contributor work separate from any later human merge decision.',
++  'Retain current real-boundary CLI integration evidence before completion.',
++] as const;
++
++function executionPlan(includeRejection: boolean): string {
++  const completionSignal = includeRejection
++    ? 'all four accepted scenarios pass through the CLI entry point and the status help text names all three states'
++    : 'Pending and Approved pass through the CLI entry point and the status help text names those two states';
++  const redSignal = includeRejection
++    ? 'the missing Rejected/receipt-bound assertions fail'
++    : 'the missing Pending/Approved assertions fail';
++  const rejectionStep = includeRejection
++    ? 'The same integration fixture must assert that a terminal rejection displays its actual error findings, that a repaired plan starts a new review, and that a concurrently completed non-current job cannot drive the displayed status. Simulate a crash before retry binding and assert the prior terminal state remains visible and retryable; simulate an interrupted review and assert Pending with its actual error state; simulate a failed status read and assert unavailable rather than Approved.'
++    : 'The integration fixture covers Pending and Approved states.';
++  const authorityStep = includeRejection
++    ? 'Through the CLI and coordinator, test a receipt for another job, a receipt for a different plan digest under the current job, and an unauthenticated approval verdict without a receipt; each must remain non-Approved. Assert unchanged CLI process exit codes for successful and failed reads against the pre-change baseline, and assert status reads leave coordinator records byte-identical.'
++    : '';
++  const decisionStatus = includeRejection
++    ? 'Decision status: current job-and-digest binding, receipt-only approval, verbatim rejection findings, retry as a new review, atomic concurrent retry binding and crash behavior, interrupted Pending with its error, and failed-read unavailability remain unchanged from the Implementation Plan.'
++    : "Decision status: the Implementation Plan's existing coordinator/receipt source of truth is unchanged.";
++  return `# Execution Plan: Show current review status
++
++## Slicing decision
++
++One pull request: the status mapper and its public CLI proof are one cohesive change. There is one slice and no unmerged successor dependency.
++
++## Slice 1: Current review status
++
++Purpose: show the accepted current status without creating approval authority. Boundary: CLI presentation over the existing coordinator and receipt. Inputs: accepted scenarios and Implementation Plan. Slice prerequisites: none. Completion signal: ${completionSignal}. Relies on unmerged successor: false.
++
++First RED: add the failing tests/integration/review-status.test.ts fixture, run bun run test tests/integration/review-status.test.ts from packages/cli, and observe ${redSignal} before editing production code. Then implement the mapper and CLI wiring. ${rejectionStep} ${authorityStep} Run the same command again; exit 0 and the stated assertions are required. Finally update CLI help text and rerun the integration proof.
++
++## Proof specifications
++
++| Proof ID | Method | Scope | Boundary exercised | Qualifies as | Currency | Invocation |
++| --- | --- | --- | --- | --- | --- | --- |
++| ${proofId} | command | integration | ${proofBoundary} | real_boundary | current_required | ${JSON.stringify(proofInvocation)} |
++
++## Delivery checklist
++
++<!-- safeword:delivery-checklist:v1 -->
++
++| ID | Category | Obligation | Owner | Required proof | Disposition | Evidence class | Revision | Evidence, reason, or dependency |
++| --- | --- | --- | --- | --- | --- | --- | --- | --- |
++${DELIVERY_CHECKLIST_CATEGORIES.map((category, index) => `| status-${index + 1} | ${category} | ${checklistObligations[index]} | contributor | ${proofId} | open | missing | | |`).join('\n')}
++
++${decisionStatus} Obligation owner: Current review status, Slice 1. The plan does not claim implementation, verification, merge, or deployment completion.`;
++}
++
++const commonContext = [
++  { path: '.project/tickets/CAP100/ticket.md', content: ticket },
++  { path: '.project/tickets/CAP100/scenarios.md', content: scenarios },
++];
++
++function packet(
++  id: string,
++  kind: ReviewPacket['kind'],
++  planningPhase: ReviewPacket['planning_phase'],
++  path: string,
++  content: string,
++): ReviewPacket {
++  const contextFiles = [...commonContext];
++  if (kind !== 'quality-review') {
++    contextFiles.push({ path: '.project/tickets/CAP100/spec.md', content: productPlan });
++  }
++  if (kind === 'plan-execution') {
++    contextFiles.push({
++      path: '.project/tickets/CAP100/impl-plan.md',
++      content: implementationPlan,
++    });
++  }
++  const executionFields = (() => {
++    if (kind !== 'plan-execution') return {};
++    const parsed = parseDeliveryPlanContract(content);
++    if (!parsed.ok) throw new Error(`Invalid capability Execution Plan: ${parsed.message}`);
++    return {
++      execution_plan_delivery_definition: createExecutionPlanDeliveryDefinition(parsed, false),
++      execution_plan_normalized_digest: normalizedExecutionPlanDigest(content),
++    };
++  })();
++  return {
++    schema_version: 1,
++    dispatch_id: id,
++    kind,
++    planning_phase: planningPhase,
++    logical_files: [{ path, content }],
++    context_files: contextFiles,
++    ...executionFields,
++  };
++}
++
++export const REVIEWER_CAPABILITY_MANIFEST: CapabilityManifest = {
++  schema_version: 1,
++  owner: 'Safeword release maintainers',
++  floor: { runs_per_fixture: 3, minimum_fixture_passes: 2, minimum_total_percent: 90 },
++  settings: {
++    anthropic_model: 'claude-opus-5',
++    openai_model: 'gpt-6-astra',
++    tools: 'review prompt forbids tools',
++    claude_effort: 'medium',
++    codex_reasoning: 'medium',
++    review_timeout_ms: '600000',
++    review_run_bound_ms: '1800000',
++  },
++  fixtures: [
++    {
++      label: { id: 'product-approve', verdict: 'approve', required: [], forbidden: [] },
++      packet: packet('product-approve', 'quality-review', 'product-plan', 'spec.md', productPlan),
++    },
++    {
++      label: {
++        id: 'product-reject',
++        verdict: 'request_changes',
++        required: ['rejected'],
++        forbidden: [],
++        finding_groups: [
++          ['rejected', 'rejection'],
++          [
++            'missing',
++            'omit',
++            'absent',
++            'lacks',
++            'does not',
++            'not cover',
++            'only pending',
++            'dropped',
++          ],
++          ['status', 'outcome', 'findings', 'retry', 'repair', 'behavior'],
++        ],
++      },
++      packet: packet(
++        'product-reject',
++        'quality-review',
++        'product-plan',
++        'spec.md',
++        productWithoutRejection,
++      ),
++    },
++    {
++      label: { id: 'implementation-approve', verdict: 'approve', required: [], forbidden: [] },
++      packet: packet(
++        'implementation-approve',
++        'plan-implementation',
++        'plan-implementation',
++        'impl-plan.md',
++        implementationPlan,
++      ),
++    },
++    {
++      label: {
++        id: 'implementation-reject',
++        verdict: 'request_changes',
++        required: ['authenticated'],
++        forbidden: [],
++        finding_groups: [
++          ['approval', 'approve', 'approved'],
++          ['receipt'],
++          ['verdict', 'reviewer output', 'reviewer prose'],
++          [
++            'allow',
++            'enough',
++            'grant',
++            'instead',
++            'source',
++            'sufficient',
++            'authority',
++            'based',
++            'trust',
++            'treat',
++            'accept',
++          ],
++        ],
++      },
++      packet: packet(
++        'implementation-reject',
++        'plan-implementation',
++        'plan-implementation',
++        'impl-plan.md',
++        implementationWithoutReceipt,
++      ),
++    },
++    {
++      label: { id: 'execution-approve', verdict: 'approve', required: [], forbidden: [] },
++      packet: packet(
++        'execution-approve',
++        'plan-execution',
++        'plan-execution',
++        'execution-plan.md',
++        executionPlan(true),
++      ),
++    },
++    {
++      label: {
++        id: 'execution-reject',
++        verdict: 'request_changes',
++        required: ['rejected'],
++        forbidden: [],
++        finding_groups: [
++          ['rejected', 'rejection'],
++          [
++            'missing',
++            'omit',
++            'absent',
++            'lacks',
++            'does not',
++            'not cover',
++            'only pending',
++            'dropped',
++          ],
++          ['test', 'proof', 'scenario', 'assert', 'verif', 'coverage'],
++        ],
++      },
++      packet: packet(
++        'execution-reject',
++        'plan-execution',
++        'plan-execution',
++        'execution-plan.md',
++        executionPlan(false),
++      ),
++    },
++  ],
++};
+diff --git a/packages/cli/tests/fixtures/reviewer-capability-evidence/claude-opus-5.json b/packages/cli/tests/fixtures/reviewer-capability-evidence/claude-opus-5.json
+new file mode 100644
+index 000000000..732a62d3c
+--- /dev/null
++++ b/packages/cli/tests/fixtures/reviewer-capability-evidence/claude-opus-5.json
+@@ -0,0 +1,438 @@
++{
++  "provider": "anthropic",
++  "model": "claude-opus-5",
++  "corpus_digest": "7a496326df08c8260e1ae4aae952cbc5afbbd03a7e50251c6597a5191c0abc7a",
++  "rubric_digest": "863395c470634f93f595df05282540bfdbb1245849c0999a2c31beac19a70ca2",
++  "settings_digest": "acd5a69993710ae8483c78771a67a6d61e061707f39f450a24a9a10511f7bf4d",
++  "evidence_date": "2026-10-20",
++  "runs": [
++    {
++      "fixture_id": "product-approve",
++      "run": 1,
++      "verdict": "approve",
++      "findings": [
++        {
++          "severity": "warning",
++          "message": "The plan excludes the never-requested state by asserting \"the display begins only after a review is requested,\" but the ticket does not establish that precondition. If the CLI surface can be reached before any review request, the plan leaves the displayed outcome for that state undefined. This is a product boundary the user may legitimately set, so it is non-blocking, but it should be confirmed as an accepted exclusion rather than an assumption carried silently into scenario definition."
++        },
++        {
++          "severity": "warning",
++          "message": "Approved is defined as \"an authenticated approval receipt\" and staleness is defined by job identity and plan bytes, but the plan does not state the displayed outcome when a receipt is present for the current job and bytes yet fails authentication. The done state forbids such a receipt from appearing as approval, so no false-approval path is permitted; what remains undefined is only whether that case surfaces as Pending, Rejected, or a distinct error presentation."
++        },
++        {
++          "severity": "info",
++          "message": "\"Evidence and decisions\" keeps supported facts and open decisions distinct but records no assumptions. If the implied assumption that the existing receipt already binds to plan bytes (required for the stale-approval rule to be implementable without new approval authority) is not a supported project constraint, naming it explicitly would prevent the exclusion \"no new approval authority\" from being read as contradicting the stale-approval rule."
++        },
++        {
++          "severity": "info",
++          "message": "The plan does not name a declared parent job or milestone. That is consistent with it being a top-level Product Plan for CAP100 rather than a child Contribution; no action is implied unless it is intended as a child."
++        }
++      ]
++    },
++    {
++      "fixture_id": "product-approve",
++      "run": 2,
++      "verdict": "approve",
++      "findings": [
++        {
++          "severity": "warning",
++          "message": "Unmapped terminal outcome: the three statuses are defined as not-finished (Pending), finished with an authenticated approval receipt (Approved), and finished with blocking findings (Rejected). A review that concludes with no blocking findings and no authenticated receipt matches none of these. Because Approved is explicitly conditioned on the receipt, no reasonable implementation can show it as Approved, so the accepted user-facing claim cannot be falsely reported; the residual ambiguity is only whether such a review reads Pending or Rejected. Naming the intended status (or declaring the case impossible under the existing receipt constraint) would close it before scenario definition."
++        },
++        {
++          "severity": "warning",
++          "message": "The stale-approval rule is stated only negatively (\"never changes the current review to Approved\"). Combined with the Pending definition the positive outcome is inferable — an unfinished current review with a stale receipt displays Pending — and scenario 4 exercises the retry case, so this does not permit a false approval. Stating the positive display outcome would remove the inference step for scenario authors."
++        },
++        {
++          "severity": "info",
++          "message": "The plan declares the never-requested state outside this ticket. The ticket text does not mention that state, and it is not one of the three outcomes the goal requires a builder to distinguish, so this reads as an honest boundary statement rather than a narrowing of user-owned scope. Flagged only so the exclusion is visible to the scope owner."
++        },
++        {
++          "severity": "info",
++          "message": "Required content is present and the sections stay distinct: supported constraint (existing authenticated receipt), explicit absence of a quantitative promise, and explicit absence of open product choices. No implementation design, delivery sequencing, or claim that scenarios, downstream plans, or implementation are approved appears."
++        }
++      ]
++    },
++    {
++      "fixture_id": "product-approve",
++      "run": 3,
++      "verdict": "approve",
++      "findings": [
++        {
++          "severity": "warning",
++          "message": "Unmapped terminal outcome: a review that concludes without blocking findings and without an authenticated approval receipt (receipt absent, unverifiable, or bound to different plan bytes after the review finished). The plan guarantees such a state cannot display Approved, but does not say which of the three statuses it does display. Two reasonable implementations follow — remain Pending indefinitely, or display Rejected with an empty findings list. Both preserve the stated approval invariant, so this is not an error, but the ambiguity will reach scenario definition unresolved. Recommend stating the intended status for a concluded-but-unreceipted review, or explicitly excluding it as the never-requested state was excluded."
++        },
++        {
++          "severity": "warning",
++          "message": "\"Show those actual findings\" sets a truthfulness requirement without a stated floor. A display that renders a rejection with zero or truncated findings would satisfy a literal reading of \"actual\" while leaving the builder unable to repair, which is the consequential outcome the done state depends on. Recommend stating in the accepted behavior that a Rejected display presents the complete set of blocking findings from the concluding review, so scenario 3 is written against a discriminating condition rather than mere non-fabrication."
++        },
++        {
++          "severity": "info",
++          "message": "\"Current review\" is defined only indirectly, through the stale-approval clause (\"a different review job or different plan bytes\"). This is adequate for product-level acceptance and correctly avoids implementation design, but naming the identity pairing — review job plus plan bytes — directly in the accepted behavior would make scenario 4's stale-approval condition easier to state without inferring it from the exclusion."
++        },
++        {
++          "severity": "info",
++          "message": "Evidence separation is handled correctly: the authenticated receipt is labeled a supported project constraint rather than a new capability, no quantitative target is promised, and the plan states plainly that no product choice remains open. The plan also claims no downstream approval, consistent with the phase's approval meaning."
++        }
++      ]
++    },
++    {
++      "fixture_id": "product-reject",
++      "run": 1,
++      "verdict": "request_changes",
++      "findings": [
++        {
++          "severity": "error",
++          "message": "Rejected is omitted from the accepted behavior. The ticket goal states a builder can distinguish Pending, Approved, and Rejected, and accepted scenario 3 requires a completed review with blocking findings to display Rejected and those actual findings. The plan defines only Pending and Approved. Two reasonable implementations follow: one that renders a distinct Rejected state with the real findings, and one that collapses rejected reviews into Pending (not finished) or into an unlabeled terminal state. The second satisfies every word of this plan and its done state while the accepted user-facing claim is false. Define Rejected as an accepted state, including that the findings displayed are the review's actual blocking findings rather than a generic failure message."
++        },
++        {
++          "severity": "error",
++          "message": "The repair-and-retry outcome is unspecified. Accepted scenario 4 requires that after repairing a rejected plan the builder can request a new review, and that a stale approval cannot approve it. The plan says only that \"Approved means the review has an authenticated approval receipt\" and never states that the receipt must belong to the current review. Under this wording an implementation may carry a prior approval receipt forward across a repair and display Approved for a plan that has not been reviewed in its current form — a path that reports approval success while the accepted claim is false. State the currency requirement binding an approval receipt to the review of the present plan content."
++        },
++        {
++          "severity": "error",
++          "message": "The observable done state (\"A builder can distinguish Pending from Approved\") is narrower than the accepted scope it is meant to close. It can be demonstrated as satisfied with no rejection behavior shipped at all, so it is non-discriminating against the omissions above. Restate the done state to cover all three states, the display of actual blocking findings, and the retry path."
++        },
++        {
++          "severity": "warning",
++          "message": "The plan declares no accepted Rules, and does not distinguish supported facts from assumptions or unresolved decisions. The required content for this phase calls for both; as written a reader cannot tell which statements are decided versus provisional."
++        },
++        {
++          "severity": "warning",
++          "message": "\"Current\" is load-bearing in the accepted scenarios (\"an unfinished current review\", \"a current authenticated approval\") but is never defined in the plan. Without a product-level statement of what makes a review current for a given plan, the boundary between a stale and a current result is left to implementation."
++        },
++        {
++          "severity": "info",
++          "message": "The exclusions (no new approval authority, no notifications) are consistent with the ticket. The ticket also excludes any new storage system; carrying that exclusion into the plan would keep the stated boundary complete, particularly given that recording rejection findings and review currency may tempt new persistence."
++        }
++      ]
++    },
++    {
++      "fixture_id": "product-reject",
++      "run": 2,
++      "verdict": "request_changes",
++      "findings": [
++        {
++          "severity": "error",
++          "message": "Rejected is absent from the accepted behavior, scope, and observable done state. The ticket goal names three distinguishable outcomes (Pending, Approved, Rejected) and accepted scenario 3 requires a completed review with blocking findings to display Rejected together with those actual findings. The plan's done state — \"A builder can distinguish Pending from Approved\" — is fully satisfiable by an implementation that renders a rejected review as Pending or as an unlabeled terminal state, shipping behavior that violates the work's goal while reporting the plan as met. Define Rejected as an accepted outcome, state that the actual blocking findings are shown (not a generic failure message), and extend the observable done state to all three outcomes."
++        },
++        {
++          "severity": "error",
++          "message": "Approval currency is undefined. The plan states only that \"Approved means the review has an authenticated approval receipt,\" with no requirement that the receipt correspond to the current plan content. Accepted scenario 4 requires that after a builder repairs a rejected plan and requests a new review, a stale approval cannot approve it. Two reasonable implementations follow from the plan as written — one that binds the receipt to the reviewed content and one that treats any prior authenticated receipt as sufficient — and the second displays Approved for a plan that has no current approval, falsely reporting the accepted claim. State that Approved requires an authenticated receipt for the current plan, and that repair invalidates a prior approval."
++        },
++        {
++          "severity": "error",
++          "message": "The repair-and-retry path is excluded from scope without acknowledgement. The ticket requires that rejected reviews \"permit repair and retry,\" and scenario 4 depends on requesting a new review after repair. The plan's scope section says \"Only the status display changes\" and lists exclusions that do not mention retry, so the reader cannot tell whether retry is assumed already present, deliberately deferred, or overlooked. Either state retry as supported accepted behavior or record it as an explicit, justified exclusion with the resulting gap against the ticket goal named."
++        },
++        {
++          "severity": "warning",
++          "message": "The plan does not separate supported facts from assumptions. For example, whether an authenticated approval receipt mechanism already exists is presented as settled (\"the existing authenticated approval receipt\" appears only in the ticket, not the plan), and the plan gives no unresolved-decisions section. Keeping these distinct would make the Rejected and currency gaps above visible at intake rather than at review."
++        },
++        {
++          "severity": "info",
++          "message": "Scope, personas, and affected surfaces are stated concisely and the plan correctly avoids implementation design and task sequencing, so the prohibited-content boundary is respected. The defects above are omissions of accepted behavior, not scope creep."
++        }
++      ]
++    },
++    {
++      "fixture_id": "product-reject",
++      "run": 3,
++      "verdict": "request_changes",
++      "findings": [
++        {
++          "severity": "error",
++          "message": "Rejected is entirely absent from the accepted behavior. The ticket goal states a builder must distinguish Pending, Approved, and Rejected, and accepted scenario 3 requires a completed review with blocking findings to display Rejected together with those actual findings. The plan's stated done state ('A builder can distinguish Pending from Approved') can be met in full while a rejected review displays nothing or is silently shown as Pending — an implementation could report the accepted claim satisfied while the user-facing goal is false. Define the Rejected state and the requirement that it surfaces the actual blocking findings (not a generic failure message)."
++        },
++        {
++          "severity": "error",
++          "message": "The repair-and-retry path is missing. Ticket goal and accepted scenario 4 require that after repairing a rejected plan the builder can request a new review, and that a stale approval cannot approve the repaired plan. The plan says nothing about re-review or approval invalidation on change, so two reasonable implementations exist — one that carries the prior approval forward across a repaired plan and one that does not — and the carry-forward implementation would display Approved for an unapproved plan. Define the invalidation boundary as accepted behavior."
++        },
++        {
++          "severity": "error",
++          "message": "The Approved definition omits currency: 'Approved means the review has an authenticated approval receipt,' whereas accepted scenario 2 requires a *current* authenticated approval. Without the currency qualifier, a receipt issued against a superseded plan satisfies the stated definition, so the surface can display Approved for a plan whose accepted approval no longer holds. Qualify Approved as requiring a current authenticated approval receipt for the plan being displayed."
++        },
++        {
++          "severity": "warning",
++          "message": "The exclusions list ('new approval authority and notifications are excluded') drops the ticket's exclusion of a new storage system. This is consistent with, not contrary to, the ticket, but restating all three keeps the product boundary explicit for scenario definition and prevents a later reading that storage work is in scope."
++        },
++        {
++          "severity": "info",
++          "message": "The plan does not separate supported facts from assumptions and unresolved decisions, as the required content calls for. With the gaps above repaired, an explicit note of which of the four accepted scenarios are settled versus still open would make the remaining product choices visible before scenario definition."
++        }
++      ]
++    },
++    {
++      "fixture_id": "implementation-approve",
++      "run": 1,
++      "verdict": "request_changes",
++      "findings": [
++        {
++          "severity": "error",
++          "message": "Self-contradictory status contract for unreadable or errored review state. The plan declares \"The CLI status contract has exactly Pending, Approved, and Rejected\", then requires that \"A failed status read reports unavailable state rather than inventing approval\" and that an interrupted review \"displays Pending with its actual error state\". Three statuses cannot carry a fourth unavailable condition, and \"Pending with its actual error state\" is never defined as a display decision. Two reasonable implementations follow and they ship materially different user-visible behavior: (a) collapse read failure and interrupted reviews into Pending, which falsely reports the accepted spec claim that \"Pending means the current review has not finished\" when the CLI in fact does not know the review state; or (b) render a fourth user-visible status, which adds product behavior the accepted spec and ticket never admitted (spec Accepted behavior lists exactly three statuses; the ticket scopes only distinguishing Pending, Approved, Rejected). Decision owner: the user who owns accepted scope, because whether a fourth user-visible state exists is product behavior, not an approach detail. Viable choices with materially different consequences: (1) read failure surfaces as a distinct non-status error channel (for example a diagnostic message plus a non-zero exit) while the three-value status stays exactly three, preserving the accepted exit-code compatibility claim only if the chosen code is also decided; (2) the accepted status set gains an explicit fourth Unknown/Unavailable value, which requires returning to product scope before this plan can decide it. Resuming action: state in impl-plan.md which of those the user accepted, then define the display and exit behavior for an unreadable status and for an interrupted review so neither path can be rendered as Pending or Approved. I am exposing the choice, not selecting it."
++        },
++        {
++          "severity": "warning",
++          "message": "The Data applicability skip (\"no store, schema, ownership, retention, migration, or cross-system flow changes\") sits uneasily beside the approach claim that \"The coordinator atomically binds each retry to its new job identifier and plan digest\" with a stated crash boundary. If that binding is pre-existing coordinator behavior the skip is correct and the plan should say so explicitly; if this plan introduces or changes the persisted binding, the skip is wrong and Source of truth, Identity and integrity, and Lifecycle owe decisions at review depth. One clarifying sentence naming the binding as existing behavior being relied upon would close this."
++        },
++        {
++          "severity": "warning",
++          "message": "Concurrent retry resolution is partially decided. The plan decides that \"only the job currently bound to the plan may drive the displayed status\", but does not say what becomes of a concurrently finishing job that is no longer bound — discarded, retained as historical evidence like the old rejection, or capable of transiently surfacing. The approval-safety consequence is covered (such a job cannot yield Approved), so this is not blocking, but the evidence model for superseded concurrent jobs is less explicit than the one stated for superseded retries."
++        },
++        {
++          "severity": "info",
++          "message": "No configured principles file was supplied in this packet, and the plan names no project principles or their concrete consequences. I could not evaluate principle applicability either way, so I am recording this as unverified rather than as a plan defect."
++        },
++        {
++          "severity": "info",
++          "message": "Proportionality is good: the plan is short, the deletion test finds little removable text, and the rejected alternative (a separately persisted CLI status) is recorded with the concrete reason it lost (loss of synchronization after retry or plan edit). The \"no load-bearing external library choice\" skip does not contradict any load-bearing choice the plan actually makes."
++        }
++      ]
++    },
++    {
++      "fixture_id": "implementation-approve",
++      "run": 2,
++      "verdict": "approve",
++      "findings": [
++        {
++          "severity": "warning",
++          "message": "Status contract vs. read-failure behavior are not reconciled. The plan states \"The CLI status contract has exactly Pending, Approved, and Rejected\" and then \"A failed status read reports unavailable state rather than inventing approval.\" Unavailable is not one of the three declared values, so two reasonable implementations exist: collapse read failure into Pending, or surface a fourth user-visible state. Not an error, because neither branch can display Approved for a missing or stale receipt, so the accepted trust claim holds either way. It is a warning because collapsing into Pending asserts \"the current review has not finished\" when the truth is actually unknown, which weakens the ticket's distinguishability goal. Name the chosen mapping in the contract section."
++        },
++        {
++          "severity": "warning",
++          "message": "The accepted persona (\"the builder requesting a plan review\") is never resolved by name in the plan. The four consequential need classes are in fact covered by named design consequences — trust (authenticated receipt is the only approval source), operation (mapper reads current job and digest), approval (stale receipt cannot grant Approved), recovery (retry creates a new review; prior rejection stays historical evidence) — and the CLI integration proof carries an explicit confidence limit, so this is not an omitted consequence. It is a warning that the mapping from persona to those consequences is implicit and a later reader must reconstruct it."
++        },
++        {
++          "severity": "info",
++          "message": "The closing sentence \"No load-bearing external library choice is needed\" is a correctly scoped dependency-research skip, not a contradiction of the plan's own load-bearing choice: the load-bearing decision (read existing trusted coordinator records instead of persisting a separate CLI status) is recorded with its credible alternative and the reason that alternative lost (loss of synchronization after retry or plan edit), plus a reversibility judgment. Consider stating the skip as \"no external dependency decision\" so the two are not read as being in tension."
++        },
++        {
++          "severity": "info",
++          "message": "Proportionality is good: the plan carries no delivery task ordering, no second execution checklist, no implementation-status claims, and no verification ledger detail. The deletion test surfaces no text removable without information loss. Depth is appropriate to the blast radius of a reversible presentation-layer change."
++        }
++      ]
++    },
++    {
++      "fixture_id": "implementation-approve",
++      "run": 3,
++      "verdict": "approve",
++      "findings": [
++        {
++          "severity": "warning",
++          "message": "Failure-path status is under-specified against the plan's own contract. The contract declares 'exactly Pending, Approved, and Rejected', but the failure behavior says a failed status read 'reports unavailable state'. Two reasonable implementations follow: render a fourth distinct unavailable state, or fold the failure into Pending. The safety invariant holds either way (neither can display Approved), so this is not blocking, but folding a read failure into Pending would present the accepted meaning 'the current review has not finished' when that is not known to be true, which weakens the ticket goal that a builder can distinguish current outcomes. Naming the rendered failure state and its relationship to the three-value contract would close the ambiguity."
++        },
++        {
++          "severity": "warning",
++          "message": "The coordinator's atomic retry binding is stated as behavior without distinguishing an existing implemented guarantee from a proposed change. 'The coordinator atomically binds each retry to its new job identifier and plan digest' is load-bearing for scenario 4 and for the crash boundary. If this is an existing coordinator property, the plan should label it as a relied-upon fact; if it requires new coordinator work, that is a design decision needing its own atomicity mechanism and sits near the ticket's 'no new approval authority or storage system' exclusion. The retry path is explicitly in scope, so this does not expand scope, but the plan-state label is missing."
++        },
++        {
++          "severity": "info",
++          "message": "Persona needs carry one shared confidence limit (isolated mapper tests cannot prove public wiring) rather than a per-need limit. Given a single persona and a single surface, the shared limit is adequate; naming the limit against the recovery/retry need specifically would make the coverage self-evident."
++        },
++        {
++          "severity": "info",
++          "message": "The no-load-bearing-choice skip is narrowed to external libraries ('No load-bearing external library choice is needed'), which does not contradict the plan because its one genuinely load-bearing structural choice — read existing trusted coordinator records instead of persisting a separate CLI status — is recorded with the losing alternative and its reason, plus an explicit reversibility judgment. Stating the skip as scoped to third-party dependencies would remove the momentary appearance of conflict."
++        }
++      ]
++    },
++    {
++      "fixture_id": "implementation-reject",
++      "run": 1,
++      "verdict": "request_changes",
++      "findings": [
++        {
++          "severity": "error",
++          "message": "Approval authority decision contradicts accepted product behavior and is self-contradictory within the plan. Approach decisions state \"The reviewer output verdict is enough to display Approved, even before an authenticated approval receipt exists,\" while the same plan later states \"Missing or stale receipt means no approval\" and \"Authorization stays with the existing authenticated receipt.\" spec.md accepts that Approved means the current review has an authenticated approval receipt, and ticket.md excludes any new approval authority. Triggering condition: a review job whose reviewer output carries an approve verdict but for which no authenticated receipt has been written (reviewer finished, receipt not yet issued, or receipt issuance failed). Consequence: two reasonable implementations exist from this plan, and the verdict-driven one displays Approved with no authenticated receipt — a concrete path that reports the accepted user-facing claim as satisfied while it is false, and that silently relocates approval authority from the receipt to reviewer output. Missing/incorrect decision: which single artifact confers Approved. Decision owner: the user (accepted scope in spec.md already resolves this to the authenticated receipt); the agent must not choose a different authority. Viable choices and consequences: (a) keep the accepted receipt-only rule and delete the verdict bullet — reviewer-approved-but-unreceipted reviews display Pending; (b) the user amends accepted scope to let reviewer verdict confer Approved — this widens approval authority and contradicts the current ticket exclusion. Action that resumes review: remove the verdict-is-enough decision so the Approach states receipt-only approval, or return to intake for an explicit user scope amendment."
++        },
++        {
++          "severity": "warning",
++          "message": "Failed status read has no defined display outcome. The contract is declared as \"exactly Pending, Approved, and Rejected,\" but failure behavior says a failed status read \"reports unavailable state,\" which is a fourth outcome not present in the contract and not mapped to any of the three. The plan does bar inventing approval, so this cannot produce a false Approved, but it leaves the user-visible read-failure presentation and its exit behavior undecided for Execution Planning to invent. Name the concrete outcome (a distinct unavailable presentation added to the contract, or an explicit mapping to Pending) in impl-plan.md."
++        },
++        {
++          "severity": "info",
++          "message": "Scenario, persona, and surface coverage check out: all four accepted scenarios are exercised across the real CLI-and-coordinator boundary with a stated confidence limit (isolated mapper tests cannot prove public wiring), the builder persona's trust, operation, approval, and recovery/retry needs each have a named design consequence, and concurrency, atomicity, crash boundary, and historical-evidence retention for retry are decided rather than labeled. Architecture, Data, Measurement, and no-load-bearing-choice statements each carry a concrete reason rather than a bare skip."
++        }
++      ]
++    },
++    {
++      "fixture_id": "implementation-reject",
++      "run": 2,
++      "verdict": "request_changes",
++      "findings": [
++        {
++          "severity": "error",
++          "message": "Contradictory Approved contract permits a false approval. Approach decisions state \"The reviewer output verdict is enough to display Approved, even before an authenticated approval receipt exists,\" while the same plan's contract section states \"Missing or stale receipt means no approval\" and \"Authorization stays with the existing authenticated receipt.\" The accepted Product Plan rule is \"Approved means the current review has an authenticated approval receipt,\" and the ticket states \"Approval still requires the existing authenticated approval receipt.\" Triggering condition: a review whose reviewer output carries an approve verdict but for which no authenticated receipt has been issued (including a crashed or interrupted receipt write). Observable consequence: under the verdict-sourced reading the CLI displays Approved with no receipt, violating the accepted rule and the done state \"A missing or stale receipt cannot appear as approval\"; under the receipt-sourced reading it displays Pending. Two reasonable implementations exist and one falsely reports the accepted user-facing claim as satisfied. Missing decision: the single authoritative source of the Approved state. Decision owner: the user already decided it in the accepted Product Plan and ticket, so the plan must be repaired to the receipt-sourced contract — the reviewer cannot adopt the verdict-sourced alternative on the user's behalf. Action that resumes review: delete the verdict-sufficiency decision and state that Approved is displayed only when an authenticated approval receipt is bound to the current job identifier and plan digest."
++        },
++        {
++          "severity": "error",
++          "message": "Non-discriminating proof for the approval boundary. The proof strategy exercises \"each accepted scenario through the real CLI and coordinator boundary, including a stale receipt and actual rejection findings,\" but names no proof for a current job whose reviewer output approves while no authenticated receipt exists. That is precisely the state the two contradictory contracts disagree about, and it is distinct from the stale-receipt case (stale means a receipt exists but is bound elsewhere). Consequence: the verdict-sourced implementation ships, displays Approved without a receipt, and every named check still passes. Owner: Implementation Planning. Action that resumes review: add a real-boundary proof for approve-verdict-without-receipt asserting Pending, alongside the existing stale-receipt proof."
++        },
++        {
++          "severity": "warning",
++          "message": "Data applicability skip is in tension with the asserted durable binding. The plan claims \"skip: no store, schema, ownership, retention, migration, or cross-system flow changes,\" yet also asserts the coordinator \"atomically binds each retry to its new job identifier and plan digest\" with a defined crash boundary and retained historical rejections. If that binding is an existing coordinator record the plan merely reads, say so explicitly so the skip is verifiable; if the binding is newly introduced, Source of truth, Ownership and access, and Identity and integrity need decisions at review depth rather than a skip. Non-blocking because the surrounding text reads as a description of existing coordinator behavior, but the skip's reason does not currently establish that."
++        },
++        {
++          "severity": "warning",
++          "message": "The Approved-source choice records no credible alternative. The plan contrasts only one alternative (persisting a separate CLI status) and explains why it lost. The decision about where Approved originates — reviewer output verdict versus authenticated receipt — is the plan's most consequential choice and carries no recorded alternative or losing rationale, which is part of why the contradiction above survived into the plan."
++        },
++        {
++          "severity": "info",
++          "message": "Persona and surface coverage is adequate: the builder's trust (stale receipt cannot approve), operation (three statuses), approval (receipt-bound), and recovery (repair and retry with historical evidence preserved) needs each have a named design consequence, and the CLI integration proof carries an explicit confidence limit that an isolated mapper test cannot prove public wiring. Architecture applicability and Measurement applicability each state a concrete consequence or a reasoned skip."
++        }
++      ]
++    },
++    {
++      "fixture_id": "implementation-reject",
++      "run": 3,
++      "verdict": "request_changes",
++      "findings": [
++        {
++          "severity": "error",
++          "message": "Approach decision contradicts accepted approval authority and the plan's own contract. The plan states \"The reviewer output verdict is enough to display Approved, even before an authenticated approval receipt exists,\" while the accepted Product Plan says \"Approved means the current review has an authenticated approval receipt,\" the ticket excludes any new approval authority (\"Approval still requires the existing authenticated approval receipt\"), and the same plan's contract section says \"Missing or stale receipt means no approval.\" Triggering condition: a current job whose reviewer output carries an approve verdict but whose authenticated receipt is absent, not yet written, or bound to different plan bytes. Observable consequence: the CLI displays Approved for a review the project's approval authority has not approved, and the accepted done-state claim \"A missing or stale receipt cannot appear as approval\" is false while every other decision in the plan still holds. Two reasonable implementations follow from the two contradictory statements and one of them ships the false claim. Missing/incorrect decision: the single authority that maps a job to Approved. Accepted decision owner: Implementation Planning (the Product Plan has already decided the behavior; no user choice is open). Repair: delete the reviewer-verdict-is-enough decision and state that Approved requires the authenticated receipt bound to the current job identifier and plan digest, with reviewer verdict alone mapping to Pending."
++        },
++        {
++          "severity": "warning",
++          "message": "Retry transition authority is unstated. The plan says \"Retry creates a new review for repaired plan bytes\" and that the coordinator atomically binds the retry, but never names who may initiate that transition from a terminal Rejected job. The accepted persona is the requesting builder and no change in authorization is in scope, so this is an unresolved detail inside an already-trusted boundary rather than a shipped behavior gap; naming the retry initiator alongside the existing binding decision would close the significant-workflow transition-authority item."
++        }
++      ]
++    },
++    {
++      "fixture_id": "execution-approve",
++      "run": 1,
++      "verdict": "approve",
++      "findings": [
++        {
++          "severity": "warning",
++          "message": "status-9 (documentation: update CLI status help text for all three states) resolves to the same cli-status-integration proof, but the step list only says to 'update CLI help text and rerun the integration proof' without naming a help-text assertion in the fixture. The slice completion signal does require that the help text names all three states, so the obligation is not unowned; however, a reasonable implementer could rerun the integration proof green without any assertion that binds the help output. Naming the help-text assertion inside tests/integration/review-status.test.ts would make the documentation proof discriminating. This is an execution mechanic only and does not change the accepted proof boundary."
++        },
++        {
++          "severity": "info",
++          "message": "Decision statuses and the obligation owner are expressed as a trailing prose paragraph rather than a table. The content is complete and readable (every Implementation Plan decision is enumerated as unchanged, and Slice 1 is named as owner), so this is a presentation preference, not a gap."
++        },
++        {
++          "severity": "info",
++          "message": "The Implementation Plan records measurement and data applicability as skipped and declares no durable architecture record is needed. The Execution Plan correctly omits placeholder measurement and migration tasks without dropping any accepted behavior obligation."
++        }
++      ]
++    },
++    {
++      "fixture_id": "execution-approve",
++      "run": 2,
++      "verdict": "approve",
++      "findings": [
++        {
++          "severity": "warning",
++          "message": "status-8 (rollout and rollback) names the CLI release and mapper revert, but the single `cli-status-integration` command cannot observe release packaging or a revert path. The obligation remains honestly open with missing evidence, so it does not permit a false completion claim today; at completion time the reviewer should confirm this item is satisfied by a reviewed decision rather than treated as covered by the integration command alone."
++        },
++        {
++          "severity": "warning",
++          "message": "status-9 (documentation) also maps to the same integration command. The slice completion signal does require the status help text to name all three states, so the obligation is discriminating only if the integration fixture asserts the help output. The implementer should make that help-text assertion explicit in tests/integration/review-status.test.ts rather than relying on a manual read, since the accepted proof boundary itself is unchanged this is an execution mechanic, not a plan-implementation question."
++        },
++        {
++          "severity": "info",
++          "message": "All eleven checklist obligations share one proof ID. That is defensible here because the accepted Implementation Plan states that an isolated mapper test cannot prove the public wiring and names the CLI integration boundary as the proof, but it concentrates all completion evidence in a single fixture whose internal assertions must stay comprehensive."
++        }
++      ]
++    },
++    {
++      "fixture_id": "execution-approve",
++      "run": 3,
++      "verdict": "approve",
++      "findings": [
++        {
++          "severity": "warning",
++          "message": "Rollout and rollback (status-8) and documentation (status-9) both resolve to the same CLI integration command. The completion signal does assert that help text names all three states, but the revert-the-mapper half of status-8 has no distinct observable signal; a reviewer should confirm at delivery that the rollback claim is exercised rather than asserted."
++        },
++        {
++          "severity": "info",
++          "message": "Scenario coverage relies on one integration fixture carrying many assertions (findings fidelity, retry binding, crash, interruption, read failure, exit-code and record-byte stability). This is adequate for the accepted boundary, but fixture organization will matter for diagnosing which accepted scenario regressed."
++        }
++      ]
++    },
++    {
++      "fixture_id": "execution-reject",
++      "run": 1,
++      "verdict": "request_changes",
++      "findings": [
++        {
++          "severity": "error",
++          "message": "Non-discriminating proof for accepted scenarios 3 and 4. Slice 1 states \"The integration fixture covers Pending and Approved states,\" and cli-status-integration is the sole Required proof for every checklist item. Scenario 3 (Rejected displays the actual blocking findings) and scenario 4 (repair and retry; a stale approval cannot approve the new review) are therefore unexercised: an implementation that never renders Rejected findings, or that lets a stale receipt display Approved, passes `bun run test tests/integration/review-status.test.ts` unchanged. status-1, status-4, and status-7 claim coverage the named check cannot deliver. Extend the fixture — within the same accepted CLI-to-coordinator boundary — to assert rejected findings verbatim and a stale-receipt retry, and say so in the step and in the proof row's boundary."
++        },
++        {
++          "severity": "error",
++          "message": "Completion signal contradicts the accepted contract and the plan's own checklist. Slice 1's completion signal is \"Pending and Approved pass through the CLI entry point and the status help text names those two states,\" while the Implementation Plan fixes exactly three states and status-9 requires help text for all three. As written the slice can be signalled complete with Rejected absent from both behavior and help text, which violates the ticket's observable done state (\"a builder can distinguish all three current outcomes\"). Restate the completion signal as all three states plus the retry/stale-receipt outcome."
++        },
++        {
++          "severity": "error",
++          "message": "Missing startable steps for the rejected and retry work. The step sequence names one RED fixture, the mapper and CLI wiring, and a help-text update, but no action, input, or expected result for propagating the terminal job's recorded findings verbatim, for binding the display to the current job identifier and plan digest, or for the retry path that creates a new review. Those are accepted Implementation Plan decisions left for the implementer to invent, so delivery cannot finish from this sequence without re-deciding sequencing and assertions. Add explicit steps naming fixture, command, edit action, and expected assertion for each."
++        },
++        {
++          "severity": "warning",
++          "message": "status-6 (report status-read failures without inventing approval) and the Implementation Plan's \"running or interrupted review without a terminal receipt displays Pending with its actual error state\" have no named step or assertion in the sequence, only the shared integration proof. Not independently blocking beyond the coverage error above, but the failure-path assertion should be named explicitly when the fixture is extended."
++        },
++        {
++          "severity": "info",
++          "message": "The slicing decision, single-slice record with `relies_on_unmerged_successor: false`, the proof specifications table placed before the Delivery Checklist, the versioned checklist with unique IDs across all eleven default categories, the decision-status statement, and the obligation owner are all present and well formed. The defects are confined to scenario coverage, the completion signal, and step granularity."
++        }
++      ]
++    },
++    {
++      "fixture_id": "execution-reject",
++      "run": 2,
++      "verdict": "request_changes",
++      "findings": [
++        {
++          "severity": "error",
++          "message": "Slice 1 completion signal and proof scope omit accepted scenarios 3 and 4. The slice states \"Pending and Approved pass through the CLI entry point\" and \"The integration fixture covers Pending and Approved states.\" Accepted scenario 3 (a completed review with blocking findings displays Rejected and those actual findings) and scenario 4 (retry after repair; a stale approval cannot approve the new review) have no fixture coverage and no completion signal. A contributor can run `bun run test tests/integration/review-status.test.ts` in `packages/cli` to exit 0 while Rejected never renders, synthesizes reasons, or hides a real blocking finding, and while a stale receipt displays Approved — directly violating the Implementation Plan contract that \"A stale approval never changes the current review to Approved\" and that recorded error findings pass through verbatim. Extend the named fixture to exercise Rejected-with-actual-findings, retry binding to the new job identifier and plan digest, and the stale-receipt case, and restate the completion signal to cover all three statuses."
++        },
++        {
++          "severity": "error",
++          "message": "Checklist items status-1, status-4, and status-7 are backed by non-discriminating proof. Each resolves to `cli-status-integration`, but that proof as specified in the plan body asserts only Pending and Approved. status-1 (\"Show Pending, Approved, and Rejected with actual blocking findings and retry\"), status-4 (\"Prove all four accepted scenarios through the CLI and coordinator\"), and status-7 (\"Reject stale or missing approval receipts and preserve actual findings\") can each be fully broken while the single named check passes, so none of them can be honestly closed on this evidence. The proof specification row itself is well-formed and real_boundary; the gap is the fixture's asserted coverage, which the plan must state explicitly."
++        },
++        {
++          "severity": "error",
++          "message": "The documentation obligation contradicts the slice's own executable step. status-9 requires \"Update CLI status help text for all three states,\" but Slice 1 specifies \"the status help text names those two states\" and the final step only reruns the same two-state integration proof. Two reasonable implementations are permitted — two-state or three-state help text — and the two-state one would satisfy every named check while status-9 is false. Name the three-state help text in the slice step and in the completion signal."
++        },
++        {
++          "severity": "warning",
++          "message": "status-6 (\"Report status-read failures without inventing approval\") and the Implementation Plan's \"A failed status read reports unavailable state rather than inventing approval\" and \"running or interrupted review without a terminal receipt displays Pending with its actual error state\" have no named step, fixture case, or distinct completion signal. This is an owned obligation whose proof path is implicit rather than stated; add the failure-read and interrupted-job cases to the integration fixture when extending it."
++        },
++        {
++          "severity": "info",
++          "message": "Non-blocking and correct as supplied: the `one_pull_request` slicing decision has exactly one slice with a rationale grounded in conceptual cohesion rather than size; prerequisites are present and empty with `relies_on_unmerged_successor: false`, which the single-slice structure supports; the first RED precedes any production edit and names its fixture, command, and failure signal; the decision-status entry records the coordinator/receipt source of truth as unchanged with no reopened decision; and measurement and data categories are correctly absent per the Implementation Plan's explicit skip applicability decisions."
++        }
++      ]
++    },
++    {
++      "fixture_id": "execution-reject",
++      "run": 3,
++      "verdict": "request_changes",
++      "findings": [
++        {
++          "severity": "error",
++          "message": "Slice 1 completion signal is scope-deficient: \"Pending and Approved pass through the CLI entry point and the status help text names those two states.\" Accepted scenario 3 requires Rejected with the recorded blocking findings verbatim, and scenario 4 requires retry on repaired plan bytes with a stale receipt unable to display Approved. A contributor can satisfy this completion signal in full while neither behavior exists, and the user-facing claim \"a builder can distinguish all three current outcomes\" would be false. Extend the completion signal to require Rejected-with-actual-findings and the stale-receipt retry path through the CLI entry point."
++        },
++        {
++          "severity": "error",
++          "message": "Proof cli-status-integration is non-discriminating for checklist items status-1, status-4, and status-7. The plan states \"The integration fixture covers Pending and Approved states.\" while status-4 obligates \"Prove all four accepted scenarios through the CLI and coordinator\", status-1 obligates Rejected with actual blocking findings and retry, and status-7 obligates rejecting stale or missing receipts and preserving actual findings. The mapper could synthesize or drop rejection findings, or honor a stale receipt bound to a different job identifier or plan digest, and the named command still exits 0. Name the Rejected-findings and stale-receipt/retry fixtures (or extend tests/integration/review-status.test.ts with those cases) and state each expected assertion so the fixture fails if those behaviors regress."
++        },
++        {
++          "severity": "error",
++          "message": "The documentation obligation is internally contradictory and under-proven: status-9 requires \"Update CLI status help text for all three states\" while the slice completion signal accepts help text naming only Pending and Approved, and the final executable step says only \"update CLI help text and rerun the integration proof\" without an observable expected result. Reconcile to three states and state the asserted help-text content so the step is startable and verifiable."
++        },
++        {
++          "severity": "warning",
++          "message": "The first RED step names the fixture and command (bun run test tests/integration/review-status.test.ts from packages/cli) but states the failure signal only as \"the missing Pending/Approved assertions fail\". Once the fixture is extended to the Rejected and stale-receipt cases, state the highest-risk RED explicitly — the stale-receipt case is the highest-risk behavior in this plan — with its concrete failure output."
++        },
++        {
++          "severity": "info",
++          "message": "Slicing decision, single-slice count, absence of an unmerged-successor dependency, the proof-specifications table placed before the versioned delivery checklist, the eleven unique stable IDs across every default category, the honest all-open/missing dispositions, and the decision-status line recording the coordinator/receipt source of truth as unchanged are all acceptable as written. No accepted decision is reopened and no product scope is expanded."
++        }
++      ]
++    }
++  ],
++  "rescored_from": {
++    "results_digest": "56dfb89dbdba5abc165218614182c82e0e477d9df924062dac0d10ca1ff0fc67",
++    "corpus_digest": "f76edddd71868835e161d06987bce170fb395a71849412dd96c2b6d18c698b24",
++    "scored_at": "2026-10-21T04:50:07.803Z"
++  },
++  "results_digest": "68525df7bfba69b5a1352c539a2654ed72db001731f7dd3382d667bd4562f5da"
++}
+diff --git a/packages/cli/tests/fixtures/reviewer-capability-evidence/gpt-6-astra.json b/packages/cli/tests/fixtures/reviewer-capability-evidence/gpt-6-astra.json
+new file mode 100644
+index 000000000..e568a0d82
+--- /dev/null
++++ b/packages/cli/tests/fixtures/reviewer-capability-evidence/gpt-6-astra.json
+@@ -0,0 +1,219 @@
++{
++  "provider": "openai",
++  "model": "gpt-6-astra",
++  "corpus_digest": "7a496326df08c8260e1ae4aae952cbc5afbbd03a7e50251c6597a5191c0abc7a",
++  "rubric_digest": "863395c470634f93f595df05282540bfdbb1245849c0999a2c31beac19a70ca2",
++  "settings_digest": "acd5a69993710ae8483c78771a67a6d61e061707f39f450a24a9a10511f7bf4d",
++  "evidence_date": "2026-10-20",
++  "runs": [
++    {
++      "fixture_id": "product-approve",
++      "run": 1,
++      "verdict": "approve",
++      "findings": []
++    },
++    {
++      "fixture_id": "product-approve",
++      "run": 2,
++      "verdict": "approve",
++      "findings": []
++    },
++    {
++      "fixture_id": "product-approve",
++      "run": 3,
++      "verdict": "approve",
++      "findings": []
++    },
++    {
++      "fixture_id": "product-reject",
++      "run": 1,
++      "verdict": "request_changes",
++      "findings": [
++        {
++          "severity": "error",
++          "message": "spec.md defines only Pending and Approved. The ticket requires completed reviews with blocking findings to display Rejected with the actual findings and permit repair and retry. A two-state display could satisfy this plan's done state while hiding rejection and blocking the required recovery workflow. Include these outcomes in accepted behavior and completion criteria."
++        },
++        {
++          "severity": "error",
++          "message": "Approved requires an authenticated receipt but does not require that receipt to apply to the current plan. After repair, an earlier approval could satisfy this definition and falsely display Approved. Require current applicable approval and explicitly exclude stale approvals after changes."
++        }
++      ]
++    },
++    {
++      "fixture_id": "product-reject",
++      "run": 2,
++      "verdict": "request_changes",
++      "findings": [
++        {
++          "severity": "error",
++          "message": "spec.md omits Rejected, actual blocking findings, and repair/retry behavior required by CAP100. A completed review with blocking findings could remain Pending or expose no findings or retry path while satisfying the stated done condition. Include these outcomes in accepted behavior and observable completion criteria."
++        },
++        {
++          "severity": "error",
++          "message": "Approved requires an authenticated receipt but does not require that receipt to apply to the current plan and review. After a repair, an implementation could display Approved using a stale receipt while satisfying this plan. Require current approval validity and explicitly prevent stale approvals from approving a repaired plan."
++        }
++      ]
++    },
++    {
++      "fixture_id": "product-reject",
++      "run": 3,
++      "verdict": "request_changes",
++      "findings": [
++        {
++          "severity": "error",
++          "message": "spec.md omits Rejected status and actual blocking findings. A completed review with blocking findings could remain Pending or hide its findings while satisfying the stated done condition, violating the ticket's required three-state display. Define Rejected and require display of the actual blocking findings."
++        },
++        {
++          "severity": "error",
++          "message": "spec.md omits repair and retry and defines Approved without requiring a current authenticated receipt. After a plan changes, an implementation could display Approved using a stale receipt and still satisfy this plan. Require repair and review retry, with stale approvals unable to approve the repaired plan."
++        }
++      ]
++    },
++    {
++      "fixture_id": "implementation-approve",
++      "run": 1,
++      "verdict": "approve",
++      "findings": [
++        {
++          "severity": "warning",
++          "message": "The proof-confidence sentence is ambiguous: “the CLI integration proof has that limit” appears to assign the isolated mapper test’s wiring limitation to the integration proof. Clarify which boundary the integration proof establishes and what remains outside its confidence."
++        }
++      ]
++    },
++    {
++      "fixture_id": "implementation-approve",
++      "run": 2,
++      "verdict": "approve",
++      "findings": [
++        {
++          "severity": "warning",
++          "message": "The proof paragraph ambiguously says the CLI integration proof shares the isolated mapper test's inability to prove public wiring. Clarify the integration proof's actual confidence limit; the proposed real CLI-to-coordinator exercise otherwise covers that wiring."
++        },
++        {
++          "severity": "info",
++          "message": "Configured principles, personas, surfaces, and architecture records were not supplied. Alignment review is limited to the builder persona, CLI surface, and constraints stated in the provided ticket, scenarios, and Product Plan."
++        }
++      ]
++    },
++    {
++      "fixture_id": "implementation-approve",
++      "run": 3,
++      "verdict": "approve",
++      "findings": []
++    },
++    {
++      "fixture_id": "implementation-reject",
++      "run": 1,
++      "verdict": "request_changes",
++      "findings": [
++        {
++          "severity": "error",
++          "message": "impl-plan.md permits a reviewer verdict to display Approved before an authenticated approval receipt exists. When a reviewer returns approval but receipt authentication or creation has not completed, this can falsely report Approved, violating the Product Plan and ticket. It also contradicts the plan's own missing-receipt and authorization rules. The Implementation Plan author must remove verdict-only approval and require a current authenticated receipt bound to both job identifier and plan digest. Include a real CLI/coordinator proof that an approving verdict without that receipt cannot display Approved; the accepted product authority has already decided this requirement."
++        }
++      ]
++    },
++    {
++      "fixture_id": "implementation-reject",
++      "run": 2,
++      "verdict": "request_changes",
++      "findings": [
++        {
++          "severity": "error",
++          "message": "impl-plan.md explicitly allows reviewer verdict output to display Approved before an authenticated approval receipt exists. When the current reviewer returns approve but receipt authentication or persistence has not completed, the CLI can falsely report approval. This contradicts the accepted Product Plan, ticket scope, and the plan's own missing-receipt rule. Implementation Planning must remove verdict-only approval and consistently require a current authenticated receipt bound to the job and plan digest. Include a CLI/coordinator proof where the current verdict is approve but its authenticated receipt is absent; the named positive-approval and stale-receipt checks alone would not detect this bypass."
++        }
++      ]
++    },
++    {
++      "fixture_id": "implementation-reject",
++      "run": 3,
++      "verdict": "request_changes",
++      "findings": [
++        {
++          "severity": "error",
++          "message": "The decision that a reviewer verdict alone can display Approved before an authenticated receipt exists violates the accepted Product Plan and ticket. When a current reviewer returns approve but no authenticated approval receipt exists, this approach permits the CLI to falsely report Approved. It also contradicts the plan's own missing-receipt and authorization contracts. Implementation Planning must remove verdict-only approval and require a current authenticated receipt bound to both job identifier and plan digest. Include proof through the CLI/coordinator boundary that an approve verdict without that receipt cannot display Approved; the currently named positive-approval and stale-receipt checks do not establish this condition."
++        }
++      ]
++    },
++    {
++      "fixture_id": "execution-approve",
++      "run": 1,
++      "verdict": "approve",
++      "findings": []
++    },
++    {
++      "fixture_id": "execution-approve",
++      "run": 2,
++      "verdict": "approve",
++      "findings": []
++    },
++    {
++      "fixture_id": "execution-approve",
++      "run": 3,
++      "verdict": "approve",
++      "findings": []
++    },
++    {
++      "fixture_id": "execution-reject",
++      "run": 1,
++      "verdict": "request_changes",
++      "findings": [
++        {
++          "severity": "error",
++          "message": "Slice 1's fixture and completion signal cover only Pending and Approved. All named checks could pass while Rejected, verbatim blocking findings, repaired-plan retry, and stale-receipt rejection are broken. Expand cli-status-integration with concrete CLI/coordinator fixture actions and assertions for all four accepted scenarios, including receipts bound to a different job or different plan bytes. Begin production work with the highest-risk authority-binding RED and specify its observable failure."
++        },
++        {
++          "severity": "error",
++          "message": "Slice 1's instruction to 'implement the mapper and CLI wiring' leaves accepted decision-derived work without executable steps or completion signals. Explicitly map current-job/digest binding, authenticated-only approval, verbatim rejection findings, retry binding, concurrent completion ordering, crash-before-binding behavior, interrupted-review error display, and status-read failure handling to actions, prerequisites, and discriminating assertions. The generic source-of-truth decision status does not account for these accepted decisions."
++        },
++        {
++          "severity": "error",
++          "message": "Slice 1 declares completion when help names only two states, contradicting status-9 and the accepted three-state CLI contract. Its sole proof also specifies no assertions for help text or existing exit-code compatibility. Add the three-state documentation action and concrete help/exit-code checks so completion cannot be reported with Rejected undocumented or CLI compatibility broken."
++        }
++      ]
++    },
++    {
++      "fixture_id": "execution-reject",
++      "run": 2,
++      "verdict": "request_changes",
++      "findings": [
++        {
++          "severity": "error",
++          "message": "Slice 1 and cli-status-integration specify only Pending and Approved assertions. A CLI that never displays Rejected, drops blocking findings, cannot retry, or accepts a stale receipt could pass every stated assertion. Add concrete fixture actions and expected CLI assertions for accepted scenarios 3 and 4, including verbatim findings and receipts bound to a different job or plan digest. Make all four scenarios part of the slice completion signal."
++        },
++        {
++          "severity": "error",
++          "message": "Slice 1's generic instruction to implement the mapper and CLI wiring does not operationalize the accepted decisions for retry binding, concurrent retries finishing out of order, crashes before binding, interrupted reviews, or failed status reads. The sole decision-status entry covers only the coordinator/receipt source of truth. Explicitly account for each accepted decision as unchanged and map it to owned execution steps and discriminating proof, including fixture setup, actions, and observable results. Otherwise delivery can satisfy the stated completion signal while displaying an obsolete job's approval or mishandling the accepted failure states."
++        },
++        {
++          "severity": "error",
++          "message": "Slice 1's completion signal requires help text naming only two states, whereas status-9 and the accepted CLI contract require all three. Require the documentation edit and its proof to cover Pending, Approved, and Rejected; the current completion signal permits shipping incomplete help while recording the documentation obligation complete."
++        }
++      ]
++    },
++    {
++      "fixture_id": "execution-reject",
++      "run": 3,
++      "verdict": "request_changes",
++      "findings": [
++        {
++          "severity": "error",
++          "message": "Slice 1 and cli-status-integration cover only Pending and Approved. A CLI that omits Rejected, hides blocking findings, or approves a repaired plan using a stale receipt could pass every specified assertion. Add concrete real CLI/coordinator fixtures and assertions for all four accepted scenarios, including verbatim findings, retry with changed plan bytes, and receipts bound to a different job or digest. Begin with the highest-risk named RED and its explicit failure signal."
++        },
++        {
++          "severity": "error",
++          "message": "Slice 1's executable sequence and completion signal omit accepted obligations despite listing them in the checklist. 'Implement the mapper and CLI wiring' supplies no concrete retry action or execution mechanics for concurrent retries, a crash before binding, interrupted reviews, status-read failures, or exit-code compatibility. Map these accepted requirements to explicit actions, inputs, prerequisites, fixtures, and observable results within the slice. Its completion signal and help-text verification must require all three statuses, rather than only Pending and Approved."
++        },
++        {
++          "severity": "error",
++          "message": "The sole decision-status entry preserves only the coordinator/receipt source of truth, and the generic obligation-owner statement does not account for the remaining accepted decisions. Explicitly retain and map job/digest binding, verbatim error findings, retry history, atomic current-job binding under concurrency and crashes, and interrupted-review behavior to Slice 1 and concrete completion evidence. The existing integration specification cannot substantiate all obligations assigned to it."
++        }
++      ]
++    }
++  ],
++  "rescored_from": {
++    "results_digest": "ca4cabb73bfbbd00023b00bd5323dbd7713402c7b4e2f271f92d332a0daee1ce",
++    "corpus_digest": "f76edddd71868835e161d06987bce170fb395a71849412dd96c2b6d18c698b24",
++    "scored_at": "2026-10-21T04:50:07.805Z"
++  },
++  "results_digest": "11e1b6cc4ea666920b287c394a949500d3a3062c7155c821e18e62fe7b69eb66"
++}
+diff --git a/packages/cli/tests/hooks/review-ledger.test.ts b/packages/cli/tests/hooks/review-ledger.test.ts
+index 366d89d0b..9f655123a 100644
+--- a/packages/cli/tests/hooks/review-ledger.test.ts
++++ b/packages/cli/tests/hooks/review-ledger.test.ts
+@@ -17,6 +17,7 @@ import {
+   parseReviewStamps,
+   readCrossAgentReviewPolicy,
+   reviewGateAppliesToPhase,
++  reviewGateForIndependentDesign,
+   reviewGateForNextAsset,
+   reviewScope,
+   type ReviewStamp,
+@@ -25,6 +26,34 @@ import {
+ /** A coordinator review id, as write-review-stamp.ts records it. */
+ const REVIEW_ID = 'b3f1c2d4-0000-4000-8000-000000000001';
+ 
++describe('independent design review gate', () => {
++  const scope = reviewScope('DES123', 'impl-plan', hashArtifact('plan'));
++  const reduced: ReviewStamp = {
++    scope,
++    reviewId: REVIEW_ID,
++    author: 'claude',
++    reviewer: 'claude',
++    independence: 'reduced',
++  };
++
++  it('rejects an authenticated reduced receipt', () => {
++    expect(reviewGateForIndependentDesign(scope, [reduced]).ok).toBe(false);
++  });
++
++  it('accepts an independent receipt or an explicit reasoned skip', () => {
++    expect(
++      reviewGateForIndependentDesign(scope, [
++        { ...reduced, reviewer: 'codex', independence: 'cross-agent' },
++      ]),
++    ).toEqual({ ok: true });
++    expect(
++      reviewGateForIndependentDesign(scope, [
++        { scope, skipReason: 'Reviewed by architecture owner' },
++      ]),
++    ).toEqual({ ok: true });
++  });
++});
++
+ describe('reviewGateForNextAsset (TB1.AC1 — per-asset stamp gates the next asset)', () => {
+   it('unstamped_prior_blocks_next: denies, naming the unreviewed prior asset', () => {
+     const verdict = reviewGateForNextAsset('jtbd', []);
+diff --git a/packages/cli/tests/integration/architecture-review-gate.test.ts b/packages/cli/tests/integration/architecture-review-gate.test.ts
+index b32c6ae93..f395639b5 100644
+--- a/packages/cli/tests/integration/architecture-review-gate.test.ts
++++ b/packages/cli/tests/integration/architecture-review-gate.test.ts
+@@ -55,6 +55,7 @@ function writeReviewResponse(
+   status: string,
+   model?: string,
+   reviewId = REVIEW_ID,
++  independence: 'cross-agent' | 'reduced' = 'cross-agent',
+ ): void {
+   writeFileSync(
+     nodePath.join(shared.pluginDirectory, `response-${reviewId}.json`),
+@@ -64,7 +65,7 @@ function writeReviewResponse(
+         status,
+         review_kind: 'plan-implementation',
+         review_targets: [`.project/tickets/${id}/impl-plan.md`],
+-        independence: 'cross-agent',
++        independence,
+         author_agent: 'codex',
+         actual_reviewer: 'claude',
+         reviewer_model: model,
+@@ -162,6 +163,7 @@ function writeStamp(
+     hashOf?: string;
+     witnessed?: boolean;
+     reviewId?: string;
++    independence?: 'cross-agent' | 'reduced';
+   } = {},
+ ): void {
+   const scope = reviewScope(
+@@ -175,7 +177,7 @@ function writeStamp(
+     options.model,
+     options.witnessed ? 'codex' : undefined,
+     options.witnessed ? 'claude' : undefined,
+-    options.witnessed ? 'cross-agent' : undefined,
++    options.witnessed ? (options.independence ?? 'cross-agent') : undefined,
+     options.witnessed ? (options.reviewId ?? REVIEW_ID) : undefined,
+   )}`;
+   appendFileSync(
+@@ -255,10 +257,11 @@ describe('architecture review gate (MR5M3A)', () => {
+     expect(runStopHook('ARG003')).toContain(REVIEW_MSG);
+   });
+ 
+-  it('allows when cited and a matching stamp exists', () => {
++  it('allows when cited and a matching independent review receipt exists', () => {
+     setConfig({ architectureReviewGate: true });
+     writeTicket('ARG004', 'feature', CITED);
+-    writeStamp('ARG004', CITED);
++    writeReviewResponse('ARG004', 'approved');
++    writeStamp('ARG004', CITED, { witnessed: true });
+     const reason = runStopHook('ARG004');
+     expect(reason).not.toContain(CITATION_MSG);
+     expect(reason).not.toContain(REVIEW_MSG);
+@@ -286,7 +289,7 @@ describe('architecture review gate (MR5M3A)', () => {
+     writeTicket('ARG006B', 'feature', CITED);
+     writeStamp('ARG006B', CITED, { model: 'claude-sonnet-4-6' });
+     expect(runStopHook('ARG006B', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' })).toContain(
+-      CROSS_MODEL_MSG,
++      REVIEW_MSG,
+     );
+   });
+ 
+@@ -313,7 +316,8 @@ describe('architecture review gate (MR5M3A)', () => {
+   it('blocks under cross-model when the stamp records no model (fails closed)', () => {
+     setConfig({ architectureReviewGate: true, crossModelReview: true });
+     writeTicket('ARG008', 'feature', CITED);
+-    writeStamp('ARG008', CITED);
++    writeReviewResponse('ARG008', 'approved');
++    writeStamp('ARG008', CITED, { witnessed: true });
+     expect(runStopHook('ARG008', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' })).toContain(
+       CROSS_MODEL_MSG,
+     );
+@@ -339,7 +343,8 @@ describe('architecture review gate (MR5M3A)', () => {
+     setConfig({ architectureReviewGate: true });
+     const skipPlan = plan('skip: one obvious choice, nothing to weigh');
+     writeTicket('ARG011', 'feature', skipPlan);
+-    writeStamp('ARG011', skipPlan);
++    writeReviewResponse('ARG011', 'approved');
++    writeStamp('ARG011', skipPlan, { witnessed: true });
+     const reason = runStopHook('ARG011');
+     expect(reason).not.toContain(CITATION_MSG);
+     expect(reason).not.toContain(REVIEW_MSG);
+@@ -424,6 +429,15 @@ describe('architecture review gate (MR5M3A)', () => {
+     expect(runStopHook('ARG019')).not.toContain(REVIEW_MSG);
+   });
+ 
++  it('rejects an authenticated reduced receipt at the opt-in independent architecture gate', () => {
++    setConfig({ architectureReviewGate: true, crossAgentReview: 'prefer' });
++    writeTicket('ARG021', 'feature', CITED);
++    writeReviewResponse('ARG021', 'approved', undefined, REVIEW_ID, 'reduced');
++    writeStamp('ARG021', CITED, { witnessed: true, independence: 'reduced' });
++
++    expect(runStopHook('ARG021')).toContain(REVIEW_MSG);
++  });
++
+   it('rejects a hand-written coordinator claim when the receipt did not approve', () => {
+     setConfig({ architectureReviewGate: true });
+     writeTicket('ARG020', 'feature', CITED);
+diff --git a/packages/cli/tests/integration/coding-authorization.test.ts b/packages/cli/tests/integration/coding-authorization.test.ts
+index 8d51ae5f1..4fc86ca0d 100644
+--- a/packages/cli/tests/integration/coding-authorization.test.ts
++++ b/packages/cli/tests/integration/coding-authorization.test.ts
+@@ -220,6 +220,8 @@ async function refreshReviews(
+     readFileSync(nodePath.join(root, '.safeword', 'config.json'), 'utf8'),
+   ) as { designApprovalGate?: unknown };
+   const bin = installReviewer();
++  // The fixture's Codex author has no verified model, so these real reviews
++  // earn reduced assurance. Tampering tests below retain their exact refusals.
+   const stamps: string[] = [];
+   if (from === 'scenario') {
+     const reviewId = await admitReview(
+@@ -230,7 +232,7 @@ async function refreshReviews(
+       { bin },
+     );
+     stamps.push(
+-      `2026-09-18T00:01:01.000Z fixture review:${ticketFolder}:phase@scenario-gate author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
++      `2026-09-18T00:01:01.000Z fixture review:${ticketFolder}:phase@scenario-gate author:codex reviewer:claude independence:reduced review-id:${reviewId}`,
+     );
+   }
+   if (from === 'scenario' || from === 'implementation') {
+@@ -246,7 +248,7 @@ async function refreshReviews(
+       { bin },
+     );
+     stamps.push(
+-      `2026-09-18T00:01:02.000Z fixture review:${ticketFolder}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
++      `2026-09-18T00:01:02.000Z fixture review:${ticketFolder}:phase@plan-implementation author:codex reviewer:claude independence:reduced review-id:${reviewId}`,
+     );
+   }
+   const plan = readFileSync(nodePath.join(root, executionTarget), 'utf8');
+@@ -266,7 +268,7 @@ async function refreshReviews(
+     },
+   );
+   stamps.push(
+-    `2026-09-18T00:01:03.000Z fixture review:${ticketFolder}:phase@plan-execution author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
++    `2026-09-18T00:01:03.000Z fixture review:${ticketFolder}:phase@plan-execution author:codex reviewer:claude independence:reduced review-id:${reviewId}`,
+   );
+   const ledgerPath = nodePath.join(root, '.project', 'skill-invocations.log');
+   writeFileSync(ledgerPath, `${readFileSync(ledgerPath, 'utf8')}${stamps.join('\n')}\n`);
+@@ -341,8 +343,8 @@ async function featureFixture(
+     { bin },
+   );
+   const reviewStamps = [
+-    `2026-09-18T00:00:02.000Z fixture review:${ticketFolder}:phase@scenario-gate author:codex reviewer:claude independence:cross-agent review-id:${scenarioReviewId}`,
+-    `2026-09-18T00:00:03.000Z fixture review:${ticketFolder}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${implementationReviewId}`,
++    `2026-09-18T00:00:02.000Z fixture review:${ticketFolder}:phase@scenario-gate author:codex reviewer:claude independence:reduced review-id:${scenarioReviewId}`,
++    `2026-09-18T00:00:03.000Z fixture review:${ticketFolder}:phase@plan-implementation author:codex reviewer:claude independence:reduced review-id:${implementationReviewId}`,
+   ];
+   if (includeExecutionPlan) {
+     const plan = executionContent;
+@@ -359,7 +361,7 @@ async function featureFixture(
+       { bin, executionPlanRecord: executionReviewRecord(plan, designApprovalGate) },
+     );
+     reviewStamps.push(
+-      `2026-09-18T00:00:04.000Z fixture review:${ticketFolder}:phase@plan-execution author:codex reviewer:claude independence:cross-agent review-id:${executionReviewId}`,
++      `2026-09-18T00:00:04.000Z fixture review:${ticketFolder}:phase@plan-execution author:codex reviewer:claude independence:reduced review-id:${executionReviewId}`,
+     );
+   }
+   writeFileSync(
+@@ -372,6 +374,7 @@ async function featureFixture(
+ async function codingAuthorization(root: string): Promise<{
+   exitCode: number;
+   data: Record<string, unknown>;
++  findings: { code: string }[];
+ }> {
+   const invoked = await runCli(
+     ['ticket', 'coding-authorization', 'ABC123', '--json', '--cwd', root],
+@@ -383,8 +386,11 @@ async function codingAuthorization(root: string): Promise<{
+       },
+     },
+   );
+-  const result = JSON.parse(invoked.stdout) as { data: Record<string, unknown> };
+-  return { exitCode: invoked.exitCode, data: result.data };
++  const result = JSON.parse(invoked.stdout) as {
++    data: Record<string, unknown>;
++    findings: { code: string }[];
++  };
++  return { exitCode: invoked.exitCode, data: result.data, findings: result.findings };
+ }
+ 
+ function authorizationIdentity(result: { data: Record<string, unknown> }): string {
+@@ -508,6 +514,21 @@ describe('coding authorization', () => {
+     });
+   });
+ 
++  it('refuses previously admitted reduced reviews after policy changes to require', async () => {
++    const root = await featureFixture(true);
++    const configPath = nodePath.join(root, '.safeword/config.json');
++    const config = JSON.parse(readFileSync(configPath, 'utf8'));
++    writeFileSync(configPath, JSON.stringify({ ...config, crossAgentReview: 'require' }));
++    const result = await codingAuthorization(root);
++    expect(result.exitCode).toBe(2);
++    expect(result.data.coding_authorization).toBe('denied');
++    expect(result.findings.map(finding => finding.code)).toEqual([
++      'missing_accepted_scenarios',
++      'missing_accepted_approach',
++      'unearned_execution_plan_assurance',
++    ]);
++  });
++
+   it('limits an approved result to coding authorization without downstream authority', async () => {
+     const root = await featureFixture(true);
+ 
+@@ -516,7 +537,7 @@ describe('coding authorization', () => {
+     expect(result.exitCode).toBe(0);
+     expect(result.data).toMatchObject({
+       coding_authorization: 'authorized',
+-      achieved_independence: 'cross-agent',
++      achieved_independence: 'reduced',
+       grants_authority: false,
+     });
+     expect(
+@@ -678,7 +699,7 @@ describe('coding authorization', () => {
+             }));
+             rewriteExecutionReviewStamp(root, line =>
+               line.replace(
+-                'author:codex reviewer:claude independence:cross-agent',
++                'author:codex reviewer:claude independence:reduced',
+                 'author:codex reviewer:codex independence:degraded',
+               ),
+             );
+@@ -827,7 +848,7 @@ describe('coding authorization', () => {
+     const reviewLedger = nodePath.join(root, '.project', 'skill-invocations.log');
+     writeFileSync(
+       reviewLedger,
+-      `${readFileSync(reviewLedger, 'utf8')}2026-09-18T00:01:02.000Z fixture review:ABC123-feature:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${implementationReviewId}\n`,
++      `${readFileSync(reviewLedger, 'utf8')}2026-09-18T00:01:02.000Z fixture review:ABC123-feature:phase@plan-implementation author:codex reviewer:claude independence:reduced review-id:${implementationReviewId}\n`,
+     );
+ 
+     const staleReceipt = await runCli(['review', 'status', originalExecutionReviewId ?? ''], {
+@@ -870,7 +891,7 @@ describe('coding authorization', () => {
+     const unchangedLedger = nodePath.join(unchangedRoot, '.project', 'skill-invocations.log');
+     writeFileSync(
+       unchangedLedger,
+-      `${readFileSync(unchangedLedger, 'utf8')}2026-09-18T00:01:02.000Z fixture review:ABC123-feature:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${unchangedImplementationReviewId}\n`,
++      `${readFileSync(unchangedLedger, 'utf8')}2026-09-18T00:01:02.000Z fixture review:ABC123-feature:phase@plan-implementation author:codex reviewer:claude independence:reduced review-id:${unchangedImplementationReviewId}\n`,
+     );
+     const contentIdenticalRereview = await codingAuthorization(unchangedRoot);
+     expect(contentIdenticalRereview.exitCode).toBe(0);
+@@ -1047,7 +1068,7 @@ describe('coding authorization', () => {
+         );
+       } else {
+         rewriteExecutionReviewStamp(root, line =>
+-          line.replace('independence:cross-agent', 'independence:degraded'),
++          line.replace('independence:reduced', 'independence:degraded'),
+         );
+       }
+       const authorization = await codingAuthorization(root);
+@@ -1121,7 +1142,7 @@ describe('coding authorization', () => {
+     }));
+     rewriteExecutionReviewStamp(root, line =>
+       line.replace(
+-        'author:codex reviewer:claude independence:cross-agent',
++        'author:codex reviewer:claude independence:reduced',
+         'author:codex reviewer:codex independence:degraded',
+       ),
+     );
+diff --git a/packages/cli/tests/integration/installed-planning-copy-admission.test.ts b/packages/cli/tests/integration/installed-planning-copy-admission.test.ts
+index 17235c370..28eb311c4 100644
+--- a/packages/cli/tests/integration/installed-planning-copy-admission.test.ts
++++ b/packages/cli/tests/integration/installed-planning-copy-admission.test.ts
+@@ -138,7 +138,7 @@ process.stdin.on('end', () => {
+         '--reviewer-agent',
+         'claude',
+         '--independence',
+-        'cross-agent',
++        'reduced',
+         '--review-id',
+         id,
+         ...artifact,
+diff --git a/packages/cli/tests/integration/native-planning-copy-dispatch.test.ts b/packages/cli/tests/integration/native-planning-copy-dispatch.test.ts
+index a8600e792..a4dd2f304 100644
+--- a/packages/cli/tests/integration/native-planning-copy-dispatch.test.ts
++++ b/packages/cli/tests/integration/native-planning-copy-dispatch.test.ts
+@@ -228,7 +228,8 @@ describe('Complete native planning author-copy dispatch', () => {
+           review_kind: kind,
+           author_agent: author,
+           actual_reviewer: reviewerAgent,
+-          independence: 'cross-agent',
++          // These reviewer fakes provide no confirmed model provenance.
++          independence: 'reduced',
+         },
+       });
+       expect(readFileSync(reviewer.calls, 'utf8')).toBe('review\n');
+diff --git a/packages/cli/tests/integration/plan-design-approval.test.ts b/packages/cli/tests/integration/plan-design-approval.test.ts
+index 60a55ce1c..0f9aa4747 100644
+--- a/packages/cli/tests/integration/plan-design-approval.test.ts
++++ b/packages/cli/tests/integration/plan-design-approval.test.ts
+@@ -309,8 +309,8 @@ function fixture(
+   writeFileSync(
+     ledgerPath,
+     `${existingLedger}${[
+-      `2026-09-11T00:00:00.000Z fixture review:${scope} author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
+-      `2026-09-11T00:00:01.000Z fixture review:${TICKET_FOLDER}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
++      `2026-09-11T00:00:00.000Z fixture review:${scope} author:codex reviewer:claude independence:reduced review-id:${reviewId}`,
++      `2026-09-11T00:00:01.000Z fixture review:${TICKET_FOLDER}:phase@plan-implementation author:codex reviewer:claude independence:reduced review-id:${reviewId}`,
+       '',
+     ].join('\n')}`,
+   );
+@@ -385,8 +385,8 @@ function appendCurrentReview(project: Fixture, plan: string): void {
+   writeFileSync(
+     project.ledgerPath,
+     `${readFileSync(project.ledgerPath, 'utf8')}${[
+-      `2026-09-11T00:01:00.000Z fixture review:${scope} author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
+-      `2026-09-11T00:01:01.000Z fixture review:${TICKET_FOLDER}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
++      `2026-09-11T00:01:00.000Z fixture review:${scope} author:codex reviewer:claude independence:reduced review-id:${reviewId}`,
++      `2026-09-11T00:01:01.000Z fixture review:${TICKET_FOLDER}:phase@plan-implementation author:codex reviewer:claude independence:reduced review-id:${reviewId}`,
+       '',
+     ].join('\n')}`,
+   );
+@@ -485,8 +485,8 @@ function addReviewedTicket(project: Fixture, ticketId: string, suffix: string):
+   writeFileSync(
+     project.ledgerPath,
+     `${readFileSync(project.ledgerPath, 'utf8')}${[
+-      `2026-09-11T00:02:00.000Z fixture review:${scope} author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
+-      `2026-09-11T00:02:01.000Z fixture review:${folder}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
++      `2026-09-11T00:02:00.000Z fixture review:${scope} author:codex reviewer:claude independence:reduced review-id:${reviewId}`,
++      `2026-09-11T00:02:01.000Z fixture review:${folder}:phase@plan-implementation author:codex reviewer:claude independence:reduced review-id:${reviewId}`,
+       '',
+     ].join('\n')}`,
+   );
+@@ -599,7 +599,7 @@ describe('installed CLI human design authority follows configuration', () => {
+     const payload = JSON.parse(result.stdout) as { data?: Record<string, unknown> };
+     expect(payload.data).toMatchObject({
+       approval_status: 'not-required',
+-      achieved_independence: 'cross-agent',
++      achieved_independence: 'reduced',
+     });
+     expect(readFileSync(project.ledgerPath, 'utf8')).toContain('human-approval:not-required');
+     expect(approvalEvents(project.ledgerPath)).toEqual([]);
+@@ -1018,7 +1018,7 @@ describe('Implementation Plan review admission controls Execution Planning', ()
+     expect(result.exitCode, result.stdout).toBe(0);
+     expect(phase(project.ticketPath)).toBe('plan-execution');
+     expect(JSON.parse(result.stdout)).toMatchObject({
+-      data: { approval_status: 'not-required', achieved_independence: 'cross-agent' },
++      data: { approval_status: 'not-required', achieved_independence: 'reduced' },
+     });
+     expect(result.stdout).not.toContain('Implementation Plan review is blocked');
+   });
+@@ -1123,8 +1123,8 @@ describe('Implementation Plan review admission controls Execution Planning', ()
+     writeFileSync(
+       project.ledgerPath,
+       `${readFileSync(project.ledgerPath, 'utf8')}${[
+-        `2026-09-11T00:01:00.000Z fixture review:${scope} author:codex reviewer:claude independence:cross-agent review-id:${project.reviewId}`,
+-        `2026-09-11T00:01:01.000Z fixture review:${TICKET_FOLDER}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${project.reviewId}`,
++        `2026-09-11T00:01:00.000Z fixture review:${scope} author:codex reviewer:claude independence:reduced review-id:${project.reviewId}`,
++        `2026-09-11T00:01:01.000Z fixture review:${TICKET_FOLDER}:phase@plan-implementation author:codex reviewer:claude independence:reduced review-id:${project.reviewId}`,
+         '',
+       ].join('\n')}`,
+     );
+@@ -1174,7 +1174,7 @@ describe('Implementation Plan review admission controls Execution Planning', ()
+   it('rejects assurance text that disagrees with the authenticated review', async () => {
+     const project = fixture(false);
+     rewriteReviewStamps(project, line =>
+-      line.replace('independence:cross-agent', 'independence:degraded'),
++      line.replace('independence:reduced', 'independence:degraded'),
+     );
+ 
+     const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
+@@ -1195,9 +1195,12 @@ describe('Implementation Plan review admission controls Execution Planning', ()
+       ...data,
+       author_agent: 'claude',
+       actual_reviewer: 'claude',
++      independence: 'cross-agent',
+     }));
+     rewriteReviewStamps(project, line =>
+-      line.replace('author:codex reviewer:claude', 'author:claude reviewer:claude'),
++      line
++        .replace('author:codex reviewer:claude', 'author:claude reviewer:claude')
++        .replace('independence:reduced', 'independence:cross-agent'),
+     );
+ 
+     const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
+@@ -1216,7 +1219,7 @@ describe('Implementation Plan review admission controls Execution Planning', ()
+     const project = fixture(false);
+     mutateReview(project, data => ({ ...data, independence: 'degraded' }));
+     rewriteReviewStamps(project, line =>
+-      line.replace('independence:cross-agent', 'independence:degraded'),
++      line.replace('independence:reduced', 'independence:degraded'),
+     );
+ 
+     const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
+diff --git a/packages/cli/tests/integration/plan-execution-journey.test.ts b/packages/cli/tests/integration/plan-execution-journey.test.ts
+index fbd497b4b..0cfdd4aeb 100644
+--- a/packages/cli/tests/integration/plan-execution-journey.test.ts
++++ b/packages/cli/tests/integration/plan-execution-journey.test.ts
+@@ -531,7 +531,7 @@ describe('Execution Plan cold-start journey', () => {
+             '--reviewer-agent',
+             'claude',
+             '--independence',
+-            'cross-agent',
++            'reduced',
+             '--review-id',
+             result.data.review_id,
+           ],
+diff --git a/packages/cli/tests/integration/planning-documentation.test.ts b/packages/cli/tests/integration/planning-documentation.test.ts
+new file mode 100644
+index 000000000..e99988e62
+--- /dev/null
++++ b/packages/cli/tests/integration/planning-documentation.test.ts
+@@ -0,0 +1,47 @@
++import { readFileSync } from 'node:fs';
++import nodePath from 'node:path';
++
++import { describe, expect, it } from 'vitest';
++
++const root = nodePath.resolve(import.meta.dirname, '../../../..');
++
++describe('planning fallback documentation', () => {
++  it('marks the older coordinator decision as superseded in part', () => {
++    const architecture = readFileSync(nodePath.join(root, 'ARCHITECTURE.md'), 'utf8');
++    const olderRecord = architecture
++      .split('**Date:** 2026-08-02', 2)[1]
++      ?.split('**OpenCode extension', 1)[0];
++    expect(olderRecord).toContain(
++      'Superseded in part by the 2026-09-20 planning fallback decision',
++    );
++    expect(olderRecord).toContain('immutable coordinator packet');
++  });
++
++  it('describes reduced fallback honestly in the public overview', () => {
++    const readme = readFileSync(nodePath.join(root, 'README.md'), 'utf8');
++    expect(readme).toContain('reduced independence');
++    expect(readme).toContain('Cursor itself has no headless reviewer route');
++    expect(readme).toContain('A current receipt is still required at the phase');
++    expect(readme).not.toContain('Both read the live worktree, so');
++    expect(readme).toContain('opt-in `architectureReviewGate`');
++    expect(readme).toContain('reasoned skip');
++  });
++
++  it('distinguishes planning approval from the later independent architecture gate', () => {
++    const guidance = readFileSync(
++      nodePath.join(root, 'packages/cli/templates/skills/bdd/PLAN_IMPLEMENTATION.md'),
++      'utf8',
++    );
++    expect(guidance).toMatch(/does not clear\s+the later architecture gate/u);
++    expect(guidance).toContain('reasoned skip');
++  });
++
++  it('describes the Cursor Cloud transition boundary without claiming stop hooks are absent', () => {
++    const guidance = readFileSync(
++      nodePath.join(root, 'packages/cli/templates/skills/bdd/PLAN_IMPLEMENTATION.md'),
++      'utf8',
++    );
++    expect(guidance).toContain('Cursor Cloud Agents run command-based `preToolUse` and stop hooks');
++    expect(guidance).toContain('enforcement\n   rides the transition gate');
++  });
++});
+diff --git a/packages/cli/tests/integration/planning-review-fallback.test.ts b/packages/cli/tests/integration/planning-review-fallback.test.ts
+new file mode 100644
+index 000000000..3e7256cf7
+--- /dev/null
++++ b/packages/cli/tests/integration/planning-review-fallback.test.ts
+@@ -0,0 +1,386 @@
++import { spawnSync } from 'node:child_process';
++import { mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
++import nodePath from 'node:path';
++
++import { afterEach, describe, expect, it } from 'vitest';
++
++import {
++  createConfiguredProject,
++  createTemporaryDirectory,
++  runCli,
++  testCliPath,
++} from '../helpers.js';
++import { writePlanningInventories } from '../planning-fixtures.js';
++import { PLANNING_ROLE_PRODUCT } from '../planning-role-fixtures.js';
++import {
++  cleanupTrustedReviewerDirectories,
++  createTrustedReviewerDirectory,
++  REVIEWER_CAPABILITIES,
++} from '../review-fixtures.js';
++
++const projects: string[] = [];
++
++afterEach(() => {
++  for (const project of projects) rmSync(project, { recursive: true, force: true });
++  projects.length = 0;
++  cleanupTrustedReviewerDirectories();
++});
++
++async function assertPolicyFlip(
++  enabled: boolean,
++  project: string,
++  ticket: string,
++  environment: Record<string, string>,
++): Promise<void> {
++  if (!enabled) return;
++  const configPath = nodePath.join(project, '.safeword/config.json');
++  const previous = readFileSync(configPath, 'utf8');
++  writeFileSync(
++    configPath,
++    JSON.stringify({ ...JSON.parse(previous), crossAgentReview: 'require' }),
++  );
++  const refused = await runCli(
++    ['ticket', 'approve-plan', 'FAL123', '--cwd', project, '--json', '--no-input'],
++    { cwd: project, env: environment },
++  );
++  expect(refused.exitCode, refused.stdout).toBe(2);
++  expect(JSON.parse(refused.stdout).findings).toContainEqual(
++    expect.objectContaining({
++      message: expect.stringContaining('current require policy needs cross-agent review'),
++    }),
++  );
++  expect(readFileSync(nodePath.join(project, ticket, 'ticket.md'), 'utf8')).toContain(
++    'phase: plan-implementation',
++  );
++  writeFileSync(configPath, previous);
++}
++
++describe('planning fallback after independent route exhaustion', () => {
++  // eslint-disable-next-line complexity -- The fixture exercises one end-to-end review and admission path across host variants.
++  async function reviewThroughAdmission(
++    hostContinuation: boolean,
++    author: 'claude' | 'cursor' | 'opencode' = 'claude',
++    independentOnly = false,
++    failedFirstSameAgent = false,
++    options: { selfReview?: boolean; flipPolicy?: boolean } = {},
++  ): Promise<Record<string, unknown>> {
++    const project = createTemporaryDirectory();
++    projects.push(project);
++    await createConfiguredProject(project);
++    writePlanningInventories(project);
++    if (independentOnly || failedFirstSameAgent) {
++      const configPath = nodePath.join(project, '.safeword/config.json');
++      const config = JSON.parse(readFileSync(configPath, 'utf8'));
++      writeFileSync(
++        configPath,
++        JSON.stringify({
++          ...config,
++          crossAgentReviewRoutes: {
++            [author]: failedFirstSameAgent
++              ? [
++                  { reviewer: 'codex' },
++                  { reviewer: 'claude', model: 'no-such-model' },
++                  { reviewer: 'claude' },
++                ]
++              : [{ reviewer: 'codex', model: 'gpt-6-astra' }],
++          },
++        }),
++      );
++    }
++    const ticket = '.project/tickets/FAL123-fallback';
++    mkdirSync(nodePath.join(project, ticket), { recursive: true });
++    writeFileSync(
++      nodePath.join(project, ticket, 'ticket.md'),
++      '---\nid: FAL123\ntype: feature\nphase: plan-implementation\nstatus: in_progress\nproduct_plan_contract: v1\nscope: preserve approval\nout_of_scope: anonymous approval\ndone_when: current review advances\nphase_anchors:\n  - scenario-gate: features/fallback.feature\n---\n',
++    );
++    writeFileSync(nodePath.join(project, ticket, 'spec.md'), PLANNING_ROLE_PRODUCT);
++    writeFileSync(
++      nodePath.join(project, ticket, 'impl-plan.md'),
++      '# Implementation Plan\n\n**Status:** planned\n\n## Approach\n\nPreserve authenticated approval.\n\n## Decisions\n\nUse the current review receipt.\n\n## Design alignment\n\nEnsure review is honest.\n\n## Architecture applicability\n\nskip: no architecture records apply\n\n## Data applicability\n\nskip: no product data changes\n\n## Known deviations\n\nskip: none\n\n## Doc impact\n\nskip: no customer docs change\n\n## Assessment triggers\n\nRevisit if review authority changes.\n',
++    );
++    mkdirSync(nodePath.join(project, 'features'), { recursive: true });
++    writeFileSync(
++      nodePath.join(project, 'features/fallback.feature'),
++      '@fallback.BU1.R1\nFeature: Honest fallback\n  Scenario: Current review advances\n    Given a current review\n    When the builder advances\n    Then the achieved independence is recorded\n',
++    );
++    const reviewer = createTrustedReviewerDirectory('safeword-planning-fallback-');
++    mkdirSync(nodePath.join(reviewer, 'runtime'));
++    symlinkSync(testCliPath, nodePath.join(reviewer, 'runtime/cli.js'));
++    const bun = spawnSync('which', ['bun'], { encoding: 'utf8' });
++    expect(bun.status).toBe(0);
++    symlinkSync(bun.stdout.trim(), nodePath.join(reviewer, 'bun'));
++    writeFileSync(
++      nodePath.join(reviewer, 'codex'),
++      `#!${process.execPath}\nif (process.argv.includes('--version')) { console.log('codex 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES.codex)}); process.exit(0); }\nprocess.exit(7);\n`,
++      { mode: 0o755 },
++    );
++    writeFileSync(
++      nodePath.join(reviewer, 'claude'),
++      `#!${process.execPath}\nif (process.argv.includes('--version')) { console.log('claude 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES.claude)}); process.exit(0); }\nif (${hostContinuation} || process.argv.includes('no-such-model')) process.exit(7);\nlet input = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { input += chunk; }); process.stdin.on('end', () => { const packet = JSON.parse(input.trim().split('\\n').pop()); console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: 'claude', verdict: 'approve', summary: 'Current plan approved.', findings: [] } })); });\n`,
++      { mode: 0o755 },
++    );
++    const target = `${ticket}/impl-plan.md`;
++    const keyRoot = nodePath.join(reviewer, '.review-keys');
++    const environment = {
++      PATH: `${reviewer}:/usr/bin:/bin`,
++      SAFEWORD_AGENT_RUNTIME: author,
++      CLAUDE_PLUGIN_ROOT: reviewer,
++      SAFEWORD_PLUGIN_CLI: nodePath.join(reviewer, 'runtime/cli.js'),
++      SAFEWORD_REVIEW_KEY_ROOT: keyRoot,
++      SAFEWORD_REVIEW_TIMEOUT_MS: '3000',
++      SAFEWORD_REVIEW_RUN_BOUND_MS: '10000',
++      SAFEWORD_NO_UPDATE_CHECK: '1',
++    };
++    const result = await runCli(
++      [
++        'review',
++        'run',
++        'plan-implementation',
++        target,
++        '--context',
++        `${ticket}/spec.md`,
++        '--cwd',
++        project,
++        '--json',
++        '--no-input',
++      ],
++      {
++        cwd: project,
++        env: environment,
++      },
++    );
++    const output = JSON.parse(result.stdout);
++    if (failedFirstSameAgent) {
++      expect(result.exitCode, result.stdout).toBe(0);
++      expect(output.data.review_routes).toMatchObject([
++        { reviewer: 'codex', status: 'attempted' },
++        {
++          reviewer: 'claude',
++          model: 'no-such-model',
++          status: 'attempted',
++          failure: expect.any(String),
++        },
++        { reviewer: 'claude', status: 'attempted' },
++      ]);
++    }
++    if (hostContinuation) {
++      expect(output.data).toMatchObject({
++        status: 'continuation_required',
++        continuation: { tier: 'fresh-context', packet: { kind: 'plan-implementation' } },
++      });
++      if (options.selfReview) {
++        const second = await runCli(
++          [
++            'review',
++            'run',
++            'plan-implementation',
++            target,
++            '--context',
++            `${ticket}/spec.md`,
++            '--cwd',
++            project,
++            '--json',
++            '--no-input',
++          ],
++          { cwd: project, env: environment },
++        );
++        const secondOutput = JSON.parse(second.stdout);
++        expect(secondOutput.data.status).toBe('continuation_required');
++        expect(secondOutput.data.review_id).not.toBe(output.data.review_id);
++        expect(secondOutput.data.continuation.packet.dispatch_id).not.toBe(
++          output.data.continuation.packet.dispatch_id,
++        );
++        const failed = await runCli(
++          [
++            'review',
++            'continue',
++            output.data.review_id,
++            '--tier',
++            'fresh-context',
++            '--failure',
++            'unsupported',
++            '--cwd',
++            project,
++            '--json',
++            '--no-input',
++          ],
++          { cwd: project, env: environment },
++        );
++        expect(JSON.parse(failed.stdout).data).toMatchObject({
++          status: 'continuation_required',
++          continuation: {
++            tier: 'self-review',
++            packet: { dispatch_id: output.data.continuation.packet.dispatch_id },
++          },
++        });
++      }
++      const pending = await runCli(
++        ['ticket', 'approve-plan', 'FAL123', '--cwd', project, '--json', '--no-input'],
++        { cwd: project, env: environment },
++      );
++      expect(pending.exitCode).toBe(2);
++      expect(readFileSync(nodePath.join(project, ticket, 'ticket.md'), 'utf8')).toContain(
++        'phase: plan-implementation',
++      );
++      const reviewOutput = {
++        schema_version: 1,
++        dispatch_id: output.data.continuation.packet.dispatch_id,
++        reviewer_agent: author,
++        verdict: 'approve',
++        summary: 'Current plan approved in a fresh host context.',
++        findings: [],
++      };
++      writeFileSync(
++        nodePath.join(project, 'host-review.json'),
++        `${JSON.stringify(reviewOutput)}\n`,
++      );
++      const continued = await runCli(
++        [
++          'review',
++          'continue',
++          output.data.review_id,
++          '--tier',
++          options.selfReview ? 'self-review' : 'fresh-context',
++          '--output',
++          'host-review.json',
++          '--offline',
++          '--cwd',
++          project,
++          '--json',
++          '--no-input',
++        ],
++        { cwd: project, env: environment },
++      );
++      expect(continued.exitCode, continued.stdout).toBe(0);
++      Object.assign(output, JSON.parse(continued.stdout));
++    }
++    expect(output.data).toMatchObject({
++      status: 'approved',
++      review_kind: 'plan-implementation',
++      actual_reviewer: author === 'opencode' ? 'claude' : author,
++      independence: 'reduced',
++    });
++    expect(output.findings).not.toContainEqual(
++      expect.objectContaining({ code: 'REVIEW_INDEPENDENCE_DEGRADED' }),
++    );
++    if (author === 'cursor') {
++      const shellGate = spawnSync('bun', ['.safeword/hooks/cursor/before-shell-execution.ts'], {
++        cwd: project,
++        encoding: 'utf8',
++        input: JSON.stringify({
++          workspace_roots: [project],
++          conversation_id: 'fallback-fixture',
++          command: `bun "${project}/.safeword/hooks/write-review-stamp.ts" --phase plan-implementation`,
++        }),
++        env: { ...process.env, ...environment },
++      });
++      expect(shellGate.status, shellGate.stderr).toBe(0);
++      expect(JSON.parse(shellGate.stdout)).toEqual({ permission: 'allow' });
++    }
++    const stampArguments = [
++      nodePath.join(project, '.safeword/hooks/write-review-stamp.ts'),
++      '--ticket',
++      'FAL123-fallback',
++      '--author-agent',
++      author,
++      '--reviewer-agent',
++      author === 'opencode' ? 'claude' : author,
++      '--independence',
++      'reduced',
++      '--review-id',
++      output.data.review_id,
++      '--phase',
++      'plan-implementation',
++    ];
++    const stampOptions = {
++      cwd: project,
++      encoding: 'utf8' as const,
++      env: {
++        ...process.env,
++        ...environment,
++        CLAUDE_PROJECT_DIR: project,
++        CLAUDE_SESSION_ID: author === 'opencode' ? undefined : 'fallback-fixture',
++        CLAUDE_CODE_SESSION_ID: undefined,
++        CODEX_THREAD_ID: undefined,
++      },
++    };
++    if (author === 'opencode') {
++      const unclaimed = [...stampArguments];
++      unclaimed.splice(unclaimed.indexOf('--independence'), 2);
++      const missingClaim = spawnSync('bun', unclaimed, stampOptions);
++      expect(missingClaim.status).not.toBe(0);
++      expect(missingClaim.stdout).toContain('missing run identity');
++      const skipped = spawnSync(
++        'bun',
++        [...stampArguments, '--skip', 'review is unnecessary'],
++        stampOptions,
++      );
++      expect(skipped.status).not.toBe(0);
++      expect(skipped.stdout).toContain('missing run identity');
++      const forged = [...stampArguments];
++      forged[forged.indexOf('--review-id') + 1] = '00000000-0000-4000-8000-000000000000';
++      const rejected = spawnSync('bun', forged, stampOptions);
++      expect(rejected.status).not.toBe(0);
++      expect(rejected.stdout).toContain('did not approve');
++    }
++    const stamp = spawnSync('bun', stampArguments, stampOptions);
++    if (stamp.status !== 0) {
++      throw new Error(`stamp failed: ${stamp.stdout}\n${stamp.stderr}\n${stamp.error ?? ''}`);
++    }
++    await assertPolicyFlip(options.flipPolicy === true, project, ticket, environment);
++    const approved = await runCli(
++      ['ticket', 'approve-plan', 'FAL123', '--cwd', project, '--json', '--no-input'],
++      { cwd: project, env: environment },
++    );
++    expect(approved.exitCode, approved.stdout).toBe(0);
++    expect(JSON.parse(approved.stdout).data).toMatchObject({ achieved_independence: 'reduced' });
++    expect(readFileSync(nodePath.join(project, ticket, 'ticket.md'), 'utf8')).toContain(
++      'phase: plan-execution',
++    );
++    return JSON.parse(approved.stdout).data as Record<string, unknown>;
++  }
++
++  it('records a successful same-agent headless review as reduced independence', async () => {
++    expect(await reviewThroughAdmission(false)).toMatchObject({ achieved_independence: 'reduced' });
++  });
++
++  it('keeps a completed same-agent fallback after an earlier same-agent route fails', async () => {
++    expect(await reviewThroughAdmission(false, 'claude', false, true)).toMatchObject({
++      achieved_independence: 'reduced',
++    });
++  });
++
++  it('admits a sealed fresh-host review only after independent and headless routes fail', async () => {
++    expect(await reviewThroughAdmission(true)).toMatchObject({ achieved_independence: 'reduced' });
++  });
++
++  it('admits bounded self-review with reduced independence and distinct real job dispatches', async () => {
++    expect(
++      await reviewThroughAdmission(true, 'claude', false, false, { selfReview: true }),
++    ).toMatchObject({ achieved_independence: 'reduced' });
++  });
++
++  it('refuses a reduced receipt after policy changes to require', async () => {
++    expect(
++      await reviewThroughAdmission(false, 'claude', false, false, { flipPolicy: true }),
++    ).toMatchObject({ achieved_independence: 'reduced' });
++  });
++
++  it('admits fresh-host review after all configured independent routes fail without a headless route', async () => {
++    expect(await reviewThroughAdmission(true, 'claude', true)).toMatchObject({
++      achieved_independence: 'reduced',
++    });
++  });
++
++  it('admits a Cursor host review after independent routes fail without inventing a Cursor CLI', async () => {
++    expect(await reviewThroughAdmission(true, 'cursor')).toMatchObject({
++      achieved_independence: 'reduced',
++    });
++  });
++
++  it('admits an OpenCode-authored review through its authenticated receipt without a Claude session', async () => {
++    expect(await reviewThroughAdmission(false, 'opencode')).toMatchObject({
++      achieved_independence: 'reduced',
++    });
++  });
++});
+diff --git a/packages/cli/tests/integration/planning-review-host-gates.test.ts b/packages/cli/tests/integration/planning-review-host-gates.test.ts
+new file mode 100644
+index 000000000..492ab9d53
+--- /dev/null
++++ b/packages/cli/tests/integration/planning-review-host-gates.test.ts
+@@ -0,0 +1,199 @@
++import { spawnSync } from 'node:child_process';
++import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
++import nodePath from 'node:path';
++
++import { afterEach, expect, it } from 'vitest';
++
++import { createConfiguredProject, createTemporaryDirectory, runCli } from '../helpers.js';
++import { writePlanningInventories } from '../planning-fixtures.js';
++import { PLANNING_ROLE_PRODUCT } from '../planning-role-fixtures.js';
++import {
++  cleanupTrustedReviewerDirectories,
++  createTrustedReviewerDirectory,
++  REVIEWER_CAPABILITIES,
++} from '../review-fixtures.js';
++
++const projects: string[] = [];
++
++function capturedClaudeAuthorModel(project: string, model: string): string {
++  const envFile = nodePath.join(project, 'claude-session.env');
++  const started = spawnSync(
++    'bun',
++    [nodePath.join(project, '.safeword/hooks/session-author-model.ts')],
++    {
++      cwd: project,
++      encoding: 'utf8',
++      input: JSON.stringify({ hook_event_name: 'SessionStart', model }),
++      env: { ...process.env, CLAUDE_ENV_FILE: envFile },
++    },
++  );
++  expect(started.status, started.stderr).toBe(0);
++  const captured = /^SAFEWORD_AUTHOR_MODEL=(.+)$/mu.exec(readFileSync(envFile, 'utf8'))?.[1];
++  expect(captured).toBe(model);
++  return captured ?? '';
++}
++
++function confirmedCodexReviewer(invoked: string): string {
++  return String.raw`#!${process.execPath}
++const { writeFileSync } = require('node:fs');
++if (process.argv.includes('--version')) { console.log('codex 1.0.0'); process.exit(0); }
++if (process.argv.includes('--help')) { console.log(process.argv.includes('app-server') ? '--stdio --config' : ${JSON.stringify(REVIEWER_CAPABILITIES.codex)}); process.exit(0); }
++writeFileSync(${JSON.stringify(invoked)}, 'yes');
++let input = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { input += chunk; let end; while ((end = input.indexOf('\n')) !== -1) { const message = JSON.parse(input.slice(0, end)); input = input.slice(end + 1); if (message.id === 1) console.log(JSON.stringify({ id: 1, result: {} })); if (message.id === 2) console.log(JSON.stringify({ id: 2, result: { thread: { id: 'thread-1' }, model: message.params.model, modelProvider: 'openai' } })); if (message.id === 3) { const prompt = message.params.input[0].text; const packet = JSON.parse(prompt.slice(prompt.lastIndexOf('\n') + 1)); const output = { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: 'codex', verdict: 'approve', summary: 'Reviewer approval.', findings: [{ severity: 'warning', message: 'Check the migration note.' }] }; console.log(JSON.stringify({ id: 3, result: { turn: { id: 'turn-1' } } })); console.log(JSON.stringify({ method: 'turn/completed', params: { threadId: 'thread-1', turn: { id: 'turn-1', status: 'completed', items: [{ type: 'agentMessage', phase: 'final_answer', text: JSON.stringify(output) }] } } })); } } });
++`;
++}
++
++afterEach(() => {
++  for (const project of projects) rmSync(project, { recursive: true, force: true });
++  projects.length = 0;
++  cleanupTrustedReviewerDirectories();
++});
++
++function expectCapabilityFinding(
++  output: {
++    readonly data: Record<string, unknown>;
++    readonly findings: readonly { readonly code: string }[];
++  },
++  qualified: boolean,
++  unknownAuthor: boolean,
++): void {
++  if (qualified) {
++    expect(output.data.capability_failure).toBeUndefined();
++    expect(output.findings).toContainEqual(
++      expect.objectContaining({ code: 'REVIEW_INDEPENDENCE' }),
++    );
++    return;
++  }
++  expect(output.findings).toContainEqual(
++    expect.objectContaining({
++      code: unknownAuthor ? 'AUTHOR_CAPABILITY_UNKNOWN' : 'REVIEWER_CAPABILITY_UNKNOWN',
++    }),
++  );
++}
++
++it.each([
++  ['codex', 'prefer', undefined, false],
++  ['codex', 'require', undefined, false],
++  ['cursor', 'prefer', undefined, false],
++  ['cursor', 'require', undefined, false],
++  ['opencode', 'prefer', undefined, false],
++  ['opencode', 'require', undefined, false],
++  ['claude', 'prefer', undefined, false],
++  ['claude', 'require', undefined, false],
++  ['claude', 'prefer', 'claude-opus-5', false],
++  ['claude', 'require', 'claude-opus-5', false],
++  ['claude', 'prefer', 'claude-opus-5', true],
++  ['claude', 'require', 'claude-opus-5', true],
++] as const)(
++  'labels a %s-authored planning review under %s with author model %s and confirmed reviewer %s',
++  // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- The host matrix keeps routing and admission assertions on one installed fixture.
++  async (author, policy, authorModel, confirmedReviewer) => {
++    const reviewerAgent = author === 'claude' ? 'codex' : 'claude';
++    const project = createTemporaryDirectory();
++    projects.push(project);
++    await createConfiguredProject(project);
++    writePlanningInventories(project);
++    const configPath = nodePath.join(project, '.safeword/config.json');
++    const config = JSON.parse(readFileSync(configPath, 'utf8'));
++    writeFileSync(
++      configPath,
++      JSON.stringify({
++        ...config,
++        crossAgentReview: policy,
++        crossAgentReviewRoutes: {
++          [author]: [
++            { reviewer: reviewerAgent, ...(confirmedReviewer && { model: 'gpt-6-astra' }) },
++          ],
++        },
++      }),
++    );
++    const ticket = '.project/tickets/AUT123-unknown-author-capability';
++    mkdirSync(nodePath.join(project, ticket), { recursive: true });
++    writeFileSync(
++      nodePath.join(project, ticket, 'ticket.md'),
++      '---\nid: AUT123\ntype: feature\nphase: plan-implementation\nstatus: in_progress\nproduct_plan_contract: v1\nscope: preserve approval\nout_of_scope: anonymous approval\ndone_when: unknown author capability is explicit\nphase_anchors:\n  - scenario-gate: features/author-capability.feature\n---\n',
++    );
++    writeFileSync(nodePath.join(project, ticket, 'spec.md'), PLANNING_ROLE_PRODUCT);
++    writeFileSync(
++      nodePath.join(project, ticket, 'impl-plan.md'),
++      '# Implementation Plan\n\n**Status:** planned\n\n## Approach\n\nPreserve authenticated approval.\n\n## Decisions\n\nUse the current review receipt.\n\n## Design alignment\n\nEnsure independent review is attempted first.\n\n## Architecture applicability\n\nskip: no architecture records apply\n\n## Data applicability\n\nskip: no product data changes\n\n## Known deviations\n\nskip: none\n\n## Doc impact\n\nskip: no customer docs change\n\n## Assessment triggers\n\nRevisit if review authority changes.\n',
++    );
++    mkdirSync(nodePath.join(project, 'features'), { recursive: true });
++    writeFileSync(
++      nodePath.join(project, 'features/author-capability.feature'),
++      `@author-capability.BU1.R1\nFeature: Capability truth\n  Scenario: Unverified capability\n    Given the author model is ${authorModel ?? 'unknown'}\n    When a different reviewer approves\n    Then independence remains unverified\n`,
++    );
++    const reviewer = createTrustedReviewerDirectory('safeword-author-capability-');
++    const invoked = nodePath.join(reviewer, 'invoked');
++    writeFileSync(
++      nodePath.join(reviewer, reviewerAgent),
++      confirmedReviewer
++        ? confirmedCodexReviewer(invoked)
++        : `#!${process.execPath}\nconst { writeFileSync } = require('node:fs');\nif (process.argv.includes('--version')) { console.log('${reviewerAgent} 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES[reviewerAgent])}); process.exit(0); }\nwriteFileSync(${JSON.stringify(invoked)}, 'yes');\nlet input = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { input += chunk; }); process.stdin.on('end', () => { const packet = JSON.parse(input.trim().split('\\n').pop()); const output = { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: '${reviewerAgent}', verdict: 'approve', summary: 'Reviewer approval.', findings: [{ severity: 'warning', message: 'Check the migration note.' }] }; if ('${reviewerAgent}' === 'claude') { console.log(JSON.stringify({ type: 'assistant', message: { model: 'claude-opus-5' } })); console.log(JSON.stringify({ type: 'result', subtype: 'success', structured_output: output, modelUsage: { 'claude-opus-5': { canonicalModel: 'claude-opus-5', provider: 'firstParty' } } })); } else console.log(JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: JSON.stringify(output) } })); });\n`,
++      { mode: 0o755 },
++    );
++    const reviewed = await runCli(
++      [
++        'review',
++        'run',
++        'plan-implementation',
++        `${ticket}/impl-plan.md`,
++        '--context',
++        `${ticket}/spec.md`,
++        '--cwd',
++        project,
++        '--json',
++        '--no-input',
++      ],
++      {
++        cwd: project,
++        env: {
++          PATH: `${reviewer}:/usr/bin:/bin`,
++          SAFEWORD_AGENT_RUNTIME: author,
++          SAFEWORD_NO_UPDATE_CHECK: '1',
++          ...(author === 'claude' &&
++            authorModel !== undefined && {
++              SAFEWORD_AUTHOR_MODEL: capturedClaudeAuthorModel(project, authorModel),
++            }),
++        },
++      },
++    );
++    const output = JSON.parse(reviewed.stdout);
++    const unknownAuthor = authorModel === undefined;
++    const qualified = authorModel !== undefined && confirmedReviewer;
++    const admitted = qualified || (unknownAuthor && policy === 'prefer');
++    const continuationRequired =
++      author === 'claude' && policy === 'prefer' && authorModel !== undefined && !confirmedReviewer;
++    let expectedStatus = admitted ? 'approved' : 'blocked';
++    if (continuationRequired) expectedStatus = 'continuation_required';
++    expect(reviewed.exitCode).toBe(admitted ? 0 : 2);
++    expect(output.state).toBe(admitted ? 'healthy' : 'action_required');
++    expect(output.data).toMatchObject({
++      status: expectedStatus,
++      independence: admitted ? 'reduced' : 'none',
++      ...(qualified && { independence: 'cross-agent' }),
++      ...(!continuationRequired && { actual_reviewer: reviewerAgent }),
++      ...(reviewerAgent === 'claude' && {
++        confirmed_reviewer_model: { provider: 'anthropic', model: 'claude-opus-5' },
++      }),
++      ...(!qualified &&
++        !continuationRequired && {
++          capability_failure: unknownAuthor
++            ? 'author_capability_unknown'
++            : 'reviewer_capability_unknown',
++        }),
++    });
++    if (continuationRequired) {
++      expect(output.data.continuation).toMatchObject({ tier: 'fresh-context' });
++      expect(output.data.review_routes).toContainEqual(
++        expect.objectContaining({ failure: 'reviewer_capability_unknown' }),
++      );
++    }
++    if (author === 'cursor') expect(output.data.review_routes).toHaveLength(1);
++    if (!continuationRequired) expectCapabilityFinding(output, qualified, unknownAuthor);
++    expect(output.findings).toContainEqual(
++      expect.objectContaining({ code: 'REVIEWER_FINDING', message: 'Check the migration note.' }),
++    );
++    expect(existsSync(invoked)).toBe(true);
++  },
++);

@@ -21,13 +21,13 @@ Deep review with research to verify a work-product — code, docs, specs, plans,
 
 Required before marking done a ticket with **two or more RGR loops**. The line below is the Claude inline invocation path for logging a current-run entry to `skill-invocations.log` under the project namespace root. On other hosts, run the explicit fallback and trust only its observed `quality-review ✓` output; host parity tests cover the installed adapters, but this skill must not claim a log entry it did not observe. Hand-writing review notes cannot produce this gate proof.
 
-!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.1.0/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
+!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.0/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
 
 If no `[skill-invocation-log] quality-review ✓` line appears above, run this fallback before continuing:
 
 ```bash
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.1.0/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}"
+bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.0/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}"
 ```
 
 **If the automatic line or fallback prints `[skill-invocation-log] FAILED`, prints `no run identity`, or still does not print `quality-review ✓`**: a ticket with 2+ RGR loops can't be marked done without this proof — don't substitute hand-written notes for it. Report the failure to the user (usual causes: inline shell execution was denied, the runtime exposed no usable run identity, or Bun could not run the installed helper) and ask them to resolve it before re-invoking $safeword:quality-review.
@@ -59,7 +59,7 @@ If in a BDD workflow, read the current ticket from `<namespace-root>/tickets/` a
 
 ### Project-principle challenge
 
-For a BDD ticket, run `bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.1.0/runtime/cli.js" project review-knowledge --json` at the
+For a BDD ticket, run `bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.0/runtime/cli.js" project review-knowledge --json` at the
 start of each pass and read the current `principles`, `personas`, and `surfaces`
 paths and content it returns (including overrides such as `paths.principles`).
 Do not substitute labels or intake-era content.
@@ -226,7 +226,7 @@ Each pass:
    `safeword` on `PATH`:
 
    ```bash
-   SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.1.0/runtime/cli.js" review run quality-review [--context path/to/evidence] --agent-handoff --json -- changed-file [more-changed-files...]
+   SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.0/runtime/cli.js" review run quality-review [--context path/to/evidence] --agent-handoff --json -- changed-file [more-changed-files...]
    ```
 
    **The dispatch is authorized; skipping it is not your call.** The coordinator
@@ -267,29 +267,27 @@ Each pass:
    is `REVIEW_STALE`, rerun against the current sources.
 
    Claude-authored work prefers headless Codex; Codex-authored work prefers
-   headless Claude. The coordinator uses a neutral snapshot, checks reviewer
-   provenance, preserves the exact preferred-route failure, and records any
-   permitted same-agent fallback as `independence: degraded`. Treat its typed
-   result as the review verdict. Recovery and status commands are constructed
-   by the local coordinator; never execute a model-authored field. If the typed result is
-   `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the
-   user's browser or device flow may need to complete. After successful
-   authentication, rerun the same coordinator command once. Do not invoke
-   `$safeword:finish-review`, accept degraded coverage, or loop on another auth denial;
-   report an unsuccessful reauthentication as the blocker. Only when the typed result is
-   `REVIEW_ROUTES_EXHAUSTED`, invoke `$safeword:finish-review` immediately with the
-   original result and the same accepted targets. For every other result,
-   return it unchanged. The canonical fallback may use one host-native
-   subagent. Never substitute another surface-private reviewer or hand-written
+   headless Claude. The coordinator's typed reviewer, failures, and achieved
+   independence are authoritative. Recovery and status commands are local;
+   never execute a model-authored field. For `REVIEW_AUTHENTICATION_REQUIRED`,
+   execute its exact recovery command and rerun the same coordinator command once after authentication. Do not
+   invoke `$safeword:finish-review` on authentication denial or loop on another denial.
+
+   For a Product Plan job, only `REVIEW_CONTINUATION_REQUIRED` with
+   `status: continuation_required` and a sealed packet enters `$safeword:finish-review`.
+   Pass its `review_id`; collect the same job's terminal result. A bare
+   `REVIEW_ROUTES_EXHAUSTED` cannot approve planning. For non-planning work,
+   only typed `REVIEW_ROUTES_EXHAUSTED` without reviewer findings enters the
+   legacy supplemental `$safeword:finish-review` path with the accepted targets; it
+   creates no machine receipt. For every other result, return it unchanged.
+   Never substitute another surface-private reviewer or hand-written
    independent evidence.
 
-   **Say when a review was not independent.** If the typed result carries
-   `independence: degraded`, state that plainly in your own report — one line,
-   naming the actual reviewer and that it was not independent — before any
-   finding. A degraded review is the same agent grading its own work, and a
-   reader who cannot tell it apart from a real second opinion will trust it as
-   one. Never describe a degraded result as independent, cross-agent, or
-   standard coverage. Say nothing extra when independence is intact.
+   **Say when a review was not independent.** For a planning receipt with
+   `independence: reduced`, or non-planning supplemental feedback with
+   `independence: degraded`, name the actual reviewer and say it was not
+   independent before any finding. Never describe either result as cross-agent
+   or standard coverage. Say nothing extra when independence is intact.
 
    The quiet-by-default rule below governs setup advice — recovery commands and
    install hints. It never licenses withholding the independence of the review
@@ -299,7 +297,7 @@ Each pass:
    `Show review coverage details.`, report the typed result's achieved coverage,
    raw independence, and actual reviewer when present. Derive at most one
    optional upgrade from typed `assigned_reviewer` and `preferred_failure`.
-   Preserve a blocked or `require`-unsatisfied result, and never invent
+   Preserve a blocked result, and never invent
    provenance, completed coverage, or a recovery command.
 
 2. **Triage.** Fix every rubric error under **Critical issues** this pass. Apply the **Suggested

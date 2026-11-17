@@ -2616,10 +2616,14 @@ describe('buildAutoExtractor (SM1.AC2 — runner model: sonnet default, config-o
     expect(result.model).toBe('sonnet');
   });
 
-  it('builds the Codex extractor with gpt-5.5 when no retro.model is configured', async () => {
+  it('builds the Codex extractor with gpt-6-luna at low reasoning when no retro.model is configured', async () => {
     const result = await modelFromRunner(projectDirectory, 'codex');
     expect(result.argv[0]).toBe('exec');
-    expect(result.model).toBe('gpt-5.5');
+    expect(result.model).toBe('gpt-6-luna');
+    const config = result.argv.flatMap((argument, index) =>
+      argument === '-c' ? [result.argv[index + 1]] : [],
+    );
+    expect(config).toContain('model_reasoning_effort="low"');
   });
 
   it('builds the Cursor extractor with auto when no retro.model is configured', async () => {
@@ -2735,6 +2739,7 @@ describe('buildAutoExtractor (SM1.AC2 — runner model: sonnet default, config-o
     const cursor = await modelFromRunner(projectDirectory, 'cursor');
     expect(claude.model).toBe('haiku');
     expect(codex.model).toBe('haiku');
+    expect(codex.argv.filter(value => value.startsWith('model_reasoning_effort='))).toEqual([]);
     expect(cursor.model).toBe('haiku');
   });
 });

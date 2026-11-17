@@ -109,7 +109,7 @@ Feature: Ship Safeword as a native Claude Code plugin
       When safeword claude cleanup is confirmed
       Then only the recognized Safeword files and settings entries are removed
       And user-authored, third-party, Cursor-shared, and project-owned assets are byte-identical
-      And the complete Claude profile is byte-identical to its pre-command snapshot
+      And the Claude profile outside the current project's plugin-mode marker is byte-identical
 
       Examples:
         | accepted-fingerprint          |
@@ -121,7 +121,7 @@ Feature: Ship Safeword as a native Claude Code plugin
       Given a cleanup-ready project and profile
       When the user declines safeword claude cleanup confirmation
       Then every profile and project file is byte-identical
-      And no Claude lifecycle command is invoked
+      And no marketplace, install, update, enable, reload, or trust call occurs
 
     @rejection
     Scenario: Cleanup preserves and reports unknown content at a managed legacy path
@@ -163,7 +163,7 @@ Feature: Ship Safeword as a native Claude Code plugin
       Given an intact cached UserPromptSubmit event whose final sibling hook fails
       When a Safeword plugin hook executes
       Then the aggregate event blocks the prompt without writing execution proof
-      And viable legacy protection remains authoritative
+      And the registered legacy guard still requests approval for a protected config edit
 
     @rejection
     Scenario: A generated plugin reference cannot depend on a materialized project framework copy
@@ -226,7 +226,7 @@ Feature: Ship Safeword as a native Claude Code plugin
       And a viable recognized legacy PreToolUse hook and the matching plugin hook coexist
       When the plugin PreToolUse hook executes
       Then the bundled identity is validated without writing new cleanup-authorizing proof
-      And the protected functional effect occurs exactly once through the viable legacy hook
+      And the registered legacy guard requests approval once without duplicate plugin work
 
     Scenario: Plugin hooks remain functional for events without viable legacy authority
       Given no viable legacy SessionStart hook exists
@@ -250,8 +250,8 @@ Feature: Ship Safeword as a native Claude Code plugin
         | bound to a different canonical cache path |
 
     Scenario: The loaded plugin becomes authoritative in the same task after cleanup
-      Given the current task has exact plugin proof and is in post-cleanup state with no matching legacy authority
-      When the next matching plugin event executes
+      Given viable legacy protection and the current plugin have run in the same session
+      When cleanup completes and the next matching plugin event executes
       Then the plugin functional effect occurs exactly once
       And no plugin reload or task restart is required
 
@@ -268,6 +268,7 @@ Feature: Ship Safeword as a native Claude Code plugin
       Examples:
         | state                                                    | classification | exit | action-count | action                    |
         | valid proof and wholly recognized removable legacy       | cleanup-ready  | 2    | 1            | safeword claude cleanup   |
+        | valid proof and only conflicting legacy content          | coexistence    | 2    | 1            | resolve reported legacy conflicts |
         | valid proof, durable plugin-mode marker, and no legacy    | plugin-mode    | 0    | 0            | none                      |
 
     @rejection
@@ -289,7 +290,8 @@ Feature: Ship Safeword as a native Claude Code plugin
         | installed at a different version                            | wrong-version     | 2    | safeword install --agents=claude        |
         | reported unhealthy by Claude                                | errored           | 1    | repair the reported Claude plugin error |
         | enabled without execution proof                              | unproven          | 2    | /reload-plugins                         |
-        | proven with a stale version or digest                        | unproven          | 2    | /reload-plugins                         |
+        | proven with a stale version                                  | unproven          | 2    | /reload-plugins                         |
+        | proven with a wrong hook-manifest digest                      | unproven          | 2    | /reload-plugins                         |
         | represented by a malformed proof record                      | unproven          | 2    | /reload-plugins                         |
         | proven from a different canonical installed cache path       | unproven          | 2    | /reload-plugins                         |
         | valid proof with recognized and conflicting legacy content   | cleanup-ready     | 2    | safeword claude cleanup                  |
@@ -299,7 +301,7 @@ Feature: Ship Safeword as a native Claude Code plugin
       Given the installed plugin cache has <damage>
       When its generated UserPromptSubmit entrypoint executes
       Then the hook reports the damaged cache without blocking and writes no proof
-      And viable legacy protection remains authoritative
+      And the registered legacy guard still requests approval for a protected config edit
 
       Examples:
         | damage                    |

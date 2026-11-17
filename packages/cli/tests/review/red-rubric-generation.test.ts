@@ -17,7 +17,14 @@ describe('executable RED rubric generation', () => {
   });
 
   it('accepts the intended actor-boundary assertion as executable RED evidence', () => {
-    expect(EXECUTABLE_RED_REVIEW_RUBRIC).toContain('syntax, imports, fixtures, configuration');
+    const normalizedRubric = EXECUTABLE_RED_REVIEW_RUBRIC.replaceAll(/\s+/g, ' ');
+
+    expect(normalizedRubric).toContain(
+      "the named proof exercises the scenario's actor-facing `When` and observes its actor-visible `Then`",
+    );
+    expect(normalizedRubric).toContain(
+      'the observed failure is the intended missing behavior at that boundary',
+    );
   });
 
   it.each([
@@ -27,6 +34,7 @@ describe('executable RED rubric generation', () => {
     'configuration',
     'infrastructure',
     'unrelated actor-boundary assertion',
+    'undefined or pending Cucumber steps',
   ])('rejects %s as the wrong executable RED failure reason', failureReason => {
     expect(EXECUTABLE_RED_REVIEW_RUBRIC).toContain(failureReason);
   });

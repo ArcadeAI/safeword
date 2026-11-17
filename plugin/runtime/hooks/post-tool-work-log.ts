@@ -10,43 +10,32 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 import { isNamespacePath } from './lib/namespace-root.ts';
+import {
+  canonicalEditTarget,
+  resolveLaunchDirectory,
+  resolveToolProjectDirectory,
+} from './lib/project-directory.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 import {
   appendWorkLogEntry,
   detectPhaseTransition,
   type EditToolInput,
 } from './lib/work-log-stamp.ts';
-import {
-  canonicalEditTarget,
-  resolveLaunchDirectory,
-  resolveToolProjectDirectory,
-} from './lib/project-directory.ts';
 
 const crashCapture = installCrashCapture('post-tool-work-log');
 
 interface HookInput {
   tool_name?: string;
-  cwd?: string;
   tool_input?: EditToolInput;
+  cwd?: string;
 }
+
+const projectDirectory = resolveLaunchDirectory();
 
 let input: HookInput;
 try {
   input = await Bun.stdin.json();
 } catch {
-  process.exit(0);
-}
-
-const launchDirectory = resolveLaunchDirectory();
-const projectDirectory = resolveToolProjectDirectory(launchDirectory, {
-  tool: input.tool_name ?? '',
-  editedFile: input.tool_input?.file_path ?? '',
-  cwd: input.cwd,
-});
-
-// Not a safeword project, skip silently
-crashCapture.setProject(projectDirectory);
-if (!existsSync(`${projectDirectory}/.safeword`)) {
   process.exit(0);
 }
 
@@ -57,9 +46,24 @@ if (tool !== 'Edit' && tool !== 'MultiEdit') {
   process.exit(0);
 }
 
-// A relative edit path is relative to the reported cwd, not this process's.
-const filePath = canonicalEditTarget(launchDirectory, input.tool_input?.file_path ?? '', input.cwd);
-if (!filePath.endsWith('/ticket.md') || !isNamespacePath(filePath, 'tickets/')) {
+// A relative target is relative to the session's cwd (maybe a worktree), and a
+// ticket inside a nested worktree reads that worktree's configured root; the
+// shared resolver gives a ticket outside every git tree to the launch checkout.
+const requestedFile = input.tool_input?.file_path ?? '';
+const filePath = canonicalEditTarget(projectDirectory, requestedFile, input.cwd);
+const ownerDirectory = resolveToolProjectDirectory(projectDirectory, {
+  tool,
+  editedFile: requestedFile,
+  cwd: input.cwd,
+});
+// A crash from here on is recorded under the owning project's self-report policy.
+crashCapture.setProject(ownerDirectory);
+// Not a safeword project, skip silently. Checked on the owning project, so a
+// session launched outside Safeword still stamps a ticket in an enrolled tree.
+if (!existsSync(`${ownerDirectory}/.safeword`)) {
+  process.exit(0);
+}
+if (!filePath.endsWith('/ticket.md') || !isNamespacePath(filePath, 'tickets/', ownerDirectory)) {
   process.exit(0);
 }
 

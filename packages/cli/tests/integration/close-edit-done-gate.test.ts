@@ -11,11 +11,15 @@
  */
 
 import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+import {
+  getDependencyReadiness,
+  writeInstallMarker,
+} from '../../templates/hooks/lib/dependency-readiness.js';
 import {
   createTemporaryDirectory,
   createTypeScriptPackageJson,
@@ -126,7 +130,7 @@ function commitTaskTicket(directory: string, ticketId: string, status: string): 
 function runPostToolUse(
   directory: string,
   sessionId: string,
-  toolName: 'Edit' | 'MultiEdit' | 'Write',
+  toolName: 'Edit' | 'MultiEdit' | 'Write' | 'Bash',
   toolInput: Record<string, unknown>,
 ): void {
   const result = spawnSync('bun', ['.safeword/hooks/post-tool-quality.ts'], {
@@ -614,36 +618,70 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
   });
 });
 
-describe('a session that edits a worktree from the launch checkout (#5467)', () => {
+describe('a session that edits another checkout from the launch checkout (#5467)', () => {
   // The host keeps CLAUDE_PROJECT_DIR (and here the session cwd) at the launch
-  // checkout while the session edits files in a linked worktree by absolute
-  // path. PostToolUse records that worktree's state; Stop must read it there.
-  it('runs the done gate for the worktree ticket the session closed', () => {
+  // checkout while the session edits files in another enrolled checkout by
+  // absolute path: a linked worktree, or an independent repository. PostToolUse
+  // records that checkout's state; Stop must read it there.
+  const checkouts = [
+    {
+      kind: 'a linked worktree',
+      create: (launch: string, target: string) => {
+        git(launch, `worktree add -q --detach "${target}"`);
+      },
+      remove: (launch: string, target: string) => {
+        git(launch, `worktree remove --force "${target}"`);
+      },
+    },
+    {
+      kind: 'an independent repository',
+      create: (launch: string, target: string) => {
+        git(launch, `clone -q "${launch}" "${target}"`);
+        // A clone does not inherit repo-local config, and CI has no global
+        // identity: give it the same committer the fixture uses.
+        git(target, 'config user.email "test@test.com"');
+        git(target, 'config user.name "Test User"');
+      },
+      remove: () => {},
+    },
+  ];
+
+  it.each(checkouts)('runs the done gate for the ticket closed in $kind', checkout => {
     const launch = fixture.projectDirectory;
-    const worktree = createTemporaryDirectory();
-    git(launch, `worktree add -q --detach "${worktree}"`);
+    const other = createTemporaryDirectory();
+    // A fresh checkout's inputs are newer than the shared install, so stamp the
+    // content-fingerprint marker the install hook would; it then vouches for
+    // the other checkout's identical dependency inputs too.
+    writeInstallMarker(launch, getDependencyReadiness(launch));
+    checkout.create(launch, other);
+    // Installed dependencies are gitignored, so a fresh checkout has none; share
+    // the launch checkout's install as a developer's checkout would have it.
+    symlinkSync(nodePath.join(launch, 'node_modules'), nodePath.join(other, 'node_modules'));
     try {
-      setTestExitCode(worktree, 1);
+      setTestExitCode(other, 1);
       setTestExitCode(launch, 0);
       const launchBaseline = testRunCount(launch);
-      const sessionId = `session-5467-${process.pid}`;
+      const sessionId = `session-5467-${process.pid}-${checkout.kind.replaceAll(' ', '-')}`;
 
-      const ticketFile = commitTaskTicket(worktree, '5467', 'in_progress');
+      const ticketFile = commitTaskTicket(other, '5467', 'in_progress');
       editTicketThroughPostToolUse(
         launch,
         sessionId,
         ticketFile,
         ticketMarkdown('5467', 'done', 'done'),
       );
+      // A later shell command back in the launch checkout must not move the
+      // session's project: only edits record it.
+      runPostToolUse(launch, sessionId, 'Bash', { command: 'git status' });
       const result = runDoneGate(launch, sessionId);
 
       expect(result.decision).toBe('block');
       expect(result.reason).toContain('Tests failed');
-      expect(testRunCount(worktree)).toBe(1);
+      expect(testRunCount(other)).toBe(1);
       expect(testRunCount(launch)).toBe(launchBaseline);
     } finally {
-      git(launch, `worktree remove --force "${worktree}"`);
-      removeTemporaryDirectory(worktree);
+      checkout.remove(launch, other);
+      removeTemporaryDirectory(other);
     }
   });
 });

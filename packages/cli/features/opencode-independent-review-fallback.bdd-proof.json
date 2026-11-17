@@ -38,10 +38,6 @@
       [
         "packages/cli/tests/cli-protocol/review-wiring.test.ts",
         "returns degraded same-author feedback after OpenCode fails under prefer policy"
-      ],
-      [
-        "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-        "blocks after OpenCode fails under require policy"
       ]
     ],
     "Claude is the preferred reviewer for OpenCode-authored work": [
@@ -53,14 +49,8 @@
       "uses Codex for OpenCode-authored work after Claude cannot complete"
     ],
     "OpenCode self-review cannot satisfy independence": [
-      [
-        "packages/cli/tests/hooks/review-ledger.test.ts",
-        "hard cross-agent enforcement rejects OpenCode reviewing its own work"
-      ],
-      [
-        "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-        "does not let a degraded fallback satisfy hard cross-agent enforcement"
-      ]
+      "packages/cli/tests/hooks/review-ledger.test.ts",
+      "rejects OpenCode reviewing its own work as an independent claim"
     ],
     "A complete OpenCode event stream yields verified independent evidence": [
       "packages/cli/tests/review/runtime.test.ts",

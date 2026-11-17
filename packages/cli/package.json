@@ -1,6 +1,6 @@
 {
   "name": "safeword",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "CLI for setting up and managing safeword development environments",
   "repository": {
     "type": "git",
@@ -54,6 +54,8 @@
     "generate:claude-plugin": "bun scripts/generate-claude-plugin.ts",
     "generate:scenario-rubric": "bun scripts/generate-scenario-rubric.ts",
     "generate:plan-rubric": "bun scripts/generate-plan-rubric.ts",
+    "generate:execution-plan-rubric": "bun scripts/generate-execution-plan-rubric.ts",
+    "generate:delivery-compatibility-rubric": "bun scripts/generate-delivery-compatibility-rubric.ts",
     "generate:quality-rubric": "bun scripts/generate-quality-rubric.ts",
     "generate:red-rubric": "bun scripts/generate-red-rubric.ts",
     "data-architecture:record": "bun scripts/data-architecture-eval.ts record",
@@ -83,7 +85,8 @@
     "format:check": "prettier --check .",
     "knip": "knip",
     "publint": "publint",
-    "lint:sh": "if command -v shellcheck >/dev/null 2>&1; then shellcheck **/*.sh; else echo 'shellcheck not installed; skipping'; fi"
+    "lint:sh": "if command -v shellcheck >/dev/null 2>&1; then shellcheck **/*.sh; else echo 'shellcheck not installed; skipping'; fi",
+    "generate:planning-contracts": "bun scripts/generate-planning-contracts.ts"
   },
   "dependencies": {
     "@cucumber/gherkin": "^42.0.0",
@@ -101,7 +104,7 @@
     "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-astro": "~3.2.1",
     "eslint-plugin-better-tailwindcss": "4.7.0",
-    "eslint-plugin-import-x": "^4.17.1",
+    "eslint-plugin-import-x": "^4.18.1",
     "eslint-plugin-jsdoc": "^64.3.4",
     "eslint-plugin-playwright": "2.12.0",
     "eslint-plugin-promise": "^7.3.0",

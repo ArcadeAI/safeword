@@ -16,6 +16,10 @@
 #
 # Skip with: git push --no-verify
 
+# Git hooks also need the repository pins in non-interactive shells.
+PATH=$(scripts/dev --print-path) || exit 1
+export PATH
+
 if git diff origin/main...HEAD --name-only 2> /dev/null | grep -q "schema.ts"; then
   echo "⚠️  schema.ts changed — running schema-drift gate (pure tests)..."
   (cd packages/cli && bunx vitest run tests/schema.test.ts tests/integration/skills-commands-validation.test.ts) || exit 1

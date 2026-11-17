@@ -19,6 +19,7 @@ import { spawnSync } from 'node:child_process';
 
 import type { ReviewReceipt } from './review-receipt.js';
 import { receiptReviewCandidates, reviewChildEnvironment } from '../run-review.js';
+import { trustedEnvironment } from './safeword-cli.js';
 
 /**
  * Per-route and total budgets. This runs inside blocking hooks (PreToolUse,
@@ -47,7 +48,14 @@ export function readReviewReceipt(
       {
         cwd: workingDirectory,
         encoding: 'utf8',
-        env: reviewChildEnvironment(process.env, ['review', 'status', id, '--json']),
+        // Host settings only: runtime option variables could preload a script
+        // that answers for the trusted CLI.
+        env: reviewChildEnvironment(trustedEnvironment(projectDirectory), [
+          'review',
+          'status',
+          id,
+          '--json',
+        ]),
         timeout: Math.min(ROUTE_TIMEOUT_MS, remaining),
       },
     );

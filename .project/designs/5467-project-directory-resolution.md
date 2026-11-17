@@ -30,7 +30,10 @@ import `src/`; `src/` and `templates/scripts` already import `templates/hooks/li
 `resolveProjectDirectory({ launchDirectory?, editedFile?, cwd })`:
 
 1. Nearest enrolled git working tree (`.safeword/SAFEWORD.md`) of the edited
-   file, by real path (a symlinked path belongs to the tree it lands in).
+   file, by real path (a symlinked path belongs to the tree it lands in). An
+   edited file outside every git tree (an absolute configured namespace root)
+   has no owner by location and resolves to the launch checkout, whose config
+   can name that root; it never falls to step 2.
 2. Else nearest enrolled working tree of `cwd`. `cwd` is a required input: a
    hook passes the host-reported cwd, a helper or CLI command passes its own
    `process.cwd()`. The resolver never reads ambient process state for it.
@@ -115,13 +118,13 @@ latest edit.
 ## Parity guard
 
 Static test over `templates/hooks/**`, `templates/scripts/**`, `src/**`
-(excluding the resolver and tests, ignoring comment lines): fails on reads of
-`CLAUDE_PROJECT_DIR` and on `--show-toplevel`, unless allowlisted with a
-reason. That catches every project choice that starts from the launch
-variable or git's toplevel; it does not see a bare `process.cwd()` root or a
-hand-written directory walk, which the real-hook tests cover instead. The
-allowlist starts with not-yet-migrated sites and shrinks per PR; a stale entry
-fails.
+(excluding the resolver and tests), parsed with the TypeScript compiler so
+comments never count: fails on reads of `CLAUDE_PROJECT_DIR` (property,
+element or destructuring access), `?? process.cwd()` root fallbacks,
+hand-written `.git`/`.safeword` walk-ups and `--show-toplevel`, unless
+allowlisted with a reason. It is a tripwire, not a sandbox: a key computed at
+runtime can still slip past, which the real-hook tests cover. The allowlist
+starts with not-yet-migrated sites and shrinks per PR; a stale entry fails.
 
 Known exception: `stop-reentry` and `session-start-reentry` anchor to the
 nearest git root of the host cwd. They already follow the session into a

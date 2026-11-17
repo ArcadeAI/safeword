@@ -254,8 +254,8 @@ Then(
 Then(
   'the guide identifies module purpose prose as human-owned and preserved',
   function (this: ArchitectureWorld) {
-    assert.match(architectureGuide(this), /human-owned module purpose prose/i);
-    assert.match(architectureGuide(this), /preserved across structural heals/i);
+    assert.match(architectureGuide(this), /module\s+purpose prose is human-owned and preserved/i);
+    assert.match(architectureGuide(this), /dependency edges, and status markers are regenerated/i);
     assert.match(architectureGuide(this), /only while that module remains present/i);
   },
 );

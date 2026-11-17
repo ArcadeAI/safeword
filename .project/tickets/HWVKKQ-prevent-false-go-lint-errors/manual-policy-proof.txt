@@ -1,0 +1,107 @@
+import json, os, pathlib, shutil, subprocess, tempfile
+REPO=pathlib.Path.cwd()
+CLI=REPO/'packages/cli/src/cli.ts'
+LINTER=os.environ['SAFEWORD_GO_LINT_BIN']
+GO=os.environ.get('SAFEWORD_GO_TEST_GO','go')
+COUNT=0
+
+def run(args,cwd,env):
+    return subprocess.run(args,cwd=cwd,env=env,text=True,capture_output=True,timeout=45)
+
+def write(root,name,text):
+    p=root/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(text);return p
+
+def check(name,fn):
+    global COUNT
+    root=pathlib.Path(tempfile.mkdtemp(prefix='safeword-policy-proof-')).resolve()
+    env=os.environ.copy()
+    env['PATH']=os.pathsep.join([str(pathlib.Path(LINTER).parent),str(pathlib.Path(GO).parent),env['PATH']])
+    env.update(GOTOOLCHAIN='local',GOPROXY='off',SAFEWORD_NO_UPDATE_CHECK='1')
+    if os.environ.get('SAFEWORD_GO_TEST_GO'):env.pop('GOROOT',None)
+    file=write(root,'apps/engine/value.go','package engine\n\nfunc Value()int{return 42}\n')
+    write(root,'apps/engine/go.mod','module example.com/engine\n\ngo 1.23\n')
+    config=write(root,'.safeword/.golangci.yml',json.dumps({'version':'2','linters':{'default':'none','enable':['govet']},'formatters':{'enable':['gofmt']}}))
+    def hook():
+        r=run(['bun',str(CLI),'hook','go-lint','--file',str(file),'--project-root',str(root),'--original-cwd',str(root)],root,env)
+        assert r.returncode==0,(r.stdout,r.stderr)
+        return json.loads(r.stdout)
+    try:
+        fn(root,file,config,env,hook)
+        assert not list(root.rglob('.safeword-go-lint-*.json')),'temporary config residue'
+        COUNT+=1; print('PASS '+name,flush=True)
+    finally:
+        os.chmod(config.parent,0o755)
+        shutil.rmtree(root)
+
+def malformed(root,file,config,env,hook):
+    config.write_text('version: "2"\nlinters: [unterminated\n')
+    before=file.read_text();r=hook()
+    assert any('Go lint could not run:' in w for w in r['warnings']),r
+    assert 'errors' not in r and file.read_text()==before,r
+
+def unwritable(root,file,config,env,hook):
+    os.chmod(config.parent,0o555)
+    r=hook()
+    assert any('Go lint could not run:' in w for w in r['warnings']),r
+    assert 'errors' not in r,r
+
+def formatter(root,file,config,env,hook):
+    c=json.loads(config.read_text());c['run']={'relative-path-mode':'wd'}
+    c['formatters']['exclusions']={'paths':['^apps/engine/value.go$']};config.write_text(json.dumps(c))
+    before=file.read_text();r=hook();assert file.read_text()==before,(r,file.read_text())
+    del c['formatters']['exclusions'];config.write_text(json.dumps(c));r=hook()
+    assert file.read_text()!=before,(r,file.read_text())
+
+def ordinary(root,file,config,env,hook):
+    c=json.loads(config.read_text());c['linters']['enable']=['misspell'];config.write_text(json.dumps(c))
+    file.write_text('package engine\n\n// Value returns teh value.\nfunc Value()int{return 42}\n')
+    r=hook();assert 'misspell' in r.get('errors',''),r
+    assert 'teh' in file.read_text() and 'Value() int' in file.read_text(),file.read_text()
+
+def sibling(root,file,config,env,hook):
+    bad=write(root,'apps/engine/bad.go','package engine\nvar Bad = Undefined\n')
+    before=bad.read_text();r=hook()
+    assert 'undefined: Undefined' in r.get('errors',''),r
+    assert str(bad) in r['errors'] and 'may predate' in r['diagnosticContext'],r
+    assert bad.read_text()==before
+
+def depguard(root,file,config,env,hook):
+    config.unlink()
+    config=write(root,'.golangci.yml','version: "2"\nlinters:\n  default: none\n  enable: [depguard]\n  settings:\n    depguard:\n      rules:\n        main:\n          files: ["${config-path}/apps/engine/*.go"]\n          deny:\n            - pkg: fmt\n              desc: forbidden in this fixture\n')
+    file.write_text('package engine\nimport "fmt"\nfunc Value() { fmt.Println("hi") }\n')
+    native=run([LINTER,'run','--config',str(config),'.'],file.parent,env)
+    assert native.returncode in (0,1),(native.stdout,native.stderr)
+    r=hook();assert ('forbidden in this fixture' in r.get('errors','')) == ('forbidden in this fixture' in native.stdout),(native.stdout,r)
+
+def merges(root,file,config,env,hook):
+    config.write_text('version: "2"\nrun: {relative-path-mode: wd}\ncommon: &common\n  rules:\n    - path: ^apps/engine/\n      linters: [govet]\nlinters:\n  default: none\n  enable: [govet]\n  exclusions:\n    <<: *common\n')
+    file.write_text('package engine\nimport "fmt"\nfunc Value() { fmt.Printf("%d", "text") }\n')
+    r=hook();assert 'errors' not in r and not r['warnings'],r
+    config.write_text('version: "2"\nlinters: {default: none, enable: [govet]}\n')
+    r=hook();assert 'govet' in r.get('errors',''),r
+
+def legacy(root,file,config,env,hook):
+    config.write_text('version: "2"\nrun: {tests: yes}\nlinters: {default: none, enable: [govet]}\n')
+    native=run([LINTER,'run','--config',str(config),'.'],file.parent,env)
+    r=hook()
+    # Both paths must agree whether the legacy scalar can be loaded. No silent default.
+    if native.returncode==0: assert 'errors' not in r and not r['warnings'],r
+    else: assert r['warnings'],(native.stdout,native.stderr,r)
+
+def home(root,file,config,env,hook):
+    config.unlink();env['HOME']=str(root/'home')
+    homeconfig=write(root,'home/.golangci.yml','version: "2"\nlinters: {default: none, enable: [govet]}\n')
+    file.write_text('package engine\nimport "fmt"\nfunc Value() { fmt.Printf("%d", "text") }\n')
+    r=hook();assert str(homeconfig) in '\n'.join(r['warnings']),r
+    assert 'govet' in r.get('errors',''),r
+    homeconfig.unlink();r=hook()
+    assert any('defaults' in w for w in r['warnings']),r
+
+def ruleguard(root,file,config,env,hook):
+    write(root,'rules/sample.go','package gorules\nimport "github.com/quasilyte/go-ruleguard/dsl"\nfunc example(m dsl.Matcher) { m.Match(`fmt.Println($x)`).Report("custom-policy-hit") }\n')
+    config.write_text(json.dumps({'version':'2','linters':{'default':'none','enable':['gocritic'],'settings':{'gocritic':{'enabled-checks':['ruleguard'],'settings':{'ruleguard':{'rules':'rules/*.go'}}}}}}))
+    file.write_text('package engine\nimport "fmt"\nfunc Value() { fmt.Println("hi") }\n')
+    r=hook();assert 'custom-policy-hit' in r.get('errors',''),r
+
+for name,fn in [('malformed config warning',malformed),('unwritable base warning',unwritable),('wd formatter exclusion and negative control',formatter),('fixable misspelling retained after formatting',ordinary),('genuine sibling typecheck retained',sibling),('depguard config-path selector against native result',depguard),('YAML merge exclusions and negative control',merges),('legacy YAML boolean native equivalence',legacy),('home and no-config fallback',home)]:check(name,fn)
+print(f'{COUNT}/{COUNT} manual policy checks passed')

@@ -7,6 +7,7 @@ import { parse, type ParseError } from 'jsonc-parser';
 
 import { isDogfoodRepo } from '../../../templates/hooks/lib/dogfood.js';
 import { writeDurableFile } from '../../codex-plugin/durable-write.js';
+import { claudeAssetMatches } from '../asset-integrity.js';
 import { claudeLegacyMutations, migrateClaudeLegacyAutomatically } from '../cleanup.js';
 import {
   historicalCatalogueDigest,
@@ -47,6 +48,7 @@ interface PluginIdentityV1 {
 interface InventoryAssetV1 {
   readonly path: string;
   readonly sha256: string;
+  readonly skill_sha256?: string;
 }
 
 interface PluginInventoryV1 {
@@ -223,7 +225,7 @@ function verifyInventoryAsset(pluginRoot: string, asset: Partial<InventoryAssetV
   }
   const content = readFileSync(assetPath);
   const actualDigest = createHash('sha256').update(content).digest('hex');
-  if (actualDigest !== asset.sha256) {
+  if (!claudeAssetMatches(asset, content)) {
     throw new Error(
       `Safeword Claude plugin asset failed integrity validation: ${asset.path} (${actualDigest})`,
     );
@@ -950,15 +952,15 @@ function executeConfiguredHooks(input: {
 }
 
 // Points the SessionStart context hook at the packaged handbook (mirrors the
-// same env var Codex's runtime already sets) so it never falls back to
-// reading the project's .safeword/SAFEWORD.md.
+// same env var Codex's runtime already sets). Always set, even when the file is
+// missing: the hook then fails loudly instead of falling back to the project's
+// own handbook copy, which may be stale.
 function exposePackagedSafewordContext(pluginRoot: string): void {
-  const packagedSafewordPath = nodePath.join(pluginRoot, 'resources', 'SAFEWORD.md');
-  if (existsSync(packagedSafewordPath)) {
-    process.env.SAFEWORD_PACKAGED_CONTEXT_PATH = packagedSafewordPath;
-  } else {
-    delete process.env.SAFEWORD_PACKAGED_CONTEXT_PATH;
-  }
+  process.env.SAFEWORD_PACKAGED_CONTEXT_PATH = nodePath.join(
+    pluginRoot,
+    'resources',
+    'SAFEWORD.md',
+  );
 }
 
 function completeSuccessfulExecution(input: {

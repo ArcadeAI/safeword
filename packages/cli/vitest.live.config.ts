@@ -13,6 +13,10 @@ export default mergeConfig(
   defineConfig({
     test: {
       include: ['tests/**/*.live.test.ts'],
+      env: {
+        SAFEWORD_LIVE_CLAUDE_CONFIG_DIR: process.env.CLAUDE_CONFIG_DIR ?? '',
+        SAFEWORD_LIVE_CODEX_HOME: process.env.CODEX_HOME ?? '',
+      },
       testTimeout: 180_000,
     },
   }),

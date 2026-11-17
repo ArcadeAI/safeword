@@ -17,6 +17,7 @@ import nodePath from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  assertLintHookSucceeded,
   createTemporaryDirectory,
   initGitRepo,
   INSTALL_DEPENDENCIES_ENV,
@@ -136,29 +137,29 @@ dependencies = ["ruff", "mypy", "deadcode", "pip-audit"]
   });
 
   describe('Lint hook routes to correct linter', () => {
-    it('routes .ts files to ESLint', () => {
+    it('preserves unfinished TypeScript edits', () => {
       const filePath = nodePath.join(projectDirectory, 'src/lint-ts.ts');
-      writeTestFile(projectDirectory, 'src/lint-ts.ts', 'const x=1\n');
+      const source = 'var unfinished=1\n';
+      writeTestFile(projectDirectory, 'src/lint-ts.ts', source);
 
       const result = runLintHook(projectDirectory, filePath);
-      expect(result.status).toBe(0);
+      const output = assertLintHookSucceeded(result);
 
-      // ESLint/Prettier should format
+      // Post-edit diagnostics must preserve unfinished edits.
       const formatted = readTestFile(projectDirectory, 'src/lint-ts.ts');
-      expect(formatted.trim()).toBe('const x = 1;');
+      expect(formatted).toBe(source);
+      expect(output).toContain('no-var');
     });
 
     it.skipIf(!IS_RUFF_AVAILABLE)('routes .py files to Ruff', () => {
       const filePath = nodePath.join(projectDirectory, 'src/lint-py.py');
       writeTestFile(projectDirectory, 'src/lint-py.py', 'x=1;y=2');
 
-      const result = runLintHook(projectDirectory, filePath);
-      expect(result.status).toBe(0);
-
-      // Ruff should format
+      const before = readTestFile(projectDirectory, 'src/lint-py.py');
+      const output = assertLintHookSucceeded(runLintHook(projectDirectory, filePath));
       const formatted = readTestFile(projectDirectory, 'src/lint-py.py');
-      expect(formatted).toContain('x = 1');
-      expect(formatted).toContain('y = 2');
+      expect(formatted).toBe(before);
+      expect(output).toMatch(/reformat|unformatted/iu);
     });
   });
 });

@@ -1,0 +1,1571 @@
+diff --git a/packages/cli/tests/fixtures/delivery-cli.ts b/packages/cli/tests/fixtures/delivery-cli.ts
+index 2e164fc5d..be068b582 100644
+--- a/packages/cli/tests/fixtures/delivery-cli.ts
++++ b/packages/cli/tests/fixtures/delivery-cli.ts
+@@ -174,6 +174,7 @@ function admitPlanExecutionFixture(
+       reviewer_output: {
+         schema_version: 1,
+         dispatch_id: 'plan-execution-fixture',
++        evidence_records: { schema_version: 1, records: [] },
+         reviewer_agent: 'claude',
+         verdict: 'approve',
+         summary: 'approved fixture',
+diff --git a/packages/cli/tests/fixtures/lifecycle-origin-main/cursor-check.json b/packages/cli/tests/fixtures/lifecycle-origin-main/cursor-check.json
+index 46204ebeb..650a5ce68 100644
+--- a/packages/cli/tests/fixtures/lifecycle-origin-main/cursor-check.json
++++ b/packages/cli/tests/fixtures/lifecycle-origin-main/cursor-check.json
+@@ -2,5 +2,5 @@
+   "integration": "cursor",
+   "operation": "check",
+   "result_sha256": "11354dd25a42d64ded227faac8c2ea42556c108325e2865fbcdae1c31eb91267",
+-  "tree_sha256": "4b6c21d142ba5014ce2866e0aa6141e82b6d0e45ccb3025cafa7ff83cdec107d"
++  "tree_sha256": "48453740db12694b9317a894cb955af1451f4111c6a01426dd67639a942ec012"
+ }
+diff --git a/packages/cli/tests/fixtures/lifecycle-origin-main/cursor-install.json b/packages/cli/tests/fixtures/lifecycle-origin-main/cursor-install.json
+index 4e9b571a0..35f297487 100644
+--- a/packages/cli/tests/fixtures/lifecycle-origin-main/cursor-install.json
++++ b/packages/cli/tests/fixtures/lifecycle-origin-main/cursor-install.json
+@@ -2,5 +2,5 @@
+   "integration": "cursor",
+   "operation": "install",
+   "result_sha256": "91c131c2917d4ce79b995843ed54e2fa093a4c09cf1f88498bb365867d626635",
+-  "tree_sha256": "4b6c21d142ba5014ce2866e0aa6141e82b6d0e45ccb3025cafa7ff83cdec107d"
++  "tree_sha256": "48453740db12694b9317a894cb955af1451f4111c6a01426dd67639a942ec012"
+ }
+diff --git a/packages/cli/tests/fixtures/lifecycle-origin-main/cursor-upgrade.json b/packages/cli/tests/fixtures/lifecycle-origin-main/cursor-upgrade.json
+index 0b41caa8d..d4b25ea1d 100644
+--- a/packages/cli/tests/fixtures/lifecycle-origin-main/cursor-upgrade.json
++++ b/packages/cli/tests/fixtures/lifecycle-origin-main/cursor-upgrade.json
+@@ -2,5 +2,5 @@
+   "integration": "cursor",
+   "operation": "upgrade",
+   "result_sha256": "e9206dcd5541c42df9ef4548dea36082a34cd33603b53da6fb2b7e6961f8b229",
+-  "tree_sha256": "4b6c21d142ba5014ce2866e0aa6141e82b6d0e45ccb3025cafa7ff83cdec107d"
++  "tree_sha256": "48453740db12694b9317a894cb955af1451f4111c6a01426dd67639a942ec012"
+ }
+diff --git a/packages/cli/tests/fixtures/lifecycle-origin-main/manifest.json b/packages/cli/tests/fixtures/lifecycle-origin-main/manifest.json
+index af31181f1..49c937586 100644
+--- a/packages/cli/tests/fixtures/lifecycle-origin-main/manifest.json
++++ b/packages/cli/tests/fixtures/lifecycle-origin-main/manifest.json
+@@ -1,6 +1,6 @@
+ {
+   "originMainCommit": "f22e2997ba8ef68d3d198ca2d937bfbf35fdab87",
+-  "templatesSha256": "c66681f4111df7f2aa0a09e8d6c2abee8472d074b9dcbda56a435c987f0578b3",
++  "templatesSha256": "ce95051a081651b512a291808825f6c38f114b181103ec1909a4e813b5b4f38c",
+   "fixtures": {
+     "claude-install": "e333422d2903d6f88f2e838feb7a5b7210881ca180637be85c9531092875d17e",
+     "claude-check": "21595f2fccd86e2a75b996c650c97c32fbb4c17f94d1b113ba623d7304d69a16",
+@@ -10,9 +10,9 @@
+     "codex-check": "8de94a768b313a9b098cb24f963b960b49df3e11e26c94f5dc707bdee9af7368",
+     "codex-upgrade": "0b4ae2df620723a56924ab410a9b1267ab96fe55d4247384de76d9db21897a2e",
+     "codex-uninstall": "324e6790338fc0633848d8e6c5dc6e55d0d7c38cbf3fbe9cafaf18a154aa734b",
+-    "cursor-install": "e5f77d6120caca0830492a94265ed3c26135a713cd8c54f8e5490a01c288a70a",
+-    "cursor-check": "9c06ad8e6e407dddbdbfc83ac852275110337964ecb86d6a3c131a8d411b4892",
+-    "cursor-upgrade": "7dc533dbd307ee4a123c29ab91e0cea29419d34ffccce19ba0250120e95805b3",
++    "cursor-install": "bbb9ba3dbeb12d2df45a1c99b8507e8aae57871d7914e0220d86480214dce422",
++    "cursor-check": "4d4fd682059800406e43910db29d693d9426ca3a6437e7b468b123b593c7704f",
++    "cursor-upgrade": "e24e9f5cb4a8490b34dba14f59c150a953aa72c759b3e153d93a360641f4e412",
+     "cursor-uninstall": "f3e736fc3640090abe0c9199adee2d0e74e8e12d554eb9729f0256e34c5a3acf"
+   }
+ }
+diff --git a/packages/cli/tests/fixtures/plan-contract-review.ts b/packages/cli/tests/fixtures/plan-contract-review.ts
+index 28205b7af..b1bdc7df6 100644
+--- a/packages/cli/tests/fixtures/plan-contract-review.ts
++++ b/packages/cli/tests/fixtures/plan-contract-review.ts
+@@ -40,6 +40,7 @@ try {
+     const reviewerOutput = {
+       schema_version: 1,
+       dispatch_id: prepared.packet.dispatch_id,
++      evidence_records: { schema_version: 1, records: [] },
+       reviewer_agent: 'claude',
+       verdict: 'approve',
+       summary: 'The supplied plan is otherwise reviewable.',
+diff --git a/packages/cli/tests/fixtures/plan-data-applicability.ts b/packages/cli/tests/fixtures/plan-data-applicability.ts
+index 489fc65b3..bb3528645 100644
+--- a/packages/cli/tests/fixtures/plan-data-applicability.ts
++++ b/packages/cli/tests/fixtures/plan-data-applicability.ts
+@@ -77,6 +77,7 @@ export function reviewDataApplicability(contract: string, plan: string): Reviewe
+   return {
+     schema_version: 1,
+     dispatch_id: createHash('sha256').update(contract).digest('hex'),
++    evidence_records: { schema_version: 1, records: [] },
+     reviewer_agent: 'claude',
+     verdict: findings.length === 0 ? 'approve' : 'request_changes',
+     summary:
+@@ -104,6 +105,7 @@ export function reviewMigrationCommandSeparation(contract: string, plan: string)
+   return {
+     schema_version: 1,
+     dispatch_id: createHash('sha256').update(contract).digest('hex'),
++    evidence_records: { schema_version: 1, records: [] },
+     reviewer_agent: 'claude',
+     verdict: findings.length === 0 ? 'approve' : 'request_changes',
+     summary:
+@@ -151,6 +153,7 @@ export function reviewDataOwnershipConsistency(contract: string, plan: string):
+   return {
+     schema_version: 1,
+     dispatch_id: createHash('sha256').update(contract).digest('hex'),
++    evidence_records: { schema_version: 1, records: [] },
+     reviewer_agent: 'claude',
+     verdict: findings.length === 0 ? 'approve' : 'request_changes',
+     summary:
+diff --git a/packages/cli/tests/fixtures/plan-decision-depth.ts b/packages/cli/tests/fixtures/plan-decision-depth.ts
+index 6b5265b30..1415b7ad1 100644
+--- a/packages/cli/tests/fixtures/plan-decision-depth.ts
++++ b/packages/cli/tests/fixtures/plan-decision-depth.ts
+@@ -147,6 +147,7 @@ export function reviewDecisionDepth(
+   return {
+     schema_version: 1,
+     dispatch_id: createHash('sha256').update(contract).digest('hex'),
++    evidence_records: { schema_version: 1, records: [] },
+     reviewer_agent: 'claude',
+     verdict: findings.length === 0 ? 'approve' : 'request_changes',
+     summary:
+diff --git a/packages/cli/tests/fixtures/plan-decision-evidence-applicability.ts b/packages/cli/tests/fixtures/plan-decision-evidence-applicability.ts
+index fa90da3d5..372363741 100644
+--- a/packages/cli/tests/fixtures/plan-decision-evidence-applicability.ts
++++ b/packages/cli/tests/fixtures/plan-decision-evidence-applicability.ts
+@@ -82,6 +82,7 @@ export function reviewDecisionEvidenceApplicability(
+   return {
+     schema_version: 1,
+     dispatch_id: createHash('sha256').update(contract).digest('hex'),
++    evidence_records: { schema_version: 1, records: [] },
+     reviewer_agent: 'claude',
+     verdict: findings.length === 0 ? 'approve' : 'request_changes',
+     summary:
+diff --git a/packages/cli/tests/fixtures/plan-decision-evidence.ts b/packages/cli/tests/fixtures/plan-decision-evidence.ts
+index c637cdb47..3e51bad23 100644
+--- a/packages/cli/tests/fixtures/plan-decision-evidence.ts
++++ b/packages/cli/tests/fixtures/plan-decision-evidence.ts
+@@ -102,6 +102,7 @@ export function reviewDecisionEvidence(
+   return {
+     schema_version: 1,
+     dispatch_id: createHash('sha256').update(contract).digest('hex'),
++    evidence_records: { schema_version: 1, records: [] },
+     reviewer_agent: 'claude',
+     verdict: findings.length === 0 ? 'approve' : 'request_changes',
+     summary:
+diff --git a/packages/cli/tests/fixtures/plan-focused-reviewability.ts b/packages/cli/tests/fixtures/plan-focused-reviewability.ts
+index 7bd7901c5..f599a956a 100644
+--- a/packages/cli/tests/fixtures/plan-focused-reviewability.ts
++++ b/packages/cli/tests/fixtures/plan-focused-reviewability.ts
+@@ -145,6 +145,7 @@ export function reviewFocusedDecisionPath(
+   return {
+     schema_version: 1,
+     dispatch_id: createHash('sha256').update(contract).digest('hex'),
++    evidence_records: { schema_version: 1, records: [] },
+     reviewer_agent: 'claude',
+     verdict: findings.length === 0 ? 'approve' : 'request_changes',
+     summary:
+diff --git a/packages/cli/tests/fixtures/plan-measurement-design.ts b/packages/cli/tests/fixtures/plan-measurement-design.ts
+index a5110b6f0..9066e43ad 100644
+--- a/packages/cli/tests/fixtures/plan-measurement-design.ts
++++ b/packages/cli/tests/fixtures/plan-measurement-design.ts
+@@ -83,6 +83,7 @@ export function reviewMeasurementDesign(
+   return {
+     schema_version: 1,
+     dispatch_id: createHash('sha256').update(contract).digest('hex'),
++    evidence_records: { schema_version: 1, records: [] },
+     reviewer_agent: 'claude',
+     verdict: findings.length === 0 ? 'approve' : 'request_changes',
+     summary:
+@@ -117,6 +118,7 @@ export function reviewMeasurementApplicability(
+   return {
+     schema_version: 1,
+     dispatch_id: createHash('sha256').update(contract).digest('hex'),
++    evidence_records: { schema_version: 1, records: [] },
+     reviewer_agent: 'claude',
+     verdict: findings.length === 0 ? 'approve' : 'request_changes',
+     summary:
+diff --git a/packages/cli/tests/fixtures/plan-persona-consequences.ts b/packages/cli/tests/fixtures/plan-persona-consequences.ts
+index 811e1b102..df8c1a106 100644
+--- a/packages/cli/tests/fixtures/plan-persona-consequences.ts
++++ b/packages/cli/tests/fixtures/plan-persona-consequences.ts
+@@ -78,6 +78,7 @@ export function reviewPersonaConsequences(
+   return {
+     schema_version: 1,
+     dispatch_id: createHash('sha256').update(contract).digest('hex'),
++    evidence_records: { schema_version: 1, records: [] },
+     reviewer_agent: 'claude',
+     verdict: findings.length === 0 ? 'approve' : 'request_changes',
+     summary:
+@@ -114,6 +115,7 @@ export function reviewPersonaInventory(
+   return {
+     schema_version: 1,
+     dispatch_id: createHash('sha256').update(contract).digest('hex'),
++    evidence_records: { schema_version: 1, records: [] },
+     reviewer_agent: 'claude',
+     verdict: findings.length === 0 ? 'approve' : 'request_changes',
+     summary:
+diff --git a/packages/cli/tests/fixtures/plan-single-record.ts b/packages/cli/tests/fixtures/plan-single-record.ts
+index fc9838b6f..ead50c896 100644
+--- a/packages/cli/tests/fixtures/plan-single-record.ts
++++ b/packages/cli/tests/fixtures/plan-single-record.ts
+@@ -95,6 +95,7 @@ export function reviewPlanOfRecord(
+   return {
+     schema_version: 1,
+     dispatch_id: createHash('sha256').update(contract).digest('hex'),
++    evidence_records: { schema_version: 1, records: [] },
+     reviewer_agent: 'claude',
+     verdict: findings.length === 0 ? 'approve' : 'request_changes',
+     summary: `impl-plan.md is the single design plan of record; ${findings.length === 0 ? 'its authority is coherent.' : 'its authority needs repair.'}`,
+diff --git a/packages/cli/tests/fixtures/plan-state-truthfulness.ts b/packages/cli/tests/fixtures/plan-state-truthfulness.ts
+index 3934e4c05..73e962381 100644
+--- a/packages/cli/tests/fixtures/plan-state-truthfulness.ts
++++ b/packages/cli/tests/fixtures/plan-state-truthfulness.ts
+@@ -80,6 +80,7 @@ export function reviewPlanState(contract: string, fixture: PlanStateFixture): Re
+   return {
+     schema_version: 1,
+     dispatch_id: createHash('sha256').update(contract).digest('hex'),
++    evidence_records: { schema_version: 1, records: [] },
+     reviewer_agent: 'claude',
+     verdict: findings.length === 0 ? 'approve' : 'request_changes',
+     summary:
+diff --git a/packages/cli/tests/fixtures/ranked-planning-review.ts b/packages/cli/tests/fixtures/ranked-planning-review.ts
+index c7ad11cbe..8ed143320 100644
+--- a/packages/cli/tests/fixtures/ranked-planning-review.ts
++++ b/packages/cli/tests/fixtures/ranked-planning-review.ts
+@@ -26,7 +26,7 @@ const agent = ${JSON.stringify(agent)};
+ if (process.argv.includes('--version')) { console.log(agent + ' 1.0.0'); process.exit(0); }
+ if (process.argv.includes('--help')) { console.log(process.argv.includes('app-server') ? ${example === 'unsupported' ? "''" : "'--stdio --config'"} : ${JSON.stringify(help)}); process.exit(0); }
+ function log(model, packet) { appendFileSync(${JSON.stringify(log)}, JSON.stringify({agent, model, packet}) + '\n'); }
+-function output(packet) { return {schema_version:1, dispatch_id:packet.dispatch_id, reviewer_agent:agent, verdict:'approve', summary:'Qualified route completed.', findings:[]}; }
++function output(packet) { return {schema_version:1, dispatch_id:packet.dispatch_id, evidence_records: { schema_version: 1, records: [] }, reviewer_agent:agent, verdict:'approve', summary:'Qualified route completed.', findings:[]}; }
+ if (agent === 'codex' && !process.argv.includes('app-server')) { log('default'); process.exit(7); }
+ let buffer = '', model = '';
+ process.stdin.setEncoding('utf8');
+diff --git a/packages/cli/tests/fixtures/reviewer-capability-corpus.ts b/packages/cli/tests/fixtures/reviewer-capability-corpus.ts
+index b838a6e5d..3da1bfe75 100644
+--- a/packages/cli/tests/fixtures/reviewer-capability-corpus.ts
++++ b/packages/cli/tests/fixtures/reviewer-capability-corpus.ts
+@@ -12,7 +12,7 @@ import { reviewOutputSchema } from '../../src/review/runtime.js';
+ const reviewerPlaceholder = '{{reviewer}}';
+ export const REVIEWER_CAPABILITY_RUBRICS = {
+   product: reviewerPromptInstructions('quality-review', reviewerPlaceholder, 'product-plan'),
+-  product_schema: reviewOutputSchema('quality-review'),
++  product_schema: reviewOutputSchema('quality-review', 'product-plan'),
+   implementation: reviewerPromptInstructions(
+     'plan-implementation',
+     reviewerPlaceholder,
+@@ -25,7 +25,7 @@ export const REVIEWER_CAPABILITY_RUBRICS = {
+ 
+ const ticket = `# Ticket: Show current review status to builders
+ 
+-Goal: A builder can distinguish Pending, Approved, and Rejected plan reviews in the CLI. Rejected reviews show the actual blocking findings and permit repair and retry. Approval still requires the existing authenticated approval receipt. No new approval authority, storage system, or notification channel is in scope.`;
++Goal: A builder can distinguish Pending, Approved, and Rejected plan reviews in the CLI. Rejected reviews show the actual blocking findings and permit repair and retry. An interrupted review or a finished review without a valid approval receipt stays Pending with its actual error and a retry action; neither condition invents rejection findings. Approval still requires the existing authenticated approval receipt. No new approval authority, storage system, or notification channel is in scope.`;
+ 
+ const productPlan = `# Product Plan: Show current review status
+ 
+@@ -33,23 +33,31 @@ const productPlan = `# Product Plan: Show current review status
+ 
+ - Persona: the builder requesting a plan review.
+ - Surface: the CLI review status display.
+-- Pending means the current review has not finished.
++- Pending means the current review has no completed, authenticated approval or blocking reviewer verdict. A running review shows its running state. An interrupted review or a finished review without a valid approval receipt stays Pending with its actual error and a retry action; it never invents rejection findings.
+ - Approved means the current review has an authenticated approval receipt.
+ - Rejected means the current review concluded with blocking findings. Show those actual findings, and allow the builder to repair the plan and start a new review.
+ - A stale approval never changes the current review to Approved.
+ - A stale approval is a receipt for a different review job or different plan bytes. The display begins only after a review is requested; a never-requested state is outside this ticket.
+ 
++## Builder outcomes
++
++- Success: a current authenticated receipt displays Approved.
++- Refusal: a reviewer verdict with blocking findings displays Rejected and those findings; no new viewer-permission refusal applies to this existing CLI command.
++- Failure: interruption or a missing valid receipt displays Pending with the actual error and retry action, not a fabricated rejection.
++- Approval and trust: only the authenticated receipt for the current job and plan bytes can display Approved.
++- Recovery: repair and retry after Rejected, or retry the interrupted or receipt-missing review without changing plan scope.
++
+ ## Scope and exclusions
+ 
+ Only the status display and retry path change. Existing approval authority and storage remain in place. Notifications and automatic repair are excluded.
+ 
+ ## Evidence and decisions
+ 
+-The existing authenticated receipt is a supported project constraint. No quantitative target is promised. The user has accepted these three statuses; no product choice remains open.
++Known facts: the ticket accepts three statuses and the existing authenticated receipt is the only approval authority. Assumption: the existing CLI command adds no new viewer-permission gate. Unresolved product decisions: none; the ticket specifies interrupted and receipt-missing behavior. No quantitative target is promised.
+ 
+ ## Observable done state
+ 
+-A builder can distinguish all three current outcomes, see the actual blocking findings after rejection, and retry a repaired plan. A missing or stale receipt cannot appear as approval.`;
++A builder can distinguish all three current outcomes, see only actual blocking findings after rejection, and retry a repaired or interrupted review. A missing or stale receipt cannot appear as approval or create a false rejection.`;
+ 
+ const productWithoutRejection = `# Product Plan: Show current review status
+ 
+@@ -73,7 +81,9 @@ const scenarios = `# Accepted scenarios
+ 1. An unfinished current review displays Pending.
+ 2. A current authenticated approval displays Approved.
+ 3. A completed review with blocking findings displays Rejected and those actual findings.
+-4. After repairing a rejected plan, the builder can request a new review; a stale approval cannot approve it.`;
++4. After repairing a rejected plan, the builder can request a new review; a stale approval cannot approve it.
++5. An interrupted review displays Pending with its actual error and permits retry without changing plan bytes.
++6. A finished nonblocking review without a valid receipt displays Pending with its actual receipt error, no invented rejection findings, and permits retry without changing plan bytes.`;
+ 
+ const implementationPlan = `# Implementation Plan: Show current review status
+ 
+@@ -86,15 +96,16 @@ The CLI reads the existing coordinator's current job and authenticated receipt.
+ - Use the current job identifier and plan digest to bind the display to the active review. A previous job or receipt cannot supply Approved for changed plan bytes.
+ - The coordinator's authenticated approval receipt is the only source of Approved. Reviewer prose and an unauthenticated verdict cannot grant approval.
+ - A terminal rejected job supplies its recorded error findings verbatim to the CLI. The mapper does not synthesize rejection reasons or hide a real blocking finding.
+-- Retry creates a new review for repaired plan bytes; the old rejection and receipt remain historical evidence, never current authority.
++- Retry creates a new review for repaired plan bytes, or for unchanged bytes after interruption or receipt failure; the old rejection and receipt remain historical evidence, never current authority.
+ - The coordinator atomically binds each retry to its new job identifier and plan digest. Concurrent retries may finish in any order; only the job currently bound to the plan may drive the displayed status. A crash before that binding leaves the prior terminal state visible and retryable, never falsely Approved.
+-- A running or interrupted review without a terminal receipt displays Pending with its actual error state; it never displays Approved.
++- A running review displays Pending. An interrupted review displays Pending with its actual error and a retry action for unchanged bytes; it never displays Approved.
++- A finished nonblocking review without a valid approval receipt displays Pending with the actual receipt error and a retry action; it never invents a rejection finding.
+ 
+ The alternative of persisting a separate CLI status loses synchronization with the coordinator after a retry or plan edit, so the mapper reads existing trusted records instead. This is a reversible local presentation change; no durable architecture record is needed.
+ 
+ ## Contracts, failure behavior, and proof
+ 
+-The CLI status contract has exactly Pending, Approved, and Rejected. Missing or stale receipt means no approval. A failed status read reports unavailable state rather than inventing approval. Exercise each accepted scenario through the real CLI and coordinator boundary, including a stale receipt and actual rejection findings. An isolated mapper test cannot prove the public wiring; the CLI integration proof has that limit. Roll out with the existing CLI release, and roll back the presentation mapper if the user-visible state is wrong.
++The CLI status contract has exactly Pending, Approved, and Rejected. Missing or stale receipt means no approval. A failed status read reports unavailable state rather than inventing approval. Exercise all six accepted scenarios through the real CLI and coordinator boundary, including a stale receipt, actual rejection findings, interrupted retry, and finished receipt-missing retry. For both failure cases assert Pending, the actual error, no invented rejection findings, and a working retry that binds a new current job without changing plan bytes. An isolated mapper test cannot prove the public wiring; the CLI integration proof has that limit. Roll out with the existing CLI release, and roll back the presentation mapper if the user-visible state is wrong.
+ 
+ Architecture applicability: the CLI-to-coordinator contract is affected; no shared API or data owner changes. Data applicability: skip: no store, schema, ownership, retention, migration, or cross-system flow changes. Compatibility: the existing coordinator record and CLI exit codes stay unchanged; the new displayed Rejected label is additive to the human-readable status. Measurement applicability: skip: the Product Plan promises no quantitative target. Authorization stays with the existing authenticated receipt. Documentation impact: update the CLI status help text. Known deviations: none. Revisit the mapper only if the coordinator's receipt or job contract changes. No load-bearing external library choice is needed.`;
+ 
+@@ -114,7 +125,7 @@ const checklistObligations = [
+   'Show Pending, Approved, and Rejected with actual blocking findings and retry.',
+   'Keep the authenticated receipt as the only approval authority.',
+   'Complete the one status slice without a later merge dependency.',
+-  'Prove all four accepted scenarios through the CLI and coordinator.',
++  'Prove all six accepted scenarios through the CLI and coordinator.',
+   'Preserve coordinator storage and CLI exit-code compatibility.',
+   'Report status-read failures without inventing approval.',
+   'Reject stale or missing approval receipts and preserve actual findings.',
+@@ -126,19 +137,19 @@ const checklistObligations = [
+ 
+ function executionPlan(includeRejection: boolean): string {
+   const completionSignal = includeRejection
+-    ? 'all four accepted scenarios pass through the CLI entry point and the status help text names all three states'
++    ? 'all six accepted scenarios pass through the CLI entry point and the status help text names all three states'
+     : 'Pending and Approved pass through the CLI entry point and the status help text names those two states';
+   const redSignal = includeRejection
+     ? 'the missing Rejected/receipt-bound assertions fail'
+     : 'the missing Pending/Approved assertions fail';
+   const rejectionStep = includeRejection
+-    ? 'The same integration fixture must assert that a terminal rejection displays its actual error findings, that a repaired plan starts a new review, and that a concurrently completed non-current job cannot drive the displayed status. Simulate a crash before retry binding and assert the prior terminal state remains visible and retryable; simulate an interrupted review and assert Pending with its actual error state; simulate a failed status read and assert unavailable rather than Approved.'
++    ? 'The same integration fixture must assert that a terminal rejection displays its actual error findings, that a repaired plan starts a new review, and that a concurrently completed non-current job cannot drive the displayed status. Simulate a crash before retry binding and assert the prior terminal state remains visible and retryable. For an interrupted review and a finished nonblocking review without a valid receipt, assert Pending, the actual error, no invented rejection findings, and a working retry that binds a new current job without changing plan bytes. Simulate a failed status read and assert unavailable rather than Approved.'
+     : 'The integration fixture covers Pending and Approved states.';
+   const authorityStep = includeRejection
+-    ? 'Through the CLI and coordinator, test a receipt for another job, a receipt for a different plan digest under the current job, and an unauthenticated approval verdict without a receipt; each must remain non-Approved. Assert unchanged CLI process exit codes for successful and failed reads against the pre-change baseline, and assert status reads leave coordinator records byte-identical.'
++    ? 'Through the CLI and coordinator, test a receipt for another job, a receipt for a different plan digest under the current job, and an unauthenticated approval verdict without a receipt; each must remain non-Approved. For a finished nonblocking job without a valid receipt, assert Pending with its actual receipt error and retry action. Assert unchanged CLI process exit codes for successful and failed reads against the pre-change baseline, and assert status reads leave coordinator records byte-identical.'
+     : '';
+   const decisionStatus = includeRejection
+-    ? 'Decision status: current job-and-digest binding, receipt-only approval, verbatim rejection findings, retry as a new review, atomic concurrent retry binding and crash behavior, interrupted Pending with its error, and failed-read unavailability remain unchanged from the Implementation Plan.'
++    ? 'Decision status: current job-and-digest binding, receipt-only approval, verbatim rejection findings, retry as a new review, atomic concurrent retry binding and crash behavior, interrupted and finished receipt-missing Pending with actual errors and unchanged-byte retry, and failed-read unavailability remain unchanged from the Implementation Plan.'
+     : "Decision status: the Implementation Plan's existing coordinator/receipt source of truth is unchanged.";
+   return `# Execution Plan: Show current review status
+ 
+@@ -172,6 +183,30 @@ ${decisionStatus} Obligation owner: Current review status, Slice 1. The plan doe
+ const commonContext = [
+   { path: '.project/tickets/CAP100/ticket.md', content: ticket },
+   { path: '.project/tickets/CAP100/scenarios.md', content: scenarios },
++  {
++    path: '.project/principles.md',
++    content:
++      'Existing authenticated receipts remain the only approval authority. Keep changes local and reversible.',
++  },
++  {
++    path: '.project/personas.md',
++    content:
++      'Accepted persona: Builder. The builder needs current CLI status, actual rejection findings, and a repair and retry path.',
++  },
++  {
++    path: '.project/surfaces.md',
++    content:
++      'Affected surface: the existing CLI review-status command. No other user surface is in this ticket.',
++  },
++  {
++    path: '.project/non-goals.md',
++    content: 'No new approval authority, status store, or notification channel.',
++  },
++  {
++    path: '.project/tickets/CAP100/boundaries.md',
++    content:
++      'This ticket has no parent or milestone with additional scope boundaries. No architecture record applies to the local presentation mapper.',
++  },
+ ];
+ 
+ function packet(
+diff --git a/packages/cli/tests/fixtures/reviewer-capability-evidence/gpt-6-astra.json b/packages/cli/tests/fixtures/reviewer-capability-evidence/gpt-6-astra.json
+index e568a0d82..890ca0c42 100644
+--- a/packages/cli/tests/fixtures/reviewer-capability-evidence/gpt-6-astra.json
++++ b/packages/cli/tests/fixtures/reviewer-capability-evidence/gpt-6-astra.json
+@@ -1,10 +1,10 @@
+ {
+   "provider": "openai",
+   "model": "gpt-6-astra",
+-  "corpus_digest": "7a496326df08c8260e1ae4aae952cbc5afbbd03a7e50251c6597a5191c0abc7a",
+-  "rubric_digest": "863395c470634f93f595df05282540bfdbb1245849c0999a2c31beac19a70ca2",
++  "corpus_digest": "8d21738cf94eb7ecefcc0c9fab21edfa76aa7675e5586fd43553a4615cf62c9e",
++  "rubric_digest": "aabd225cd0c21f04539a08744d4f58e3b0132615862d40a4d637edad69dfd478",
+   "settings_digest": "acd5a69993710ae8483c78771a67a6d61e061707f39f450a24a9a10511f7bf4d",
+-  "evidence_date": "2026-10-20",
++  "evidence_date": "2026-10-21",
+   "runs": [
+     {
+       "fixture_id": "product-approve",
+@@ -31,11 +31,19 @@
+       "findings": [
+         {
+           "severity": "error",
+-          "message": "spec.md defines only Pending and Approved. The ticket requires completed reviews with blocking findings to display Rejected with the actual findings and permit repair and retry. A two-state display could satisfy this plan's done state while hiding rejection and blocking the required recovery workflow. Include these outcomes in accepted behavior and completion criteria."
++          "message": "spec.md omits Rejected status, actual blocking findings, and repair and retry. CAP100 requires these outcomes for builders when a completed review has blocking findings. The stated done condition could pass while builders cannot identify or recover from rejection. Add these accepted outcomes."
+         },
+         {
+           "severity": "error",
+-          "message": "Approved requires an authenticated receipt but does not require that receipt to apply to the current plan. After repair, an earlier approval could satisfy this definition and falsely display Approved. Require current applicable approval and explicitly exclude stale approvals after changes."
++          "message": "spec.md defines Pending only as unfinished and omits interrupted reviews and finished reviews without valid approval receipts. CAP100 requires both to remain Pending, display their actual errors without invented rejection findings, and permit retry without changing plan bytes. Define these failure and recovery outcomes so a finished receipt failure cannot be misrepresented as rejection or approval."
++        },
++        {
++          "severity": "error",
++          "message": "spec.md does not require an approval receipt to apply to the current reviewed plan bytes. The supplied contract requires current approval and prevents stale approval after repair; authentication alone does not establish currency. Define receipt validity and invalidation so a changed plan cannot display Approved using its previous receipt."
++        },
++        {
++          "severity": "error",
++          "message": "spec.md omits the binding exclusion of a new status store, explicitly stated in CAP100 and project non-goals. Carry this exclusion into the Product Plan so downstream work preserves the accepted presentation-only scope."
+         }
+       ]
+     },
+@@ -46,11 +54,19 @@
+       "findings": [
+         {
+           "severity": "error",
+-          "message": "spec.md omits Rejected, actual blocking findings, and repair/retry behavior required by CAP100. A completed review with blocking findings could remain Pending or expose no findings or retry path while satisfying the stated done condition. Include these outcomes in accepted behavior and observable completion criteria."
++          "message": "spec.md defines only Pending and Approved. CAP100 requires completed reviews with blocking findings to display Rejected with their actual findings and permit repair and retry. The observable done state permits shipping a two-state display that conceals rejection and provides no recovery path. Include these accepted outcomes."
++        },
++        {
++          "severity": "error",
++          "message": "The definition of Pending omits interrupted reviews and finished reviews without a valid approval receipt. CAP100 requires both to remain Pending with their actual error and a retry action without changing plan bytes, and forbids invented rejection findings. Define these failure and recovery outcomes so a finished receipt failure cannot be misreported as rejection or left without retry."
+         },
+         {
+           "severity": "error",
+-          "message": "Approved requires an authenticated receipt but does not require that receipt to apply to the current plan and review. After a repair, an implementation could display Approved using a stale receipt while satisfying this plan. Require current approval validity and explicitly prevent stale approvals from approving a repaired plan."
++          "message": "Approved requires an authenticated receipt but does not require that receipt to apply to the current reviewed plan. After a rejected plan is repaired, this permits an older authenticated approval to display Approved for changed bytes. Define current-review receipt applicability and invalidation while preserving existing approval authority."
++        },
++        {
++          "severity": "error",
++          "message": "The exclusions omit CAP100's explicit prohibition on a new status store. Carry that binding exclusion into the Product Plan so the accepted boundary cannot be interpreted as allowing new storage behind the existing display."
+         }
+       ]
+     },
+@@ -61,11 +77,19 @@
+       "findings": [
+         {
+           "severity": "error",
+-          "message": "spec.md omits Rejected status and actual blocking findings. A completed review with blocking findings could remain Pending or hide its findings while satisfying the stated done condition, violating the ticket's required three-state display. Define Rejected and require display of the actual blocking findings."
++          "message": "spec.md omits Rejected entirely, including actual blocking findings and repair/retry. The authoritative ticket requires these outcomes for builders. A display implementing only Pending and Approved could satisfy this plan’s done state while hiding a completed blocking review. Add the rejection and recovery contract and include it in the observable done state."
++        },
++        {
++          "severity": "error",
++          "message": "The definition 'Pending means the review has not finished' excludes interrupted reviews and finished reviews without a valid approval receipt. The ticket requires both to remain Pending, show their actual error, offer retry without changing plan bytes, and invent no rejection findings. Define these failure and recovery outcomes explicitly; otherwise a conforming implementation could misclassify them or leave builders unable to retry."
++        },
++        {
++          "severity": "error",
++          "message": "Approved requires an authenticated receipt but the plan does not require that receipt to apply to the current review and current plan bytes. After a builder repairs a rejected plan, a stale authenticated approval could therefore satisfy this definition. Bind Approved to a valid current approval and explicitly preserve the existing receipt authority."
+         },
+         {
+           "severity": "error",
+-          "message": "spec.md omits repair and retry and defines Approved without requiring a current authenticated receipt. After a plan changes, an implementation could display Approved using a stale receipt and still satisfy this plan. Require repair and review retry, with stale approvals unable to approve the repaired plan."
++          "message": "The scope omits the ticket’s explicit exclusion of a new storage system/status store. Carry that binding exclusion into the Product Plan so downstream design cannot interpret status persistence as an accepted addition."
+         }
+       ]
+     },
+@@ -73,27 +97,13 @@
+       "fixture_id": "implementation-approve",
+       "run": 1,
+       "verdict": "approve",
+-      "findings": [
+-        {
+-          "severity": "warning",
+-          "message": "The proof-confidence sentence is ambiguous: “the CLI integration proof has that limit” appears to assign the isolated mapper test’s wiring limitation to the integration proof. Clarify which boundary the integration proof establishes and what remains outside its confidence."
+-        }
+-      ]
++      "findings": []
+     },
+     {
+       "fixture_id": "implementation-approve",
+       "run": 2,
+       "verdict": "approve",
+-      "findings": [
+-        {
+-          "severity": "warning",
+-          "message": "The proof paragraph ambiguously says the CLI integration proof shares the isolated mapper test's inability to prove public wiring. Clarify the integration proof's actual confidence limit; the proposed real CLI-to-coordinator exercise otherwise covers that wiring."
+-        },
+-        {
+-          "severity": "info",
+-          "message": "Configured principles, personas, surfaces, and architecture records were not supplied. Alignment review is limited to the builder persona, CLI surface, and constraints stated in the provided ticket, scenarios, and Product Plan."
+-        }
+-      ]
++      "findings": []
+     },
+     {
+       "fixture_id": "implementation-approve",
+@@ -108,7 +118,7 @@
+       "findings": [
+         {
+           "severity": "error",
+-          "message": "impl-plan.md permits a reviewer verdict to display Approved before an authenticated approval receipt exists. When a reviewer returns approval but receipt authentication or creation has not completed, this can falsely report Approved, violating the Product Plan and ticket. It also contradicts the plan's own missing-receipt and authorization rules. The Implementation Plan author must remove verdict-only approval and require a current authenticated receipt bound to both job identifier and plan digest. Include a real CLI/coordinator proof that an approving verdict without that receipt cannot display Approved; the accepted product authority has already decided this requirement."
++          "message": "impl-plan.md explicitly permits displaying Approved from the reviewer verdict before an authenticated receipt exists. For a finished nonblocking review with a missing or invalid receipt, this would falsely display Approved, violating accepted scenario 6, the Product Plan’s approval contract, and the project principle that authenticated receipts are the only approval authority. Later statements requiring Pending do not resolve the contradictory decision. The Implementation Plan owner must remove verdict-only approval and consistently require a valid authenticated receipt bound to the current job and plan digest; otherwise display Pending with the actual receipt error and retry action. Submit the corrected plan for fresh review."
+         }
+       ]
+     },
+@@ -119,7 +129,7 @@
+       "findings": [
+         {
+           "severity": "error",
+-          "message": "impl-plan.md explicitly allows reviewer verdict output to display Approved before an authenticated approval receipt exists. When the current reviewer returns approve but receipt authentication or persistence has not completed, the CLI can falsely report approval. This contradicts the accepted Product Plan, ticket scope, and the plan's own missing-receipt rule. Implementation Planning must remove verdict-only approval and consistently require a current authenticated receipt bound to the job and plan digest. Include a CLI/coordinator proof where the current verdict is approve but its authenticated receipt is absent; the named positive-approval and stale-receipt checks alone would not detect this bypass."
++          "message": "impl-plan.md states that a reviewer verdict is enough to display Approved before an authenticated receipt exists. This violates the accepted Product Plan's approval contract, ticket scope, and project principle that only an authenticated receipt for the current job and plan bytes grants approval. A finished nonblocking review whose receipt is missing or invalid could therefore falsely display Approved instead of Pending with its actual receipt error and retry action. Later statements requiring a valid receipt do not resolve this contradictory implementation choice. The Implementation Plan author must remove the verdict-only approval rule and consistently require a valid, current authenticated receipt; product authority has already settled this behavior."
+         }
+       ]
+     },
+@@ -130,7 +140,7 @@
+       "findings": [
+         {
+           "severity": "error",
+-          "message": "The decision that a reviewer verdict alone can display Approved before an authenticated receipt exists violates the accepted Product Plan and ticket. When a current reviewer returns approve but no authenticated approval receipt exists, this approach permits the CLI to falsely report Approved. It also contradicts the plan's own missing-receipt and authorization contracts. Implementation Planning must remove verdict-only approval and require a current authenticated receipt bound to both job identifier and plan digest. Include proof through the CLI/coordinator boundary that an approve verdict without that receipt cannot display Approved; the currently named positive-approval and stale-receipt checks do not establish this condition."
++          "message": "impl-plan.md permits displaying Approved from a reviewer verdict before an authenticated approval receipt exists. When a nonblocking review finishes without a valid receipt, this decision would falsely display Approved, violating accepted scenario 6, the Product Plan's approval contract, and the authenticated-receipt-only project principle. It also contradicts the plan's own Pending behavior for missing receipts. Implementation Planning must remove the verdict-only approval decision and consistently require a valid authenticated receipt bound to the current job and plan digest; otherwise display Pending with the actual receipt error and retry action. Product authority has already settled this behavior; no new scope decision is needed."
+         }
+       ]
+     },
+@@ -159,15 +169,11 @@
+       "findings": [
+         {
+           "severity": "error",
+-          "message": "Slice 1's fixture and completion signal cover only Pending and Approved. All named checks could pass while Rejected, verbatim blocking findings, repaired-plan retry, and stale-receipt rejection are broken. Expand cli-status-integration with concrete CLI/coordinator fixture actions and assertions for all four accepted scenarios, including receipts bound to a different job or different plan bytes. Begin production work with the highest-risk authority-binding RED and specify its observable failure."
++          "message": "Slice 1's fixture, first RED, and completion signal cover only Pending and Approved; its help-text completion signal likewise names only those states. Accepted scenarios 3–6 and obligations status-1, status-4, status-7, and status-9 require Rejected with actual findings, stale-approval rejection, and interrupted and receipt-missing retries. The named checks can pass while those behaviors are absent or incorrect. Expand the fixture with concrete setup, CLI actions, and assertions for all six scenarios, including actual errors, no invented findings, and unchanged-plan retries binding a new current job. Require all three states in help and in the completion criteria, and identify the highest-risk RED before production edits."
+         },
+         {
+           "severity": "error",
+-          "message": "Slice 1's instruction to 'implement the mapper and CLI wiring' leaves accepted decision-derived work without executable steps or completion signals. Explicitly map current-job/digest binding, authenticated-only approval, verbatim rejection findings, retry binding, concurrent completion ordering, crash-before-binding behavior, interrupted-review error display, and status-read failure handling to actions, prerequisites, and discriminating assertions. The generic source-of-truth decision status does not account for these accepted decisions."
+-        },
+-        {
+-          "severity": "error",
+-          "message": "Slice 1 declares completion when help names only two states, contradicting status-9 and the accepted three-state CLI contract. Its sole proof also specifies no assertions for help text or existing exit-code compatibility. Add the three-state documentation action and concrete help/exit-code checks so completion cannot be reported with Rejected undocumented or CLI compatibility broken."
++          "message": "Slice 1's instruction to 'implement the mapper and CLI wiring' and its single source-of-truth decision-status entry do not account for the accepted retry and current-job binding decisions. The Implementation Plan requires historical receipts and findings to remain nonauthoritative, concurrent retries to display only the currently bound job, and a crash before binding to leave the prior terminal state visible and retryable. No concrete task, fixture, or completion signal preserves these guarantees. Map every accepted decision to this slice with status unchanged and specify dependency-ordered actions and observable proof for these existing contracts; otherwise an implementation can pass the stated completion signal while displaying a superseded approval."
+         }
+       ]
+     },
+@@ -178,15 +184,15 @@
+       "findings": [
+         {
+           "severity": "error",
+-          "message": "Slice 1 and cli-status-integration specify only Pending and Approved assertions. A CLI that never displays Rejected, drops blocking findings, cannot retry, or accepts a stale receipt could pass every stated assertion. Add concrete fixture actions and expected CLI assertions for accepted scenarios 3 and 4, including verbatim findings and receipts bound to a different job or plan digest. Make all four scenarios part of the slice completion signal."
++          "message": "Slice 1 and cli-status-integration specify only Pending/Approved assertions, despite status-4 requiring all six accepted scenarios. A CLI that never displays Rejected, suppresses actual findings, accepts stale receipts, or cannot retry interrupted and receipt-missing reviews could pass every specified assertion. Expand the fixture steps to exercise the real CLI/coordinator boundary for all six scenarios, with explicit setup, actions, and expected assertions. Include unchanged-byte retries, actual errors, absence of invented rejection findings, and current-job/plan-digest binding. Begin production work with a named highest-risk RED and its concrete failure signal."
+         },
+         {
+           "severity": "error",
+-          "message": "Slice 1's generic instruction to implement the mapper and CLI wiring does not operationalize the accepted decisions for retry binding, concurrent retries finishing out of order, crashes before binding, interrupted reviews, or failed status reads. The sole decision-status entry covers only the coordinator/receipt source of truth. Explicitly account for each accepted decision as unchanged and map it to owned execution steps and discriminating proof, including fixture setup, actions, and observable results. Otherwise delivery can satisfy the stated completion signal while displaying an obsolete job's approval or mishandling the accepted failure states."
++          "message": "Slice 1's completion signal and documentation step require help text naming only Pending and Approved. This conflicts with the accepted three-state CLI contract and status-9. The slice could be declared complete with Rejected absent from both its completion criteria and help. Require all three states, actual rejection findings, and the accepted retry outcomes in the completion signal, and explicitly verify help text for all three states."
+         },
+         {
+           "severity": "error",
+-          "message": "Slice 1's completion signal requires help text naming only two states, whereas status-9 and the accepted CLI contract require all three. Require the documentation edit and its proof to cover Pending, Approved, and Rejected; the current completion signal permits shipping incomplete help while recording the documentation obligation complete."
++          "message": "The generic 'implement the mapper and CLI wiring' step and single source-of-truth decision-status statement do not account for every accepted decision or map applicable obligations to executable work. In particular, the plan supplies no concrete execution or proof for concurrent retry ordering, crash-before-binding behavior, unavailable status reads, or preserved CLI exit codes. Broken behavior in those cases would still satisfy the stated completion signal. Map each accepted decision and applicable checklist obligation to Slice 1, mark each decision unchanged, and specify the actions, inputs, prerequisites, assertions, and completion evidence needed to preserve those existing contracts."
+         }
+       ]
+     },
+@@ -197,23 +203,14 @@
+       "findings": [
+         {
+           "severity": "error",
+-          "message": "Slice 1 and cli-status-integration cover only Pending and Approved. A CLI that omits Rejected, hides blocking findings, or approves a repaired plan using a stale receipt could pass every specified assertion. Add concrete real CLI/coordinator fixtures and assertions for all four accepted scenarios, including verbatim findings, retry with changed plan bytes, and receipts bound to a different job or digest. Begin with the highest-risk named RED and its explicit failure signal."
+-        },
+-        {
+-          "severity": "error",
+-          "message": "Slice 1's executable sequence and completion signal omit accepted obligations despite listing them in the checklist. 'Implement the mapper and CLI wiring' supplies no concrete retry action or execution mechanics for concurrent retries, a crash before binding, interrupted reviews, status-read failures, or exit-code compatibility. Map these accepted requirements to explicit actions, inputs, prerequisites, fixtures, and observable results within the slice. Its completion signal and help-text verification must require all three statuses, rather than only Pending and Approved."
++          "message": "Slice 1's fixture and completion signal require only Pending and Approved, despite status-1, status-4, and status-9 requiring all six scenarios and help for three states. An implementation could omit Rejected, actual blocking findings, and both unchanged-byte failure retries while passing every specified assertion. Expand cli-status-integration with concrete CLI/coordinator fixtures and assertions for scenarios 3–6, including actual errors, absence of invented findings, and successful retry binding. Require all three states in the help-text completion signal."
+         },
+         {
+           "severity": "error",
+-          "message": "The sole decision-status entry preserves only the coordinator/receipt source of truth, and the generic obligation-owner statement does not account for the remaining accepted decisions. Explicitly retain and map job/digest binding, verbatim error findings, retry history, atomic current-job binding under concurrency and crashes, and interrupted-review behavior to Slice 1 and concrete completion evidence. The existing integration specification cannot substantiate all obligations assigned to it."
++          "message": "Slice 1's instruction to 'implement the mapper and CLI wiring' leaves accepted retry and current-review binding decisions without executable tasks or explicit decision accounting. The Implementation Plan requires job-and-digest binding, historical receipts remaining non-authoritative, concurrent retries displaying only the currently bound job, and a crash before binding preserving the prior retryable state. The generic source-of-truth decision status and slice ownership statement do not account for these obligations. Add ordered actions and observable completion assertions preserving those decisions, and begin production work with a named highest-risk RED that detects false approval from a stale job or receipt. The current two-status RED can pass while that trust-boundary failure remains."
+         }
+       ]
+     }
+   ],
+-  "rescored_from": {
+-    "results_digest": "ca4cabb73bfbbd00023b00bd5323dbd7713402c7b4e2f271f92d332a0daee1ce",
+-    "corpus_digest": "f76edddd71868835e161d06987bce170fb395a71849412dd96c2b6d18c698b24",
+-    "scored_at": "2026-10-21T04:50:07.805Z"
+-  },
+-  "results_digest": "11e1b6cc4ea666920b287c394a949500d3a3062c7155c821e18e62fe7b69eb66"
++  "results_digest": "f541e5ae9254a184f6b24df5b1c5d1093071e55508430bf516643ee2ce3fa8ee"
+ }
+diff --git a/packages/cli/tests/installed-planning-context-fixtures.ts b/packages/cli/tests/installed-planning-context-fixtures.ts
+index 5996d9016..ce9855511 100644
+--- a/packages/cli/tests/installed-planning-context-fixtures.ts
++++ b/packages/cli/tests/installed-planning-context-fixtures.ts
+@@ -65,7 +65,7 @@ process.stdin.on('end', () => {
+   writeFileSync(${JSON.stringify(capture)}, JSON.stringify(packet));
+   const complete = packet.context_files?.some(file => file.content.includes(${JSON.stringify(installedContextPrinciple)}));
+   console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id,
+-    reviewer_agent: 'claude', verdict: complete ? 'approve' : 'request_changes',
++    evidence_records: { schema_version: 1, records: [] }, reviewer_agent: 'claude', verdict: complete ? 'approve' : 'request_changes',
+     summary: complete ? 'The current principles reached review.' : 'Required principles were omitted.',
+     findings: complete ? [] : [{ severity: 'error', message: 'Required principles were omitted from the actual packet.' }] } }));
+ });
+diff --git a/packages/cli/tests/integration/child-product-planning-context.test.ts b/packages/cli/tests/integration/child-product-planning-context.test.ts
+index 5d73c167a..b843b783e 100644
+--- a/packages/cli/tests/integration/child-product-planning-context.test.ts
++++ b/packages/cli/tests/integration/child-product-planning-context.test.ts
+@@ -128,7 +128,7 @@ process.stdin.on('end', () => {
+   writeFileSync(${JSON.stringify(capture)}, input);
+   const packet = JSON.parse(input.trim().split('\n').pop());
+   console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id,
+-    reviewer_agent: 'claude', verdict: 'approve', summary: 'The supplied plan is otherwise reviewable.', findings: [] } }));
++    evidence_records: { schema_version: 1, records: [] }, reviewer_agent: 'claude', verdict: 'approve', summary: 'The supplied plan is otherwise reviewable.', findings: [] } }));
+ });
+ `,
+     { mode: 0o755 },
+diff --git a/packages/cli/tests/integration/delivery-checklist-cli.test.ts b/packages/cli/tests/integration/delivery-checklist-cli.test.ts
+index 206a30c1f..69f1dd3d7 100644
+--- a/packages/cli/tests/integration/delivery-checklist-cli.test.ts
++++ b/packages/cli/tests/integration/delivery-checklist-cli.test.ts
+@@ -178,6 +178,7 @@ function fixture(options: { plan?: string; designApprovalGate?: boolean } = {}):
+       reviewer_output: {
+         schema_version: 1,
+         dispatch_id: 'dispatch-1',
++        evidence_records: { schema_version: 1, records: [] },
+         reviewer_agent: 'claude',
+         verdict: 'approve',
+         summary: 'approved',
+@@ -266,6 +267,7 @@ function compatibilityReviewResult(input: {
+       reviewer_output: {
+         schema_version: 1,
+         dispatch_id: 'dispatch-compatibility-1',
++        evidence_records: { schema_version: 1, records: [] },
+         reviewer_agent: 'claude',
+         verdict: input.status === 'approved' ? 'approve' : 'request_changes',
+         summary: input.status,
+@@ -915,6 +917,7 @@ describe('Delivery Checklist CLI service', () => {
+         reviewer_output: {
+           schema_version: 1,
+           dispatch_id: 'dispatch-compatibility-1',
++          evidence_records: { schema_version: 1, records: [] },
+           reviewer_agent: 'claude',
+           verdict: 'approve',
+           summary: 'Documentation-only delta is compatible.',
+diff --git a/packages/cli/tests/integration/execution-upstream-planning-context.test.ts b/packages/cli/tests/integration/execution-upstream-planning-context.test.ts
+index 487301705..ef9455870 100644
+--- a/packages/cli/tests/integration/execution-upstream-planning-context.test.ts
++++ b/packages/cli/tests/integration/execution-upstream-planning-context.test.ts
+@@ -110,7 +110,7 @@ process.stdin.on('end', () => {
+   const packet = JSON.parse(input.trim().split('\n').pop());
+   writeFileSync(${JSON.stringify(capture)}, JSON.stringify(packet));
+   const output = { structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id,
+-    reviewer_agent: 'claude', verdict: 'approve', summary: 'Fixture approves the supplied packet.', findings: [], planning_destination: 'plan-execution',
++    evidence_records: { schema_version: 1, records: [] }, reviewer_agent: 'claude', verdict: 'approve', summary: 'Fixture approves the supplied packet.', findings: [], planning_destination: 'plan-execution',
+     execution_plan_record: { slicing_decision: 'one_pull_request', rationale: 'One coherent change.',
+       slices: [{ name: 'Complete delivery', purpose: 'Deliver the reviewed plan.', boundary: 'The accepted CLI boundary.', prerequisites: [], proof: 'The installed CLI review passes.', completion_signal: 'The review is approved.', relies_on_unmerged_successor: false }],
+       obligation_owners: [{ obligation: 'Accepted behavior', slices: ['Complete delivery'] }],
+diff --git a/packages/cli/tests/integration/implementation-ticket-context-currency.test.ts b/packages/cli/tests/integration/implementation-ticket-context-currency.test.ts
+index 43087b38e..7999e5351 100644
+--- a/packages/cli/tests/integration/implementation-ticket-context-currency.test.ts
++++ b/packages/cli/tests/integration/implementation-ticket-context-currency.test.ts
+@@ -92,7 +92,7 @@ process.stdin.on('end', () => {
+   const packet = JSON.parse(input.trim().split('\n').pop());
+   writeFileSync(${JSON.stringify(capture)}, JSON.stringify(packet));
+   console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id,
+-    reviewer_agent: 'claude', verdict: 'approve', summary: 'Fixture approves the supplied packet.', findings: [] } }));
++    evidence_records: { schema_version: 1, records: [] }, reviewer_agent: 'claude', verdict: 'approve', summary: 'Fixture approves the supplied packet.', findings: [] } }));
+ });
+ `,
+     { mode: 0o755 },
+diff --git a/packages/cli/tests/integration/installed-planning-copy-admission.test.ts b/packages/cli/tests/integration/installed-planning-copy-admission.test.ts
+index 28eb311c4..894cd1e09 100644
+--- a/packages/cli/tests/integration/installed-planning-copy-admission.test.ts
++++ b/packages/cli/tests/integration/installed-planning-copy-admission.test.ts
+@@ -63,8 +63,8 @@ process.stdin.on('data', chunk => { input += chunk; });
+ process.stdin.on('end', () => {
+   const packet = JSON.parse(input.slice(input.lastIndexOf('{"schema_version":1')));
+   console.log(JSON.stringify({ structured_output: {
+-    schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: 'claude',
+-    verdict: 'approve', summary: 'Fixture approval.', findings: []
++    schema_version: 1, dispatch_id: packet.dispatch_id, evidence_records: { schema_version: 1, records: [] }, reviewer_agent: 'claude',
++    verdict: 'approve', summary: 'Fixture approval.', findings: [], evidence_records: { schema_version: 1, records: [] }
+   }}));
+ });
+ `,
+@@ -401,3 +401,40 @@ console.log(JSON.stringify({ schema_version: 1, ok: true, state: 'healthy', data
+     },
+   );
+ });
++
++// Currency is separate from whole-copy integrity at dispatch/admission.
++it.each([
++  ['PLAN_IMPLEMENTATION.md', false, 'stale'],
++  ['PLAN_EXECUTION.md', false, 'approved'],
++  ['PLAN_IMPLEMENTATION.md', true, 'approved'],
++] as const)(
++  'reconstructs installed rule currency after %s (editorial: %s)',
++  { timeout: 90_000 },
++  (name, editorial, expected) => {
++    const installed = fixture();
++    const path = nodePath.join(installed.distribution, 'templates/skills/bdd', name);
++    const original = readFileSync(path, 'utf8');
++    const changed = editorial
++      ? `<!-- editorial outside bounded contract -->\n${original}`
++      : original.replace(
++          'Accepted scope and exclusions belong to the user.',
++          'Accepted scope and exclusions require a new user decision.',
++        );
++    expect(changed).not.toBe(original);
++    writeFileSync(path, changed);
++    const status = installed.run(['review', 'status', installed.reviewId]);
++    expect(JSON.parse(status.stdout).data.status, status.stdout + status.stderr).toBe(expected);
++    const repeated = installed.run([
++      'review',
++      'run',
++      'plan-implementation',
++      `.project/tickets/${folder}/impl-plan.md`,
++      '--context',
++      `.project/tickets/${folder}/spec.md`,
++    ]);
++    if (name === 'PLAN_IMPLEMENTATION.md') {
++      expect(repeated.status).not.toBe(0);
++      expect(repeated.stdout).toContain('canonical_contract_copy_mismatch');
++    }
++  },
++);
+diff --git a/packages/cli/tests/integration/native-planning-copy-dispatch.test.ts b/packages/cli/tests/integration/native-planning-copy-dispatch.test.ts
+index a4dd2f304..9021a112a 100644
+--- a/packages/cli/tests/integration/native-planning-copy-dispatch.test.ts
++++ b/packages/cli/tests/integration/native-planning-copy-dispatch.test.ts
+@@ -64,7 +64,7 @@ process.stdin.on('end', () => {
+   const packet = JSON.parse(input.slice(input.lastIndexOf('\n{"schema_version":1') + 1));
+   require('node:fs').appendFileSync(${JSON.stringify(calls)}, 'review' + String.fromCharCode(10));
+   const result = {
+-    schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: agent,
++    schema_version: 1, dispatch_id: packet.dispatch_id, evidence_records: { schema_version: 1, records: [] }, reviewer_agent: agent,
+     verdict: 'approve', summary: 'Native copy fixture approval.', findings: [],
+     ...(packet.kind === 'plan-execution' ? {
+       planning_destination: 'plan-execution',
+diff --git a/packages/cli/tests/integration/planning-review-disposition.test.ts b/packages/cli/tests/integration/planning-review-disposition.test.ts
+index 9ab6d92d1..f394523ad 100644
+--- a/packages/cli/tests/integration/planning-review-disposition.test.ts
++++ b/packages/cli/tests/integration/planning-review-disposition.test.ts
+@@ -159,7 +159,7 @@ process.stdin.on('data', chunk => { input += chunk; });
+ process.stdin.on('end', () => {
+   const packet = JSON.parse(input.trim().split('\n').pop());
+   console.log(JSON.stringify({ structured_output: {
+-    schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: 'claude',
++    schema_version: 1, dispatch_id: packet.dispatch_id, evidence_records: { schema_version: 1, records: [] }, reviewer_agent: 'claude',
+     verdict: ${JSON.stringify(severity === 'error' ? 'request_changes' : 'approve')},
+     summary: packet.review_disposition_context?.records[0]
+       ? 'The user decline for ' + packet.review_disposition_context.records[0].message + ' is ' + packet.review_disposition_context.records[0].boundary_status + ' in ticket context.'
+diff --git a/packages/cli/tests/integration/planning-review-fallback.test.ts b/packages/cli/tests/integration/planning-review-fallback.test.ts
+index f177dee89..a9f9611d8 100644
+--- a/packages/cli/tests/integration/planning-review-fallback.test.ts
++++ b/packages/cli/tests/integration/planning-review-fallback.test.ts
+@@ -116,7 +116,7 @@ describe('planning fallback after independent route exhaustion', () => {
+     );
+     writeFileSync(
+       nodePath.join(reviewer, 'claude'),
+-      `#!${process.execPath}\nif (process.argv.includes('--version')) { console.log('claude 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES.claude)}); process.exit(0); }\nif (${hostContinuation} || process.argv.includes('no-such-model')) process.exit(7);\nlet input = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { input += chunk; }); process.stdin.on('end', () => { const packet = JSON.parse(input.trim().split('\\n').pop()); console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: 'claude', verdict: 'approve', summary: 'Current plan approved.', findings: [] } })); });\n`,
++      `#!${process.execPath}\nif (process.argv.includes('--version')) { console.log('claude 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES.claude)}); process.exit(0); }\nif (${hostContinuation} || process.argv.includes('no-such-model')) process.exit(7);\nlet input = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { input += chunk; }); process.stdin.on('end', () => { const packet = JSON.parse(input.trim().split('\\n').pop()); console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id, evidence_records: { schema_version: 1, records: [] }, reviewer_agent: 'claude', verdict: 'approve', summary: 'Current plan approved.', findings: [] } })); });\n`,
+       { mode: 0o755 },
+     );
+     const target = `${ticket}/impl-plan.md`;
+@@ -225,6 +225,7 @@ describe('planning fallback after independent route exhaustion', () => {
+       const reviewOutput = {
+         schema_version: 1,
+         dispatch_id: output.data.continuation.packet.dispatch_id,
++        evidence_records: { schema_version: 1, records: [] },
+         reviewer_agent: author,
+         verdict: 'approve',
+         summary: 'Current plan approved in a fresh host context.',
+diff --git a/packages/cli/tests/integration/planning-review-host-gates.test.ts b/packages/cli/tests/integration/planning-review-host-gates.test.ts
+index 492ab9d53..8ebb8e277 100644
+--- a/packages/cli/tests/integration/planning-review-host-gates.test.ts
++++ b/packages/cli/tests/integration/planning-review-host-gates.test.ts
+@@ -39,7 +39,7 @@ const { writeFileSync } = require('node:fs');
+ if (process.argv.includes('--version')) { console.log('codex 1.0.0'); process.exit(0); }
+ if (process.argv.includes('--help')) { console.log(process.argv.includes('app-server') ? '--stdio --config' : ${JSON.stringify(REVIEWER_CAPABILITIES.codex)}); process.exit(0); }
+ writeFileSync(${JSON.stringify(invoked)}, 'yes');
+-let input = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { input += chunk; let end; while ((end = input.indexOf('\n')) !== -1) { const message = JSON.parse(input.slice(0, end)); input = input.slice(end + 1); if (message.id === 1) console.log(JSON.stringify({ id: 1, result: {} })); if (message.id === 2) console.log(JSON.stringify({ id: 2, result: { thread: { id: 'thread-1' }, model: message.params.model, modelProvider: 'openai' } })); if (message.id === 3) { const prompt = message.params.input[0].text; const packet = JSON.parse(prompt.slice(prompt.lastIndexOf('\n') + 1)); const output = { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: 'codex', verdict: 'approve', summary: 'Reviewer approval.', findings: [{ severity: 'warning', message: 'Check the migration note.' }] }; console.log(JSON.stringify({ id: 3, result: { turn: { id: 'turn-1' } } })); console.log(JSON.stringify({ method: 'turn/completed', params: { threadId: 'thread-1', turn: { id: 'turn-1', status: 'completed', items: [{ type: 'agentMessage', phase: 'final_answer', text: JSON.stringify(output) }] } } })); } } });
++let input = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { input += chunk; let end; while ((end = input.indexOf('\n')) !== -1) { const message = JSON.parse(input.slice(0, end)); input = input.slice(end + 1); if (message.id === 1) console.log(JSON.stringify({ id: 1, result: {} })); if (message.id === 2) console.log(JSON.stringify({ id: 2, result: { thread: { id: 'thread-1' }, model: message.params.model, modelProvider: 'openai' } })); if (message.id === 3) { const prompt = message.params.input[0].text; const packet = JSON.parse(prompt.slice(prompt.lastIndexOf('\n') + 1)); const output = { schema_version: 1, dispatch_id: packet.dispatch_id, evidence_records: { schema_version: 1, records: [] }, reviewer_agent: 'codex', verdict: 'approve', summary: 'Reviewer approval.', findings: [{ severity: 'warning', message: 'Check the migration note.' }] }; console.log(JSON.stringify({ id: 3, result: { turn: { id: 'turn-1' } } })); console.log(JSON.stringify({ method: 'turn/completed', params: { threadId: 'thread-1', turn: { id: 'turn-1', status: 'completed', items: [{ type: 'agentMessage', phase: 'final_answer', text: JSON.stringify(output) }] } } })); } } });
+ `;
+ }
+ 
+@@ -129,7 +129,7 @@ it.each([
+       nodePath.join(reviewer, reviewerAgent),
+       confirmedReviewer
+         ? confirmedCodexReviewer(invoked)
+-        : `#!${process.execPath}\nconst { writeFileSync } = require('node:fs');\nif (process.argv.includes('--version')) { console.log('${reviewerAgent} 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES[reviewerAgent])}); process.exit(0); }\nwriteFileSync(${JSON.stringify(invoked)}, 'yes');\nlet input = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { input += chunk; }); process.stdin.on('end', () => { const packet = JSON.parse(input.trim().split('\\n').pop()); const output = { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: '${reviewerAgent}', verdict: 'approve', summary: 'Reviewer approval.', findings: [{ severity: 'warning', message: 'Check the migration note.' }] }; if ('${reviewerAgent}' === 'claude') { console.log(JSON.stringify({ type: 'assistant', message: { model: 'claude-opus-5' } })); console.log(JSON.stringify({ type: 'result', subtype: 'success', structured_output: output, modelUsage: { 'claude-opus-5': { canonicalModel: 'claude-opus-5', provider: 'firstParty' } } })); } else console.log(JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: JSON.stringify(output) } })); });\n`,
++        : `#!${process.execPath}\nconst { writeFileSync } = require('node:fs');\nif (process.argv.includes('--version')) { console.log('${reviewerAgent} 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES[reviewerAgent])}); process.exit(0); }\nwriteFileSync(${JSON.stringify(invoked)}, 'yes');\nlet input = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { input += chunk; }); process.stdin.on('end', () => { const packet = JSON.parse(input.trim().split('\\n').pop()); const output = { schema_version: 1, dispatch_id: packet.dispatch_id, evidence_records: { schema_version: 1, records: [] }, reviewer_agent: '${reviewerAgent}', verdict: 'approve', summary: 'Reviewer approval.', findings: [{ severity: 'warning', message: 'Check the migration note.' }] }; if ('${reviewerAgent}' === 'claude') { console.log(JSON.stringify({ type: 'assistant', message: { model: 'claude-opus-5' } })); console.log(JSON.stringify({ type: 'result', subtype: 'success', structured_output: output, modelUsage: { 'claude-opus-5': { canonicalModel: 'claude-opus-5', provider: 'firstParty' } } })); } else console.log(JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: JSON.stringify(output) } })); });\n`,
+       { mode: 0o755 },
+     );
+     const reviewed = await runCli(
+diff --git a/packages/cli/tests/integration/planning-review-route-order.test.ts b/packages/cli/tests/integration/planning-review-route-order.test.ts
+index f4f75d23a..48e4bcf4e 100644
+--- a/packages/cli/tests/integration/planning-review-route-order.test.ts
++++ b/packages/cli/tests/integration/planning-review-route-order.test.ts
+@@ -72,7 +72,7 @@ writeFileSync(${JSON.stringify(marker)}, 'yes');
+ ${agent === 'codex' && codexFails ? 'process.exit(7);' : ''}
+ function reviewOutput(packet) {
+   writeFileSync(${JSON.stringify(packetPath)}, JSON.stringify(packet));
+-  return { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: '${agent}', verdict: 'approve', summary: 'Review approved.', findings: [] };
++  return { schema_version: 1, dispatch_id: packet.dispatch_id, evidence_records: { schema_version: 1, records: [] }, reviewer_agent: '${agent}', verdict: 'approve', summary: 'Review approved.', findings: [], evidence_records: { schema_version: 1, records: [] } };
+ }
+ ${review}
+ `;
+@@ -257,3 +257,95 @@ it.each([
+     }
+   },
+ );
++
++it.each(['unqualified-model', 'gpt-6-luna'])(
++  'refuses explicit %s before inference and records reduced fallback',
++  async model => {
++    const project = createTemporaryDirectory();
++    projects.push(project);
++    await createConfiguredProject(project);
++    writePlanningInventories(project);
++    const configPath = nodePath.join(project, '.safeword/config.json');
++    const config = JSON.parse(readFileSync(configPath, 'utf8'));
++    writeFileSync(
++      configPath,
++      JSON.stringify({
++        ...config,
++        crossAgentReviewRoutes: {
++          claude: [{ reviewer: 'codex', model }, { reviewer: 'claude' }],
++        },
++      }),
++    );
++    const ticket = '.project/tickets/PRQ123-qualification';
++    mkdirSync(nodePath.join(project, ticket), { recursive: true });
++    writeFileSync(
++      nodePath.join(project, ticket, 'ticket.md'),
++      '---\nid: PRQ123\ntype: feature\nphase: plan-implementation\nstatus: in_progress\nproduct_plan_contract: v1\nscope: accepted behavior\nout_of_scope: new behavior\ndone_when: qualified review\nphase_anchors:\n  - scenario-gate: features/qualification.feature\n---\n',
++    );
++    mkdirSync(nodePath.join(project, 'features'), { recursive: true });
++    writeFileSync(
++      nodePath.join(project, 'features/qualification.feature'),
++      '@independent-first.BU1.R1\nFeature: Qualification\n  Scenario: Refuse unqualified model\n    Given a configured reviewer\n    When review runs\n    Then the unqualified model is skipped\n',
++    );
++    writeFileSync(
++      nodePath.join(project, ticket, 'impl-plan.md'),
++      '# Implementation Plan\n\n**Status:** planned\n\n## Approach\nPreserve review.\n\n## Decisions\nUse accepted behavior.\n\n## Design alignment\nPreserve scope.\n\n## Architecture applicability\nskip: no architecture changes\n\n## Data applicability\nskip: no data changes\n\n## Known deviations\nskip: none\n\n## Doc impact\nskip: no docs\n\n## Assessment triggers\nRevisit if review changes.\n',
++    );
++    writeFileSync(nodePath.join(project, ticket, 'spec.md'), PLANNING_ROLE_PRODUCT);
++    const reviewer = createTrustedReviewerDirectory('safeword-prequalification-');
++    const marker = nodePath.join(reviewer, 'independent-launched');
++    const fallback = nodePath.join(reviewer, 'fallback-launched');
++    for (const agent of ['claude', 'codex'] as const)
++      writeFileSync(
++        nodePath.join(reviewer, agent),
++        reviewerScript(
++          agent,
++          agent === 'codex' ? marker : fallback,
++          nodePath.join(reviewer, `${agent}-packet`),
++          false,
++          false,
++        ),
++        { mode: 0o755 },
++      );
++    const result = await runCli(
++      [
++        'review',
++        'run',
++        'plan-implementation',
++        `${ticket}/impl-plan.md`,
++        '--context',
++        `${ticket}/spec.md`,
++        '--cwd',
++        project,
++        '--json',
++        '--no-input',
++      ],
++      {
++        cwd: project,
++        env: {
++          PATH: `${reviewer}:${process.env.PATH ?? ''}`,
++          SAFEWORD_AGENT_RUNTIME: 'claude',
++          SAFEWORD_AUTHOR_MODEL: 'claude-opus-5',
++        },
++      },
++    );
++    const output = JSON.parse(result.stdout);
++    expect(existsSync(marker), 'unqualified exact selector must never launch inference').toBe(
++      false,
++    );
++    expect(existsSync(fallback), result.stdout + result.stderr).toBe(true);
++    expect(output.data).toMatchObject({
++      status: 'approved',
++      actual_reviewer: 'claude',
++      independence: 'reduced',
++    });
++    expect(output.data.review_routes).toContainEqual(
++      expect.objectContaining({
++        reviewer: 'codex',
++        model,
++        status: 'skipped',
++        failure: expect.stringMatching(/^reviewer_capability_(unknown|weaker)$/u),
++      }),
++    );
++  },
++);
+diff --git a/packages/cli/tests/integration/planning-review-unavailable-independent.test.ts b/packages/cli/tests/integration/planning-review-unavailable-independent.test.ts
+index cd9885ebb..0a60d59fd 100644
+--- a/packages/cli/tests/integration/planning-review-unavailable-independent.test.ts
++++ b/packages/cli/tests/integration/planning-review-unavailable-independent.test.ts
+@@ -54,7 +54,7 @@ it('blocks planning fallback when the configured independent route is unavailabl
+   const invoked = nodePath.join(reviewer, 'invoked');
+   writeFileSync(
+     nodePath.join(reviewer, 'claude'),
+-    `#!${process.execPath}\nconst { writeFileSync } = require('node:fs');\nif (process.argv.includes('--version')) { console.log('claude 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES.claude)}); process.exit(0); }\nwriteFileSync(${JSON.stringify(invoked)}, 'yes');\nlet input = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { input += chunk; }); process.stdin.on('end', () => { const packet = JSON.parse(input.trim().split('\\n').pop()); console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: 'claude', verdict: 'approve', summary: 'Same-agent approval.', findings: [] } })); });\n`,
++    `#!${process.execPath}\nconst { writeFileSync } = require('node:fs');\nif (process.argv.includes('--version')) { console.log('claude 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES.claude)}); process.exit(0); }\nwriteFileSync(${JSON.stringify(invoked)}, 'yes');\nlet input = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { input += chunk; }); process.stdin.on('end', () => { const packet = JSON.parse(input.trim().split('\\n').pop()); console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id, evidence_records: { schema_version: 1, records: [] }, reviewer_agent: 'claude', verdict: 'approve', summary: 'Same-agent approval.', findings: [] } })); });\n`,
+     { mode: 0o755 },
+   );
+   const reviewed = await runCli(
+diff --git a/packages/cli/tests/integration/planning-review-weaker-route.test.ts b/packages/cli/tests/integration/planning-review-weaker-route.test.ts
+index 4661b3417..5476cd1f5 100644
+--- a/packages/cli/tests/integration/planning-review-weaker-route.test.ts
++++ b/packages/cli/tests/integration/planning-review-weaker-route.test.ts
+@@ -58,6 +58,7 @@ vi.mock('../../src/review/runtime.js', async importOriginal => {
+         output: {
+           schema_version: 1,
+           dispatch_id: packet.dispatch_id,
++          evidence_records: { schema_version: 1, records: [] },
+           reviewer_agent: reviewer,
+           verdict: fixtureRejects(reviewer, options.model) ? 'request_changes' : 'approve',
+           summary: fixtureSummary(options.model),
+diff --git a/packages/cli/tests/integration/planning-review-zero-independent.test.ts b/packages/cli/tests/integration/planning-review-zero-independent.test.ts
+index a50be699f..8bd8891a8 100644
+--- a/packages/cli/tests/integration/planning-review-zero-independent.test.ts
++++ b/packages/cli/tests/integration/planning-review-zero-independent.test.ts
+@@ -58,7 +58,7 @@ it.each(['claude', 'cursor'] as const)(
+     const invoked = nodePath.join(reviewer, 'invoked');
+     writeFileSync(
+       nodePath.join(reviewer, 'claude'),
+-      `#!${process.execPath}\nconst { writeFileSync } = require('node:fs');\nif (process.argv.includes('--version')) { console.log('claude 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES.claude)}); process.exit(0); }\nwriteFileSync(${JSON.stringify(invoked)}, 'yes');\nlet input = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { input += chunk; }); process.stdin.on('end', () => { const packet = JSON.parse(input.trim().split('\\n').pop()); console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: 'claude', verdict: 'approve', summary: 'Same-agent approval.', findings: [] } })); });\n`,
++      `#!${process.execPath}\nconst { writeFileSync } = require('node:fs');\nif (process.argv.includes('--version')) { console.log('claude 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES.claude)}); process.exit(0); }\nwriteFileSync(${JSON.stringify(invoked)}, 'yes');\nlet input = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { input += chunk; }); process.stdin.on('end', () => { const packet = JSON.parse(input.trim().split('\\n').pop()); console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id, evidence_records: { schema_version: 1, records: [] }, reviewer_agent: 'claude', verdict: 'approve', summary: 'Same-agent approval.', findings: [] } })); });\n`,
+       { mode: 0o755 },
+     );
+     const reviewed = await runCli(
+diff --git a/packages/cli/tests/integration/planning-role-review-identity.test.ts b/packages/cli/tests/integration/planning-role-review-identity.test.ts
+index 9f524cc6d..fdac10334 100644
+--- a/packages/cli/tests/integration/planning-role-review-identity.test.ts
++++ b/packages/cli/tests/integration/planning-role-review-identity.test.ts
+@@ -115,7 +115,7 @@ process.stdin.on('end', () => {
+   const packet = JSON.parse(input.trim().split('\n').pop());
+   writeFileSync(${JSON.stringify(capture)}, JSON.stringify(packet));
+   console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id,
+-    reviewer_agent: 'claude', verdict: 'approve', summary: 'Fixture approves the supplied packet.', findings: [] } }));
++    evidence_records: { schema_version: 1, records: [] }, reviewer_agent: 'claude', verdict: 'approve', summary: 'Fixture approves the supplied packet.', findings: [] } }));
+ });
+ `,
+     { mode: 0o755 },
+diff --git a/packages/cli/tests/integration/planning-scope-review.test.ts b/packages/cli/tests/integration/planning-scope-review.test.ts
+new file mode 100644
+index 000000000..ac2963a51
+--- /dev/null
++++ b/packages/cli/tests/integration/planning-scope-review.test.ts
+@@ -0,0 +1,42 @@
++import { describe, expect, it } from 'vitest';
++
++import { reviewerPromptInstructions } from '../../src/review/review-rubric.js';
++
++const prompts = [
++  reviewerPromptInstructions('quality-review', 'claude', 'product-plan'),
++  reviewerPromptInstructions('plan-implementation', 'claude', 'plan-implementation'),
++  reviewerPromptInstructions('plan-execution', 'claude', 'plan-execution'),
++];
++
++describe('planning scope review contract', () => {
++  it('asks every phase to check both omissions and overreach against accepted authority', () => {
++    for (const prompt of prompts) {
++      expect(prompt).toContain('ticket scope');
++      expect(prompt).toContain('project non-goals');
++      expect(prompt).toContain('milestone non-goals');
++      expect(prompt).toContain('inherited parent boundaries');
++      expect(prompt).toContain('in-scope omissions');
++      expect(prompt).toContain('out-of-scope additions');
++      expect(prompt).toContain('nonblocking suggestion');
++      expect(prompt).toContain('fresh review of the changed bytes');
++    }
++  });
++
++  it('makes persona outcomes and epistemic status Product approval questions', () => {
++    const product = prompts[0] ?? '';
++    for (const outcome of ['success', 'refusal', 'failure', 'approval', 'trust', 'recovery'])
++      expect(product).toContain(outcome);
++    expect(product).toContain('known facts');
++    expect(product).toContain('assumptions');
++    expect(product).toContain('unresolved product decisions');
++    expect(product).toMatch(/scenario\s+coverage\s+belongs\s+to\s+scenario\s+review/iu);
++  });
++
++  it('treats external guidance as candidate decisions within the accepted boundary', () => {
++    for (const prompt of prompts.slice(1)) {
++      expect(prompt).toContain('architecture, data, testing, domain, and research guidance');
++      expect(prompt).toContain('candidate decisions');
++      expect(prompt).toContain('user-owned scope choice');
++    }
++  });
++});
+diff --git a/packages/cli/tests/integration/scenario-planning-context.test.ts b/packages/cli/tests/integration/scenario-planning-context.test.ts
+index 18975114e..b869a1491 100644
+--- a/packages/cli/tests/integration/scenario-planning-context.test.ts
++++ b/packages/cli/tests/integration/scenario-planning-context.test.ts
+@@ -106,7 +106,7 @@ process.stdin.on('end', () => {
+   const packet = JSON.parse(input.trim().split('\n').pop());
+   writeFileSync(${JSON.stringify(capture)}, JSON.stringify(packet));
+   console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id,
+-    reviewer_agent: 'claude', verdict: 'approve', summary: 'Fixture approves the supplied packet.', findings: [] } }));
++    evidence_records: { schema_version: 1, records: [] }, reviewer_agent: 'claude', verdict: 'approve', summary: 'Fixture approves the supplied packet.', findings: [] } }));
+ });
+ `,
+     { mode: 0o755 },
+diff --git a/packages/cli/tests/integration/standalone-product-context-currency.test.ts b/packages/cli/tests/integration/standalone-product-context-currency.test.ts
+index 34556d9ea..6bdf405b9 100644
+--- a/packages/cli/tests/integration/standalone-product-context-currency.test.ts
++++ b/packages/cli/tests/integration/standalone-product-context-currency.test.ts
+@@ -86,7 +86,7 @@ process.stdin.on('end', () => {
+   const packet = JSON.parse(input.trim().split('\n').pop());
+   writeFileSync(${JSON.stringify(capture)}, JSON.stringify(packet));
+   console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id,
+-    reviewer_agent: 'claude', verdict: 'approve', summary: 'Fixture approves the supplied packet.', findings: [] } }));
++    evidence_records: { schema_version: 1, records: [] }, reviewer_agent: 'claude', verdict: 'approve', summary: 'Fixture approves the supplied packet.', findings: [] } }));
+ });
+ `,
+     { mode: 0o755 },
+diff --git a/packages/cli/tests/integration/standalone-product-planning-context.test.ts b/packages/cli/tests/integration/standalone-product-planning-context.test.ts
+index 21ea0d4c8..e26ec5ac9 100644
+--- a/packages/cli/tests/integration/standalone-product-planning-context.test.ts
++++ b/packages/cli/tests/integration/standalone-product-planning-context.test.ts
+@@ -86,7 +86,7 @@ process.stdin.on('end', () => {
+   const packet = JSON.parse(input.trim().split('\n').pop());
+   writeFileSync(${JSON.stringify(capture)}, JSON.stringify(packet));
+   console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id,
+-    reviewer_agent: 'claude', verdict: 'approve', summary: 'Fixture approves the supplied packet.', findings: [] } }));
++    evidence_records: { schema_version: 1, records: [] }, reviewer_agent: 'claude', verdict: 'approve', summary: 'Fixture approves the supplied packet.', findings: [] } }));
+ });
+ `,
+     { mode: 0o755 },
+diff --git a/packages/cli/tests/review/capability-corpus.test.ts b/packages/cli/tests/review/capability-corpus.test.ts
+index b720e130c..a2c810ca3 100644
+--- a/packages/cli/tests/review/capability-corpus.test.ts
++++ b/packages/cli/tests/review/capability-corpus.test.ts
+@@ -68,7 +68,7 @@ describe('pinned reviewer capability corpus', () => {
+     expect(plan).toContain('crash before retry binding');
+     expect(plan).toContain('interrupted review');
+     expect(plan).toContain('failed status read');
+-    expect(plan).toContain('actual error state');
++    expect(plan).toContain('the actual error');
+     expect(plan).toContain('receipt for another job');
+     expect(plan).toContain('different plan digest under the current job');
+     expect(plan).toContain('unauthenticated approval verdict');
+diff --git a/packages/cli/tests/review/capability-eval.test.ts b/packages/cli/tests/review/capability-eval.test.ts
+index 0c1db2230..0aa509419 100644
+--- a/packages/cli/tests/review/capability-eval.test.ts
++++ b/packages/cli/tests/review/capability-eval.test.ts
+@@ -236,6 +236,7 @@ describe('reviewer capability evaluation', () => {
+           output: {
+             schema_version: 1,
+             dispatch_id: packet.dispatch_id,
++            evidence_records: { schema_version: 1, records: [] },
+             reviewer_agent: 'claude',
+             verdict: 'approve',
+             summary: 'reviewed',
+@@ -278,6 +279,7 @@ describe('reviewer capability evaluation', () => {
+           output: {
+             schema_version: 1,
+             dispatch_id: attempt === 3 ? 'different-dispatch' : packet.dispatch_id,
++            evidence_records: { schema_version: 1, records: [] },
+             reviewer_agent: 'claude',
+             verdict: 'approve',
+             summary: 'reviewed',
+diff --git a/packages/cli/tests/review/execution-plan-contract-identity.test.ts b/packages/cli/tests/review/execution-plan-contract-identity.test.ts
+index 8a91be0a2..08c4155fb 100644
+--- a/packages/cli/tests/review/execution-plan-contract-identity.test.ts
++++ b/packages/cli/tests/review/execution-plan-contract-identity.test.ts
+@@ -42,6 +42,7 @@ const temporaryDirectories: string[] = [];
+ const approved: UnverifiedReviewerOutput = {
+   schema_version: 1,
+   dispatch_id: 'dispatch-1',
++  evidence_records: { schema_version: 1, records: [] },
+   reviewer_agent: 'claude',
+   verdict: 'approve',
+   planning_destination: 'plan-execution',
+@@ -170,7 +171,7 @@ process.stdin.on('end', () => {
+   const output = {
+     schema_version: 1,
+     dispatch_id: packet.dispatch_id,
+-    reviewer_agent: 'claude',
++    evidence_records: { schema_version: 1, records: [] }, reviewer_agent: 'claude',
+     verdict: 'approve',
+     planning_destination: 'plan-execution',
+     summary: 'approved',
+diff --git a/packages/cli/tests/review/execution-plan-output.test.ts b/packages/cli/tests/review/execution-plan-output.test.ts
+index 086b6e1c8..a4c5338c5 100644
+--- a/packages/cli/tests/review/execution-plan-output.test.ts
++++ b/packages/cli/tests/review/execution-plan-output.test.ts
+@@ -13,16 +13,12 @@ import {
+   reviewOutputSchema,
+ } from '../../src/review/runtime.js';
+ 
+-const legacyKinds = [
+-  'quality-review',
+-  'scenario-gate',
+-  'plan-implementation',
+-  'executable-red',
+-] as const;
++const legacyKinds = ['quality-review', 'executable-red'] as const;
+ 
+ const baseOutput = {
+   schema_version: 1,
+   dispatch_id: 'dispatch-1',
++  evidence_records: { schema_version: 1, records: [] },
+   reviewer_agent: 'claude',
+   verdict: 'approve',
+   summary: 'reviewed',
+@@ -152,7 +148,7 @@ describe('Execution Plan output schema', () => {
+     expect(validateExecutionPlanOutput(approval(updated))).toMatchObject({ kind: 'approved' });
+   });
+ 
+-  it('keeps every existing review-kind schema byte-for-byte unchanged', () => {
++  it('keeps ordinary non-planning review schemas unchanged', () => {
+     const baseline = reviewOutputSchema('quality-review');
+ 
+     for (const kind of legacyKinds) expect(reviewOutputSchema(kind)).toBe(baseline);
+@@ -171,6 +167,16 @@ describe('Execution Plan output schema', () => {
+     ]);
+   });
+ 
++  it.each(['scenario-gate', 'plan-implementation'] as const)(
++    'requires typed evidence for %s without adding Execution decisions',
++    kind => {
++      const shape = JSON.parse(reviewOutputSchema(kind));
++      expect(shape.required).toContain('evidence_records');
++      expect(shape.properties).not.toHaveProperty('execution_plan_record');
++      expect(shape.properties).not.toHaveProperty('planning_destination');
++    },
++  );
++
+   it('selects a strict required-but-nullable record only for plan-execution', () => {
+     const shape = JSON.parse(reviewOutputSchema('plan-execution')) as {
+       properties: Record<string, { anyOf?: unknown[] }>;
+diff --git a/packages/cli/tests/review/job.test.ts b/packages/cli/tests/review/job.test.ts
+index ab14a27d2..1facf1de0 100644
+--- a/packages/cli/tests/review/job.test.ts
++++ b/packages/cli/tests/review/job.test.ts
+@@ -65,7 +65,7 @@ record.result = {
+     command: 'review run', status: 'approved', author_agent: 'claude',
+     actual_reviewer: 'codex', independence: 'cross-agent',
+     reviewer_output: {
+-      schema_version: 1, dispatch_id: 'fixture-dispatch', reviewer_agent: 'codex',
++      schema_version: 1, dispatch_id: 'fixture-dispatch', evidence_records: { schema_version: 1, records: [] }, reviewer_agent: 'codex',
+       verdict: 'approve', summary: 'Independent review complete.', findings: []
+     }
+   }
+@@ -273,6 +273,7 @@ describe('durable review jobs', () => {
+     const output = {
+       schema_version: 1,
+       dispatch_id: 'fixture-dispatch',
++      evidence_records: { schema_version: 1, records: [] },
+       reviewer_agent: 'claude',
+       verdict: 'approve',
+       summary: 'Host review.',
+@@ -300,7 +301,7 @@ describe('durable review jobs', () => {
+     const script = `import { submitReviewContinuation } from ${JSON.stringify(source)};
+       process.on('message', () => {
+         const result = submitReviewContinuation(${JSON.stringify(cwd)}, ${JSON.stringify(id)}, 'fresh-context', {
+-          schema_version: 1, dispatch_id: 'fixture-dispatch', reviewer_agent: 'claude', verdict: 'approve', summary: 'Winner ' + process.pid, findings: []
++          schema_version: 1, dispatch_id: 'fixture-dispatch', evidence_records: { schema_version: 1, records: [] }, reviewer_agent: 'claude', verdict: 'approve', summary: 'Winner ' + process.pid, findings: []
+         }, {origin:'claude'});
+         process.send(result, () => process.exit(0));
+       });
+@@ -369,6 +370,7 @@ describe('durable review jobs', () => {
+     const output = {
+       schema_version: 1,
+       dispatch_id: firstId,
++      evidence_records: { schema_version: 1, records: [] },
+       reviewer_agent: 'claude',
+       verdict: 'approve',
+       summary: 'Only the first sealed packet was reviewed.',
+@@ -437,6 +439,7 @@ describe('durable review jobs', () => {
+         {
+           schema_version: 1,
+           dispatch_id: 'fixture-dispatch',
++          evidence_records: { schema_version: 1, records: [] },
+           reviewer_agent: 'claude',
+           verdict: 'approve',
+           summary: 'Stale approval',
+@@ -460,6 +463,7 @@ describe('durable review jobs', () => {
+     const baseOutput = {
+       schema_version: 1 as const,
+       dispatch_id: 'fixture-dispatch',
++      evidence_records: { schema_version: 1, records: [] },
+       reviewer_agent: 'claude' as const,
+       verdict: 'approve' as const,
+       summary: 'The saved product decision is coherent.',
+@@ -483,6 +487,7 @@ describe('durable review jobs', () => {
+         {
+           schema_version: 1,
+           dispatch_id: 'fixture-dispatch',
++          evidence_records: { schema_version: 1, records: [] },
+           reviewer_agent: 'claude',
+           verdict: 'approve',
+           summary: 'Replay',
+@@ -564,6 +569,25 @@ describe('durable review jobs', () => {
+       independence: 'reduced',
+     });
+ 
++    const missingEvidenceJob = await startReviewJob({
++      cwd,
++      kind: 'quality-review',
++      targets: [`${ticket}/spec.md`],
++    });
++    const missingEvidenceId = (missingEvidenceJob.data as { review_id: string }).review_id;
++    const { evidence_records: _omittedEvidence, ...withoutEvidence } = baseOutput;
++    const missingEvidence = submitReviewContinuation(
++      cwd,
++      missingEvidenceId,
++      'fresh-context',
++      withoutEvidence,
++      { origin: 'claude' },
++    );
++    expect(missingEvidence.data).toMatchObject({
++      status: 'continuation_required',
++      continuation: { tier: 'self-review' },
++    });
++
+     const unavailableJob = await startReviewJob({
+       cwd,
+       kind: 'quality-review',
+@@ -628,6 +652,7 @@ describe('durable review jobs', () => {
+       {
+         schema_version: 1,
+         dispatch_id: 'fixture-dispatch',
++        evidence_records: { schema_version: 1, records: [] },
+         reviewer_agent: 'claude',
+         verdict: 'approve',
+         summary: 'Looks complete.',
+diff --git a/packages/cli/tests/review/plan-architecture-applicability.test.ts b/packages/cli/tests/review/plan-architecture-applicability.test.ts
+index dc592aaeb..d2aa91483 100644
+--- a/packages/cli/tests/review/plan-architecture-applicability.test.ts
++++ b/packages/cli/tests/review/plan-architecture-applicability.test.ts
+@@ -90,6 +90,7 @@ function reviewArchitectureApplicability(contract: string, plan: string): Review
+   return {
+     schema_version: 1,
+     dispatch_id: createHash('sha256').update(contract).digest('hex'),
++    evidence_records: { schema_version: 1, records: [] },
+     reviewer_agent: 'claude',
+     verdict: findings.length === 0 ? 'approve' : 'request_changes',
+     summary:
+diff --git a/packages/cli/tests/review/plan-architecture-significance.test.ts b/packages/cli/tests/review/plan-architecture-significance.test.ts
+index d40fce75f..dc54ec531 100644
+--- a/packages/cli/tests/review/plan-architecture-significance.test.ts
++++ b/packages/cli/tests/review/plan-architecture-significance.test.ts
+@@ -101,6 +101,7 @@ function reviewArchitectureSignificance(
+   return {
+     schema_version: 1,
+     dispatch_id: createHash('sha256').update(contract).digest('hex'),
++    evidence_records: { schema_version: 1, records: [] },
+     reviewer_agent: 'claude',
+     verdict: findings.length === 0 ? 'approve' : 'request_changes',
+     summary:
+diff --git a/packages/cli/tests/review/plan-decision-resolution.test.ts b/packages/cli/tests/review/plan-decision-resolution.test.ts
+index 09bfc8ff5..2b6f0f4ed 100644
+--- a/packages/cli/tests/review/plan-decision-resolution.test.ts
++++ b/packages/cli/tests/review/plan-decision-resolution.test.ts
+@@ -77,6 +77,7 @@ function reviewDecisionResolution(contract: string, plan: string): ReviewerOutpu
+   return {
+     schema_version: 1,
+     dispatch_id: createHash('sha256').update(contract).digest('hex'),
++    evidence_records: { schema_version: 1, records: [] },
+     reviewer_agent: 'claude',
+     verdict: findings.length === 0 ? 'approve' : 'request_changes',
+     summary:
+diff --git a/packages/cli/tests/review/plan-durable-architecture.test.ts b/packages/cli/tests/review/plan-durable-architecture.test.ts
+index a90cfcb97..7c95fb3ad 100644
+--- a/packages/cli/tests/review/plan-durable-architecture.test.ts
++++ b/packages/cli/tests/review/plan-durable-architecture.test.ts
+@@ -77,6 +77,7 @@ function reviewRecordingDestinations(
+   return {
+     schema_version: 1,
+     dispatch_id: createHash('sha256').update(contract).digest('hex'),
++    evidence_records: { schema_version: 1, records: [] },
+     reviewer_agent: 'claude',
+     verdict: findings.length === 0 ? 'approve' : 'request_changes',
+     summary:
+@@ -96,6 +97,7 @@ function reviewUnrecordedSignificantDecision(
+     return {
+       schema_version: 1,
+       dispatch_id: createHash('sha256').update(contract).digest('hex'),
++      evidence_records: { schema_version: 1, records: [] },
+       reviewer_agent: 'claude',
+       verdict: 'request_changes',
+       summary: 'The durable-link approval gate is missing.',
+diff --git a/packages/cli/tests/review/plan-proof-scope.test.ts b/packages/cli/tests/review/plan-proof-scope.test.ts
+index 33428279a..e7331e048 100644
+--- a/packages/cli/tests/review/plan-proof-scope.test.ts
++++ b/packages/cli/tests/review/plan-proof-scope.test.ts
+@@ -77,6 +77,7 @@ function reviewProofScope(contract: string, plan: string): ReviewerOutput {
+   return {
+     schema_version: 1,
+     dispatch_id: createHash('sha256').update(contract).digest('hex'),
++    evidence_records: { schema_version: 1, records: [] },
+     reviewer_agent: 'claude',
+     verdict: findings.length === 0 ? 'approve' : 'request_changes',
+     summary:
+diff --git a/packages/cli/tests/review/planning-contract-reconciliation.test.ts b/packages/cli/tests/review/planning-contract-reconciliation.test.ts
+index 44cbebe13..2a2eb3c7f 100644
+--- a/packages/cli/tests/review/planning-contract-reconciliation.test.ts
++++ b/packages/cli/tests/review/planning-contract-reconciliation.test.ts
+@@ -9,6 +9,7 @@ import { reconcilePlanContract } from '../../src/review/runtime.js';
+ const approved: UnverifiedReviewerOutput = {
+   schema_version: 1,
+   dispatch_id: 'dispatch-1',
++  evidence_records: { schema_version: 1, records: [] },
+   reviewer_agent: 'claude',
+   verdict: 'approve',
+   summary: 'Approved.',
+diff --git a/packages/cli/tests/review/runtime.test.ts b/packages/cli/tests/review/runtime.test.ts
+index b33c15a3b..44cab8513 100644
+--- a/packages/cli/tests/review/runtime.test.ts
++++ b/packages/cli/tests/review/runtime.test.ts
+@@ -64,6 +64,7 @@ function trustedTemporaryDirectory(): string {
+ const output: ReviewerOutput = {
+   schema_version: 1,
+   dispatch_id: 'dispatch-1',
++  evidence_records: { schema_version: 1, records: [] },
+   reviewer_agent: 'claude',
+   verdict: 'approve',
+   summary: 'reviewed',
+
+New file packages/cli/tests/integration/planning-evidence-boundary.test.ts
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import nodePath from 'node:path';
+import { prepareReviewPacket } from '../../src/review/packet.js';
+import { describe, expect, it } from 'vitest';
+
+import { parseReviewerOutput, reviewOutputSchema } from '../../src/review/runtime.js';
+
+const evidence = {
+  source_identity: 'https://example.org/guide',
+  checked_version: '1.2.3',
+  source_version: '1.2.3',
+  target_version: '1.2.3',
+  supported_claim: 'The documented API supports this operation.',
+  license_identifier: 'Apache-2.0',
+  attribution_notice: 'Credit Example',
+  redistribution_limit: 'retain NOTICE',
+  security_limit: 'do not execute retrieved code',
+  privacy_limit: 'none_declared',
+  reuse_limit: 'none_declared',
+};
+
+function reviewerOutput(record: Record<string, unknown>) {
+  return {
+    schema_version: 1,
+    dispatch_id: 'evidence-dispatch',
+    reviewer_agent: 'claude',
+    verdict: 'approve',
+    summary: 'The accepted plan is supported by public evidence.',
+    findings: [],
+    evidence_records: { schema_version: 1, records: [record] },
+  };
+}
+
+describe('planning review evidence boundary', () => {
+  it('retains declared source and reuse limits in a versioned reviewer result', () => {
+    const output = reviewerOutput(evidence);
+    expect(parseReviewerOutput('claude', JSON.stringify(output), 'plan-implementation')).toEqual(
+      output,
+    );
+    const schema = JSON.parse(reviewOutputSchema('plan-implementation'));
+    expect(schema.properties.evidence_records).toBeDefined();
+    expect(schema.required).toContain('evidence_records');
+  });
+
+  it('rejects a malformed evidence record instead of silently dropping its limits', () => {
+    const incomplete = { ...evidence };
+    delete (incomplete as Partial<typeof evidence>).redistribution_limit;
+    expect(() =>
+      parseReviewerOutput(
+        'claude',
+        JSON.stringify(reviewerOutput(incomplete)),
+        'plan-implementation',
+      ),
+    ).toThrow('invalid reviewer output');
+    expect(() =>
+      parseReviewerOutput(
+        'claude',
+        JSON.stringify(reviewerOutput({ ...evidence, license_identifier: '' })),
+        'plan-implementation',
+      ),
+    ).toThrow('invalid reviewer output');
+  });
+
+  it('requires evidence records for Product review output without changing ordinary quality review', () => {
+    const productSchema = JSON.parse(reviewOutputSchema('quality-review', 'product-plan'));
+    const qualitySchema = JSON.parse(reviewOutputSchema('quality-review'));
+    expect(productSchema.required).toContain('evidence_records');
+    expect(qualitySchema.properties.evidence_records).toBeUndefined();
+  });
+
+  it('refuses a new planning verdict that omits evidence records', () => {
+    const { evidence_records: _ignored, ...missing } = reviewerOutput(evidence);
+    expect(() =>
+      parseReviewerOutput(
+        'claude',
+        JSON.stringify(missing),
+        'plan-implementation',
+        'plan-implementation',
+      ),
+    ).toThrow('invalid reviewer output');
+    expect(() =>
+      parseReviewerOutput('claude', JSON.stringify(missing), 'quality-review', 'product-plan'),
+    ).toThrow('invalid reviewer output');
+    expect(parseReviewerOutput('claude', JSON.stringify(missing), 'quality-review')).toEqual(
+      missing,
+    );
+  });
+});
+
+it('refuses incomplete source limits before dispatch without executing retrieved code', () => {
+  const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-evidence-admission-'));
+  try {
+    mkdirSync(nodePath.join(root, '.project'));
+    for (const name of ['principles', 'personas', 'surfaces'])
+      writeFileSync(nodePath.join(root, '.project', `${name}.md`), `# ${name}\n`);
+    writeFileSync(nodePath.join(root, 'spec.md'), '# Accepted scope\n');
+    const { security_limit: _omitted, ...incomplete } = evidence;
+    writeFileSync(
+      nodePath.join(root, 'impl-plan.md'),
+      [
+        '# Implementation Plan',
+        '## Decisions',
+        '### Recorded Decisions',
+        '#### PlanEvidenceRecordV1',
+        '```json',
+        JSON.stringify({ schema_version: 1, ...incomplete }),
+        '```',
+      ].join('\n'),
+    );
+    expect(() =>
+      prepareReviewPacket(root, 'plan-implementation', ['impl-plan.md'], ['spec.md']),
+    ).toThrow('Review packet could not be prepared');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+New file packages/cli/tests/review/execution-review-defaults.test.ts
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import nodePath from 'node:path';
+
+import { afterEach, expect, it, vi } from 'vitest';
+
+import { builtInReviewRoutes } from '../../src/review/policy.js';
+
+const projects: string[] = [];
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  for (const directory of projects) rmSync(directory, { recursive: true, force: true });
+  projects.length = 0;
+});
+
+function project(config: unknown = {}): string {
+  const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-execution-defaults-'));
+  projects.push(directory);
+  mkdirSync(nodePath.join(directory, '.safeword'));
+  writeFileSync(nodePath.join(directory, '.safeword/config.json'), JSON.stringify(config));
+  return directory;
+}
+
+it('selects exact Execution reviewer defaults in the existing route order', () => {
+  expect(builtInReviewRoutes(project(), 'codex', 'plan-execution')).toEqual([
+    { reviewer: 'claude', model: 'claude-opus-5', independence: 'cross-agent' },
+    { reviewer: 'opencode', independence: 'cross-agent' },
+    { reviewer: 'codex', model: 'gpt-6-astra', independence: 'degraded' },
+  ]);
+});
+
+it('pins the independent Codex fallback for Cursor Execution reviews', () => {
+  expect(builtInReviewRoutes(project(), 'cursor', 'plan-execution')).toEqual([
+    { reviewer: 'claude', model: 'claude-opus-5', independence: 'cross-agent' },
+    { reviewer: 'codex', model: 'gpt-6-astra', independence: 'cross-agent' },
+  ]);
+});
+
+it('preserves configured primary and alternate models for Execution reviews', () => {
+  const directory = project({
+    crossAgentReviewPrimaryModel: { claude: 'custom-primary', codex: 'custom-fallback' },
+    crossAgentReviewAlternateModel: { claude: 'custom-alternate' },
+  });
+  expect(builtInReviewRoutes(directory, 'codex', 'plan-execution')).toEqual([
+    { reviewer: 'claude', model: 'custom-primary', independence: 'cross-agent' },
+    { reviewer: 'claude', model: 'custom-alternate', independence: 'cross-agent' },
+    { reviewer: 'opencode', independence: 'cross-agent' },
+    { reviewer: 'codex', model: 'custom-fallback', independence: 'degraded' },
+  ]);
+});
+
+it('keeps environment model overrides ahead of project settings', () => {
+  vi.stubEnv('SAFEWORD_REVIEW_PRIMARY_MODEL_CLAUDE', 'environment-primary');
+  const directory = project({ crossAgentReviewPrimaryModel: { claude: 'project-primary' } });
+  expect(builtInReviewRoutes(directory, 'codex', 'plan-execution')[0]?.model).toBe(
+    'environment-primary',
+  );
+});
+
+it.each(['quality-review', 'plan-implementation'] as const)(
+  'preserves existing model defaults for %s',
+  kind => {
+    expect(builtInReviewRoutes(project(), 'codex', kind)).toEqual([
+      { reviewer: 'claude', model: 'opus', independence: 'cross-agent' },
+      { reviewer: 'claude', model: 'sonnet', independence: 'cross-agent' },
+      { reviewer: 'opencode', independence: 'cross-agent' },
+      { reviewer: 'codex', independence: 'degraded' },
+    ]);
+  },
+);
+
+New file packages/cli/tests/integration/planning-scope-review.test.ts
+import { describe, expect, it } from 'vitest';
+
+import { reviewerPromptInstructions } from '../../src/review/review-rubric.js';
+
+const prompts = [
+  reviewerPromptInstructions('quality-review', 'claude', 'product-plan'),
+  reviewerPromptInstructions('plan-implementation', 'claude', 'plan-implementation'),
+  reviewerPromptInstructions('plan-execution', 'claude', 'plan-execution'),
+];
+
+describe('planning scope review contract', () => {
+  it('asks every phase to check both omissions and overreach against accepted authority', () => {
+    for (const prompt of prompts) {
+      expect(prompt).toContain('ticket scope');
+      expect(prompt).toContain('project non-goals');
+      expect(prompt).toContain('milestone non-goals');
+      expect(prompt).toContain('inherited parent boundaries');
+      expect(prompt).toContain('in-scope omissions');
+      expect(prompt).toContain('out-of-scope additions');
+      expect(prompt).toContain('nonblocking suggestion');
+      expect(prompt).toContain('fresh review of the changed bytes');
+    }
+  });
+
+  it('makes persona outcomes and epistemic status Product approval questions', () => {
+    const product = prompts[0] ?? '';
+    for (const outcome of ['success', 'refusal', 'failure', 'approval', 'trust', 'recovery'])
+      expect(product).toContain(outcome);
+    expect(product).toContain('known facts');
+    expect(product).toContain('assumptions');
+    expect(product).toContain('unresolved product decisions');
+    expect(product).toMatch(/scenario\s+coverage\s+belongs\s+to\s+scenario\s+review/iu);
+  });
+
+  it('treats external guidance as candidate decisions within the accepted boundary', () => {
+    for (const prompt of prompts.slice(1)) {
+      expect(prompt).toContain('architecture, data, testing, domain, and research guidance');
+      expect(prompt).toContain('candidate decisions');
+      expect(prompt).toContain('user-owned scope choice');
+    }
+  });
+});

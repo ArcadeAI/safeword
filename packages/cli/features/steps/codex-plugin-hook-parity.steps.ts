@@ -30,15 +30,14 @@ const TEST_DEFINITIONS_PATCH = `*** Begin Patch
 +# Test Definitions
 *** End Patch
 `;
-const PACKAGE_OWNED_BOOTSTRAP = [
+const PACKAGE_OWNED_AUTHORITY = `${[
   'Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and the applicable Safeword guides provide the current workflows.',
   'These current paths supersede retired Safeword instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.',
-  '',
-  'Safeword session bootstrap:',
-  'Before non-trivial work, read the packaged Safeword handbook and the applicable guide in the packaged Safeword guides.',
-  'Current tickets, learnings, and project context are under `.project/` (or the configured namespace root).',
-  'Follow the active Safeword workflow and its gates.',
-].join('\n');
+].join('\n')}\n\n`;
+// The read instruction names the packaged handbook by absolute path, which varies by install.
+// It must be the package-owned copy (templates/ or resources/), never the project's .safeword/ copy.
+const PACKAGE_OWNED_READ_LINE =
+  /^First, Read `\/[^`]*\/(?:templates|resources)\/SAFEWORD\.md` in full, even for trivial requests or right after compaction; a summary or earlier read does not count\.$/u;
 
 interface CodexPluginHookParityWorld extends SafewordWorld {
   codexHookInput?: object;
@@ -184,6 +183,11 @@ function createRetroExtractionProject(projectRoot: string): { input: object; rec
 
   const localCliPath = nodePath.join(projectRoot, 'packages', 'cli', 'src', 'cli.ts');
   mkdirSync(nodePath.dirname(localCliPath), { recursive: true });
+  // A real source checkout: the shared CLI lookup trusts only the safeword package.
+  writeFileSync(
+    nodePath.join(projectRoot, 'packages', 'cli', 'package.json'),
+    JSON.stringify({ name: 'safeword' }),
+  );
   writeFileSync(
     localCliPath,
     `import { writeFileSync } from 'node:fs';
@@ -703,8 +707,10 @@ Then(
     };
     assert.equal(parsed.hookSpecificOutput?.hookEventName, 'SessionStart');
     const context = parsed.hookSpecificOutput?.additionalContext ?? '';
-    assert.equal(context, PACKAGE_OWNED_BOOTSTRAP);
-    assert.equal(context.split('Safeword session bootstrap:').length, 2);
+    assert.ok(context.startsWith(PACKAGE_OWNED_AUTHORITY), context);
+    assert.match(context.slice(PACKAGE_OWNED_AUTHORITY.length), PACKAGE_OWNED_READ_LINE);
+    assert.doesNotMatch(context, /\.safeword\/SAFEWORD\.md/u);
+    assert.equal(context.split('First, Read `').length, 2);
   },
 );
 
@@ -718,7 +724,7 @@ Then(
     };
     assert.doesNotMatch(parsed.systemMessage ?? '', /v2\.0\.0 available \(major\)/u);
     assert.equal(parsed.hookSpecificOutput?.hookEventName, 'SessionStart');
-    assert.match(parsed.hookSpecificOutput?.additionalContext ?? '', /Safeword session bootstrap/u);
+    assert.match(parsed.hookSpecificOutput?.additionalContext ?? '', /First, Read `/u);
   },
 );
 

@@ -124,7 +124,7 @@ export function findFeatureLineageIssues(featureContent: string): string[] {
   });
 }
 
-function parseFeature(featureContent: string) {
+export function parseFeature(featureContent: string) {
   const parser = new Parser(new AstBuilder(IdGenerator.uuid()), new GherkinClassicTokenMatcher());
   try {
     return parser.parse(featureContent);

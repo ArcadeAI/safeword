@@ -34,6 +34,7 @@ canonical commands below.
 | `project test-execution remote setup`   | mutate      | Install the managed remote-test workflow                                                                                                         |
 | `project test-execution remote disable` | mutate      | Remove the managed remote-test workflow                                                                                                          |
 | `project lint-gherkin`                  | observe     | Validate executable feature files                                                                                                                |
+| `project pr-ready`                      | mutate      | Promote the PR verified in the selected worktree                                                                                                 |
 | `project audit-scope`                   | observe     | Print the packaged audit scope shell contract                                                                                                    |
 | `project record-skill-invocation`       | mutate      | Record current-run workflow proof                                                                                                                |
 | `project runtime`                       | destructive | Run an allowlisted packaged helper with the helper arguments after --                                                                            |
@@ -54,8 +55,16 @@ canonical commands below.
 | `ticket list`                           | observe     | List project tickets                                                                                                                             |
 | `ticket new`                            | mutate      | Create a project ticket                                                                                                                          |
 | `ticket reconcile-parent`               | mutate      | Record the current parent Product Plan contract                                                                                                  |
+| `ticket approve-plan`                   | mutate      | Record human authority for the current reviewed Implementation Plan                                                                              |
+| `ticket record-review-disposition`      | mutate      | Decline one optional reviewed suggestion                                                                                                         |
+| `ticket planning-contract-check`        | observe     | Check active planning author-copy integrity                                                                                                      |
+| `ticket delivery-checklist`             | observe     | Report feature delivery readiness                                                                                                                |
+| `ticket execution-prerequisite`         | observe     | Check whether feature execution planning is admitted                                                                                             |
+| `ticket coding-authorization`           | observe     | Check whether current reviewed plans authorize coding                                                                                            |
+| `ticket record-delivery-proof`          | mutate      | Run and retain one reviewed delivery proof                                                                                                       |
 | `review run`                            | mutate      | Run an independent adversarial review; report data.excluded_targets and REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE or REVIEW_NO_ELIGIBLE_TARGETS errors |
 | `review status`                         | mutate      | Collect a durable independent review                                                                                                             |
+| `review continue`                       | mutate      | Complete a sealed planning review continuation                                                                                                   |
 | `review gate executable-red`            | observe     | Check whether a scenario may claim GREEN                                                                                                         |
 | `review gate retrospective`             | observe     | Check CKWE2D retrospective receipts                                                                                                              |
 | `review attest retrospective`           | mutate      | Replay one CKWE2D proof before checking its row                                                                                                  |
@@ -94,6 +103,23 @@ Use `safeword capabilities --json --no-input` to discover command effects,
 prompt and network policy, aliases, schema versions, and executable fixtures.
 The published result contract is available as
 `safeword/schemas/cli-result-v1.json`.
+
+## Feature execution prerequisite
+
+Run `safeword ticket execution-prerequisite <ticketId>` before starting a
+planned feature. It checks, in order, for accepted scenarios, an accepted
+Implementation Plan (plus human design approval when configured), and an
+admitted Execution Plan Delivery Checklist.
+
+A ready feature returns `healthy` with
+`data.prerequisite_status: "satisfied"`. Tasks, patches, and legacy features
+already underway without the new planning artifacts return `"not_applicable"`.
+Missing prerequisites return `action_required`, list every gap in planning
+order, and give one concrete repair command per gap.
+
+This command is deny-only: success allows the caller to consider the planning
+prerequisite satisfied, but `data.grants_authority` is always `false`. It never
+authorizes coding, human approval, merging, or rollout.
 
 When a tracker is connected, `ticket new` creates or adopts the tracker issue
 before writing its local project record. `--offline` refuses that declared
@@ -215,6 +241,12 @@ safeword claude recover # only when status reports recovery-required
 
 The deprecated `claude install` route selects and verifies only the official stable plugin at project scope by default; it does not reconcile project configuration. Use `safeword install --agents=claude` for the canonical project-plus-Claude flow. Pass `--scope user` to the legacy route for profile-wide activation without project-file changes. After install or update, `/reload-plugins` activates it in the current task; the next successful prompt records proof bound to the installed version and bundled hook manifest, then automatically retires exact catalogued legacy Safeword files and settings entries. Modified, malformed, unknown, and third-party content is preserved with a non-blocking advisory. `claude status` is read-only; `claude cleanup` remains an explicit diagnostic/repair path. Neither path installs, updates, enables, reloads, or trusts a plugin.
 
+Claude plugin cache verification accepts formatting changes to exposed
+`skills/*/SKILL.md` headers only when their parsed YAML metadata and exact body
+bytes match the generated skill. Changed metadata, permissions, or instructions
+still fail verification. Runtime files, templates, and older inventories without
+semantic skill digests retain byte-exact verification.
+
 The **BDD acceptance lane is universal**: every project gets cucumber-js wired (`test:bdd` script, `features/` + `steps/` starters, `@cucumber/cucumber` + `tsx` + `@types/node` as devDependencies). Step definitions are always TypeScript — they test your app from the outside (shell out to `go test`, `cargo test`, or hit it over HTTP), so a pure Go/Python/Rust repo gets a minimal private `package.json` created to host the lane.
 
 **Unless you already have cucumber**: when install detects an existing cucumber harness — any `cucumber.{json,yaml,yml,js,cjs,mjs}` it didn't scaffold, or a `@cucumber/cucumber` dependency it didn't add — it skips the starter lane entirely (no files, no deps, no `test:bdd`) and prints the `paths.features` / `paths.steps` config lines that point safeword's BDD tooling at your suite instead. `safeword doctor` keeps warning until those paths are set, and warns about duplicate lanes left by older safeword versions (it never deletes anything itself). Uninstallation likewise leaves your cucumber config untouched; when safeword's own scaffolded lane is present, `uninstall` treats the cucumber devDependencies as Safeword-owned effects in its exact plan.
@@ -232,6 +264,7 @@ safeword project test [--lane done|full] [--execution local|remote-preferred]
 safeword project test-execution status
 safeword project public-retros off|on
 safeword project lint-gherkin [files...]
+safeword project pr-ready [pull] --cwd <delivery-worktree>
 
 safeword tracker connect <provider>
 safeword tracker sync [--plan | --apply-results <file>] [--reset-tracker-map]
@@ -250,8 +283,20 @@ safeword retro-relay-retry [request-id]
 safeword retro-relay-discard <request-id> [--confirm]
 ```
 
-`review run` selects the review rubric by kind, including `retrospective-eligibility`
-and `retrospective-proof` for the CKWE2D migration. It keeps Claude-authored work on Codex
+`project pr-ready` checks the selected worktree's completed ticket and exact-HEAD
+readiness receipt, confirms that the open PR has that head, and promotes the
+inspected PR from the same checkout. Omit the positive PR number to select the
+current branch. Use it only with explicit authorization to make the PR Ready.
+This supports Codex chats rooted in a different checkout; raw Codex hooks can
+omit the shell tool's working directory. Missing or stale evidence requires
+normal verification and ticket closure in the delivery worktree. Repository
+overrides such as `GH_REPO` or `GIT_DIR` must be unset; use `--cwd` to select the
+worktree. The command rechecks local evidence before promotion, but GitHub's
+Ready API has no atomic expected-head precondition.
+
+`review run` kinds are `quality-review`, `scenario-gate`, `plan-implementation`,
+`plan-execution`, `delivery-compatibility`, `retrospective-eligibility`,
+`retrospective-proof`, and `executable-red`. It keeps Claude-authored work on Codex
 first and Codex-authored work on Claude first. If that preferred independent
 route is exhausted, a compatible OpenCode 1.x CLI is tried before same-author
 degraded review. OpenCode-authored work is sent to Claude and then Codex;
@@ -552,7 +597,7 @@ packages at runtime or bypass Codex hook trust.
 
 Installing the plugin does not enroll repositories. Project-scoped Codex gates
 and state activate only after `safeword install` creates
-`.safeword/SAFEWORD.md`; before then they fail open without creating
+`.safeword/enrolled` (older installs: `.safeword/SAFEWORD.md`); before then they fail open without creating
 `.project/`. After enrollment, a workflow creates missing framework-owned
 transient state and its precise ignore rule on demand without rerunning install;
 it never creates missing authored principles, tickets, or configuration.

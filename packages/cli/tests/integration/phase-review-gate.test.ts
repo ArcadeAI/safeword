@@ -7,14 +7,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import {
-  appendFileSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -56,17 +49,12 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
     newPhase: string,
     extraEnvironment: Record<string, string> = {},
   ): HookResult {
-    // Control the ambient author model: tests that exercise cross-model pass it
-    // explicitly; everything else runs with it unset so same-model defaults are
-    // deterministic regardless of the dev's SessionStart env.
     const childEnvironment: NodeJS.ProcessEnv = {
       ...process.env,
       CLAUDE_PROJECT_DIR: projectRoot,
       CLAUDE_PLUGIN_ROOT: pluginRoot,
       ...extraEnvironment,
     };
-    if (!('SAFEWORD_AUTHOR_MODEL' in extraEnvironment))
-      delete childEnvironment.SAFEWORD_AUTHOR_MODEL;
     const result = spawnSync('bun', [GATE_PATH], {
       input: JSON.stringify({
         tool_name: 'Write',
@@ -89,8 +77,6 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
       CLAUDE_PLUGIN_ROOT: pluginRoot,
       ...extraEnvironment,
     };
-    if (!('SAFEWORD_AUTHOR_MODEL' in extraEnvironment))
-      delete childEnvironment.SAFEWORD_AUTHOR_MODEL;
     const result = spawnSync('bun', [GATE_PATH], {
       input: JSON.stringify({
         tool_name: 'Edit',
@@ -113,10 +99,6 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
       encoding: 'utf8',
       env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot, CLAUDE_SESSION_ID: 'sess-1' },
     });
-  }
-
-  function stampPhaseModel(phase: string, model: string): void {
-    stampVerifiedPhase(phase, model);
   }
 
   function stampVerifiedPhase(phase: string, model?: string): void {
@@ -175,11 +157,11 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
     expect(result.status).toBe(0);
   }
 
-  function writeConfig(reviewGate: boolean, crossModelReview = false): void {
+  function writeConfig(reviewGate: boolean): void {
     mkdirSync(nodePath.join(projectRoot, '.safeword'), { recursive: true });
     writeFileSync(
       nodePath.join(projectRoot, '.safeword', 'config.json'),
-      JSON.stringify({ reviewGate, crossModelReview }),
+      JSON.stringify({ reviewGate }),
     );
   }
 
@@ -483,99 +465,5 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
   it('blocks by default when reviewGate is absent', () => {
     rmSync(nodePath.join(projectRoot, '.safeword', 'config.json'));
     expectHookDeny(runGateWrite('scenario-gate'), 'no independent review stamp');
-  });
-
-  describe('cross-model (7A0B2K) — phase-exit review must be a different model', () => {
-    it('blocks when the phase stamp model equals the author model', () => {
-      writeConfig(true, true);
-      stampPhaseModel('define-behavior', 'claude-opus-4-8');
-      expectHookDeny(
-        runGateWrite('scenario-gate', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }),
-        'cross-model',
-      );
-    });
-
-    it('allows when the phase stamp model differs from the author model', () => {
-      writeConfig(true, true);
-      stampPhaseModel('define-behavior', 'claude-sonnet-4-6');
-      expectHookAllow(runGateWrite('scenario-gate', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
-    });
-
-    it('blocks when the phase stamp records no model (fails closed)', () => {
-      writeConfig(true, true);
-      stampVerifiedPhase('define-behavior');
-      expectHookDeny(
-        runGateWrite('scenario-gate', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }),
-        'cross-model',
-      );
-    });
-
-    it('allows when crossModelReview is OFF even if stamp model equals author', () => {
-      writeConfig(true, false);
-      stampPhaseModel('define-behavior', 'claude-opus-4-8');
-      expectHookAllow(runGateWrite('scenario-gate', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
-    });
-
-    it('a logged skip bypasses the cross-model requirement', () => {
-      writeConfig(true, true);
-      stampPhase('define-behavior', 'docs-only phase');
-      expectHookAllow(runGateWrite('scenario-gate', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
-    });
-
-    it('a logged skip bypasses an earlier same-model review', () => {
-      writeConfig(true, true);
-      stampPhaseModel('define-behavior', 'claude-opus-4-8');
-      stampPhase('define-behavior', 'review deliberately waived');
-      expectHookAllow(runGateWrite('scenario-gate', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
-    });
-
-    it('passes when a different-model re-review follows a same-model stamp', () => {
-      writeConfig(true, true);
-      stampPhaseModel('define-behavior', 'claude-opus-4-8');
-      stampPhaseModel('define-behavior', 'claude-sonnet-4-6');
-      expectHookAllow(runGateWrite('scenario-gate', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
-    });
-
-    it('passes regardless of stamp order — cross-model first, same-model after', () => {
-      writeConfig(true, true);
-      stampPhaseModel('define-behavior', 'claude-sonnet-4-6');
-      stampPhaseModel('define-behavior', 'claude-opus-4-8');
-      expectHookAllow(runGateWrite('scenario-gate', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
-    });
-
-    it('ignores a forged model that disagrees with its coordinator receipt', () => {
-      writeConfig(true, true);
-      stampPhaseModel('define-behavior', 'claude-opus-4-8');
-      appendFileSync(
-        nodePath.join(projectRoot, '.safeword-project', 'skill-invocations.log'),
-        '2026-06-03T00:00:00.000Z sess-1 review:ABC123:phase@define-behavior model:claude-sonnet-4-6 author:claude reviewer:codex independence:cross-agent review-id:b3f1c2d4-0000-4000-8000-000000000001\n',
-      );
-
-      expectHookDeny(
-        runGateWrite('scenario-gate', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }),
-        'cross-model',
-      );
-    });
-
-    it('blocks via the Edit path too when the stamp model equals the author', () => {
-      writeConfig(true, true);
-      stampPhaseModel('define-behavior', 'claude-opus-4-8');
-      expectHookDeny(
-        runGateEdit('define-behavior', 'scenario-gate', {
-          SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8',
-        }),
-        'cross-model',
-      );
-    });
-
-    it('blocks a backward phase move under cross-model with a same-model stamp', () => {
-      writeConfig(true, true);
-      writeFileSync(ticketFile, ticketBody('implement'));
-      stampPhaseModel('implement', 'claude-opus-4-8');
-      expectHookDeny(
-        runGateWrite('define-behavior', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }),
-        'cross-model',
-      );
-    });
   });
 });
