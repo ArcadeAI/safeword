@@ -12,6 +12,7 @@ scope:
   - Attributes are read from the merge-base commit with system, global and repo-local attribute files ignored, so a branch cannot exempt its own files by editing `.gitattributes` or `info/attributes`
   - The coverage rejection names the changed files the review did not cover, not only what it did cover
   - The coverage set includes a staged edit whose working-tree copy was restored (found in cross-agent review)
+  - The coverage set keeps both sides of a rename, so moving an authored file into a generated folder still requires review (found in cross-agent review)
 out_of_scope:
   - Splitting one review across several packets
   - Raising the 64-file review packet limit
