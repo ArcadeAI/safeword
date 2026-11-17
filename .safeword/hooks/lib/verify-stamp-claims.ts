@@ -129,15 +129,14 @@ function currentWorkFiles(projectDirectory: string): string[] {
   if (base.state !== 'found') return [];
 
   const paths = new Set<string>();
+  const diff = (...range: string[]): string | undefined =>
+    runGit(projectDirectory, ['diff', '--relative', '--name-only', '-z', ...range]);
+  // Staged and unstaged are collected separately: `diff HEAD` alone misses a
+  // staged edit whose working-tree copy was restored to HEAD.
   if (
-    !addPaths(
-      paths,
-      runGit(projectDirectory, ['diff', '--relative', '--name-only', '-z', `${base.sha}...HEAD`]),
-    ) ||
-    !addPaths(
-      paths,
-      runGit(projectDirectory, ['diff', '--relative', '--name-only', '-z', 'HEAD']),
-    ) ||
+    !addPaths(paths, diff(`${base.sha}...HEAD`)) ||
+    !addPaths(paths, diff('--cached')) ||
+    !addPaths(paths, diff()) ||
     !addPaths(paths, runGit(projectDirectory, ['ls-files', '--others', '--exclude-standard', '-z']))
   )
     return [];

@@ -471,7 +471,7 @@
     },
     {
       "path": "runtime/hooks/lib/verify-stamp-claims.ts",
-      "sha256": "fc5b9cd113b805cfa3d2c65cab7efb3d086e65929d727850d389336a0f62c392"
+      "sha256": "caa313b755bd5dc62b315875e64565b06ed8b3431487010364c3c9a487669b48"
     },
     {
       "path": "runtime/hooks/lib/version.ts",
@@ -1467,7 +1467,7 @@
     },
     {
       "path": "templates/hooks/lib/verify-stamp-claims.ts",
-      "sha256": "fc5b9cd113b805cfa3d2c65cab7efb3d086e65929d727850d389336a0f62c392"
+      "sha256": "caa313b755bd5dc62b315875e64565b06ed8b3431487010364c3c9a487669b48"
     },
     {
       "path": "templates/hooks/lib/version.ts",

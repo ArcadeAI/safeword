@@ -71,6 +71,17 @@ describe('implement-phase coverage set', () => {
     ).toEqual(['mirror/README.md', 'src/feature.ts']);
   });
 
+  it('keeps a staged edit that the working tree reverts', () => {
+    write(root, 'src/feature.ts', 'export const a = 2;\n');
+    git(root, 'add', 'src/feature.ts');
+    write(root, 'src/feature.ts', 'export const a = 1;\n');
+    write(root, 'src/other.ts', 'export const b = 1;\n');
+
+    expect(
+      [...(implementationFiles() ?? [])].toSorted((left, right) => left.localeCompare(right)),
+    ).toEqual(['src/feature.ts', 'src/other.ts']);
+  });
+
   it('still requires review of a file the branch itself marks generated', () => {
     write(root, 'src/feature.ts', 'export const a = 2;\n');
     write(root, '.gitattributes', 'src/** linguist-generated=true\n');
