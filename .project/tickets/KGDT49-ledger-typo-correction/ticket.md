@@ -2,7 +2,7 @@
 id: KGDT49
 slug: ledger-typo-correction
 type: task
-phase: implement
+phase: verify
 status: in_progress
 created: 2026-11-17T04:39:38.051Z
 last_modified: 2026-11-17T04:41:00.000Z
@@ -44,3 +44,5 @@ done_when:
 - 2026-11-17T05:40:00.000Z Quality review pass 4 (codex, cross-agent, 3053135a): approve, no findings. Recorded as the intake phase-exit stamp; phase → implement.
 - 2026-11-17T04:55:00.000Z Dead end: red-check script passed literal "\n", so its earlier cross-scenario "deny" was a reconstruction failure, not the rule. Vitest cross-scenario test unaffected (real newlines).
 - 2026-11-17T05:33:33.207Z Phase: intake → implement
+- 2026-11-17T07:55:00.000Z Quality review pass 5 (codex, cross-agent, 16d61734): approve, no findings, on current sources. Implement stamp recorded as a declared skip citing it: the full diff (~1.02MB incl. generated mirrors, plus 3 bundled runtimes over 256KB) exceeds the review packet limit.
+- 2026-11-17T07:55:00.000Z Phase: implement → verify. /verify recorded in verify.md.
