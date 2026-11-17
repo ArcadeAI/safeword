@@ -713,14 +713,6 @@ function isConfigOverridden(definition: ManagedFileDefinition, cwd: string): boo
 }
 
 /**
- * Plan actions for managed files (only create if missing).
- *
- * Entries with a `configKey` whose `paths.<configKey>` override is set in
- * `.safeword/config.json` are suppressed — the user has redirected
- * safeword to read from elsewhere, so the default location is no longer
- * safeword's concern (ticket K7N2QM).
- */
-/**
  * Whether an already-installed managed file should be rewritten on upgrade.
  *
  * Managed files are create-only so an upgrade never clobbers a customized one.
@@ -741,6 +733,16 @@ function shouldRefreshManagedFile(
   return matchesManagedScaffold(definition, ctx, installed);
 }
 
+/**
+ * Plan upgrade actions for managed files: create missing ones, and rewrite an
+ * existing one only when `shouldRefreshManagedFile` allows it. Rewrites are
+ * reported in `updated` so the upgrade preview lists them.
+ *
+ * Entries with a `configKey` whose `paths.<configKey>` override is set in
+ * `.safeword/config.json` are suppressed — the user has redirected
+ * safeword to read from elsewhere, so the default location is no longer
+ * safeword's concern (ticket K7N2QM).
+ */
 function planManagedFilesActions(
   managedFiles: Record<string, ManagedFileDefinition>,
   ctx: ProjectContext,

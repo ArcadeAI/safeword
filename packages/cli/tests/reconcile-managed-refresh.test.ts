@@ -20,6 +20,7 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { createReconciliationPlan } from '../src/cli-protocol/reconciliation';
 import { reconcile } from '../src/reconcile';
 import type { ManagedFileDefinition, ProjectContext, SafewordSchema } from '../src/schema';
 
@@ -115,11 +116,11 @@ describe('managed file refresh while unmodified', () => {
     const path = install(stale);
     const schema = schemaWith(definition(true));
 
-    // The dry run is what the user approves, so it must name every file the
-    // upgrade will rewrite — and leave the file untouched itself.
-    const preview = await reconcile(schema, 'upgrade', context(), { dryRun: true });
-    expect(preview.updated).toContain(TARGET);
-    expect(preview.created).not.toContain(TARGET);
+    // The setup plan is what the user approves, so it must name every file the
+    // upgrade will rewrite — and building it must leave the file untouched.
+    const { plan } = await createReconciliationPlan(dir, 'upgrade', schema, context());
+    expect(plan.effects.files).toContainEqual({ kind: 'update', target: TARGET });
+    expect(plan.effects.files).not.toContainEqual({ kind: 'create', target: TARGET });
     expect(readFileSync(path, 'utf8')).toBe(stale);
 
     const applied = await reconcile(schema, 'upgrade', context());
