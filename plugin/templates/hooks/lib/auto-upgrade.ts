@@ -32,6 +32,7 @@ type ExecOptions = {
   encoding: 'utf8';
   maxBuffer: number;
   stdio?: 'pipe';
+  env?: NodeJS.ProcessEnv;
 };
 
 export type ExecSyncLike = (command: string, options: ExecOptions) => string;
@@ -362,7 +363,14 @@ export async function runAutoUpgrade({
   }
 
   try {
-    execFileSync('bunx', [`safeword@${latest}`, 'upgrade'], { ...execOptions, stdio: 'pipe' });
+    // The CLI still picks its project from CLAUDE_PROJECT_DIR when set, which
+    // stays at the launch checkout in a worktree session: point it at the
+    // project this hook resolved, or the upgrade lands in the wrong checkout.
+    execFileSync('bunx', [`safeword@${latest}`, 'upgrade'], {
+      ...execOptions,
+      stdio: 'pipe',
+      env: { ...env, CLAUDE_PROJECT_DIR: projectDir },
+    });
 
     const changedFiles = listChangedFiles(execSync, execOptions);
     const untrackedFiles = listUntrackedFiles(execSync, execOptions);

@@ -195,7 +195,7 @@
     },
     {
       "path": "runtime/hooks/lib/auto-upgrade.ts",
-      "sha256": "2c5c356f21c59a6dd2dffd76bb606ee5b9a6c8340578c774041120e3896c7932"
+      "sha256": "9e89950bc6a9882266d82bf7e0530d03326c93e475c26040205c936cea224a32"
     },
     {
       "path": "runtime/hooks/lib/bash-ledger-writes.ts",
@@ -1195,7 +1195,7 @@
     },
     {
       "path": "templates/hooks/lib/auto-upgrade.ts",
-      "sha256": "2c5c356f21c59a6dd2dffd76bb606ee5b9a6c8340578c774041120e3896c7932"
+      "sha256": "9e89950bc6a9882266d82bf7e0530d03326c93e475c26040205c936cea224a32"
     },
     {
       "path": "templates/hooks/lib/bash-ledger-writes.ts",
