@@ -68,7 +68,9 @@ if (cli !== undefined) {
 try {
   const content = readFileSync(resolvedFile, 'utf8');
   if (hasVerificationStamp(content)) {
-    const relativePath = nodePath.relative(projectDir, resolvedFile);
+    // resolvedFile is a real path, so measure from the project's real path too
+    // (macOS `/var` vs `/private/var` would otherwise yield `../../private/...`).
+    const relativePath = nodePath.relative(canonicalPathForGate(projectDir), resolvedFile);
     const output = {
       hookSpecificOutput: {
         hookEventName: 'PostToolUse',

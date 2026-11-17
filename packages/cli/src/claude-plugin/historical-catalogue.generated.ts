@@ -86,7 +86,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/post-tool-skill-nudge.ts':
         'd71158796facccdd5cbf7b64f460b36ebef0b92c41ee3a2f2a09625483e7af39',
       '.safeword/hooks/post-tool-sync-learnings.ts':
-        '4d8c3deb3f86aa5fb4ad7b0b13593861ac6d1f69c39fe1a75802036d24c1f8e7',
+        '082fd75e9d87a32c4680fdb27bc6ceeb514dff6a537b4ed87680e0e0650b3c3b',
       '.safeword/hooks/post-tool-work-log.ts':
         'd7b4508fa0e3f190c9c8c83d01a08e60fd41330b8f62f7f51376f89423998766',
       '.safeword/hooks/pre-tool-architecture-stage.ts':

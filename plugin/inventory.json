@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "e555cd081baef59fe5fd8ccde0357b4818018dfe11f8a550438a1e6403dab5dd"
+      "sha256": "e1901dbe16a15e95ad4bd1d4d0c7e590dfe4153cc0a97c9d6da8890fc5cf9b23"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "981a06991cf5dbcf0b348569daecce5c9a5a7538a0a191b8e385143ffdfeb130"
+      "sha256": "f999945ec9c0d21617748db5cd0c9c3137a56e818a26e312ae7f482aba89b161"
     },
     {
       "path": "runtime/event-groups.json",
@@ -503,7 +503,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-sync-learnings.ts",
-      "sha256": "4d8c3deb3f86aa5fb4ad7b0b13593861ac6d1f69c39fe1a75802036d24c1f8e7"
+      "sha256": "082fd75e9d87a32c4680fdb27bc6ceeb514dff6a537b4ed87680e0e0650b3c3b"
     },
     {
       "path": "runtime/hooks/post-tool-work-log.ts",
@@ -1499,7 +1499,7 @@
     },
     {
       "path": "templates/hooks/post-tool-sync-learnings.ts",
-      "sha256": "4d8c3deb3f86aa5fb4ad7b0b13593861ac6d1f69c39fe1a75802036d24c1f8e7"
+      "sha256": "082fd75e9d87a32c4680fdb27bc6ceeb514dff6a537b4ed87680e0e0650b3c3b"
     },
     {
       "path": "templates/hooks/post-tool-work-log.ts",
