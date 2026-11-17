@@ -170,7 +170,9 @@ describe('closeout binding follows the worktree closeout runs in (#5467)', () =>
         hookSpecificOutput?: { permissionDecision?: string; permissionDecisionReason?: string };
       };
       expect(output.hookSpecificOutput?.permissionDecision).toBe('deny');
-      expect(output.hookSpecificOutput?.permissionDecisionReason).toContain('as its own command');
+      expect(output.hookSpecificOutput?.permissionDecisionReason).toContain(
+        `\`bun ${path()} --pr 42\``,
+      );
       const after = readdirSync(stateDirectory)
         .filter(name => name.startsWith('closeout-session-binding'))
         .map(name => readFileSync(nodePath.join(stateDirectory, name), 'utf8'));
@@ -211,9 +213,13 @@ describe('closeout binding follows the worktree closeout runs in (#5467)', () =>
 
     expect(result.status, result.stderr).toBe(0);
     const output = JSON.parse(result.stdout) as {
-      hookSpecificOutput?: { permissionDecision?: string };
+      hookSpecificOutput?: { permissionDecision?: string; permissionDecisionReason?: string };
     };
     expect(output.hookSpecificOutput?.permissionDecision).toBe('deny');
+    // The recovery is a runnable closeout command, never a wrapper or a second command.
+    expect(output.hookSpecificOutput?.permissionDecisionReason).toMatch(
+      /`bun [^`\s]*closeout-cleanup\.ts --pr 4[23]`/u,
+    );
   });
 
   it.each([

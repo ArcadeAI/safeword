@@ -22,11 +22,7 @@ import {
   pinnedSafewordVersion,
   trustedEnvironment,
 } from './lib/safeword-cli.ts';
-import {
-  CLOSEOUT_UNRESOLVED_DIRECTORY_MESSAGE,
-  closeoutBindingTarget,
-  rememberCloseoutBinding,
-} from './lib/closeout-binding.ts';
+import { closeoutBindingTarget, rememberCloseoutBinding } from './lib/closeout-binding.ts';
 import { detectBroadProcessKill } from './lib/process-kill-guard.ts';
 import { evaluateBlockedOnGate } from './lib/blocked-on-gate.ts';
 import { isGitOperationInProgress } from './lib/git-operation.ts';
@@ -621,7 +617,7 @@ if (tool === 'Bash') {
     command,
     nodePath.resolve(launchProjectDirectory, input.cwd ?? '.'),
   );
-  if (closeoutTarget?.kind === 'unresolved') deny(CLOSEOUT_UNRESOLVED_DIRECTORY_MESSAGE);
+  if (closeoutTarget?.kind === 'unresolved') deny(closeoutTarget.recovery);
   if (
     closeoutTarget?.kind === 'tree' &&
     (process.env.SAFEWORD_AGENT_RUNTIME === undefined ||

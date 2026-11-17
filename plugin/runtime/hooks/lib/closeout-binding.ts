@@ -424,7 +424,7 @@ const FILE_READERS = new Set([
 ]);
 
 export type CloseoutBindingTarget =
-  { kind: 'tree'; projectDirectory: string } | { kind: 'unresolved' };
+  { kind: 'tree'; projectDirectory: string } | { kind: 'unresolved'; recovery: string };
 
 /**
  * Where a closeout command will run, so its binding lands where closeout reads it: the git working
@@ -455,21 +455,44 @@ export function closeoutBindingTarget(
   });
   if (!runsCloseoutScript) return undefined;
   const match = CLOSEOUT_COMMAND.exec(command);
-  if (!match?.groups?.script) return { kind: 'unresolved' };
+  if (!match?.groups?.script) return unresolved(command);
   const directory = match.groups.directory
     ? nodePath.resolve(shellDirectory, match.groups.directory.replaceAll('"', ''))
     : shellDirectory;
   const tree = nearestGitTree(directory) ?? directory;
   return isCloseoutCleanupPath(match.groups.script, pluginRoot, tree)
     ? { kind: 'tree', projectDirectory: tree }
-    : { kind: 'unresolved' };
+    : unresolved(command);
 }
 
-/** The plain recovery for a closeout command whose working tree the hook cannot tell. */
-export const CLOSEOUT_UNRESOLVED_DIRECTORY_MESSAGE =
-  'Closeout must confirm this session in the worktree it runs in, so this command is blocked. ' +
-  "Run the closeout skill's cleanup command exactly as the skill gives it, as its own command, " +
-  'from the worktree (or after one `cd <absolute path> &&`), with no wrapper or other commands.';
+/**
+ * A denial that gives the exact command to run instead: the agent's own closeout script and plain
+ * arguments, alone, from the worktree or after one absolute `cd`. Built from the command so it
+ * names whichever script (project or plugin) the agent used.
+ */
+function unresolved(command: string): CloseoutBindingTarget {
+  const words = splitShellSegments(command)
+    .map(segment => commandWords(segment).map(word => word.replaceAll(/[()]/gu, '')))
+    .find(segmentWords => segmentWords.some(word => word.includes('closeout-cleanup.ts')));
+  const scriptIndex = words?.findIndex(word => word.includes('closeout-cleanup.ts')) ?? -1;
+  const script = words?.[scriptIndex] ?? '';
+  const plainScript = /^[^\s=!]*closeout-cleanup\.ts$/u.test(script.replaceAll('"', ''))
+    ? script
+    : ['.safeword', 'scripts', 'closeout-cleanup.ts'].join('/');
+  const after = words?.slice(scriptIndex + 1) ?? [];
+  const firstOption = after.findIndex(word => word.startsWith('-'));
+  const argumentsAfter = (firstOption === -1 ? [] : after.slice(firstOption)).filter(word =>
+    /^[\w./:=@+-]+$/u.test(word),
+  );
+  const closeout = ['bun', plainScript, ...argumentsAfter].join(' ');
+  return {
+    kind: 'unresolved',
+    recovery:
+      'Closeout must confirm this session in the worktree it runs in, and the hook cannot tell ' +
+      'where this command runs it. Run it as its own command from the worktree: ' +
+      `\`${closeout}\` (or \`cd <absolute worktree path> && ${closeout}\`), with nothing else.`,
+  };
+}
 
 export function rememberCloseoutBinding(input: RememberCloseoutBindingInput): boolean {
   const id = nonEmptyString(input.id);

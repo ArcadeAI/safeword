@@ -16,11 +16,7 @@ import {
   rememberCursorReviewStampIdentity,
   rememberCursorRunIdentity,
 } from '../lib/cursor-run-identity.ts';
-import {
-  CLOSEOUT_UNRESOLVED_DIRECTORY_MESSAGE,
-  closeoutBindingTarget,
-  rememberCloseoutBinding,
-} from '../lib/closeout-binding.ts';
+import { closeoutBindingTarget, rememberCloseoutBinding } from '../lib/closeout-binding.ts';
 import { stashCursorShellCwd, stashCursorTranscript } from '../lib/cursor-state.ts';
 import { AUTO_UPGRADE_LOCK_MESSAGE, isAutoUpgradeLockActive } from '../lib/auto-upgrade-lock.ts';
 import {
@@ -85,9 +81,7 @@ const closeoutTarget = closeoutBindingTarget(
   nodePath.resolve(process.cwd(), input.cwd ?? '.'),
 );
 if (closeoutTarget?.kind === 'unresolved') {
-  process.stdout.write(
-    JSON.stringify(toCursorDecision(CLOSEOUT_UNRESOLVED_DIRECTORY_MESSAGE)) + '\n',
-  );
+  process.stdout.write(JSON.stringify(toCursorDecision(closeoutTarget.recovery)) + '\n');
   process.exit(0);
 }
 

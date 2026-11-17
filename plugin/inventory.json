@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "71ba8a35fb7d2d887d6c8ab74d96fb049a035a142bff7e542e7bbb4cbf5ab567"
+      "sha256": "ec96aee8cc42339b2ffeeafde66bea818c0a29418260802cc99399983a323c38"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "22db18edc8850390ff8b04fe1aee9b6e22a75f46997911ca4d3e641cbc186fe3"
+      "sha256": "f6e2f6579038ce4b57c2b63ef56c76abf8d578eb85cb89987a7bf4b5b813324f"
     },
     {
       "path": "runtime/event-groups.json",
@@ -215,7 +215,7 @@
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
-      "sha256": "4933c84bfae058c78e39ebef4f19b6d1635732b54e5b909641c23d5b12bd334a"
+      "sha256": "060c7e9d68b0462038b94fed549ff9b17df4071b321eac25c8112f975e1907b2"
     },
     {
       "path": "runtime/hooks/lib/closest-base-ref.ts",
@@ -527,7 +527,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "cfd20febcb66170dd2a546b5466076b70a0a4414b640edd2ddbef78afa7babdf"
+      "sha256": "f03045332b667ad8bacd678e44a0d63bd43a3cbf8fb0c0ed83851472286e9eb2"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -1147,7 +1147,7 @@
     },
     {
       "path": "templates/hooks/cursor/before-shell-execution.ts",
-      "sha256": "2edcb3a52c96b5501ae48283012b2b9bd009388385df0f4827bda615d9396803"
+      "sha256": "90c954cdbb784cb3420eaa79934fd42b9af2c2f1f4465bc69ad2b09606883407"
     },
     {
       "path": "templates/hooks/cursor/gate-adapter.ts",
@@ -1215,7 +1215,7 @@
     },
     {
       "path": "templates/hooks/lib/closeout-binding.ts",
-      "sha256": "a3a5820e4abcf1085fac40c8a4b1142f64c013b556bda5f5dc3f84cb2a4e998c"
+      "sha256": "c65a25fc882cbd1c2a4c869e710cb980aa2bc9ad3935c307b2775efe58f46ce3"
     },
     {
       "path": "templates/hooks/lib/closest-base-ref.ts",
@@ -1523,7 +1523,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "7355083c8d63f364bdd0b77c25f290eca47b8bb232a9597d3f5c1717593ed519"
+      "sha256": "31ac0237706c22ceb829c9f15b2c7b67fcd629e58d293792df38a6b159eb07fe"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",
