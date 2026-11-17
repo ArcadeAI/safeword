@@ -67644,12 +67644,14 @@ var init_cucumber_template_revisions = __esm(() => {
     "929014fb4ce6ca1483b292757b6044be89932028f5bb21ba82c28ffd66b09e53",
     "1295e832b1b3bdd0faa963e218bd489c9c252a981fc8e315d4814d4208384a5f",
     "0ec4cb6d65b39e01f8aff27c4ca3841e0271a43b5435492676450f0fb3cfac27",
-    "6a57388de5cc64693ef6e557a71d58e9f4603a2a6dc231b19f9005445f0ebb8b"
+    "8a7df82ba68b703459279a48677e341e64e63703d48d2a8ea7dbb0788f56a777",
+    "b4a856b47ac61513812f8f9cf51a1b5ca81a2959cd67dfdf85b90c1b742309f1"
   ]);
 });
 
 // src/utils/project-detector.ts
 import { existsSync as existsSync42, readdirSync as readdirSync24, readFileSync as readFileSync61 } from "fs";
+import { createRequire as createRequire2 } from "module";
 import nodePath89 from "path";
 function detectLanguages2(cwd) {
   const hasLanguage = (key) => LANGUAGE_PACKS[key]?.detect(cwd) ?? false;
@@ -67873,6 +67875,16 @@ function detectCucumberLane(cwd) {
     scaffoldBddLane: ownLanePresent || evidence === undefined
   };
 }
+function resolvesTypescript(cwd) {
+  if (cwd === undefined)
+    return false;
+  try {
+    createRequire2(nodePath89.join(cwd, "package.json")).resolve("typescript/package.json");
+    return true;
+  } catch {
+    return false;
+  }
+}
 function detectProjectType(packageJson, cwd) {
   const dependencies = packageJson.dependencies ?? {};
   const developmentDependencies = packageJson.devDependencies ?? {};
@@ -67883,7 +67895,7 @@ function detectProjectType(packageJson, cwd) {
     publishableLibrary: detectPublishable(packageJson),
     shell: cwd ? hasShellScripts(cwd) : false,
     hasJsSource: cwd ? hasJsSource(cwd) : false,
-    typescriptAvailable: "typescript" in allDependencies || cwd !== undefined && existsSync42(nodePath89.join(cwd, "node_modules/typescript/package.json")),
+    typescriptAvailable: "typescript" in allDependencies || resolvesTypescript(cwd),
     ...detectCucumberLane(cwd),
     ...detectExistingTooling(cwd, scripts)
   };
