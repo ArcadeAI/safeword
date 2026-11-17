@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "8a50562dc46947d3033ed20d6d65fd2ed89b6dd77f975514b73f72cb6f656f49"
+      "sha256": "c031bcd2243b143c144e3d72d90eb5065792f45b7843a584a45c00fb64cfbd59"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "fda5d01ad196de7a93208995f310a1caebdab571def11439e4abfc076dc70b9a"
+      "sha256": "bc2ee9edfe1d6107b90de86681aa269d49ec42f608c391f0c701894c778a8c8d"
     },
     {
       "path": "runtime/event-groups.json",
@@ -195,7 +195,7 @@
     },
     {
       "path": "runtime/hooks/lib/auto-upgrade.ts",
-      "sha256": "9e89950bc6a9882266d82bf7e0530d03326c93e475c26040205c936cea224a32"
+      "sha256": "e190a018c528b526b43339ce4ba2e7a2fcfa3e66a6a4d49e324ff64dec1bb8a7"
     },
     {
       "path": "runtime/hooks/lib/bash-ledger-writes.ts",
@@ -295,7 +295,7 @@
     },
     {
       "path": "runtime/hooks/lib/lint.ts",
-      "sha256": "5271d4bd5ffe5220bb66eb58e2967318ea6df405f1b6649aa51c9c3de7c6c395"
+      "sha256": "87f7fa80aef8900a215a38c025f5c2f8a700af7a521cc80c42a554aff6dcf008"
     },
     {
       "path": "runtime/hooks/lib/markdown-structure.ts",
@@ -339,7 +339,7 @@
     },
     {
       "path": "runtime/hooks/lib/project-directory.ts",
-      "sha256": "b3f07a935b171994193ee6fa91fea6611e6df1a7ed4350bf30a5b178c81cdb11"
+      "sha256": "896178ed87c91439c7c7d13b84b2acd07f1d1d30179a9a1dc79dd227f55886c3"
     },
     {
       "path": "runtime/hooks/lib/project-knowledge.ts",
@@ -455,7 +455,7 @@
     },
     {
       "path": "runtime/hooks/lib/test-runner.ts",
-      "sha256": "eaaadff1036ed5dfe8b45ae7995a4ed88779f23c6c2111604331a1f6f3363db6"
+      "sha256": "aaf606806b205434529f757b39ff031646a585c6720eee00e0006c75347dcf54"
     },
     {
       "path": "runtime/hooks/lib/ticket-close.ts",
@@ -503,7 +503,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-sync-learnings.ts",
-      "sha256": "082fd75e9d87a32c4680fdb27bc6ceeb514dff6a537b4ed87680e0e0650b3c3b"
+      "sha256": "0bb2a936c94bd99afec58b62b933e8ce097c4aea115f6844a9688f709d66a85f"
     },
     {
       "path": "runtime/hooks/post-tool-work-log.ts",
@@ -511,7 +511,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-architecture-stage.ts",
-      "sha256": "fbecdb0f56e72a27aff5eeb07a36bc0782a3942162724300c881a10024d6b738"
+      "sha256": "dbb2fa14ce934ec71e31d7a9258247b4e42684ac69154d96b9fadd2cc18ad9d4"
     },
     {
       "path": "runtime/hooks/pre-tool-config-guard.ts",
@@ -567,7 +567,7 @@
     },
     {
       "path": "runtime/hooks/session-architecture-heal.ts",
-      "sha256": "cdc754075083e02e0f7197cfd3f2db2c8958478db0e956a17de70baa91c1719c"
+      "sha256": "b3428b69a48af0f4bdfd0f5eb0e68609bd5195a9dd3f937facef0b28cccf5d9a"
     },
     {
       "path": "runtime/hooks/session-auto-upgrade.ts",
@@ -1195,7 +1195,7 @@
     },
     {
       "path": "templates/hooks/lib/auto-upgrade.ts",
-      "sha256": "9e89950bc6a9882266d82bf7e0530d03326c93e475c26040205c936cea224a32"
+      "sha256": "e190a018c528b526b43339ce4ba2e7a2fcfa3e66a6a4d49e324ff64dec1bb8a7"
     },
     {
       "path": "templates/hooks/lib/bash-ledger-writes.ts",
@@ -1295,7 +1295,7 @@
     },
     {
       "path": "templates/hooks/lib/lint.ts",
-      "sha256": "5271d4bd5ffe5220bb66eb58e2967318ea6df405f1b6649aa51c9c3de7c6c395"
+      "sha256": "87f7fa80aef8900a215a38c025f5c2f8a700af7a521cc80c42a554aff6dcf008"
     },
     {
       "path": "templates/hooks/lib/markdown-structure.ts",
@@ -1335,7 +1335,7 @@
     },
     {
       "path": "templates/hooks/lib/project-directory.ts",
-      "sha256": "b3f07a935b171994193ee6fa91fea6611e6df1a7ed4350bf30a5b178c81cdb11"
+      "sha256": "896178ed87c91439c7c7d13b84b2acd07f1d1d30179a9a1dc79dd227f55886c3"
     },
     {
       "path": "templates/hooks/lib/project-knowledge.ts",
@@ -1451,7 +1451,7 @@
     },
     {
       "path": "templates/hooks/lib/test-runner.ts",
-      "sha256": "eaaadff1036ed5dfe8b45ae7995a4ed88779f23c6c2111604331a1f6f3363db6"
+      "sha256": "aaf606806b205434529f757b39ff031646a585c6720eee00e0006c75347dcf54"
     },
     {
       "path": "templates/hooks/lib/ticket-close.ts",
@@ -1499,7 +1499,7 @@
     },
     {
       "path": "templates/hooks/post-tool-sync-learnings.ts",
-      "sha256": "082fd75e9d87a32c4680fdb27bc6ceeb514dff6a537b4ed87680e0e0650b3c3b"
+      "sha256": "0bb2a936c94bd99afec58b62b933e8ce097c4aea115f6844a9688f709d66a85f"
     },
     {
       "path": "templates/hooks/post-tool-work-log.ts",
@@ -1507,7 +1507,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-architecture-stage.ts",
-      "sha256": "fbecdb0f56e72a27aff5eeb07a36bc0782a3942162724300c881a10024d6b738"
+      "sha256": "dbb2fa14ce934ec71e31d7a9258247b4e42684ac69154d96b9fadd2cc18ad9d4"
     },
     {
       "path": "templates/hooks/pre-tool-config-guard.ts",
@@ -1563,7 +1563,7 @@
     },
     {
       "path": "templates/hooks/session-architecture-heal.ts",
-      "sha256": "cdc754075083e02e0f7197cfd3f2db2c8958478db0e956a17de70baa91c1719c"
+      "sha256": "b3428b69a48af0f4bdfd0f5eb0e68609bd5195a9dd3f937facef0b28cccf5d9a"
     },
     {
       "path": "templates/hooks/session-auto-upgrade.ts",

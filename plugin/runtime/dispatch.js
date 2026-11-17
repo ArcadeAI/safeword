@@ -9350,11 +9350,11 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/post-tool-skill-nudge.ts':
         'd71158796facccdd5cbf7b64f460b36ebef0b92c41ee3a2f2a09625483e7af39',
       '.safeword/hooks/post-tool-sync-learnings.ts':
-        '082fd75e9d87a32c4680fdb27bc6ceeb514dff6a537b4ed87680e0e0650b3c3b',
+        '0bb2a936c94bd99afec58b62b933e8ce097c4aea115f6844a9688f709d66a85f',
       '.safeword/hooks/post-tool-work-log.ts':
         'd7b4508fa0e3f190c9c8c83d01a08e60fd41330b8f62f7f51376f89423998766',
       '.safeword/hooks/pre-tool-architecture-stage.ts':
-        'fbecdb0f56e72a27aff5eeb07a36bc0782a3942162724300c881a10024d6b738',
+        'dbb2fa14ce934ec71e31d7a9258247b4e42684ac69154d96b9fadd2cc18ad9d4',
       '.safeword/hooks/pre-tool-config-guard.ts':
         'b9992b51fc6e46e6301d60eb8861a311bf9b40fa8b3f52fee9d77ee52e877165',
       '.safeword/hooks/pre-tool-dependency-readiness.ts':
@@ -9372,7 +9372,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/prompt-timestamp.ts':
         'd7939e98528717fed556adf65dcb9fd3c24fac530ba76be2db9c5faebbac27f3',
       '.safeword/hooks/session-architecture-heal.ts':
-        'cdc754075083e02e0f7197cfd3f2db2c8958478db0e956a17de70baa91c1719c',
+        'b3428b69a48af0f4bdfd0f5eb0e68609bd5195a9dd3f937facef0b28cccf5d9a',
       '.safeword/hooks/session-auto-upgrade.ts':
         '0ebb81093758bf5149d91310d4f630e4abb18fd25dc2ccb9cd59519633f8ca13',
       '.safeword/hooks/session-bun-check.sh':

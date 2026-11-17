@@ -3516,9 +3516,9 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/post-tool-lint.ts": "a1779513108c3f0dc6296bb765752507c65f3ff9c29af35e1e28878ace079f06",
         ".safeword/hooks/post-tool-quality.ts": "b2779b9d64941ee5a7dff082a27d2391260c2600c4d641b08658dd4cb3aec428",
         ".safeword/hooks/post-tool-skill-nudge.ts": "d71158796facccdd5cbf7b64f460b36ebef0b92c41ee3a2f2a09625483e7af39",
-        ".safeword/hooks/post-tool-sync-learnings.ts": "082fd75e9d87a32c4680fdb27bc6ceeb514dff6a537b4ed87680e0e0650b3c3b",
+        ".safeword/hooks/post-tool-sync-learnings.ts": "0bb2a936c94bd99afec58b62b933e8ce097c4aea115f6844a9688f709d66a85f",
         ".safeword/hooks/post-tool-work-log.ts": "d7b4508fa0e3f190c9c8c83d01a08e60fd41330b8f62f7f51376f89423998766",
-        ".safeword/hooks/pre-tool-architecture-stage.ts": "fbecdb0f56e72a27aff5eeb07a36bc0782a3942162724300c881a10024d6b738",
+        ".safeword/hooks/pre-tool-architecture-stage.ts": "dbb2fa14ce934ec71e31d7a9258247b4e42684ac69154d96b9fadd2cc18ad9d4",
         ".safeword/hooks/pre-tool-config-guard.ts": "b9992b51fc6e46e6301d60eb8861a311bf9b40fa8b3f52fee9d77ee52e877165",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "83d1369a1db26474ce498565e1f67711834137276234ca697de3be0f1abbafff",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
@@ -3527,7 +3527,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/prompt-questions.ts": "ac2f53a7c2e87cb4517b7a4c9d965bacdd262828aa28474d0441dc2edafc215d",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
         ".safeword/hooks/prompt-timestamp.ts": "d7939e98528717fed556adf65dcb9fd3c24fac530ba76be2db9c5faebbac27f3",
-        ".safeword/hooks/session-architecture-heal.ts": "cdc754075083e02e0f7197cfd3f2db2c8958478db0e956a17de70baa91c1719c",
+        ".safeword/hooks/session-architecture-heal.ts": "b3428b69a48af0f4bdfd0f5eb0e68609bd5195a9dd3f937facef0b28cccf5d9a",
         ".safeword/hooks/session-auto-upgrade.ts": "0ebb81093758bf5149d91310d4f630e4abb18fd25dc2ccb9cd59519633f8ca13",
         ".safeword/hooks/session-bun-check.sh": "47e97a2f787228347213521d8391ab6b001e19270aed8e2795f13d6ea0603c29",
         ".safeword/hooks/session-cleanup-quality.ts": "bfd60a346a87a015b10128a01e48cdcd3e2fb6418598c2e6a59cb4cfd548080d",
@@ -83491,6 +83491,7 @@ var init_retrospective_gate2 = __esm(() => {
 var BDD_TEST_TIMEOUT_MS;
 var init_test_runner = __esm(() => {
   init_safeword_cli();
+  init_project_directory();
   BDD_TEST_TIMEOUT_MS = 20 * 60000;
 });
 

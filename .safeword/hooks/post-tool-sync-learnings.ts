@@ -11,6 +11,7 @@ import { hasVerificationStamp } from './lib/learning-verification-stamps.ts';
 import { canonicalPathForGate, resolveNamespaceRoot } from './lib/namespace-root.ts';
 import {
   canonicalEditTarget,
+  projectEnvironment,
   resolveLaunchDirectory,
   resolveToolProjectDirectory,
 } from './lib/project-directory.ts';
@@ -57,6 +58,7 @@ const cli = safewordCli(projectDir);
 if (cli !== undefined) {
   spawnSync(cli.command, [...cli.args, 'sync-learnings', '--quiet'], {
     cwd: projectDir,
+    env: projectEnvironment(projectDir),
     stdio: 'inherit',
     timeout: 30_000,
   });

@@ -121,6 +121,63 @@ describe('remaining hooks act on the resolved project (#5467)', () => {
     expect(result.stdout).toContain('Verification stamp detected in .project/learnings/astro.md');
   });
 
+  /** A stub source CLI in the worktree that records where and for which project it ran. */
+  function stubWorktreeCli(): string {
+    const log = nodePath.join(root, 'cli-runs.jsonl');
+    mkdirSync(nodePath.join(worktree, 'packages/cli/src'), { recursive: true });
+    writeFileSync(nodePath.join(worktree, 'packages/cli/package.json'), '{"name":"safeword"}\n');
+    writeFileSync(
+      nodePath.join(worktree, 'packages/cli/src/cli.ts'),
+      `import { appendFileSync } from 'node:fs';\nappendFileSync(${JSON.stringify(log)}, JSON.stringify({ args: process.argv.slice(2), project: process.env.CLAUDE_PROJECT_DIR }) + '\\n');\n`,
+    );
+    return log;
+  }
+
+  function cliRuns(log: string): { args: string[]; project: string }[] {
+    return readFileSync(log, 'utf8')
+      .trim()
+      .split('\n')
+      .map(line => JSON.parse(line) as { args: string[]; project: string });
+  }
+
+  it('post-tool-sync-learnings tells the CLI it is syncing the worktree', () => {
+    const log = stubWorktreeCli();
+    const learning = nodePath.join(worktree, '.project/learnings/caching.md');
+    mkdirSync(nodePath.dirname(learning), { recursive: true });
+    writeFileSync(learning, '# Caching\n\nCovers: caching\n');
+
+    const result = runHook('post-tool-sync-learnings.ts', launch, {
+      hook_event_name: 'PostToolUse',
+      tool_name: 'Edit',
+      cwd: launch,
+      tool_input: { file_path: learning },
+    });
+
+    expect(result.status).toBe(0);
+    const runs = cliRuns(log);
+    expect(runs.map(run => run.args[0])).toEqual(['sync-learnings']);
+    expect(realpathSync(runs[0]?.project ?? '')).toBe(realpathSync(worktree));
+  });
+
+  it("the done gate's test plan is resolved for the worktree, not the launch checkout", () => {
+    const log = stubWorktreeCli();
+    const script = `const { runTests } = await import(${JSON.stringify(nodePath.join(HOOKS, 'lib/test-runner.ts'))});\nrunTests(${JSON.stringify(worktree)});`;
+
+    const result = spawnSync('bun', ['-e', script], {
+      cwd: launch,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: launch, SAFEWORD_CLI: '' },
+      encoding: 'utf8',
+      timeout: TIMEOUT_QUICK,
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    const testPlans = cliRuns(log).filter(run => run.args.includes('test-plan'));
+    expect(testPlans.length).toBeGreaterThan(0);
+    for (const run of testPlans) {
+      expect(realpathSync(run.project)).toBe(realpathSync(worktree));
+    }
+  });
+
   it("post-tool-lint runs the linter with the worktree's config for a relative edit", () => {
     // Both checkouts carry a Ruff config; a stub ruff records the exact
     // command line, so only the config the hook really used can pass.

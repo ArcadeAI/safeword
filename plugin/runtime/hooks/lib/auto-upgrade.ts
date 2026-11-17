@@ -11,6 +11,7 @@ import {
   type UpdateCache,
 } from './update-cache.js';
 import { bumpType, upgradeDecision } from './version.js';
+import { projectEnvironment } from './project-directory.js';
 
 export const CHECK_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 3000;
@@ -369,7 +370,7 @@ export async function runAutoUpgrade({
     execFileSync('bunx', [`safeword@${latest}`, 'upgrade'], {
       ...execOptions,
       stdio: 'pipe',
-      env: { ...env, CLAUDE_PROJECT_DIR: projectDir },
+      env: projectEnvironment(projectDir, env),
     });
 
     const changedFiles = listChangedFiles(execSync, execOptions);

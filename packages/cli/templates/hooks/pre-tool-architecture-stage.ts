@@ -18,7 +18,7 @@ import process from 'node:process';
 
 import { stagedChangeAffectsArchitecture } from './lib/architecture-staged-scope.ts';
 import { commandWordIndex, parseShellCommandList, parseShellWords } from './lib/shell-segments.ts';
-import { resolveLaunchDirectory } from './lib/project-directory.ts';
+import { projectEnvironment, resolveLaunchDirectory } from './lib/project-directory.ts';
 
 const ARCHITECTURE_SOURCE_INDEX_ENV = 'SAFEWORD_ARCHITECTURE_SOURCE_INDEX';
 const ARCHITECTURE_KEEP_MATERIALIZED_ENV = 'SAFEWORD_ARCHITECTURE_KEEP_MATERIALIZED';
@@ -524,7 +524,7 @@ function runArchitectureHook(projectDir: string, plan: GitCommitPlan): void {
     spawnSync(cli.command, [...cli.args, 'architecture', '--from-index', '--stage-output'], {
       cwd: projectDir,
       env: {
-        ...process.env,
+        ...projectEnvironment(projectDir),
         ...plan.commit.environment,
         GIT_DIR: commitTarget.gitDirectory,
         GIT_INDEX_FILE: commitTarget.indexPath,

@@ -145,7 +145,7 @@ describe('session-level hooks follow the session pointer (#5467)', () => {
     writeFileSync(nodePath.join(repoB, 'packages/cli/package.json'), '{"name":"safeword"}\n');
     writeFileSync(
       nodePath.join(repoB, 'packages/cli/src/cli.ts'),
-      `import { appendFileSync } from 'node:fs';\nappendFileSync(${JSON.stringify(log)}, process.cwd() + ' ' + process.argv.slice(2).join(' ') + '\\n');\n`,
+      `import { appendFileSync } from 'node:fs';\nappendFileSync(${JSON.stringify(log)}, JSON.stringify({ cwd: process.cwd(), args: process.argv.slice(2), project: process.env.CLAUDE_PROJECT_DIR }));\n`,
     );
 
     const result = runHook('session-architecture-heal.ts', launch, {
@@ -155,7 +155,15 @@ describe('session-level hooks follow the session pointer (#5467)', () => {
     });
 
     expect(result.status).toBe(0);
-    expect(readFileSync(log, 'utf8').trim()).toBe(`${realpathSync(repoB)} architecture`);
+    // The CLI still prefers CLAUDE_PROJECT_DIR, so the child must be told B.
+    const run = JSON.parse(readFileSync(log, 'utf8')) as {
+      cwd: string;
+      args: string[];
+      project: string;
+    };
+    expect(run.cwd).toBe(realpathSync(repoB));
+    expect(run.args).toEqual(['architecture']);
+    expect(realpathSync(run.project)).toBe(realpathSync(repoB));
   });
 
   it('session-auto-upgrade checks the edited repository for upgrades', () => {

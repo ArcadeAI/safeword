@@ -135,6 +135,40 @@ describe('pre-tool architecture staging hook', () => {
     }
   });
 
+  it('keeps the snapshot fresh when the launch checkout is elsewhere (#5467)', async () => {
+    // The real CLI picks its project from CLAUDE_PROJECT_DIR when set; the hook
+    // must point it at the commit's project, not at the launch directory.
+    rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
+    const launch = createTemporaryDirectory();
+    try {
+      const hook = spawnSync('bun', [HOOK_PATH], {
+        cwd: launch,
+        encoding: 'utf8',
+        env: { ...process.env, CLAUDE_PROJECT_DIR: launch },
+        input: JSON.stringify({
+          tool_name: 'Bash',
+          cwd: directory,
+          tool_input: { command: 'git commit -am "remove billing"' },
+        }),
+      });
+      expect(hook.status).toBe(0);
+
+      git('commit', '-am', 'remove billing');
+      const cleanCheckout = createTemporaryDirectory();
+      try {
+        git('clone', '--quiet', '--no-local', directory, cleanCheckout);
+
+        const check = await runCli(['architecture', '--check'], { cwd: cleanCheckout });
+
+        expect(check.exitCode).toBe(0);
+      } finally {
+        removeTemporaryDirectory(cleanCheckout);
+      }
+    } finally {
+      removeTemporaryDirectory(launch);
+    }
+  });
+
   it('keeps healed architecture bytes when git commit -a restages tracked files', async () => {
     const documentPath = nodePath.join(directory, '.project', 'architecture.generated.md');
     writeFileSync(

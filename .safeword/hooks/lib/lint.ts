@@ -17,6 +17,7 @@ import { $ } from 'bun';
 
 import { resolveHostToolchain, runHostToolchain } from './host-toolchain.js';
 import { safewordCli } from './safeword-cli.js';
+import { projectEnvironment } from './project-directory.js';
 import {
   hostFormatsSqlWithPrettier,
   projectOwnsAlternativeFormatter,
@@ -344,7 +345,12 @@ function runGoLintHelper(file: string, projectRoot: string, fix = true): LintRes
       process.cwd(),
       ...(fix ? [] : ['--no-fix']),
     ],
-    { cwd: cli.cwd, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 },
+    {
+      cwd: cli.cwd,
+      encoding: 'utf8',
+      maxBuffer: 4 * 1024 * 1024,
+      env: projectEnvironment(projectRoot),
+    },
   );
   if (result.status !== 0 || result.error) {
     return {

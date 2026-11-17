@@ -30,6 +30,19 @@ export function resolveLaunchDirectory(environment: NodeJS.ProcessEnv = process.
 }
 
 /**
+ * The environment for a child process acting on `projectDirectory`, such as
+ * the Safeword CLI. The CLI still picks its project from CLAUDE_PROJECT_DIR
+ * when it is set, and the host keeps that at the launch checkout in a
+ * worktree session, so every child must be told which project it works on.
+ */
+export function projectEnvironment(
+  projectDirectory: string,
+  environment: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  return { ...environment, CLAUDE_PROJECT_DIR: projectDirectory };
+}
+
+/**
  * The project a surface should read and write, by the rule above. `cwd` is
  * required so each caller states which working directory it means; the
  * resolver never reads ambient process state for it.

@@ -11,7 +11,7 @@ import nodePath from 'node:path';
 
 import { safewordCli } from './lib/safeword-cli.ts';
 import process from 'node:process';
-import { readSessionProjectDirectory } from './lib/project-directory.ts';
+import { projectEnvironment, readSessionProjectDirectory } from './lib/project-directory.ts';
 
 const projectDir = await readSessionProjectDirectory();
 
@@ -25,6 +25,7 @@ if (cli === undefined) process.exit(0);
 
 spawnSync(cli.command, [...cli.args, 'architecture'], {
   cwd: projectDir,
+  env: projectEnvironment(projectDir),
   stdio: 'inherit',
   timeout: 30_000,
 });
