@@ -46,6 +46,19 @@ const EXEMPT_ATTRIBUTES = ['linguist-generated', 'linguist-vendored'] as const;
 // check-attr reports `path attr` as "set" and `path attr=true` as "true".
 const ENABLED = new Set(['set', 'true']);
 
+const NULL_FILE = process.platform === 'win32' ? 'NUL' : '/dev/null';
+
+/** A Git environment that ignores system and global configuration and attributes. */
+function isolatedGitEnvironment(): NodeJS.ProcessEnv {
+  return {
+    PATH: process.env.PATH,
+    ...(process.platform === 'win32' && { SystemRoot: process.env.SystemRoot }),
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_ATTR_NOSYSTEM: '1',
+    GIT_CONFIG_GLOBAL: NULL_FILE,
+  };
+}
+
 /**
  * The files whose `check-attr -z` records (path, attribute, value) carry an
  * enabled exemption. A malformed response exempts nothing.
@@ -83,14 +96,7 @@ function baseExemptFiles(projectDirectory: string, base: string, files: string[]
 
   const scratch = mkdtempSync(nodePath.join(tmpdir(), 'safeword-stamp-attr-'));
   try {
-    const nullFile = process.platform === 'win32' ? 'NUL' : '/dev/null';
-    const env = {
-      PATH: process.env.PATH,
-      ...(process.platform === 'win32' && { SystemRoot: process.env.SystemRoot }),
-      GIT_CONFIG_NOSYSTEM: '1',
-      GIT_ATTR_NOSYSTEM: '1',
-      GIT_CONFIG_GLOBAL: nullFile,
-    };
+    const env = isolatedGitEnvironment();
     const bare = nodePath.join(scratch, 'bare');
     const template = nodePath.join(scratch, 'template');
     mkdirSync(template);
@@ -106,7 +112,7 @@ function baseExemptFiles(projectDirectory: string, base: string, files: string[]
         '--git-dir',
         bare,
         '-c',
-        `core.attributesFile=${nullFile}`,
+        `core.attributesFile=${NULL_FILE}`,
         'check-attr',
         `--source=${base}`,
         '-z',
