@@ -2,17 +2,17 @@
   "originMainCommit": "f22e2997ba8ef68d3d198ca2d937bfbf35fdab87",
   "templatesSha256": "5e2bd84964a573959f46b1b86f703d58fe53e70dc28dcd056c9e32a2b5ad69fe",
   "fixtures": {
-    "claude-install": "283818b257481cd249102baba672ffafdf3410f9769934fdc7510e1cfcc88800",
-    "claude-check": "4bb7674232594686c8759b1dba38592a0247342cc9880e84a936c8fd4b08ac8e",
-    "claude-upgrade": "80695b9f102302ff30b6dbf29c66210effbbea559a4389ed4f39ee57d653454e",
+    "claude-install": "97070a77853da3492fc729d09532061b62e72176870500894fc5883cc74f6340",
+    "claude-check": "a49e8e277f29393db9c138cf357e6c8d519af509602fc90db9aa2a59bccfd73c",
+    "claude-upgrade": "86910fcfe62788b81e5ee2e573bbde3b0c77a295cdcd347cc065db2b3be1f99a",
     "claude-uninstall": "476f752d865f394ed0b12a47863e15700b15f2b6a26ad9b315a929bf6ebc4a57",
-    "codex-install": "d1e2014069bcbe49abff125b703f9851bdc69f8ea418a91eb87a47b9e55d60de",
-    "codex-check": "4a464ea6fb844a087937d0d773ee1a318f7652b88781d61a3a9ebb400e17fa8f",
-    "codex-upgrade": "323b33dc617e401ed6cdf24a27cb7aa490d691d7cb225f44a3ca0661ebd3e6e1",
+    "codex-install": "180d8a04e3830d37fec29f5833d2658e3c632a42bbee6682997be49e96d9c6a7",
+    "codex-check": "c59b38a5fc0592e1d457c50df93cbb1153b4f2bde116224b34ef035a4ff1fe80",
+    "codex-upgrade": "fb796a4c4147c189daef3748cd701c7adf78068f78979a2f4ccbf02075a5adc2",
     "codex-uninstall": "effa1ef02f2b7e7a8deeb74b1affb9161b9c220641cacf5ef935ddad156792ef",
-    "cursor-install": "d6c79ae6fff0c9414593b672c2032f480f216efc5e9daf0d84597d7aad0975d4",
-    "cursor-check": "8e34ad1cce11e9f9f5d2203e0aca80f5066758ed3a6de3ecf6737acbebdd7f96",
-    "cursor-upgrade": "55244d6b9ff1aaa1a1c948c244211945be1989eaaafc5c5f6354c1778b266360",
+    "cursor-install": "6746fbbd6f822ea051538723cc69fe19a506fcad5215ed2b3c5ecad1994909c2",
+    "cursor-check": "4e2a5f30c6d27aaf152e9b3fa09f875a7a3f15bde468f120157199d8c659000d",
+    "cursor-upgrade": "d2f8436a2b2b6b30e37b05021cd0528d75e1cfe9d79774572838438e1dfadf88",
     "cursor-uninstall": "6a73248fc7e1e2f260ffb6146715ac806084639ecaa08a66265a16b0fdbac10b"
   }
 }

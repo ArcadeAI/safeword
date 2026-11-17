@@ -218,7 +218,6 @@ export function getSafewordEslintConfig(
   return getSafewordEslintConfigExtending(
     existingConfig ?? 'eslint.config.mjs',
     hasExistingFormatter,
-    existingConfig === undefined,
   );
 }
 
@@ -228,16 +227,8 @@ export function getSafewordEslintConfig(
 function getSafewordEslintConfigExtending(
   existingConfig: string,
   hasExistingFormatter: boolean,
-  projectUsesSafewordPreset: boolean,
 ): string {
   const prettier = getPrettierConfig(hasExistingFormatter);
-  // ESLint 10 lints this file with itself (nearest-config lookup), composed with
-  // the project config. Name a security rule only when that config is safeword's
-  // own: under a custom config the rule may be undefined, and a directive naming
-  // an undefined rule is itself an error.
-  const existsSyncDirective = projectUsesSafewordPreset
-    ? '// eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed path beside this file\n'
-    : '';
   // Need safeword import only when using prettier (for safeword.prettierConfig)
   const safewordImport = hasExistingFormatter ? '' : 'import safeword from "safeword/eslint";\n';
 
@@ -282,7 +273,7 @@ async function loadProjectConfig() {
   return loaded.default;
 }
 
-${existsSyncDirective}if (existsSync(projectConfigPath)) {
+if (existsSync(projectConfigPath)) {
   projectConfig = await loadProjectConfig();
   if (!Array.isArray(projectConfig)) {
     projectConfig = [projectConfig];

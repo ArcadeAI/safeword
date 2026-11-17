@@ -4,12 +4,12 @@
  * findings and pushes agents to hand-edit protected config (#6966).
  */
 
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { Linter } from 'eslint';
-import { afterAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { recommended } from '../src/presets/typescript/eslint-configs/recommended.js';
 import { recommendedTypeScript } from '../src/presets/typescript/eslint-configs/recommended-typescript.js';
@@ -17,15 +17,9 @@ import { getEslintConfig, getSafewordEslintConfig } from '../src/templates/confi
 
 const linter = new Linter({ configType: 'flat' });
 
-// A real project root, so `.safeword/eslint.config.mjs` resolves `../eslint.config.mjs`.
-// Kebab-case and inside the package, so filename rules and `safeword/eslint` resolution behave
-// as in a real project.
-const projectRoot = nodePath.join(import.meta.dirname, `scaffold-project-${process.pid}`);
-mkdirSync(projectRoot, { recursive: true });
-writeFileSync(nodePath.join(projectRoot, 'eslint.config.mjs'), 'export default [];\n');
-afterAll(() => {
-  rmSync(projectRoot, { recursive: true, force: true });
-});
+// A virtual root inside the package: kebab-case so filename rules pass, and
+// inside node resolution of `safeword/eslint` like a real project.
+const projectRoot = nodePath.join(import.meta.dirname, 'scaffold-project');
 
 function lintAs(code: string, relativeFilename: string, config: unknown[]): string[] {
   const filename = nodePath.join(projectRoot, relativeFilename);
@@ -45,11 +39,6 @@ const cucumberConfig = readFileSync(
 const scaffoldedFiles: [label: string, filename: string, code: string][] = [
   ['root eslint.config.mjs', 'eslint.config.mjs', getEslintConfig(false)],
   ['formatter-agnostic eslint.config.mjs', 'eslint.config.mjs', getEslintConfig(true)],
-  [
-    '.safeword/eslint.config.mjs',
-    '.safeword/eslint.config.mjs',
-    getSafewordEslintConfig(undefined, false),
-  ],
   ['cucumber.mjs', 'cucumber.mjs', cucumberConfig],
 ];
 
@@ -62,10 +51,20 @@ describe('scaffolded files lint clean under the preset they install (#6966)', ()
     expect(lintAs(code, filename, recommendedTypeScript)).toEqual([]);
   });
 
-  it('names no plugin rule when extending a custom project config', () => {
-    // Under ESLint 10 nearest-config lookup this file is linted by the project's
-    // own config, which may not load eslint-plugin-security.
-    expect(getSafewordEslintConfig('eslint.config.mjs', false)).not.toContain('security/');
+  it('generates the hook config identically before and after the root config exists', () => {
+    // Setup writes the root config in the same run, so the hook config must not
+    // depend on whether it existed yet, or a second identical install changes it.
+    expect(getSafewordEslintConfig(undefined, false)).toBe(
+      getSafewordEslintConfig('eslint.config.mjs', false),
+    );
+  });
+
+  it('keeps ESLint 10 from linting its own vendored directory', () => {
+    // .safeword/ holds vendored hook sources; lint-cleanliness there is not the
+    // project's concern, so the hook config ignores the directory instead.
+    expect(getSafewordEslintConfig(undefined, false)).toContain(
+      '[{ basePath: import.meta.dirname, ignores: ["**"] }]',
+    );
   });
 });
 

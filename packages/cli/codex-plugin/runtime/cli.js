@@ -14896,12 +14896,10 @@ function getSafewordEslintConfig(existingConfig, hasExistingFormatter = false) {
   if (existingConfig?.startsWith(".eslintrc")) {
     return getSafewordEslintConfigLegacy(existingConfig, hasExistingFormatter);
   }
-  return getSafewordEslintConfigExtending(existingConfig ?? "eslint.config.mjs", hasExistingFormatter, existingConfig === undefined);
+  return getSafewordEslintConfigExtending(existingConfig ?? "eslint.config.mjs", hasExistingFormatter);
 }
-function getSafewordEslintConfigExtending(existingConfig, hasExistingFormatter, projectUsesSafewordPreset) {
+function getSafewordEslintConfigExtending(existingConfig, hasExistingFormatter) {
   const prettier = getPrettierConfig(hasExistingFormatter);
-  const existsSyncDirective = projectUsesSafewordPreset ? `// eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed path beside this file
-` : "";
   const safewordImport = hasExistingFormatter ? "" : `import safeword from "safeword/eslint";
 `;
   return `// Safeword ESLint config - extends project config with stricter rules
@@ -14945,7 +14943,7 @@ async function loadProjectConfig() {
   return loaded.default;
 }
 
-${existsSyncDirective}if (existsSync(projectConfigPath)) {
+if (existsSync(projectConfigPath)) {
   projectConfig = await loadProjectConfig();
   if (!Array.isArray(projectConfig)) {
     projectConfig = [projectConfig];
