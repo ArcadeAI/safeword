@@ -380,8 +380,9 @@ export type CloseoutBindingTarget =
  * Where a closeout command will run, so its binding lands where closeout reads it: the git
  * working tree of the shell cwd after any `cd`/`pushd` that precedes the closeout segment.
  * Closeout reads from `git rev-parse --show-toplevel` of its own cwd. `unresolved` means a
- * preceding directory change the hook cannot follow (a variable, `~`, `-`, or no argument).
- * Returns undefined when the command does not run closeout.
+ * preceding directory change the hook cannot follow (a variable, `~`, `-`, or no argument), or
+ * more than one closeout run, which one binding cannot serve. Returns undefined when the command
+ * does not run closeout.
  */
 export function closeoutBindingTarget(
   command: string,
@@ -389,6 +390,7 @@ export function closeoutBindingTarget(
   pluginRoot: string | undefined = process.env.CLAUDE_PLUGIN_ROOT,
 ): CloseoutBindingTarget | undefined {
   let directory: string | undefined = shellDirectory;
+  let found: CloseoutBindingTarget | undefined;
   for (const segment of splitShellSegments(command)) {
     const words = commandWords(segment);
     const tree: string = nearestGitTree(directory ?? shellDirectory) ?? directory ?? shellDirectory;
@@ -397,19 +399,18 @@ export function closeoutBindingTarget(
       (isCloseoutCleanupPath(words[1], pluginRoot, tree) ||
         isCloseoutCleanupPath(words[1], pluginRoot, scriptProjectRoot(words[1])))
     ) {
-      return directory === undefined
-        ? { kind: 'unresolved' }
-        : { kind: 'tree', projectDirectory: tree };
+      if (found !== undefined || directory === undefined) return { kind: 'unresolved' };
+      found = { kind: 'tree', projectDirectory: tree };
     }
     if (directory !== undefined && (words[0] === 'cd' || words[0] === 'pushd')) {
-      const target = words[1]?.replaceAll('"', '').replaceAll("'", '');
+      const destination = words[1]?.replaceAll('"', '').replaceAll("'", '');
       directory =
-        target === undefined || target === '-' || /[$`~]/.test(target)
+        destination === undefined || destination === '-' || /[$`~]/.test(destination)
           ? undefined
-          : nodePath.resolve(directory, target);
+          : nodePath.resolve(directory, destination);
     }
   }
-  return undefined;
+  return found;
 }
 
 /**

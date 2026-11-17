@@ -180,6 +180,24 @@ describe('closeout binding follows the worktree closeout runs in (#5467)', () =>
     },
   );
 
+  it('denies two closeout runs in one command, since only one binding can be recorded', () => {
+    repo();
+
+    const result = runClaudeHook(
+      worktreeA,
+      `${CLOSEOUT}; cd ${worktreeB} && bun .safeword/scripts/closeout-cleanup.ts --pr 43`,
+      'claude-session-twice',
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    const output = JSON.parse(result.stdout) as {
+      hookSpecificOutput?: { permissionDecision?: string };
+    };
+    expect(output.hookSpecificOutput?.permissionDecision).toBe('deny');
+    expect(readFreshCloseoutBinding({ projectDirectory: worktreeA })).toBeUndefined();
+    expect(readFreshCloseoutBinding({ projectDirectory: worktreeB })).toBeUndefined();
+  });
+
   it('closeout run inside a worktree finds the binding the Codex hook recorded', () => {
     repo();
     const environment = hostEnvironment(primary);
