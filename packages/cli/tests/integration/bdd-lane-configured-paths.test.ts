@@ -24,8 +24,12 @@ import {
   writeTestFile,
 } from '../helpers.js';
 
-function runTestBdd(directory: string): { output: string; status: number | null } {
-  const result = spawnSync('bun', ['run', 'test:bdd'], {
+function runTestBdd(
+  directory: string,
+  cucumberArguments: readonly string[] = [],
+): { output: string; status: number | null } {
+  const forwarded = cucumberArguments.length > 0 ? ['--', ...cucumberArguments] : [];
+  const result = spawnSync('bun', ['run', 'test:bdd', ...forwarded], {
     cwd: directory,
     encoding: 'utf8',
     timeout: TIMEOUT_SETUP,
@@ -109,22 +113,14 @@ describe('scaffolded runner honors configured paths (TB2.AC2 + TB2.AC3)', () => 
         ].join('\n'),
       );
       try {
-        const result = spawnSync(
-          'bun',
-          [
-            'run',
-            'test:bdd',
-            '--',
-            `features/line-selector.feature:${selectedLine}`,
-            '--format',
-            'summary',
-          ],
-          { cwd: directory, encoding: 'utf8', timeout: TIMEOUT_SETUP },
-        );
-        const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
+        const { output, status } = runTestBdd(directory, [
+          `features/line-selector.feature:${selectedLine}`,
+          '--format',
+          'summary',
+        ]);
         // The unselected scenario throws, so a pass means it did not run; the
         // count rules out the starter feature riding along on default globs.
-        expect(result.status, output).toBe(0);
+        expect(status, output).toBe(0);
         expect(output).toContain('1 scenario (1 passed)');
       } finally {
         rmSync(nodePath.join(directory, 'features/line-selector.feature'), { force: true });
