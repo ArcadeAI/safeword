@@ -79,15 +79,14 @@ interface ProjectLintConfig {
 
 function projectLintConfig(projectDirectory: string): ProjectLintConfig {
   const root = normalizeExistingDirectory(projectDirectory);
-  const config = (name: string) => `${root}/.safeword/${name}`;
   return {
     root,
-    eslint: config('eslint.config.mjs'),
-    ruff: config('ruff.toml'),
-    sqlfluff: config('sqlfluff.cfg'),
-    clippy: config('clippy.toml'),
-    rustfmt: config('rustfmt.toml'),
-    prettier: config('.prettierrc'),
+    eslint: `${root}/.safeword/eslint.config.mjs`,
+    ruff: `${root}/.safeword/ruff.toml`,
+    sqlfluff: `${root}/.safeword/sqlfluff.cfg`,
+    clippy: `${root}/.safeword/clippy.toml`,
+    rustfmt: `${root}/.safeword/rustfmt.toml`,
+    prettier: `${root}/.safeword/.prettierrc`,
     ownsAlternativeFormatter: projectOwnsAlternativeFormatter(root),
   };
 }
