@@ -22,3 +22,5 @@
 Audit passed — re-run at 2295f172c on the final diff: 0 errors, 0 warnings. depcruise: 533 modules, no violations. sync-config reports healthy, so there is no config drift. No agent-config, learning, or domain-doc files changed, and test quality is clean. The first run (04:52) raised E004 (TDD.md described only the SHA format), which is fixed.
 
 Quality review: approved by Codex, cross-agent, after 3 rounds of fixes (review 3053135a), and approved again on the current sources (review 16d61734).
+
+Re-verified at 6d6354391 (after merging main twice; only generated files conflicted): all 5 generated surfaces current; the six ledger suites plus main's two new hook test files pass locally; every CI check passes on 6d63543 (test node 22 after re-running a 30s timeout in the untouched `claude-plugin-release` test, which passes locally in ~10s).
