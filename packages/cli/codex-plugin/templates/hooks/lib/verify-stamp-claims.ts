@@ -81,6 +81,8 @@ function enabledFiles(stdout: string, byRepoPath: ReadonlyMap<string, string>): 
  * empty scratch repository so neither system, global, nor the project's
  * `info/attributes` can apply: a branch cannot exempt its own files. Any Git
  * failure exempts nothing, which keeps the coverage requirement fail-closed.
+ * That includes Git older than 2.40 (`check-attr --source`) or 2.31
+ * (`rev-parse --path-format`): there, every changed file must still be reviewed.
  */
 function baseExemptFiles(projectDirectory: string, base: string, files: string[]): Set<string> {
   const exempt = new Set<string>();

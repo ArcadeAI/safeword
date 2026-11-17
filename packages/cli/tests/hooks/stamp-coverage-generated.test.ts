@@ -21,9 +21,24 @@ function git(cwd: string, ...args: string[]): void {
   if (result.status !== 0) throw new Error(`git ${args.join(' ')} failed: ${result.stderr}`);
 }
 
-function gitPath(): string {
-  const result = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' });
-  return result.stdout.trim();
+/** Runs `work` with a `git` first on PATH that exits 128 for one subcommand. */
+function withFailingGit<T>(subcommand: string, work: () => T): T {
+  const realGit = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
+  const shim = mkdtempSync(nodePath.join(tmpdir(), 'stamp-coverage-git-'));
+  const shimGit = nodePath.join(shim, 'git');
+  writeFileSync(
+    shimGit,
+    `#!/bin/sh\nfor arg in "$@"; do [ "$arg" = "${subcommand}" ] && exit 128; done\nexec "${realGit}" "$@"\n`,
+  );
+  chmodSync(shimGit, 0o755);
+  const previousPath = process.env.PATH;
+  process.env.PATH = `${shim}${nodePath.delimiter}${previousPath ?? ''}`;
+  try {
+    return work();
+  } finally {
+    process.env.PATH = previousPath;
+    rmSync(shim, { recursive: true, force: true });
+  }
 }
 
 function write(root: string, relative: string, content: string): void {
@@ -123,21 +138,9 @@ describe('implement-phase coverage set', () => {
       write(root, 'src/feature.ts', 'export const a = 2;\n');
       write(root, 'mirror/feature.js', 'export const a = 2;\n');
       commitAll(root, 'work');
-      const shim = mkdtempSync(nodePath.join(tmpdir(), 'stamp-coverage-git-'));
-      write(
-        shim,
-        'git',
-        `#!/bin/sh\nfor arg in "$@"; do [ "$arg" = "${failingCommand}" ] && exit 128; done\nexec "${gitPath()}" "$@"\n`,
-      );
-      chmodSync(nodePath.join(shim, 'git'), 0o755);
-      const previousPath = process.env.PATH;
-      process.env.PATH = `${shim}${nodePath.delimiter}${previousPath ?? ''}`;
-      try {
-        expect(coverageSet(root)).toEqual(['mirror/feature.js', 'src/feature.ts']);
-      } finally {
-        process.env.PATH = previousPath;
-        rmSync(shim, { recursive: true, force: true });
-      }
+      const files = withFailingGit(failingCommand, () => coverageSet(root));
+
+      expect(files).toEqual(['mirror/feature.js', 'src/feature.ts']);
     },
   );
 });
