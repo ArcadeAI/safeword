@@ -14,6 +14,7 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 import YAML from 'yaml';
 
+import { createReconciliationPlan } from '../../src/cli-protocol/reconciliation.js';
 import { publishReceipt, renderReceipt } from '../../src/pr-review/publish.js';
 import { reconcile } from '../../src/reconcile.js';
 import type { ProjectContext, SafewordSchema } from '../../src/schema.js';
@@ -675,6 +676,52 @@ describe('advisory PR review workflow contract', () => {
       expect(existsSync(customizedPath)).toBe(true);
       expect(disabled.removed).toContain(installedWorkflowPaths[1]);
       expect(disabled.removed).not.toContain(installedWorkflowPaths[0]);
+    } finally {
+      rmSync(projectDirectory, { force: true, recursive: true });
+    }
+  });
+
+  it('previews and applies a pin refresh for enabled workflows, sparing a customized one', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-pr-review-'));
+    try {
+      writePrReviewConfig(projectDirectory, true);
+      const schema = workflowOnlySchema();
+      await reconcile(schema, 'install', projectContext(projectDirectory));
+
+      const [customized, ...unmodified] = installedWorkflowPaths;
+      for (const path of installedWorkflowPaths) {
+        const installedPath = nodePath.join(projectDirectory, path);
+        const previousRelease = readFileSync(installedPath, 'utf8').replaceAll(
+          `safeword@${VERSION}`,
+          'safeword@0.0.1',
+        );
+        writeFileSync(
+          installedPath,
+          path === customized ? `${previousRelease}\n# customer-owned\n` : previousRelease,
+        );
+      }
+      const customizedPath = nodePath.join(projectDirectory, customized);
+      const customizedContent = readFileSync(customizedPath, 'utf8');
+
+      const { plan } = await createReconciliationPlan(
+        projectDirectory,
+        'upgrade',
+        schema,
+        projectContext(projectDirectory),
+      );
+      for (const path of unmodified) {
+        expect(plan.effects.files).toContainEqual({ kind: 'update', target: path });
+      }
+      expect(plan.effects.files.map(effect => effect.target)).not.toContain(customized);
+
+      const upgraded = await reconcile(schema, 'upgrade', projectContext(projectDirectory));
+      expect(upgraded.updated).toEqual(expect.arrayContaining(unmodified));
+      for (const path of unmodified) {
+        const content = readFileSync(nodePath.join(projectDirectory, path), 'utf8');
+        expect(content).toContain(`safeword@${VERSION}`);
+        expect(content).not.toContain('safeword@0.0.1');
+      }
+      expect(readFileSync(customizedPath, 'utf8')).toBe(customizedContent);
     } finally {
       rmSync(projectDirectory, { force: true, recursive: true });
     }
