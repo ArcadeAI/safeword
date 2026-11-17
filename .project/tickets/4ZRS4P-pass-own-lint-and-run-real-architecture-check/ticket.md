@@ -2,7 +2,7 @@
 id: 4ZRS4P
 slug: pass-own-lint-and-run-real-architecture-check
 type: task
-phase: implement
+phase: verify
 status: in_progress
 external_issue: https://github.com/ArcadeAI/safeword/issues/6966
 external_prs:
@@ -47,3 +47,4 @@ last_modified: 2026-11-17T07:46:44.107Z
 - 2026-11-17 Found (cross-agent review): ignore test only matched text → real ESLint 10 runs in both modes, shown to fail without the ignore — 2050d2895; TS end-to-end suite skipped installs → real installs — 9ac375039. Three pre-existing bugs routed out of scope (#7676, #7687, legacy .eslintrc follow-up).
 - 2026-11-17 Complete: CI 15/15 green at 9ac375039; readiness evidence recorded in PR #7662.
 - 2026-11-17T07:47:58.955Z Phase: intake → implement
+- 2026-11-17T07:55:07.903Z Phase: implement → verify
