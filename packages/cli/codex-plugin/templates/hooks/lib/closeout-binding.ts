@@ -393,8 +393,8 @@ const CLOSEOUT_COMMAND = new RegExp(
 );
 
 /**
- * Programs that only read files. Any other program whose command names the closeout script is
- * treated as running it, so an unrecognized wrapper (`exec`, `time`, `bun run`) is denied with the
+ * Programs that only read files they are given. Any other program whose command names the
+ * closeout script, or a reader that names it inside a larger value, is treated as running it, so an unrecognized wrapper (`exec`, `time`, `bun run`) is denied with the
  * recovery rather than allowed without a binding.
  */
 const FILE_READERS = new Set([
@@ -440,9 +440,13 @@ export function closeoutBindingTarget(
 ): CloseoutBindingTarget | undefined {
   const runsCloseoutScript = splitShellSegments(command).some(segment => {
     const words = commandWords(segment).map(word => word.replaceAll('"', '').replaceAll("'", ''));
-    return (
-      !FILE_READERS.has(nodePath.basename(words[0] ?? '')) &&
-      words.some(word => word.endsWith('closeout-cleanup.ts'))
+    const reader = FILE_READERS.has(nodePath.basename(words[0] ?? ''));
+    // A reader only reads a word that is the bare script path; the script named inside a larger
+    // value (a git alias, a sed or awk program) can still run.
+    return words.some(
+      word =>
+        word.includes('closeout-cleanup.ts') &&
+        (!reader || !/^[^\s=!]*closeout-cleanup\.ts$/u.test(word)),
     );
   });
   if (!runsCloseoutScript) return undefined;
