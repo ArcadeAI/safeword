@@ -1240,6 +1240,7 @@ if (
     const next = classifyAnnotation(transition.annotation);
     return (
       prior.kind === 'sha' &&
+      isValidSha(prior.value) &&
       resolveCommitSha(projectDirectory, prior.value) === undefined &&
       next.kind === 'sha' &&
       isValidSha(next.value) &&

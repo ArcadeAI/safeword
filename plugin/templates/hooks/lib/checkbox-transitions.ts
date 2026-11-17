@@ -9,7 +9,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 
-import { parseCheckboxAnnotation } from './parse-annotation.js';
+import { classifyAnnotation, parseCheckboxAnnotation } from './parse-annotation.js';
 import {
   parseRetrospectiveAnnotation,
   type RetrospectiveAnnotation,
@@ -41,6 +41,12 @@ export interface TransitionHookInput {
 
 interface CheckboxState extends CheckboxTransition {
   checked: boolean;
+  /** Position among rows of the same step under the same scenario (0-based). */
+  ordinal: number;
+}
+
+function stepRowCount(states: readonly CheckboxState[], state: CheckboxState): number {
+  return states.filter(row => row.scenario === state.scenario && row.step === state.step).length;
 }
 
 export function balancedFenceBodyLines(lines: readonly string[]): Set<number> {
@@ -109,6 +115,7 @@ function checkboxStates(text: string): CheckboxState[] {
     states.push({
       ...parsed,
       scenario,
+      ordinal: states.filter(row => row.scenario === scenario && row.step === parsed.step).length,
       ...(parsed.step === 'VERIFIED' && { retrospective }),
       ...((mode === 'manual' || mode === 'live') && { evidenceMode: mode }),
     });
@@ -181,36 +188,62 @@ function findTransitions(
   const removedHistoricalRows: CheckboxState[] = [];
   // cross-scenario is validated as supporting evidence, but it is not a TDD
   // phase transition and therefore is not immutable completion credit here.
-  for (const oldState of oldStates.filter(
+  const historicalRows = oldStates.filter(
     state =>
       ['RED', 'GREEN', 'REFACTOR', 'VERIFIED'].includes(state.step) &&
       state.checked &&
       state.annotation !== '',
-  )) {
-    const preservedIndex = newStates.findIndex(
-      (newState, index) =>
-        !preservedHistoricalRows.has(index) &&
-        newState.step === oldState.step &&
-        newState.checked &&
-        newState.annotation === oldState.annotation &&
-        sameEvidenceBinding(oldState, newState),
-    );
-    if (preservedIndex >= 0) preservedHistoricalRows.add(preservedIndex);
-    else removedHistoricalRows.push(oldState);
+  );
+  // Match each historical row to an unchanged row, preferring the same row
+  // (same position among its step's rows) over any row with equal text, so a
+  // repeated annotation cannot claim a different row's identity (#6987).
+  const unpreserved = new Set(historicalRows);
+  for (const samePosition of [true, false]) {
+    for (const oldState of historicalRows) {
+      if (!unpreserved.has(oldState)) continue;
+      const preservedIndex = newStates.findIndex(
+        (newState, index) =>
+          !preservedHistoricalRows.has(index) &&
+          newState.step === oldState.step &&
+          newState.checked &&
+          newState.annotation === oldState.annotation &&
+          (!samePosition || newState.ordinal === oldState.ordinal) &&
+          sameEvidenceBinding(oldState, newState),
+      );
+      if (preservedIndex < 0) continue;
+      preservedHistoricalRows.add(preservedIndex);
+      unpreserved.delete(oldState);
+    }
   }
-  // Pair each removed historical row with an in-place rewrite (same step and
-  // binding, still checked) so the gate can tell a corrected annotation from a
-  // deletion. Pairing runs after preservation so a swap cannot steal a row.
+  removedHistoricalRows.push(...unpreserved);
+  // Pair each removed historical row with an in-place SHA rewrite so the gate
+  // can tell a corrected SHA from a deletion. In place means the same row: same
+  // step and binding, still checked, same position among that step's rows, and
+  // no rows of that step added or removed. Only SHA → SHA rewrites pair; every
+  // other rewrite (to a skip, a manual/live relabel) keeps its existing path.
+  // Pairing runs after preservation so a swap cannot steal a row. A paired
+  // correction owns both rows, so the new-credit matching below can neither
+  // reuse the old row nor read the corrected row as a fresh check (#6987).
+  const correctedNewRows = new Set<number>();
+  const isShaRow = (state: CheckboxState): boolean =>
+    classifyAnnotation(state.annotation).kind === 'sha';
   for (const oldState of removedHistoricalRows) {
     const replacementIndex = newStates.findIndex(
       (newState, index) =>
+        isShaRow(oldState) &&
+        isShaRow(newState) &&
         !preservedHistoricalRows.has(index) &&
         newState.step === oldState.step &&
         newState.checked &&
-        newState.annotation !== '' &&
+        newState.ordinal === oldState.ordinal &&
+        stepRowCount(newStates, newState) === stepRowCount(oldStates, oldState) &&
         sameEvidenceBinding(oldState, newState),
     );
-    if (replacementIndex >= 0) preservedHistoricalRows.add(replacementIndex);
+    if (replacementIndex >= 0) {
+      preservedHistoricalRows.add(replacementIndex);
+      correctedNewRows.add(replacementIndex);
+      usedOld.add(oldStates.indexOf(oldState));
+    }
     transitions.push({
       step: oldState.step,
       annotation: replacementIndex >= 0 ? (newStates[replacementIndex]?.annotation ?? '') : '',
@@ -242,7 +275,8 @@ function findTransitions(
   // Preserve every exact historical row before allowing a new row to consume a
   // generic same-step match. This makes relabel detection independent of row
   // order when a scenario contains repeated RED/GREEN/REFACTOR steps.
-  for (const state of newStates.filter(candidate => candidate.checked)) {
+  for (const [index, state] of newStates.entries()) {
+    if (!state.checked || correctedNewRows.has(index)) continue;
     if (consumeOld(state, true, true, true) === undefined) unmatched.push(state);
   }
 

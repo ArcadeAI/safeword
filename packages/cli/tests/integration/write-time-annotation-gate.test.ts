@@ -909,6 +909,34 @@ describe('write-time annotation gate', () => {
       expectHookAllow(result);
     });
 
+    it('allows correcting a phantom GREEN SHA without re-running the RED review when another GREEN row is open', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED 5443b14\n- [x] GREEN fade0ff\n- [ ] GREEN\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [x] GREEN fade0ff\n- [ ] GREEN',
+        '- [x] GREEN 6b112d3\n- [ ] GREEN',
+      );
+      expectHookAllow(result);
+    });
+
+    it('allows correcting a phantom SHA to a commit another row of the same step already cites', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED 5443b14\n- [x] GREEN fade0ff\n- [x] GREEN 6b112d3\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [x] GREEN fade0ff\n- [x] GREEN 6b112d3',
+        '- [x] GREEN 6b112d3\n- [x] GREEN 6b112d3',
+      );
+      expectHookAllow(result);
+    });
+
     it.each([
       ['another SHA that names no commit', '- [x] GREEN deadbee'],
       ['a skip reason', '- [x] GREEN skip: never mind'],
@@ -925,6 +953,20 @@ describe('write-time annotation gate', () => {
         replacement,
       );
       expectHookDeny(result, 'GREEN row that already carries historical evidence');
+    });
+
+    it('blocks transplanting a phantom-SHA correction onto another row of the same step', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED fade0ff\n- [ ] RED\n- [ ] GREEN\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [x] RED fade0ff\n- [ ] RED',
+        '- [ ] RED\n- [x] RED 5443b14',
+      );
+      expectHookDeny(result, 'RED row that already carries historical evidence');
     });
 
     it('blocks moving a phantom-SHA correction under a different scenario', () => {

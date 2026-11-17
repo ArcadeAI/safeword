@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "53d09226f9c5f9f5d435a12deaa6d7fbee4b9ece3c93771e0ee7a0e0b2061840"
+      "sha256": "bab65dc5b350a8aa90fc7c657513d05131bd95be3be047938fcaa044177fa717"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "a93bda55db8feac54de3e78832afea5877aee1bbda634962da5dbb7d52d7d94d"
+      "sha256": "640627cf1a3a5f3f88607ace7ff466562b39ce236dcbe77262692493571728f5"
     },
     {
       "path": "runtime/event-groups.json",
@@ -211,7 +211,7 @@
     },
     {
       "path": "runtime/hooks/lib/checkbox-transitions.ts",
-      "sha256": "b9e4ae4b080289b2423db34488dc388646033abd3085657cad4500622bc95cdb"
+      "sha256": "7480259e3a84d24e5b80da587516990746cdc1ac8975c02516fd328ffa8a3bd6"
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
@@ -527,7 +527,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "2ffce9205b9cab0c627b019bef42c4c4f1203fa6920d7402f5c2e50465e0a2c7"
+      "sha256": "59b898ed1c7c3040a1d9f68001d29a8c45b194495e2ba9f6fd857afb77b86431"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -677,7 +677,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "df18ad99d56b08a42a18cfa0ee834e8b6d0ec51c775dbd7c1f878f6445314f8e"
+      "sha256": "ba6343c8c02e8746faabea8f614549025753516aa543de82596f615e7dbb5dec"
     },
     {
       "path": "skills/bdd/VERIFY.md",
@@ -1211,7 +1211,7 @@
     },
     {
       "path": "templates/hooks/lib/checkbox-transitions.ts",
-      "sha256": "b9e4ae4b080289b2423db34488dc388646033abd3085657cad4500622bc95cdb"
+      "sha256": "7480259e3a84d24e5b80da587516990746cdc1ac8975c02516fd328ffa8a3bd6"
     },
     {
       "path": "templates/hooks/lib/closeout-binding.ts",
@@ -1523,7 +1523,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "0143981d3659fd2e17105f6dfef037e401f1bfa08a6161395c4ccc0b0535039c"
+      "sha256": "5571e908503ba7b9d3f02e349b82d95f12368a2678476bc3f931f88afd69a225"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",
@@ -1703,7 +1703,7 @@
     },
     {
       "path": "templates/skills/bdd/TDD.md",
-      "sha256": "f18f14822d63c7a91199ca4a0d0277a1d7e5521156980a2f7e259ceaea1c93ef"
+      "sha256": "cb4c44d1e197849eb5cc8ce6304e859cab16f1250974c7e31e112d369d4ac0c3"
     },
     {
       "path": "templates/skills/bdd/VERIFY.md",
