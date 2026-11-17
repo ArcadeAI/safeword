@@ -14,6 +14,7 @@
 import { execSync, spawnSync } from 'node:child_process';
 
 import { safewordCli } from './safeword-cli.js';
+import { projectEnvironment } from './project-directory.js';
 
 type TestCommand = {
   /** Label for output/diagnostics (the runner or script name). */
@@ -119,7 +120,7 @@ function resolvePlanCommands(cwd: string, kind: 'test' | 'bdd'): TestPlanResolut
     {
       encoding: 'utf8',
       timeout: TEST_TIMEOUT_MS,
-      env: { ...process.env, SAFEWORD_NO_UPDATE_CHECK: '1' },
+      env: { ...projectEnvironment(cwd), SAFEWORD_NO_UPDATE_CHECK: '1' },
     },
   );
   if (result.error || !result.stdout) {

@@ -22,7 +22,7 @@ import {
   type EditToolInput,
 } from './lib/work-log-stamp.ts';
 
-installCrashCapture('post-tool-work-log');
+const crashCapture = installCrashCapture('post-tool-work-log');
 
 interface HookInput {
   tool_name?: string;
@@ -56,6 +56,8 @@ const ownerDirectory = resolveToolProjectDirectory(projectDirectory, {
   editedFile: requestedFile,
   cwd: input.cwd,
 });
+// A crash from here on is recorded under the owning project's self-report policy.
+crashCapture.setProject(ownerDirectory);
 // Not a safeword project, skip silently. Checked on the owning project, so a
 // session launched outside Safeword still stamps a ticket in an enrolled tree.
 if (!existsSync(`${ownerDirectory}/.safeword`)) {
