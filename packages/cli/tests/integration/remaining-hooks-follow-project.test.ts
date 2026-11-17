@@ -8,7 +8,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -121,22 +121,57 @@ describe('remaining hooks act on the resolved project (#5467)', () => {
     expect(result.stdout).toContain('Verification stamp detected in .project/learnings/astro.md');
   });
 
-  it("post-tool-lint lints a worktree file with the worktree's Safeword configs", () => {
-    // Only the launch checkout carries a Ruff config: linting with the launch
-    // checkout's configs would find it and stay quiet about it.
-    mkdirSync(nodePath.join(launch, '.safeword'), { recursive: true });
-    writeFileSync(nodePath.join(launch, '.safeword', 'ruff.toml'), 'line-length = 100\n');
-    const file = nodePath.join(worktree, 'src/app.py');
-    writeFileSync(file, 'x = 1\n');
+  it("post-tool-lint runs the linter with the worktree's config for a relative edit", () => {
+    // Both checkouts carry a Ruff config; a stub ruff records the exact
+    // command line, so only the config the hook really used can pass.
+    for (const checkout of [launch, worktree]) {
+      mkdirSync(nodePath.join(checkout, '.safeword'), { recursive: true });
+      writeFileSync(nodePath.join(checkout, '.safeword', 'ruff.toml'), 'line-length = 100\n');
+    }
+    writeFileSync(nodePath.join(worktree, 'src/app.py'), 'x = 1\n');
+    const stubBin = nodePath.join(root, 'stub-bin');
+    const invocationLog = nodePath.join(root, 'invocations.log');
+    mkdirSync(stubBin);
+    for (const command of ['ruff', 'bunx', 'git']) {
+      const stub = nodePath.join(stubBin, command);
+      writeFileSync(
+        stub,
+        `#!/bin/sh\nprintf '%s %s\\n' ${JSON.stringify(command)} "$*" >> ${JSON.stringify(invocationLog)}\nexit 0\n`,
+      );
+      chmodSync(stub, 0o755);
+    }
 
-    const result = runHook('post-tool-lint.ts', launch, {
-      hook_event_name: 'PostToolUse',
-      tool_name: 'Edit',
+    // A relative edit path: relative to the reported cwd (the worktree), not
+    // to the hook process's cwd (the launch checkout).
+    const result = spawnSync('bun', [nodePath.join(HOOKS, 'post-tool-lint.ts')], {
+      input: JSON.stringify({
+        hook_event_name: 'PostToolUse',
+        tool_name: 'Edit',
+        cwd: worktree,
+        tool_input: { file_path: 'src/app.py' },
+      }),
       cwd: launch,
-      tool_input: { file_path: file },
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: launch,
+        HOME: root,
+        PATH: `${stubBin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      },
+      encoding: 'utf8',
+      timeout: TIMEOUT_QUICK,
     });
 
-    expect(result.status).toBe(0);
-    expect(result.stdout).toContain('Python Safeword config is missing');
+    expect(result.status, result.stderr).toBe(0);
+    const ruffRuns = readFileSync(invocationLog, 'utf8')
+      .split('\n')
+      .filter(line => line.startsWith('ruff '));
+    expect(ruffRuns.length).toBeGreaterThan(0);
+    const worktreeConfig = `${realpathSync(worktree)}/.safeword/ruff.toml`;
+    const launchConfig = `${realpathSync(launch)}/.safeword/ruff.toml`;
+    for (const run of ruffRuns) {
+      expect(run).toContain(worktreeConfig);
+      expect(run).not.toContain(launchConfig);
+      expect(run).toContain(`${realpathSync(worktree)}/src/app.py`);
+    }
   });
 });
