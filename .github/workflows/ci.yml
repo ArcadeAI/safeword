@@ -116,10 +116,16 @@ jobs:
         #   lint config.
         # - GHSA-ch52-4w7c-c8xp: http-cache-semantics <=4.2.0. Docs website build
         #   only (astro); never shipped.
+        # - GHSA-fc5q-39xc-vjpf: picomatch <=4.0.7 (latest 4.0.7). Reaches the
+        #   published CLI via its ESLint plugins → @typescript-eslint/typescript-estree
+        #   → tinyglobby → picomatch, and dependency-cruiser and astro in
+        #   development; exploiting it needs attacker-controlled glob patterns,
+        #   which come from the project's own lint and TypeScript config.
         run: >-
           bun audit --audit-level high
           --ignore GHSA-vfj7-8cjw-p6xm
           --ignore GHSA-ch52-4w7c-c8xp
+          --ignore GHSA-fc5q-39xc-vjpf
 
   go-lint-context:
     name: Go lint context (${{ matrix.linter }})
