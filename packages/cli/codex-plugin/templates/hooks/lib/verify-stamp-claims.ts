@@ -16,7 +16,8 @@
 // skips never reach the coordinator at all.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { createReviewReceiptReader } from './read-receipt.js';
@@ -41,25 +42,125 @@ function addPaths(paths: Set<string>, output: string | undefined): boolean {
   return true;
 }
 
-/** Current branch plus staged, unstaged, and untracked work, relative to the project directory. */
+const EXEMPT_ATTRIBUTES = ['linguist-generated', 'linguist-vendored'] as const;
+// check-attr reports `path attr` as "set" and `path attr=true` as "true".
+const ENABLED = new Set(['set', 'true']);
+
+const NULL_FILE = process.platform === 'win32' ? 'NUL' : '/dev/null';
+
+/** A Git environment that ignores system and global configuration and attributes. */
+function isolatedGitEnvironment(): NodeJS.ProcessEnv {
+  return {
+    PATH: process.env.PATH,
+    ...(process.platform === 'win32' && { SystemRoot: process.env.SystemRoot }),
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_ATTR_NOSYSTEM: '1',
+    GIT_CONFIG_GLOBAL: NULL_FILE,
+  };
+}
+
+/**
+ * The files whose `check-attr -z` records (path, attribute, value) carry an
+ * enabled exemption. A malformed response exempts nothing.
+ */
+function enabledFiles(stdout: string, byRepoPath: ReadonlyMap<string, string>): Set<string> {
+  const exempt = new Set<string>();
+  const fields = stdout.split('\0');
+  if (fields.pop() !== '' || fields.length % 3 !== 0) return exempt;
+  for (let offset = 0; offset < fields.length; offset += 3) {
+    const file = byRepoPath.get(fields[offset] ?? '');
+    if (file !== undefined && ENABLED.has(fields[offset + 2] ?? '')) exempt.add(file);
+  }
+  return exempt;
+}
+
+/**
+ * The work files the merge base marks generated or vendored (issue #5870).
+ *
+ * Attributes come from the base commit's own `.gitattributes`, read through an
+ * empty scratch repository so neither system, global, nor the project's
+ * `info/attributes` can apply: a branch cannot exempt its own files. Any Git
+ * failure exempts nothing, which keeps the coverage requirement fail-closed.
+ * That includes Git older than 2.40 (`check-attr --source`) or 2.31
+ * (`rev-parse --path-format`): there, every changed file must still be reviewed.
+ */
+function baseExemptFiles(projectDirectory: string, base: string, files: string[]): Set<string> {
+  const exempt = new Set<string>();
+  if (files.length === 0) return exempt;
+  const prefix = runGit(projectDirectory, ['rev-parse', '--show-prefix'])?.trim();
+  const objects = runGit(projectDirectory, [
+    'rev-parse',
+    '--path-format=absolute',
+    '--git-path',
+    'objects',
+  ])?.trim();
+  if (prefix === undefined || !objects) return exempt;
+
+  const scratch = mkdtempSync(nodePath.join(tmpdir(), 'safeword-stamp-attr-'));
+  try {
+    const env = isolatedGitEnvironment();
+    const bare = nodePath.join(scratch, 'bare');
+    const template = nodePath.join(scratch, 'template');
+    mkdirSync(template);
+    if (
+      spawnSync('git', ['init', '--bare', '-q', `--template=${template}`, bare], { env }).status !==
+      0
+    )
+      return exempt;
+    const byRepoPath = new Map(files.map(file => [`${prefix}${file}`, file] as const));
+    const result = spawnSync(
+      'git',
+      [
+        '--git-dir',
+        bare,
+        '-c',
+        `core.attributesFile=${NULL_FILE}`,
+        'check-attr',
+        `--source=${base}`,
+        '-z',
+        '--stdin',
+        ...EXEMPT_ATTRIBUTES,
+      ],
+      {
+        env: { ...env, GIT_ALTERNATE_OBJECT_DIRECTORIES: objects },
+        input: `${[...byRepoPath.keys()].join('\0')}\0`,
+        encoding: 'utf8',
+        timeout: 5000,
+        maxBuffer: 4 * 1024 * 1024,
+      },
+    );
+    if (result.status !== 0 || typeof result.stdout !== 'string') return exempt;
+    return enabledFiles(result.stdout, byRepoPath);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+/**
+ * Current branch plus staged, unstaged, and untracked work, relative to the
+ * project directory, less what the merge base marks generated or vendored.
+ */
 function currentWorkFiles(projectDirectory: string): string[] {
   const base = closestDefaultMergeBase(projectDirectory);
   if (base.state !== 'found') return [];
 
   const paths = new Set<string>();
+  const diff = (...range: string[]): string | undefined =>
+    runGit(projectDirectory, ['diff', '--no-renames', '--relative', '--name-only', '-z', ...range]);
+  // Staged and unstaged are collected separately: `diff HEAD` alone misses a
+  // staged edit whose working-tree copy was restored to HEAD. `--no-renames`
+  // keeps both sides of a rename, so moving an authored file into a generated
+  // folder still requires review of its removal.
   if (
-    !addPaths(
-      paths,
-      runGit(projectDirectory, ['diff', '--relative', '--name-only', '-z', `${base.sha}...HEAD`]),
-    ) ||
-    !addPaths(
-      paths,
-      runGit(projectDirectory, ['diff', '--relative', '--name-only', '-z', 'HEAD']),
-    ) ||
+    !addPaths(paths, diff(`${base.sha}...HEAD`)) ||
+    !addPaths(paths, diff('--cached')) ||
+    !addPaths(paths, diff()) ||
     !addPaths(paths, runGit(projectDirectory, ['ls-files', '--others', '--exclude-standard', '-z']))
   )
     return [];
-  return [...paths];
+  const files = [...paths];
+  const exempt = baseExemptFiles(projectDirectory, base.sha, files);
+  return files.filter(file => !exempt.has(file));
 }
 
 /** Dynamic project facts needed to bind a receipt to the phase's real work. */
