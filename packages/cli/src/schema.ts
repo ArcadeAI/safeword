@@ -374,6 +374,17 @@ export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
 const GITIGNORE_BLOCK_PATHS: readonly string[] = ['node_modules/', ...SAFEWORD_TRANSIENT_PATHS];
 
 /**
+ * Transient paths earlier releases wrote into the repo-root block and later replaced. The
+ * rerender must still recognize them as Safeword's, or an upgrade stops claiming the old block at
+ * the first one and strands every line after it outside the managed block.
+ */
+const RETIRED_TRANSIENT_PATHS: readonly string[] = [
+  // Now one file per working tree (#5467).
+  '.project/closeout-session-binding.json',
+  '.safeword-project/closeout-session-binding.json',
+];
+
+/**
  * Top-level `.safeword/` entries that carry no proof a project install ever ran.
  *
  * Every one of them is written by a hook or by the native Claude plugin, so a
@@ -1560,9 +1571,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       // line is still claimed by the exact in-order match.
       // eslint-disable-next-line security/detect-non-literal-regexp -- derived only from the source-controlled constant above
       rerenderOwnedLinePattern: new RegExp(
-        `^(?:${SAFEWORD_TRANSIENT_PATHS.map(path =>
-          path.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`),
-        ).join('|')})$`,
+        `^(?:${[...SAFEWORD_TRANSIENT_PATHS, ...RETIRED_TRANSIENT_PATHS]
+          .map(path => path.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`))
+          .join('|')})$`,
         'u',
       ),
       marker: '# Safeword - Local cache and transient state',
