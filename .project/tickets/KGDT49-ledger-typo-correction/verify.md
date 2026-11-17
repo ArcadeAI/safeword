@@ -8,7 +8,7 @@
 **Lint:** ✅ Clean
 **Typecheck:** ✅ Clean
 **Scenarios:** ⏭️ Skipped — task ticket with inline done_when, no test-definitions.md
-**Refactor:** ✅ No change warranted — the duplicated commit seeding has 2 uses with different shapes
+**Refactor:** ✅ Completed — 2295f172c, re-run on the final code: the removed-row list is built directly, and the old row's SHA check runs once before the search. 287/287 ledger tests pass after it.
 **PR Scope:** ✅ Diff matches ticket scope (hook code, ledger tests, TDD.md doc, generated mirrors, ticket)
 **Dep Drift:** ✅ Clean — no dependencies added
 **Parent Epic:** N/A
@@ -19,6 +19,6 @@
 
 **Supply chain:** bun audit, uv audit, and pip-audit find no vulnerabilities. govulncheck is blocked by the same Go toolchain mismatch; CI `Dependency audit` passes.
 
-Audit passed — the first run raised E004 (TDD.md described only the SHA format), which is fixed. depcruise: 533 modules, no violations. No config drift.
+Audit passed — re-run at 2295f172c on the final diff: 0 errors, 0 warnings. depcruise: 533 modules, no violations. sync-config reports healthy, so there is no config drift. No agent-config, learning, or domain-doc files changed, and test quality is clean. The first run (04:52) raised E004 (TDD.md described only the SHA format), which is fixed.
 
-Quality review: approved by Codex, cross-agent (review 3053135a), after 3 rounds of fixes.
+Quality review: approved by Codex, cross-agent, after 3 rounds of fixes (review 3053135a), and approved again on the current sources (review 16d61734).

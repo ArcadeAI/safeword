@@ -46,3 +46,5 @@ done_when:
 - 2026-11-17T05:33:33.207Z Phase: intake → implement
 - 2026-11-17T07:55:00.000Z Quality review pass 5 (codex, cross-agent, 16d61734): approve, no findings, on current sources. Implement stamp recorded as a declared skip citing it: the full diff (~1.02MB incl. generated mirrors, plus 3 bundled runtimes over 256KB) exceeds the review packet limit.
 - 2026-11-17T07:55:00.000Z Phase: implement → verify. /verify recorded in verify.md.
+- 2026-11-17T08:05:00.000Z Refactor re-run on the final code: 2295f172c builds removed rows directly and checks the old row's SHA kind once. 287/287 ledger tests pass; generated surfaces regenerated.
+- 2026-11-17T08:06:00.000Z Audit re-run at 2295f172c: passed, 0 errors and 0 warnings. verify.md updated.
