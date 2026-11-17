@@ -115,31 +115,21 @@ const LEGITIMATE: Record<string, string> = {
   'src/codex-plugin/inventory.ts': 'Codex hook launcher locates hook scripts in the git tree',
   'src/codex-plugin/project-bootstrap.ts':
     'dependency bootstrap runs in the git tree it is invoked in',
+  'templates/hooks/pre-tool-architecture-stage.ts':
+    'git toplevel of the commit target, after the shell cwd is resolved',
+  'templates/hooks/lib/self-report.ts':
+    'detectAgent checks whether the variable is set, to name the host',
   'src/commands/project-pr-ready.ts':
     'PR Ready acts on the git worktree it is invoked in (or --cwd), by design',
   'src/go-lint/config.ts': "mirrors golangci-lint's own gitroot relative-path-mode",
+  'templates/hooks/lib/re-entry.ts':
+    're-entry hooks keep their own git-root anchor: they follow the host cwd into a worktree and work in unenrolled repositories by design',
 };
 
 const PENDING: Record<string, string> = {
-  // Stop and session hooks, plus the session pointer (#5467 PR 2).
-  'templates/hooks/prompt-retro-nudge.ts': 'PR 2',
-  'templates/hooks/post-tool-bypass-warn.ts': 'PR 2',
-  'templates/hooks/post-tool-lint.ts': 'PR 2',
-  'templates/hooks/post-tool-sync-learnings.ts': 'PR 2',
-  'templates/hooks/pre-tool-architecture-stage.ts': 'PR 2',
-  'templates/hooks/pre-tool-config-guard.ts': 'PR 2',
-  'templates/hooks/pre-tool-stale-main.ts': 'PR 2',
-  'templates/hooks/session-architecture-heal.ts': 'PR 2',
-  'templates/hooks/session-auto-upgrade.ts': 'PR 2',
-  'templates/hooks/session-dependency-readiness.ts': 'PR 2',
-  'templates/hooks/session-lint-check.ts': 'PR 2',
-  'templates/hooks/session-version.ts': 'PR 2',
-  'templates/hooks/lib/lint.ts': 'PR 2',
-  'templates/hooks/lib/self-report.ts': 'PR 2',
-  'templates/hooks/lib/safeword-context.ts': 'PR 2',
-  'templates/hooks/lib/re-entry.ts': 'PR 2',
   // Retro spool and closeout binding (#5467 PR 3).
   'templates/hooks/stop-retro.ts': 'PR 3',
+  'templates/hooks/prompt-retro-nudge.ts': 'PR 3',
   'templates/hooks/stop-retro-filing.ts': 'PR 3',
   'templates/scripts/closeout-cleanup.ts': 'PR 3',
   'src/commands/retro.ts': 'PR 3',
@@ -148,6 +138,7 @@ const PENDING: Record<string, string> = {
   'templates/hooks/codex/pre-tool-quality.ts': 'PR 4',
   'templates/hooks/codex/pre-tool-quality-helpers.ts': 'PR 4',
   'templates/hooks/codex/stop.ts': 'PR 4',
+  'templates/hooks/lib/safeword-context.ts': 'PR 4',
   'templates/hooks/cursor/gate-adapter.ts': 'PR 4',
   'src/claude-plugin/catalogue.ts': 'PR 4',
   'src/claude-plugin/project-root.ts': 'PR 4',
@@ -180,6 +171,8 @@ function sourceFiles(directory: string): string[] {
     )
     .filter(path => !/\.test\.[cm]?[jt]s$/.test(path) && !path.endsWith('.generated.ts'));
 }
+
+// Comments may name the patterns they explain; only code picks a project.
 
 const choosers = SCANNED.flatMap(sourceFiles)
   .filter(path => path !== RESOLVER)
