@@ -67,10 +67,20 @@ const cliFeatureDirectories = new Set([
     : []),
 ]);
 
+// A `.feature` path, optionally with Cucumber line selectors
+// (`example.feature:12`, `example.feature:12:30`).
+function isFeatureFileArgument(argument) {
+  const marker = '.feature';
+  const markerIndex = argument.lastIndexOf(marker);
+  if (markerIndex === -1) return false;
+  const [leading, ...lines] = argument.slice(markerIndex + marker.length).split(':');
+  return leading === '' && lines.every(line => /^\d+$/.test(line));
+}
+
 function isCliFeaturePathArgument(argument) {
   if (argument.startsWith('-')) return false;
   return (
-    argument.endsWith('.feature') ||
+    isFeatureFileArgument(argument) ||
     argument.includes('*.feature') ||
     cliFeatureDirectories.has(argument)
   );
