@@ -4,12 +4,12 @@
  * findings and pushes agents to hand-edit protected config (#6966).
  */
 
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { Linter } from 'eslint';
-import { describe, expect, it } from 'vitest';
+import { ESLint, Linter } from 'eslint';
+import { afterAll, describe, expect, it } from 'vitest';
 
 import { recommended } from '../src/presets/typescript/eslint-configs/recommended.js';
 import { recommendedTypeScript } from '../src/presets/typescript/eslint-configs/recommended-typescript.js';
@@ -58,13 +58,45 @@ describe('scaffolded files lint clean under the preset they install (#6966)', ()
       getSafewordEslintConfig('eslint.config.mjs', false),
     );
   });
+});
 
-  it('keeps ESLint 10 from linting its own vendored directory', () => {
-    // .safeword/ holds vendored hook sources; lint-cleanliness there is not the
-    // project's concern, so the hook config ignores the directory instead.
-    expect(getSafewordEslintConfig(undefined, false)).toContain(
-      '[{ basePath: import.meta.dirname, ignores: ["**"] }]',
-    );
+describe('ESLint 10 never lints vendored .safeword files (#6966)', () => {
+  // A real project on disk, inside the package so `eslint` resolves. The hook
+  // config is the formatter-agnostic variant so it imports nothing but eslint.
+  const project = mkdtempSync(nodePath.join(import.meta.dirname, 'vendored-ignore-'));
+  const violation = 'var unused = 1;\n';
+  writeFileSync(
+    nodePath.join(project, 'eslint.config.mjs'),
+    "export default [{ rules: { 'no-var': 'error' } }];\n",
+  );
+  mkdirSync(nodePath.join(project, '.safeword/hooks'), { recursive: true });
+  writeFileSync(
+    nodePath.join(project, '.safeword/eslint.config.mjs'),
+    getSafewordEslintConfig(undefined, true),
+  );
+  writeFileSync(nodePath.join(project, '.safeword/hooks/vendored.mjs'), violation);
+  mkdirSync(nodePath.join(project, 'src'));
+  writeFileSync(nodePath.join(project, 'src/app.mjs'), violation);
+  afterAll(() => {
+    rmSync(project, { recursive: true, force: true });
+  });
+
+  async function reportedFiles(options: ESLint.Options): Promise<string[]> {
+    const results = await new ESLint({ cwd: project, ...options }).lintFiles(['.']);
+    return results
+      .filter(result => result.errorCount > 0)
+      .map(result => nodePath.relative(project, result.filePath))
+      .toSorted((left, right) => left.localeCompare(right));
+  }
+
+  it('skips them under nearest-config lookup while still linting project code', async () => {
+    expect(await reportedFiles({})).toEqual(['src/app.mjs']);
+  });
+
+  it('skips them when the hook passes --config, which still lints project code', async () => {
+    expect(await reportedFiles({ overrideConfigFile: '.safeword/eslint.config.mjs' })).toEqual([
+      'src/app.mjs',
+    ]);
   });
 });
 
