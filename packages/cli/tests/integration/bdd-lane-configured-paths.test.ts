@@ -80,28 +80,30 @@ describe('scaffolded runner honors configured paths (TB2.AC2 + TB2.AC3)', () => 
   it(
     'runs only the selected scenario when a feature path carries a line selector',
     () => {
-      writeTestFile(
-        directory,
-        'features/line-selector.feature',
-        [
-          'Feature: Line selector',
-          '',
-          '  Scenario: unselected scenario',
-          '    When the line selector step runs',
-          '',
-          '  Scenario: selected scenario',
-          '    When the line selector step runs',
-          '',
-        ].join('\n'),
-      );
+      const featureLines = [
+        'Feature: Line selector',
+        '',
+        '  Scenario: unselected scenario',
+        '    When the unselected scenario runs',
+        '',
+        '  Scenario: selected scenario',
+        '    When the selected scenario runs',
+        '',
+      ];
+      const selectedLine = featureLines.indexOf('  Scenario: selected scenario') + 1;
+      writeTestFile(directory, 'features/line-selector.feature', featureLines.join('\n'));
       writeTestFile(
         directory,
         'steps/line-selector.steps.ts',
         [
           "import { When } from '@cucumber/cucumber';",
           '',
-          "When('the line selector step runs', function () {",
+          "When('the selected scenario runs', function () {",
           '  // Scenario reached.',
+          '});',
+          '',
+          "When('the unselected scenario runs', function () {",
+          "  throw new Error('unselected scenario ran despite the line selector');",
           '});',
           '',
         ].join('\n'),
@@ -109,13 +111,20 @@ describe('scaffolded runner honors configured paths (TB2.AC2 + TB2.AC3)', () => 
       try {
         const result = spawnSync(
           'bun',
-          ['run', 'test:bdd', '--', 'features/line-selector.feature:6', '--format', 'summary'],
+          [
+            'run',
+            'test:bdd',
+            '--',
+            `features/line-selector.feature:${selectedLine}`,
+            '--format',
+            'summary',
+          ],
           { cwd: directory, encoding: 'utf8', timeout: TIMEOUT_SETUP },
         );
         const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
+        // The unselected scenario throws, so a pass means it did not run; the
+        // count rules out the starter feature riding along on default globs.
         expect(result.status, output).toBe(0);
-        // Without the line selector honored, the starter feature and the
-        // unselected scenario would run too.
         expect(output).toContain('1 scenario (1 passed)');
       } finally {
         rmSync(nodePath.join(directory, 'features/line-selector.feature'), { force: true });
