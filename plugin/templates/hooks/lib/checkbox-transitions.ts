@@ -185,7 +185,6 @@ function findTransitions(
   const transitions: CheckboxTransition[] = [];
 
   const preservedHistoricalRows = new Set<number>();
-  const removedHistoricalRows: CheckboxState[] = [];
   // cross-scenario is validated as supporting evidence, but it is not a TDD
   // phase transition and therefore is not immutable completion credit here.
   const historicalRows = oldStates.filter(
@@ -215,7 +214,7 @@ function findTransitions(
       unpreserved.delete(oldState);
     }
   }
-  removedHistoricalRows.push(...unpreserved);
+  const removedHistoricalRows = [...unpreserved];
   // Pair each removed historical row with an in-place SHA rewrite so the gate
   // can tell a corrected SHA from a deletion. In place means the same row: same
   // step and binding, still checked, same position among that step's rows, and
@@ -228,17 +227,18 @@ function findTransitions(
   const isShaRow = (state: CheckboxState): boolean =>
     classifyAnnotation(state.annotation).kind === 'sha';
   for (const oldState of removedHistoricalRows) {
-    const replacementIndex = newStates.findIndex(
-      (newState, index) =>
-        isShaRow(oldState) &&
-        isShaRow(newState) &&
-        !preservedHistoricalRows.has(index) &&
-        newState.step === oldState.step &&
-        newState.checked &&
-        newState.ordinal === oldState.ordinal &&
-        stepRowCount(newStates, newState) === stepRowCount(oldStates, oldState) &&
-        sameEvidenceBinding(oldState, newState),
-    );
+    const replacementIndex = isShaRow(oldState)
+      ? newStates.findIndex(
+          (newState, index) =>
+            isShaRow(newState) &&
+            !preservedHistoricalRows.has(index) &&
+            newState.step === oldState.step &&
+            newState.checked &&
+            newState.ordinal === oldState.ordinal &&
+            stepRowCount(newStates, newState) === stepRowCount(oldStates, oldState) &&
+            sameEvidenceBinding(oldState, newState),
+        )
+      : -1;
     if (replacementIndex >= 0) {
       preservedHistoricalRows.add(replacementIndex);
       correctedNewRows.add(replacementIndex);

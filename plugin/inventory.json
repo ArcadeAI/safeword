@@ -211,7 +211,7 @@
     },
     {
       "path": "runtime/hooks/lib/checkbox-transitions.ts",
-      "sha256": "7480259e3a84d24e5b80da587516990746cdc1ac8975c02516fd328ffa8a3bd6"
+      "sha256": "a9d1fada716e909e0107fc3d1eef39d6298bfa6858c7124a063e9a59f93f5dae"
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
@@ -1211,7 +1211,7 @@
     },
     {
       "path": "templates/hooks/lib/checkbox-transitions.ts",
-      "sha256": "7480259e3a84d24e5b80da587516990746cdc1ac8975c02516fd328ffa8a3bd6"
+      "sha256": "a9d1fada716e909e0107fc3d1eef39d6298bfa6858c7124a063e9a59f93f5dae"
     },
     {
       "path": "templates/hooks/lib/closeout-binding.ts",
