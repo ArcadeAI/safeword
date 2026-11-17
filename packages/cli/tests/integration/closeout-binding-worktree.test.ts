@@ -191,6 +191,7 @@ describe('closeout binding follows the worktree closeout runs in (#5467)', () =>
     'cd WORKTREE | true; CLOSEOUT',
     'cd WORKTREE & CLOSEOUT',
     'env -C WORKTREE CLOSEOUT',
+    'cd "${CLAUDE_PLUGIN_ROOT}" && CLOSEOUT',
   ])('denies closeout behind a directory change it does not follow: %s', form => {
     repo();
 

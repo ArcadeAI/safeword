@@ -374,10 +374,11 @@ function closeoutBindingPath(projectDirectory: string): string {
 }
 
 /**
- * A shell word with no expansion or control characters. A double-quoted part may name the plugin
- * root, as the plugin's closeout command does.
+ * Shell words with no expansion or control characters. Only the script word may name the plugin
+ * root, as the plugin's closeout command does; a `cd` path never expands anything.
  */
-const PLAIN_WORD = String.raw`(?:[^\s$\x60~*?[\]{}()'"\\;&|<>]|"(?:\$\{CLAUDE_PLUGIN_ROOT\}|[^"$\x60\\])*")+`;
+const DIRECTORY_WORD = String.raw`(?:[^\s$\x60~*?[\]{}()'"\\;&|<>]|"[^"$\x60\\]*")+`;
+const SCRIPT_WORD = String.raw`(?:[^\s$\x60~*?[\]{}()'"\\;&|<>]|"(?:\$\{CLAUDE_PLUGIN_ROOT\}|[^"$\x60\\])*")+`;
 
 /**
  * The only command shapes that run closeout with a binding: `bun <script> <plain args>`, optionally
@@ -387,7 +388,7 @@ const PLAIN_WORD = String.raw`(?:[^\s$\x60~*?[\]{}()'"\\;&|<>]|"(?:\$\{CLAUDE_PL
  */
 // eslint-disable-next-line security/detect-non-literal-regexp -- built only from the constant above
 const CLOSEOUT_COMMAND = new RegExp(
-  String.raw`^\s*(?:cd\s+(?!-)(?<directory>${PLAIN_WORD})\s*&&\s*)?bun\s+(?<script>${PLAIN_WORD})(?:\s+[\w./:=@+-]+)*\s*$`,
+  String.raw`^\s*(?:cd\s+(?!-)(?<directory>${DIRECTORY_WORD})\s*&&\s*)?bun\s+(?<script>${SCRIPT_WORD})(?:\s+[\w./:=@+-]+)*\s*$`,
   'u',
 );
 
