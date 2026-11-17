@@ -374,23 +374,16 @@ function closeoutBindingPath(projectDirectory: string): string {
 }
 
 /**
- * Shell words with no expansion or control characters. Only the script word may name the plugin
- * root, as the plugin's closeout command does; a `cd` path never expands anything.
+ * The only command shapes that run closeout with a binding: `bun <script> <plain args>`,
+ * optionally after one `cd <plain absolute path> &&` (a relative path could resolve through
+ * CDPATH). A word has no expansion or control characters; only the script word may name the plugin
+ * root in double quotes, as the plugin's closeout command does. Shell has too many ways to change or
+ * fork a directory (pipes, background jobs, subshells, `env -C`, `pushd`) for a hook to follow
+ * them reliably, so any other shape that runs closeout is denied with a recovery the agent can
+ * follow at once.
  */
-const DIRECTORY_WORD = String.raw`(?:[^\s$\x60~*?[\]{}()'"\\;&|<>]|"[^"$\x60\\]*")+`;
-const SCRIPT_WORD = String.raw`(?:[^\s$\x60~*?[\]{}()'"\\;&|<>]|"(?:\$\{CLAUDE_PLUGIN_ROOT\}|[^"$\x60\\])*")+`;
-
-/**
- * The only command shapes that run closeout with a binding: `bun <script> <plain args>`, optionally
- * after one `cd <plain absolute path> &&` (a relative path could resolve through CDPATH). Shell has too many ways to change or fork a directory (pipes,
- * background jobs, subshells, `env -C`, `pushd`) for a hook to follow them reliably, so any other
- * shape that runs closeout is denied with a recovery the agent can follow at once.
- */
-// eslint-disable-next-line security/detect-non-literal-regexp -- built only from the constant above
-const CLOSEOUT_COMMAND = new RegExp(
-  String.raw`^[ \t]*(?:cd[ \t]+(?="?\/)(?<directory>${DIRECTORY_WORD})[ \t]*&&[ \t]*)?bun[ \t]+(?<script>${SCRIPT_WORD})(?:[ \t]+[\w./:=@+-]+)*[ \t]*$`,
-  'u',
-);
+const CLOSEOUT_COMMAND =
+  /^[ \t]*(?:cd[ \t]+(?="?\/)(?<directory>(?:[^\s$\x60~*?[\]{}()'"\\;&|<>]|"[^"$\x60\\]*")+)[ \t]*&&[ \t]*)?bun[ \t]+(?<script>(?:[^\s$\x60~*?[\]{}()'"\\;&|<>]|"(?:\$\{CLAUDE_PLUGIN_ROOT\}|[^"$\x60\\])*")+)(?:[ \t]+[\w./:=@+-]+)*[ \t]*$/u;
 
 /**
  * Programs that only read files they are given. Any other program whose command names the

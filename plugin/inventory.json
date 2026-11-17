@@ -215,7 +215,7 @@
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
-      "sha256": "ccfdb158cff630a7f798ec97d5f8b8c393fb3d17c8489503c39f8c92317b72fb"
+      "sha256": "486ff938be21abab5608b77d485f7e3cda0d1e3d6f6d0b337993a09f3973f0b8"
     },
     {
       "path": "runtime/hooks/lib/closest-base-ref.ts",
@@ -1215,7 +1215,7 @@
     },
     {
       "path": "templates/hooks/lib/closeout-binding.ts",
-      "sha256": "b59b02df8e23cfede78791ec6d9257ee25277ec9eef3afac1841fd824f98afbb"
+      "sha256": "51d0b4458c094facf3011a1e15593293f1e7752bf7a0a09f795af1b799e181a4"
     },
     {
       "path": "templates/hooks/lib/closest-base-ref.ts",
