@@ -78,7 +78,6 @@ function isFeatureFileArgument(argument) {
 }
 
 function isCliFeaturePathArgument(argument) {
-  if (argument.startsWith('-')) return false;
   return (
     isFeatureFileArgument(argument) ||
     argument.includes('*.feature') ||
@@ -86,8 +85,59 @@ function isCliFeaturePathArgument(argument) {
   );
 }
 
+// Cucumber options that take a value as the next argument (`--name <REGEXP>`).
+// That value is never a feature path, even when it ends in `.feature`; the
+// `--option=value` form is a single argument and needs no special case.
+const valueTakingOptions = new Set([
+  '-c',
+  '--config',
+  '-f',
+  '--format',
+  '--format-options',
+  '--i18n-keywords',
+  '-i',
+  '--import',
+  '-l',
+  '--loader',
+  '--language',
+  '--name',
+  '--order',
+  '-p',
+  '--profile',
+  '--parallel',
+  '--plugin',
+  '--plugin-options',
+  '-r',
+  '--require',
+  '--require-module',
+  '--retry',
+  '--retry-tag-filter',
+  '--shard',
+  '-t',
+  '--tags',
+  '--world-parameters',
+]);
+
+// Positional (feature path) arguments: everything except options and their
+// values, plus every argument after a bare `--`.
+function positionalArguments(argv) {
+  const positionals = [];
+  let skipNext = false;
+  for (const [index, argument] of argv.entries()) {
+    if (argument === '--') return [...positionals, ...argv.slice(index + 1)];
+    if (skipNext) {
+      skipNext = false;
+    } else if (argument.startsWith('-')) {
+      skipNext = valueTakingOptions.has(argument);
+    } else {
+      positionals.push(argument);
+    }
+  }
+  return positionals;
+}
+
 export function hasCliFeaturePath(argv = process.argv.slice(2)) {
-  return argv.some(argument => isCliFeaturePathArgument(argument));
+  return positionalArguments(argv).some(argument => isCliFeaturePathArgument(argument));
 }
 
 export function buildCucumberConfig(argv = process.argv.slice(2)) {
