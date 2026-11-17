@@ -132,6 +132,8 @@ describe('Cucumber config targeted path handling', () => {
       expect(hasCliFeaturePath(['features/'])).toBe(true);
       expect(hasCliFeaturePath(['features/checkout'])).toBe(true);
       expect(hasCliFeaturePath(['tests/behaviors/subset'])).toBe(true);
+      // A lone `-` is positional to Cucumber's parser, not an option.
+      expect(hasCliFeaturePath(['-'])).toBe(true);
       expect(buildCucumberConfig(['features/checkout/'])).not.toHaveProperty('paths');
     },
   );

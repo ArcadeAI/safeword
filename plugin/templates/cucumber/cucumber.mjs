@@ -101,7 +101,7 @@ function positionalArguments(argv) {
       skipNext = false;
     } else if (argument === '--') {
       return [...positionals, ...argv.slice(index + 1)];
-    } else if (argument.startsWith('-')) {
+    } else if (argument.startsWith('-') && argument !== '-') {
       skipNext = consumesNextArgument(argument);
     } else {
       positionals.push(argument);
