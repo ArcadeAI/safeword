@@ -2,7 +2,7 @@
 
 ## Verify Checklist
 
-**Test Suite:** ⚠️ Local environment limitation: 11848/11852 pass (14 skipped); the 4 failures are the local Go toolchain mismatch (`compile: version "go1.25.14" does not match go tool version "go1.27.1"`, 2 tests in `tests/hooks/lint-go-context.test.ts`) and OpenCode/review-probe timeouts (`bunx --bun opencode-ai@1.18.23 --version` timed out; `REVIEW_ROUTES_EXHAUSTED` in `tests/cli-protocol/review-wiring.test.ts`). Targeted: `tests/hooks/stamp-coverage-generated.test.ts`, `tests/hooks/review-receipt.test.ts`, `tests/integration/review-receipt-wiring.test.ts` ✓ 76/76 tests pass.
+**Test Suite:** ⚠️ Local environment limitation: 11848/11852 pass (14 skipped); the 4 failures are the local Go toolchain mismatch (`compile: version "go1.25.14" does not match go tool version "go1.27.1"`, 2 tests in `tests/hooks/lint-go-context.test.ts`) and OpenCode/review-probe timeouts (`bunx --bun opencode-ai@1.18.23 --version` timed out; `REVIEW_ROUTES_EXHAUSTED` in `tests/cli-protocol/review-wiring.test.ts`). Targeted: `tests/hooks/stamp-coverage-generated.test.ts`, `tests/hooks/review-receipt.test.ts`, `tests/integration/review-receipt-wiring.test.ts` ✓ 80/80 tests pass. CI was fully green at `170b2c4` (Go lint context and OpenCode conformance included), confirming the local failures are environment-only.
 **Gherkin:** ✅ Acceptance lane passes (599/599 scenarios, 11786 steps)
 **Build:** ⚠️ Local environment limitation: build lane fails only on the same Go toolchain mismatch; the TypeScript build (tsup/DTS) succeeds.
 **Lint:** ✅ Clean (eslint + prettier via pre-commit)
@@ -14,10 +14,11 @@
 **Parent Epic:** N/A
 **Reconcile:** ✅ No pattern deviation — reuses the isolated `git check-attr --source` approach from `review/packet.ts`
 **Experience:** ⏭️ N/A — not persona-facing (agent workflow gate internals)
-**Surface Evidence:** ✅ 1/1 affected surfaces have recorded proof — implement-phase stamp: `bun .safeword/hooks/write-review-stamp.ts --phase implement` on this branch accepted review `c22c0d71-3ef9-4aea-9169-b553e14d8b74`, which covered only the hand-written files and left out the 8 `plugin/` and `packages/cli/codex-plugin/` mirrors
-**Evidence limits:** ⚠️ Go toolchain mismatch and OpenCode/review-probe timeouts are local-only; confirm in CI
+**Surface Evidence:** ✅ 1/1 affected surfaces have recorded proof — implement-phase stamp: `bun .safeword/hooks/write-review-stamp.ts --phase implement` on this branch accepted review `c22c0d71-3ef9-4aea-9169-b553e14d8b74` and, after the test additions, `ada533f1-7abc-4058-939e-647d73d60d62`; both covered only the hand-written files and left out the 8 `plugin/` and `packages/cli/codex-plugin/` mirrors
+**Evidence limits:** ⚠️ Go toolchain mismatch and OpenCode/review-probe timeouts are local-only; CI passes the same lanes
 
 ## Review and audit
 
 - Cross-agent quality review (Codex, gpt-6.1-sol): changes requested twice, both fixed: bare `linguist-*` declarations reported as `set`, and a staged edit reverted in the working tree. Approved on the third pass: `c22c0d71-3ef9-4aea-9169-b553e14d8b74`.
+- Follow-up test gaps (requested by the coordinating session): added a fail-closed test (git `check-attr` or `init` fails → nothing exempted), a subfolder-project test (non-empty `--show-prefix`, project-relative paths), and split the self-exemption test into branch `.gitattributes` and `.git/info/attributes` cases. All passed on first run (characterization). Each was mutation-checked: dropping the repo prefix, failing open on a git error, reading the real `.git` attributes, and reading attributes from HEAD were each caught by exactly the intended test. Test review approved: `51eef44a-3c37-4f99-b8b8-57a0b061cade`; implement re-review approved: `ada533f1-7abc-4058-939e-647d73d60d62`.
 - Audit passed — diff scope from origin/main: 0 errors, 0 warnings; no config drift, no dependency violations (7 modules), no doc drift.
