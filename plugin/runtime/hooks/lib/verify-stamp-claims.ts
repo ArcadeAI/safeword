@@ -107,7 +107,7 @@ function baseExemptFiles(projectDirectory: string, base: string, files: string[]
       0
     )
       return exempt;
-    const repoPaths = files.map(file => `${prefix}${file}`);
+    const byRepoPath = new Map(files.map(file => [`${prefix}${file}`, file] as const));
     const result = spawnSync(
       'git',
       [
@@ -123,14 +123,13 @@ function baseExemptFiles(projectDirectory: string, base: string, files: string[]
       ],
       {
         env: { ...env, GIT_ALTERNATE_OBJECT_DIRECTORIES: objects },
-        input: `${repoPaths.join('\0')}\0`,
+        input: `${[...byRepoPath.keys()].join('\0')}\0`,
         encoding: 'utf8',
         timeout: 5000,
         maxBuffer: 4 * 1024 * 1024,
       },
     );
     if (result.status !== 0 || typeof result.stdout !== 'string') return exempt;
-    const byRepoPath = new Map(repoPaths.map((repoPath, index) => [repoPath, files[index]]));
     return enabledFiles(result.stdout, byRepoPath);
   } finally {
     rmSync(scratch, { recursive: true, force: true });
@@ -147,9 +146,11 @@ function currentWorkFiles(projectDirectory: string): string[] {
 
   const paths = new Set<string>();
   const diff = (...range: string[]): string | undefined =>
-    runGit(projectDirectory, ['diff', '--relative', '--name-only', '-z', ...range]);
+    runGit(projectDirectory, ['diff', '--no-renames', '--relative', '--name-only', '-z', ...range]);
   // Staged and unstaged are collected separately: `diff HEAD` alone misses a
-  // staged edit whose working-tree copy was restored to HEAD.
+  // staged edit whose working-tree copy was restored to HEAD. `--no-renames`
+  // keeps both sides of a rename, so moving an authored file into a generated
+  // folder still requires review of its removal.
   if (
     !addPaths(paths, diff(`${base.sha}...HEAD`)) ||
     !addPaths(paths, diff('--cached')) ||

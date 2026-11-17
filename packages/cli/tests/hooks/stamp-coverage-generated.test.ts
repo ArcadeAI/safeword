@@ -105,6 +105,14 @@ describe('implement-phase coverage set', () => {
     expect(coverageSet(root)).toEqual(['mirror/README.md', 'src/feature.ts']);
   });
 
+  it('keeps the source side of a rename into a base-marked folder', () => {
+    git(root, 'mv', 'src/feature.ts', 'mirror/moved.ts');
+    write(root, 'src/other.ts', 'export const b = 1;\n');
+    commitAll(root, 'move into mirror');
+
+    expect(coverageSet(root)).toEqual(['src/feature.ts', 'src/other.ts']);
+  });
+
   it('keeps a staged edit that the working tree reverts', () => {
     write(root, 'src/feature.ts', 'export const a = 2;\n');
     git(root, 'add', 'src/feature.ts');
