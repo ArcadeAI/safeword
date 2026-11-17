@@ -85,7 +85,12 @@ describe('E2E: Type-Checked ESLint Rules', () => {
     createTypeScriptPackageJson(projectDirectory);
     writeTestFile(projectDirectory, 'src/index.ts', 'export const placeholder = 1;\n');
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory, ['setup'], { timeout: TIMEOUT_SETUP });
+    // Real installs: the whole-install lint and typecheck below must see exactly
+    // what install adds (the lane's @cucumber/cucumber, @types/node, tsx).
+    await setupOrThrow(projectDirectory, ['setup'], {
+      env: INSTALL_DEPENDENCIES_ENV,
+      timeout: TIMEOUT_SETUP,
+    });
 
     // Install dependencies so ESLint can run with type checking
     execSync('bun install', { cwd: projectDirectory, stdio: 'pipe' });
