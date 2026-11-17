@@ -56,19 +56,15 @@ index e5f817ca6..440cb045c 100644
        ),
        marker: '# Safeword - Local cache and transient state',
 diff --git a/packages/cli/templates/hooks/pre-tool-quality.ts b/packages/cli/templates/hooks/pre-tool-quality.ts
-index f98b39f39..a15fe4b12 100644
+index f98b39f39..e88096168 100644
 --- a/packages/cli/templates/hooks/pre-tool-quality.ts
 +++ b/packages/cli/templates/hooks/pre-tool-quality.ts
-@@ -22,16 +22,15 @@ import {
+@@ -22,16 +22,11 @@ import {
    pinnedSafewordVersion,
    trustedEnvironment,
  } from './lib/safeword-cli.ts';
 -import { commandInvokesCloseoutCleanup, rememberCloseoutBinding } from './lib/closeout-binding.ts';
-+import {
-+  CLOSEOUT_UNRESOLVED_DIRECTORY_MESSAGE,
-+  closeoutBindingTarget,
-+  rememberCloseoutBinding,
-+} from './lib/closeout-binding.ts';
++import { closeoutBindingTarget, rememberCloseoutBinding } from './lib/closeout-binding.ts';
  import { detectBroadProcessKill } from './lib/process-kill-guard.ts';
  import { evaluateBlockedOnGate } from './lib/blocked-on-gate.ts';
  import { isGitOperationInProgress } from './lib/git-operation.ts';
@@ -82,7 +78,7 @@ index f98b39f39..a15fe4b12 100644
  import {
    isEmptyFrontmatterValue,
    parseFrontmatter,
-@@ -615,19 +614,21 @@ if (tool === 'Bash') {
+@@ -615,19 +610,21 @@ if (tool === 'Bash') {
    if (GIT_COMMIT_COMMAND.test(command)) {
      enforceRefactorCommitGate(input.session_id);
    }
@@ -93,7 +89,7 @@ index f98b39f39..a15fe4b12 100644
 +    command,
 +    nodePath.resolve(launchProjectDirectory, input.cwd ?? '.'),
 +  );
-+  if (closeoutTarget?.kind === 'unresolved') deny(CLOSEOUT_UNRESOLVED_DIRECTORY_MESSAGE);
++  if (closeoutTarget?.kind === 'unresolved') deny(closeoutTarget.recovery);
    if (
 -    // Closeout runs against the launch checkout (it removes the worktree), so
 -    // its session binding stays there regardless of the shell's cwd.
@@ -112,7 +108,7 @@ index f98b39f39..a15fe4b12 100644
        runtime: 'claude',
        id: input.session_id,
        transcriptPath: input.transcript_path,
-@@ -1233,24 +1234,8 @@ if (
+@@ -1233,24 +1230,8 @@ if (
        'Check each scenario separately so its independent receipts and current proof are verified at the edit boundary.',
      );
    }
@@ -137,7 +133,7 @@ index f98b39f39..a15fe4b12 100644
        deny(
          `Cannot move, rewrite, uncheck, or remove a ${transition.step} row that already carries historical evidence.`,
          `Keep the checked ${transition.step} row and its scenario binding intact. If you are renaming a scenario while checking another row, split those changes into separate edits.`,
-@@ -1308,12 +1293,6 @@ if (
+@@ -1308,12 +1289,6 @@ if (
          `Use "${transition.step} <7-40 hexadecimal commit SHA>" or "${transition.step} skip: <non-empty reason>".`,
        );
      }

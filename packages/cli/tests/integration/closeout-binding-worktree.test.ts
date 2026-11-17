@@ -234,6 +234,34 @@ describe('closeout binding follows the worktree closeout runs in (#5467)', () =>
     expect(result.stdout).not.toContain('deny');
   });
 
+  it('keeps a quoted plugin script path with spaces in the recovery command', () => {
+    repo();
+    const plugin = nodePath.join(root, 'My Plugin');
+    const script = nodePath.join(plugin, 'resources/scripts/closeout-cleanup.ts');
+
+    const result = spawnSync('bun', [nodePath.join(HOOKS, 'pre-tool-quality.ts')], {
+      cwd: primary,
+      env: { ...hostEnvironment(primary), CLAUDE_PLUGIN_ROOT: plugin },
+      input: JSON.stringify({
+        session_id: 'claude-session-plugin',
+        hook_event_name: 'PreToolUse',
+        cwd: primary,
+        tool_name: 'Bash',
+        tool_input: { command: `cd "$TARGET" && bun "${script}" --pr 42` },
+      }),
+      encoding: 'utf8',
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    const output = JSON.parse(result.stdout) as {
+      hookSpecificOutput?: { permissionDecision?: string; permissionDecisionReason?: string };
+    };
+    expect(output.hookSpecificOutput?.permissionDecision).toBe('deny');
+    expect(output.hookSpecificOutput?.permissionDecisionReason).toContain(
+      `\`bun "${script}" --pr 42\``,
+    );
+  });
+
   it('denies two closeout runs in one command, since only one binding can be recorded', () => {
     repo();
 

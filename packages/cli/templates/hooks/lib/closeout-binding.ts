@@ -476,8 +476,13 @@ function unresolved(command: string): CloseoutBindingTarget {
     .find(segmentWords => segmentWords.some(word => word.includes('closeout-cleanup.ts')));
   const scriptIndex = words?.findIndex(word => word.includes('closeout-cleanup.ts')) ?? -1;
   const script = words?.[scriptIndex] ?? '';
-  const plainScript = /^[^\s=!]*closeout-cleanup\.ts$/u.test(script.replaceAll('"', ''))
-    ? script
+  // Keep the agent's own script whenever it is a plain path (quoted if it has spaces), so a
+  // plugin script stays the plugin's; a script named inside a larger value falls back.
+  const bareScript = script.replaceAll('"', '').replaceAll("'", '');
+  const plainScript = /^[^=!]*closeout-cleanup\.ts$/u.test(bareScript)
+    ? /\s/u.test(bareScript)
+      ? `"${bareScript}"`
+      : bareScript
     : ['.safeword', 'scripts', 'closeout-cleanup.ts'].join('/');
   const after = words?.slice(scriptIndex + 1) ?? [];
   const firstOption = after.findIndex(word => word.startsWith('-'));
