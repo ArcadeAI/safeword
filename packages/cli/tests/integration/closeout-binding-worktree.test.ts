@@ -196,6 +196,9 @@ describe('closeout binding follows the worktree closeout runs in (#5467)', () =>
     'bun run .safeword/scripts/closeout-cleanup.ts --pr 42',
     './.safeword/scripts/closeout-cleanup.ts --pr 42',
     'node .safeword/scripts/closeout-cleanup.ts --pr 42',
+    'cd worktree-a && CLOSEOUT',
+    'cd "$TARGET" && exec bun .safeword/scripts/closeout-cleanup.ts --pr 42',
+    'time bun .safeword/scripts/closeout-cleanup.ts --pr 42',
   ])('denies closeout behind a directory change it does not follow: %s', form => {
     repo();
 
@@ -210,6 +213,19 @@ describe('closeout binding follows the worktree closeout runs in (#5467)', () =>
       hookSpecificOutput?: { permissionDecision?: string };
     };
     expect(output.hookSpecificOutput?.permissionDecision).toBe('deny');
+  });
+
+  it('leaves commands that only read the closeout script alone', () => {
+    repo();
+
+    const result = runClaudeHook(
+      worktreeA,
+      'grep -n binding .safeword/scripts/closeout-cleanup.ts | head -5',
+      'claude-session-read',
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).not.toContain('deny');
   });
 
   it('denies two closeout runs in one command, since only one binding can be recorded', () => {

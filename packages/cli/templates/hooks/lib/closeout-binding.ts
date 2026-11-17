@@ -382,18 +382,46 @@ const SCRIPT_WORD = String.raw`(?:[^\s$\x60~*?[\]{}()'"\\;&|<>]|"(?:\$\{CLAUDE_P
 
 /**
  * The only command shapes that run closeout with a binding: `bun <script> <plain args>`, optionally
- * after one `cd <plain path> &&`. Shell has too many ways to change or fork a directory (pipes,
+ * after one `cd <plain absolute path> &&` (a relative path could resolve through CDPATH). Shell has too many ways to change or fork a directory (pipes,
  * background jobs, subshells, `env -C`, `pushd`) for a hook to follow them reliably, so any other
  * shape that runs closeout is denied with a recovery the agent can follow at once.
  */
 // eslint-disable-next-line security/detect-non-literal-regexp -- built only from the constant above
 const CLOSEOUT_COMMAND = new RegExp(
-  String.raw`^\s*(?:cd\s+(?!-)(?<directory>${DIRECTORY_WORD})\s*&&\s*)?bun\s+(?<script>${SCRIPT_WORD})(?:\s+[\w./:=@+-]+)*\s*$`,
+  String.raw`^\s*(?:cd\s+(?="?\/)(?<directory>${DIRECTORY_WORD})\s*&&\s*)?bun\s+(?<script>${SCRIPT_WORD})(?:\s+[\w./:=@+-]+)*\s*$`,
   'u',
 );
 
-/** Programs that can execute the closeout script, in any of their invocation forms. */
-const SCRIPT_RUNNERS = new Set(['bun', 'bunx', 'node', 'npx', 'tsx', 'deno']);
+/**
+ * Programs that only read files. Any other program whose command names the closeout script is
+ * treated as running it, so an unrecognized wrapper (`exec`, `time`, `bun run`) is denied with the
+ * recovery rather than allowed without a binding.
+ */
+const FILE_READERS = new Set([
+  'cat',
+  'less',
+  'more',
+  'head',
+  'tail',
+  'grep',
+  'egrep',
+  'rg',
+  'sed',
+  'awk',
+  'wc',
+  'ls',
+  'stat',
+  'file',
+  'diff',
+  'git',
+  'echo',
+  'printf',
+  'shasum',
+  'sha256sum',
+  'md5',
+  'code',
+  'open',
+]);
 
 export type CloseoutBindingTarget =
   { kind: 'tree'; projectDirectory: string } | { kind: 'unresolved' };
@@ -402,8 +430,8 @@ export type CloseoutBindingTarget =
  * Where a closeout command will run, so its binding lands where closeout reads it: the git working
  * tree of the shell cwd, or of a leading `cd <plain path>`. Closeout reads its binding from
  * `git rev-parse --show-toplevel` of its own cwd. `unresolved` means the command runs a closeout
- * script in any other shape or through any other program, or runs one other than this project's
- * or the plugin's. Returns undefined when the command runs no closeout script.
+ * script in any other shape or through any program but `bun`, or runs one other than this
+ * project's or the plugin's. Returns undefined when the command runs no closeout script.
  */
 export function closeoutBindingTarget(
   command: string,
@@ -412,11 +440,9 @@ export function closeoutBindingTarget(
 ): CloseoutBindingTarget | undefined {
   const runsCloseoutScript = splitShellSegments(command).some(segment => {
     const words = commandWords(segment).map(word => word.replaceAll('"', '').replaceAll("'", ''));
-    const program = nodePath.basename(words[0] ?? '');
     return (
-      program === 'closeout-cleanup.ts' ||
-      (SCRIPT_RUNNERS.has(program) &&
-        words.slice(1).some(word => word.endsWith('closeout-cleanup.ts')))
+      !FILE_READERS.has(nodePath.basename(words[0] ?? '')) &&
+      words.some(word => word.endsWith('closeout-cleanup.ts'))
     );
   });
   if (!runsCloseoutScript) return undefined;
@@ -434,7 +460,7 @@ export function closeoutBindingTarget(
 /** The plain recovery for a closeout command whose working tree the hook cannot tell. */
 export const CLOSEOUT_UNRESOLVED_DIRECTORY_MESSAGE =
   'Closeout must confirm this session in the worktree it runs in, so it runs only as its own ' +
-  "command with the worktree's own script, optionally after one plain `cd <path> &&`: " +
+  "command with the worktree's own script, optionally after one `cd <absolute path> &&`: " +
   '`bun .safeword/scripts/closeout-cleanup.ts --pr <number>`. Run it that way.';
 
 export function rememberCloseoutBinding(input: RememberCloseoutBindingInput): boolean {
