@@ -2,8 +2,8 @@
 id: KGDT49
 slug: ledger-typo-correction
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-11-17T04:39:38.051Z
 last_modified: 2026-11-17T04:41:00.000Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/6987
@@ -48,3 +48,6 @@ done_when:
 - 2026-11-17T07:55:00.000Z Phase: implement → verify. /verify recorded in verify.md.
 - 2026-11-17T08:05:00.000Z Refactor re-run on the final code: 2295f172c builds removed rows directly and checks the old row's SHA kind once. 287/287 ledger tests pass; generated surfaces regenerated.
 - 2026-11-17T08:06:00.000Z Audit re-run at 2295f172c: passed, 0 errors and 0 warnings. verify.md updated.
+- 2026-11-17T08:00:00.000Z Quality review pass 6 (codex, cross-agent, 18d014ba): approve, no findings, on refactored code plus verify.md. Recorded as the verify stamp.
+- 2026-11-17T08:01:00.000Z Complete: phase verify → done (user-approved). PR #7594 to be marked ready.
+- 2026-11-17T07:58:15.674Z Phase: verify → done
