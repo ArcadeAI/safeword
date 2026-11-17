@@ -6,7 +6,6 @@
  */
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import nodePath from 'node:path';
 
 import { LANGUAGE_PACKS } from '../packs/registry.js';
@@ -586,16 +585,22 @@ export function detectCucumberLane(cwd: string | undefined): CucumberLaneDetecti
 }
 
 /**
- * True if Node resolves `typescript` from the project, the way the project's
- * own tools would: its node_modules or any ancestor's (hoisted workspaces).
+ * True if `typescript` is installed in the project's node_modules or any
+ * ancestor's (hoisted workspaces), the folders the project's own tools load it
+ * from. Walks the folders directly rather than asking the runtime's resolver:
+ * Bun's resolver falls back to its global install cache, which would report a
+ * compiler the project does not have.
  */
 function resolvesTypescript(cwd: string | undefined): boolean {
   if (cwd === undefined) return false;
-  try {
-    createRequire(nodePath.join(cwd, 'package.json')).resolve('typescript/package.json');
-    return true;
-  } catch {
-    return false;
+  let directory = nodePath.resolve(cwd);
+  for (;;) {
+    if (existsSync(nodePath.join(directory, 'node_modules', 'typescript', 'package.json'))) {
+      return true;
+    }
+    const parent = nodePath.dirname(directory);
+    if (parent === directory) return false;
+    directory = parent;
   }
 }
 

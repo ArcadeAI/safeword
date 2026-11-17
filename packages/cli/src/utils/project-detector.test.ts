@@ -4,6 +4,7 @@
  * These are pure unit tests for the detectProjectType function.
  */
 
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -369,6 +370,24 @@ describe('detectProjectType', () => {
       writeTestFile(cwd, 'apps/web/package.json', '{"name":"web"}\n');
       const workspaceMember = nodePath.join(cwd, 'apps/web');
       expect(detectProjectType({}, workspaceMember).typescriptAvailable).toBe(true);
+    });
+
+    it('ignores the Bun global install cache when the CLI runs under Bun', () => {
+      // Bun's resolver falls back to ~/.bun/install/cache, where typescript sits
+      // whenever any Bun project installed it; that is not the project's compiler.
+      const detector = nodePath.join(import.meta.dirname, 'project-detector.ts');
+      const result = spawnSync(
+        'bun',
+        [
+          '--eval',
+          `const { detectProjectType } = await import(${JSON.stringify(detector)});
+           console.log(detectProjectType({}, ${JSON.stringify(cwd)}).typescriptAvailable);`,
+        ],
+        { cwd, encoding: 'utf8' },
+      );
+
+      expect(result.stderr).toBe('');
+      expect(result.stdout.trim()).toBe('false');
     });
 
     it('counts a declared typescript as available before it is installed', () => {

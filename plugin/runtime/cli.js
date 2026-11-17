@@ -65905,6 +65905,19 @@ function addInstalledPack(cwd, packId) {
     writeConfig(cwd, config);
   }
 }
+function getOwnedPackages(cwd) {
+  const owned = readConfig2(cwd)?.ownedPackages;
+  return Array.isArray(owned) ? owned.filter((name) => typeof name === "string") : [];
+}
+function addOwnedPackages(cwd, names) {
+  const config = readConfig2(cwd) ?? { installedPacks: [] };
+  const owned = getOwnedPackages(cwd);
+  const added = names.filter((name) => !owned.includes(name));
+  if (added.length === 0)
+    return;
+  config.ownedPackages = [...owned, ...added];
+  writeConfig(cwd, config);
+}
 var CONFIG_PATH = ".safeword/config.json";
 var init_config3 = __esm(() => {
   init_fs();
@@ -66409,6 +66422,10 @@ var init_shared_clause_integrity = __esm(() => {
 // src/reconcile.ts
 import { lstatSync as lstatSync18, readdirSync as readdirSync22, readlinkSync as readlinkSync3, unlinkSync as unlinkSync6 } from "fs";
 import nodePath87 from "path";
+function ownershipTrackedPackageNames(schema, packages) {
+  const tracked = new Set(OWNERSHIP_TRACKED_GROUPS.flatMap((group) => schema.packages.conditional[group] ?? []));
+  return packages.filter((pkg) => tracked.has(pkg)).map((pkg) => stripVersionSpecifier(pkg));
+}
 function getConditionalPackages(conditionalPackages, projectType) {
   const packages = [];
   for (const [key, dependencies] of Object.entries(conditionalPackages)) {
@@ -66899,7 +66916,7 @@ function computeUninstallPlan(schema, ctx, full) {
   }
   let packagesToRemove = [];
   if (full) {
-    packagesToRemove = computePackagesToRemove(schema, ctx.projectType, ctx.developmentDeps);
+    packagesToRemove = computePackagesToRemove(schema, ctx.projectType, ctx.developmentDeps, getOwnedPackages(ctx.cwd));
   } else if (Object.hasOwn(ctx.developmentDeps, "safeword")) {
     packagesToRemove = ["safeword"];
   }
@@ -67161,10 +67178,14 @@ function computePackagesToInstall(schema, projectType, installedDevelopmentDepen
     return !workspaceMembers.has(name) && !Object.hasOwn(installedDevelopmentDependencies, name);
   });
 }
-function computePackagesToRemove(schema, projectType, installedDevelopmentDependencies) {
+function computePackagesToRemove(schema, projectType, installedDevelopmentDependencies, ownedPackages) {
+  const ownedTracked = OWNERSHIP_TRACKED_GROUPS.flatMap((group) => schema.packages.conditional[group] ?? []).filter((pkg) => ownedPackages.includes(stripVersionSpecifier(pkg)));
   const safewordPackages = [
-    ...schema.packages.base,
-    ...getConditionalPackages(schema.packages.conditional, projectType)
+    ...new Set([
+      ...schema.packages.base,
+      ...getConditionalPackages(schema.packages.conditional, projectType),
+      ...ownedTracked
+    ])
   ];
   return safewordPackages.filter((pkg) => Object.hasOwn(installedDevelopmentDependencies, stripVersionSpecifier(pkg)));
 }
@@ -67344,8 +67365,9 @@ function shouldRemoveTextPatchTarget(content, definition) {
   const trimmed = content.trim();
   return definition.removeFileIfContentEquals?.some((candidate) => trimmed === candidate.trim()) ?? false;
 }
-var HUSKY_DIR = ".husky", PLANNING_CONTRACT_TEMPLATES, CHMOD_PATHS, PRETTIER_PACKAGES, DERIVED_PACKAGE_CONDITIONS, ReconcileExecutionError;
+var HUSKY_DIR = ".husky", PLANNING_CONTRACT_TEMPLATES, CHMOD_PATHS, PRETTIER_PACKAGES, DERIVED_PACKAGE_CONDITIONS, OWNERSHIP_TRACKED_GROUPS, ReconcileExecutionError;
 var init_reconcile2 = __esm(() => {
+  init_config3();
   init_phase_contract();
   init_shared_clause_integrity();
   init_schema();
@@ -67364,6 +67386,7 @@ var init_reconcile2 = __esm(() => {
     standard: (projectType) => !projectType.existingFormatter,
     typescriptToolchain: (projectType) => projectType.scaffoldBddLane && !projectType.typescriptAvailable
   };
+  OWNERSHIP_TRACKED_GROUPS = ["typescriptToolchain"];
   ReconcileExecutionError = class ReconcileExecutionError extends Error {
     partial;
     completedActions;
@@ -67713,7 +67736,6 @@ var init_cucumber_template_revisions = __esm(() => {
 
 // src/utils/project-detector.ts
 import { existsSync as existsSync43, readdirSync as readdirSync24, readFileSync as readFileSync62 } from "fs";
-import { createRequire as createRequire2 } from "module";
 import nodePath90 from "path";
 function detectLanguages2(cwd) {
   const hasLanguage = (key) => LANGUAGE_PACKS[key]?.detect(cwd) ?? false;
@@ -67940,11 +67962,15 @@ function detectCucumberLane(cwd) {
 function resolvesTypescript(cwd) {
   if (cwd === undefined)
     return false;
-  try {
-    createRequire2(nodePath90.join(cwd, "package.json")).resolve("typescript/package.json");
-    return true;
-  } catch {
-    return false;
+  let directory = nodePath90.resolve(cwd);
+  for (;; ) {
+    if (existsSync43(nodePath90.join(directory, "node_modules", "typescript", "package.json"))) {
+      return true;
+    }
+    const parent = nodePath90.dirname(directory);
+    if (parent === directory)
+      return false;
+    directory = parent;
   }
 }
 function detectProjectType(packageJson, cwd) {
@@ -75342,6 +75368,16 @@ function recordInstalledPackages(packagesToInstall, installation, completedEffec
     });
   }
 }
+function recordOwnedPackages(cwd, schema, packagesToInstall, installation, completedEffects) {
+  if (!installation.installed)
+    return;
+  const owned = ownershipTrackedPackageNames(schema, packagesToInstall);
+  if (owned.length === 0)
+    return;
+  observeFileStage(cwd, [".safeword/config.json"], completedEffects, () => {
+    addOwnedPackages(cwd, owned);
+  });
+}
 function applyPackageCompatibility(cwd, completedEffects, offline) {
   if (!syncPackageJsonSafewordVersion(cwd, { offline, report: false }))
     return;
@@ -75477,6 +75513,7 @@ async function applySetup(cwd, input) {
       report: false
     }));
     recordInstalledPackages(result.packagesToInstall, installation, completedEffects);
+    recordOwnedPackages(cwd, setupSchema, result.packagesToInstall, installation, completedEffects);
     const pythonSetup = observeFileStage(cwd, pythonObservationTargets(cwd), completedEffects, () => adapters.configurePython(cwd, context, { offline: input.offline }));
     if (pythonSetup.attempted) {
       for (const target of pythonSetup.attemptedTools) {

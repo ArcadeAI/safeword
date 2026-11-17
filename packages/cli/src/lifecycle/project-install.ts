@@ -57,7 +57,11 @@ import {
   syncConfigCore,
 } from '../commands/sync-config.js';
 import { checkHealth, type HealthStatus } from '../health.js';
-import { applyFreshInstallDefaults, freshInstallDefaultsNeedUpdate } from '../packs/config.js';
+import {
+  addOwnedPackages,
+  applyFreshInstallDefaults,
+  freshInstallDefaultsNeedUpdate,
+} from '../packs/config.js';
 import { installPack } from '../packs/install.js';
 import { hasImportLinterScaffoldTarget } from '../packs/python/files.js';
 import {
@@ -72,7 +76,12 @@ import { getMissingPacks } from '../packs/registry.js';
 import { rustToolingTargets } from '../packs/rust/setup.js';
 import { InvalidInvalidationContractError } from '../planning/phase-contract.js';
 import { MissingGeneratedSharedClauseError } from '../planning/shared-clause-integrity.js';
-import { reconcile, ReconcileExecutionError, type ReconcileResult } from '../reconcile.js';
+import {
+  ownershipTrackedPackageNames,
+  reconcile,
+  ReconcileExecutionError,
+  type ReconcileResult,
+} from '../reconcile.js';
 import {
   ensurePublicRetroProjectConfig,
   publicRetroConfigNeedsUpdate,
@@ -1406,6 +1415,25 @@ function recordInstalledPackages(
   }
 }
 
+/**
+ * Record packages Safeword just installed that full uninstall could not otherwise
+ * attribute to Safeword (their install condition stops holding once present).
+ */
+function recordOwnedPackages(
+  cwd: string,
+  schema: SafewordSchema,
+  packagesToInstall: readonly string[],
+  installation: DependencyInstallResult,
+  completedEffects: CompletedSetupEffects,
+): void {
+  if (!installation.installed) return;
+  const owned = ownershipTrackedPackageNames(schema, packagesToInstall);
+  if (owned.length === 0) return;
+  observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () => {
+    addOwnedPackages(cwd, owned);
+  });
+}
+
 function applyPackageCompatibility(
   cwd: string,
   completedEffects: CompletedSetupEffects,
@@ -1600,6 +1628,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
       }),
     );
     recordInstalledPackages(result.packagesToInstall, installation, completedEffects);
+    recordOwnedPackages(cwd, setupSchema, result.packagesToInstall, installation, completedEffects);
     const pythonSetup = observeFileStage(cwd, pythonObservationTargets(cwd), completedEffects, () =>
       adapters.configurePython(cwd, context, { offline: input.offline }),
     );

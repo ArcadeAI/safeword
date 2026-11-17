@@ -13,6 +13,11 @@ const CONFIG_PATH = '.safeword/config.json';
 
 interface SafewordConfig {
   installedPacks?: string[];
+  /**
+   * Packages Safeword added whose install condition stops holding once they are
+   * present (e.g. `typescript`), so full uninstall knows they are Safeword's.
+   */
+  ownedPackages?: string[];
   architectureDocEnforcement?: boolean;
   autoUpgrade?: boolean;
   /** SQL pack options — `fix: true` opts in to edit-time `sqlfluff fix` (#638). */
@@ -97,4 +102,31 @@ export function addInstalledPack(cwd: string, packId: string): void {
     config.installedPacks = [...installedPacks, packId];
     writeConfig(cwd, config);
   }
+}
+
+/**
+ * Packages Safeword recorded as added by itself.
+ *
+ * @param cwd - Project root directory
+ * @returns Package names, or an empty array when none are recorded
+ */
+export function getOwnedPackages(cwd: string): string[] {
+  const owned = readConfig(cwd)?.ownedPackages;
+  return Array.isArray(owned) ? owned.filter(name => typeof name === 'string') : [];
+}
+
+/**
+ * Record packages Safeword just added, so full uninstall can remove them later.
+ * Writes only when a name is new, so repeated installs leave config.json unchanged.
+ *
+ * @param cwd - Project root directory
+ * @param names - Package names (no version specifiers)
+ */
+export function addOwnedPackages(cwd: string, names: readonly string[]): void {
+  const config = readConfig(cwd) ?? { installedPacks: [] };
+  const owned = getOwnedPackages(cwd);
+  const added = names.filter(name => !owned.includes(name));
+  if (added.length === 0) return;
+  config.ownedPackages = [...owned, ...added];
+  writeConfig(cwd, config);
 }

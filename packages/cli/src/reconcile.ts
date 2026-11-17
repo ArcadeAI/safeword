@@ -8,6 +8,7 @@
 import { lstatSync, readdirSync, readlinkSync, unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { getOwnedPackages } from './packs/config.js';
 import { parsePlanningContract } from './planning/phase-contract.js';
 import { assertGeneratedSharedClauses } from './planning/shared-clause-integrity.js';
 import { extractExecutionPlanReviewRubric } from './review/execution-plan-rubric.js';
@@ -75,6 +76,28 @@ const DERIVED_PACKAGE_CONDITIONS: Record<string, (projectType: ProjectType) => b
   typescriptToolchain: projectType =>
     projectType.scaffoldBddLane && !projectType.typescriptAvailable,
 };
+
+// Conditional-package keys whose condition stops holding once their packages are
+// installed. Install records these packages as Safeword-owned; full uninstall
+// removes them only when that record exists.
+const OWNERSHIP_TRACKED_GROUPS = ['typescriptToolchain'];
+
+/**
+ * Names of the packages in `packages` that install must record as Safeword-owned.
+ *
+ * @param schema - Safeword schema
+ * @param packages - Package specifiers install is adding
+ * @returns Package names (no version specifiers) to record
+ */
+export function ownershipTrackedPackageNames(
+  schema: SafewordSchema,
+  packages: readonly string[],
+): string[] {
+  const tracked = new Set(
+    OWNERSHIP_TRACKED_GROUPS.flatMap(group => schema.packages.conditional[group] ?? []),
+  );
+  return packages.filter(pkg => tracked.has(pkg)).map(pkg => stripVersionSpecifier(pkg));
+}
 
 /**
  * Get conditional packages based on project type.
@@ -938,7 +961,12 @@ function computeUninstallPlan(
   // 7. Compute packages to remove (full only)
   let packagesToRemove: string[] = [];
   if (full) {
-    packagesToRemove = computePackagesToRemove(schema, ctx.projectType, ctx.developmentDeps);
+    packagesToRemove = computePackagesToRemove(
+      schema,
+      ctx.projectType,
+      ctx.developmentDeps,
+      getOwnedPackages(ctx.cwd),
+    );
   } else if (Object.hasOwn(ctx.developmentDeps, 'safeword')) {
     packagesToRemove = ['safeword'];
   }
@@ -1309,10 +1337,17 @@ function computePackagesToRemove(
   schema: SafewordSchema,
   projectType: ProjectType,
   installedDevelopmentDependencies: Record<string, string>,
+  ownedPackages: readonly string[],
 ): string[] {
+  const ownedTracked = OWNERSHIP_TRACKED_GROUPS.flatMap(
+    group => schema.packages.conditional[group] ?? [],
+  ).filter(pkg => ownedPackages.includes(stripVersionSpecifier(pkg)));
   const safewordPackages = [
-    ...schema.packages.base,
-    ...getConditionalPackages(schema.packages.conditional, projectType),
+    ...new Set([
+      ...schema.packages.base,
+      ...getConditionalPackages(schema.packages.conditional, projectType),
+      ...ownedTracked,
+    ]),
   ];
 
   // Only remove packages that are actually installed

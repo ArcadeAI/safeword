@@ -24,11 +24,37 @@ import {
   INSTALL_DEPENDENCIES_ENV,
   readTestFile,
   removeTemporaryDirectory,
+  runCli,
   runEslint,
   setupOrThrow,
   TIMEOUT_SETUP,
   writeTestFile,
 } from '../helpers';
+
+/**
+ * Run a real `uninstall --full` and return the project's devDependencies after it.
+ * @param projectDirectory - Installed fixture project.
+ * @returns devDependencies left in package.json.
+ */
+async function developmentDependenciesAfterFullUninstall(
+  projectDirectory: string,
+): Promise<Record<string, string>> {
+  const options = { cwd: projectDirectory, env: INSTALL_DEPENDENCIES_ENV, timeout: TIMEOUT_SETUP };
+  const preview = await runCli(
+    ['uninstall', '--agents=none', '--full', '--json', '--no-input'],
+    options,
+  );
+  const planId = (JSON.parse(preview.stdout) as { data: { plan: { id: string } } }).data.plan.id;
+  const result = await runCli(
+    ['uninstall', '--agents=none', '--full', '--yes', '--plan', planId, '--json', '--no-input'],
+    options,
+  );
+  expect(result.exitCode, `${result.stdout}\n${result.stderr}`).toBe(0);
+  const manifest = JSON.parse(readTestFile(projectDirectory, 'package.json')) as {
+    devDependencies?: Record<string, string>;
+  };
+  return manifest.devDependencies ?? {};
+}
 
 // =============================================================================
 // Suite 1: TypeScript Project Setup
@@ -245,6 +271,19 @@ describe('E2E: Fresh TypeScript install passes its own checks', () => {
 
     expect(JSON.parse(second.stdout)).toMatchObject({ changed: false });
   });
+
+  // Last: removes Safeword from the shared fixture.
+  it('keeps a typescript the project declared on full uninstall', async () => {
+    const declared = (
+      JSON.parse(readTestFile(projectDirectory, 'package.json')) as {
+        devDependencies: Record<string, string>;
+      }
+    ).devDependencies.typescript;
+
+    const remaining = await developmentDependenciesAfterFullUninstall(projectDirectory);
+
+    expect(remaining.typescript).toBe(declared);
+  });
 });
 
 // =============================================================================
@@ -311,5 +350,12 @@ describe('E2E: JavaScript-Only Project', () => {
       .filter(report => !report.file.startsWith('src/') && report.rules.length > 0);
 
     expect(findings).toEqual([]);
+  });
+
+  // Last: removes Safeword from the shared fixture.
+  it('removes the typescript it installed on full uninstall', async () => {
+    const remaining = await developmentDependenciesAfterFullUninstall(projectDirectory);
+
+    expect(remaining).not.toHaveProperty('typescript');
   });
 });
