@@ -927,6 +927,20 @@ describe('write-time annotation gate', () => {
       expectHookDeny(result, 'GREEN row that already carries historical evidence');
     });
 
+    it('blocks moving a phantom-SHA correction under a different scenario', () => {
+      const setup = setupProject(
+        '### Scenario: alpha\n\n- [x] GREEN fade0ff\n\n### Scenario: beta\n\n- [ ] GREEN\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [x] GREEN fade0ff\n\n### Scenario: beta\n\n- [ ] GREEN',
+        '- [ ] GREEN\n\n### Scenario: beta\n\n- [x] GREEN 6b112d3',
+      );
+      expectHookDeny(result, 'GREEN row that already carries historical evidence');
+    });
+
     it('blocks rewriting the annotation on historical REFACTOR evidence', () => {
       const setup = setupProject(
         '### Scenario: example\n\n- [x] RED 5443b14\n- [x] GREEN 6b112d3\n- [x] REFACTOR ad66337\n',
