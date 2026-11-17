@@ -85,12 +85,7 @@ describe('E2E: Type-Checked ESLint Rules', () => {
     createTypeScriptPackageJson(projectDirectory);
     writeTestFile(projectDirectory, 'src/index.ts', 'export const placeholder = 1;\n');
     initGitRepo(projectDirectory);
-    // Real installs: the whole-install lint and typecheck below must see exactly
-    // what install adds (the lane's @cucumber/cucumber, @types/node, tsx).
-    await setupOrThrow(projectDirectory, ['setup'], {
-      env: INSTALL_DEPENDENCIES_ENV,
-      timeout: TIMEOUT_SETUP,
-    });
+    await setupOrThrow(projectDirectory, ['setup'], { timeout: TIMEOUT_SETUP });
 
     // Install dependencies so ESLint can run with type checking
     execSync('bun install', { cwd: projectDirectory, stdio: 'pipe' });
@@ -119,23 +114,6 @@ export function main(): void {
 
     const result = runEslint(projectDirectory, 'src/valid.ts');
 
-    expect(result.status).toBe(0);
-  });
-
-  it('passes its own lint across the whole fresh install (#6966)', () => {
-    const result = runEslint(projectDirectory, '.');
-
-    expect(result.stdout).toBe('');
-    expect(result.status).toBe(0);
-  });
-
-  it('type-checks the fresh install, including the scaffolded BDD steps (#6966)', () => {
-    const result = spawnSync('bunx', ['tsc', '--noEmit', '-p', '.'], {
-      cwd: projectDirectory,
-      encoding: 'utf8',
-    });
-
-    expect(result.stdout).toBe('');
     expect(result.status).toBe(0);
   });
 
@@ -201,6 +179,71 @@ export function main() {
     // Should fail due to await-thenable
     expect(result.status).not.toBe(0);
     expect(result.stdout + result.stderr).toMatch(/await|thenable|promise/i);
+  });
+});
+
+// =============================================================================
+// Suite 2b: A fresh TypeScript install passes its own checks (#6966)
+// =============================================================================
+
+describe('E2E: Fresh TypeScript install passes its own checks', () => {
+  let projectDirectory: string;
+
+  beforeAll(async () => {
+    projectDirectory = createTemporaryDirectory();
+    createTypeScriptPackageJson(projectDirectory);
+    writeTestFile(projectDirectory, 'src/index.ts', 'export const placeholder = 1;\n');
+    initGitRepo(projectDirectory);
+    // Real installs: every check below must see exactly what install adds (the
+    // lane's @cucumber/cucumber, @types/node, tsx) and nothing the fixture adds.
+    await setupOrThrow(projectDirectory, ['setup'], {
+      env: INSTALL_DEPENDENCIES_ENV,
+      timeout: TIMEOUT_SETUP,
+    });
+    execSync('bun install', { cwd: projectDirectory, stdio: 'pipe' });
+  });
+
+  afterAll(() => {
+    if (projectDirectory) {
+      removeTemporaryDirectory(projectDirectory);
+    }
+  });
+
+  it('passes its own lint across the whole fresh install', () => {
+    const result = runEslint(projectDirectory, '.');
+
+    expect(result.stdout).toBe('');
+    expect(result.status).toBe(0);
+  });
+
+  it('type-checks the fresh install, including the scaffolded BDD steps', () => {
+    const result = spawnSync('bunx', ['tsc', '--noEmit', '-p', '.'], {
+      cwd: projectDirectory,
+      encoding: 'utf8',
+    });
+
+    expect(result.stdout).toBe('');
+    expect(result.status).toBe(0);
+  });
+
+  it('runs the scaffolded BDD lane green', () => {
+    const result = spawnSync('bun', ['run', 'test:bdd'], {
+      cwd: projectDirectory,
+      encoding: 'utf8',
+    });
+
+    expect(result.stdout).toContain('passed');
+    expect(result.stdout).not.toContain('failed');
+    expect(result.status).toBe(0);
+  });
+
+  it('reports no change on a second identical install', async () => {
+    const second = await setupOrThrow(projectDirectory, ['setup', '--json'], {
+      env: INSTALL_DEPENDENCIES_ENV,
+      timeout: TIMEOUT_SETUP,
+    });
+
+    expect(JSON.parse(second.stdout)).toMatchObject({ changed: false });
   });
 });
 
