@@ -24,8 +24,12 @@ import {
   writeTestFile,
 } from '../helpers.js';
 
-function runTestBdd(directory: string): { output: string; status: number | null } {
-  const result = spawnSync('bun', ['run', 'test:bdd'], {
+function runTestBdd(
+  directory: string,
+  cucumberArguments: readonly string[] = [],
+): { output: string; status: number | null } {
+  const forwarded = cucumberArguments.length > 0 ? ['--', ...cucumberArguments] : [];
+  const result = spawnSync('bun', ['run', 'test:bdd', ...forwarded], {
     cwd: directory,
     encoding: 'utf8',
     timeout: TIMEOUT_SETUP,
@@ -76,6 +80,55 @@ describe('scaffolded runner honors configured paths (TB2.AC2 + TB2.AC3)', () => 
   afterAll(() => {
     removeTemporaryDirectory(directory);
   });
+
+  it(
+    'runs only the selected scenario when a feature path carries a line selector',
+    () => {
+      const featureLines = [
+        'Feature: Line selector',
+        '',
+        '  Scenario: unselected scenario',
+        '    When the unselected scenario runs',
+        '',
+        '  Scenario: selected scenario',
+        '    When the selected scenario runs',
+        '',
+      ];
+      const selectedLine = featureLines.indexOf('  Scenario: selected scenario') + 1;
+      writeTestFile(directory, 'features/line-selector.feature', featureLines.join('\n'));
+      writeTestFile(
+        directory,
+        'steps/line-selector.steps.ts',
+        [
+          "import { When } from '@cucumber/cucumber';",
+          '',
+          "When('the selected scenario runs', function () {",
+          '  // Scenario reached.',
+          '});',
+          '',
+          "When('the unselected scenario runs', function () {",
+          "  throw new Error('unselected scenario ran despite the line selector');",
+          '});',
+          '',
+        ].join('\n'),
+      );
+      try {
+        const { output, status } = runTestBdd(directory, [
+          `features/line-selector.feature:${selectedLine}`,
+          '--format',
+          'summary',
+        ]);
+        // The unselected scenario throws, so a pass means it did not run; the
+        // count rules out the starter feature riding along on default globs.
+        expect(status, output).toBe(0);
+        expect(output).toContain('1 scenario (1 passed)');
+      } finally {
+        rmSync(nodePath.join(directory, 'features/line-selector.feature'), { force: true });
+        rmSync(nodePath.join(directory, 'steps/line-selector.steps.ts'), { force: true });
+      }
+    },
+    TIMEOUT_SETUP,
+  );
 
   it(
     'bdd-lane-collision-detection-and-paths.TB2.AC3.runner_defaults_apply_without_a_config_file',

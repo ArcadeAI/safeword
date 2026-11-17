@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "a1d7b75d5fe8539c7caadd5563427c87230f92f49fe1cca085176acff1286f4e"
+      "sha256": "b87751466bd8fe32b52cc976376dea6ef1c5c13a924c35beb997bd925f158b82"
     },
     {
       "path": "runtime/dispatch.js",
@@ -891,7 +891,7 @@
     },
     {
       "path": "templates/cucumber/cucumber.mjs",
-      "sha256": "0ec4cb6d65b39e01f8aff27c4ca3841e0271a43b5435492676450f0fb3cfac27"
+      "sha256": "8a7df82ba68b703459279a48677e341e64e63703d48d2a8ea7dbb0788f56a777"
     },
     {
       "path": "templates/cucumber/safeword-lane.feature",
