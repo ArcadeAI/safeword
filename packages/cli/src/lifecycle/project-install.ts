@@ -58,9 +58,9 @@ import {
 } from '../commands/sync-config.js';
 import { checkHealth, type HealthStatus } from '../health.js';
 import {
-  addOwnedPackages,
   applyFreshInstallDefaults,
   freshInstallDefaultsNeedUpdate,
+  recordOwnedPackages,
 } from '../packs/config.js';
 import { installPack } from '../packs/install.js';
 import { hasImportLinterScaffoldTarget } from '../packs/python/files.js';
@@ -1416,21 +1416,22 @@ function recordInstalledPackages(
 }
 
 /**
- * Record packages Safeword just installed that full uninstall could not otherwise
- * attribute to Safeword (their install condition stops holding once present).
+ * Record packages Safeword tried to install that full uninstall could not
+ * otherwise attribute to Safeword (their install condition stops holding once
+ * present). Runs after any attempt, since a failed run can still save them.
  */
-function recordOwnedPackages(
+function recordSafewordOwnedPackages(
   cwd: string,
   schema: SafewordSchema,
   packagesToInstall: readonly string[],
   installation: DependencyInstallResult,
   completedEffects: CompletedSetupEffects,
 ): void {
-  if (!installation.installed) return;
-  const owned = ownershipTrackedPackageNames(schema, packagesToInstall);
-  if (owned.length === 0) return;
+  if (!installation.attempted) return;
+  const tracked = ownershipTrackedPackageNames(schema, packagesToInstall);
+  if (tracked.length === 0) return;
   observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () => {
-    addOwnedPackages(cwd, owned);
+    recordOwnedPackages(cwd, tracked);
   });
 }
 
@@ -1628,7 +1629,13 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
       }),
     );
     recordInstalledPackages(result.packagesToInstall, installation, completedEffects);
-    recordOwnedPackages(cwd, setupSchema, result.packagesToInstall, installation, completedEffects);
+    recordSafewordOwnedPackages(
+      cwd,
+      setupSchema,
+      result.packagesToInstall,
+      installation,
+      completedEffects,
+    );
     const pythonSetup = observeFileStage(cwd, pythonObservationTargets(cwd), completedEffects, () =>
       adapters.configurePython(cwd, context, { offline: input.offline }),
     );

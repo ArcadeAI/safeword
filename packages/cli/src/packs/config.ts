@@ -116,17 +116,29 @@ export function getOwnedPackages(cwd: string): string[] {
 }
 
 /**
- * Record packages Safeword just added, so full uninstall can remove them later.
- * Writes only when a name is new, so repeated installs leave config.json unchanged.
+ * Record, as Safeword-owned, each of `names` that package.json now declares.
+ * Install only adds these packages when the project lacked them, so a
+ * declaration present after an install attempt is Safeword's, even when the
+ * package manager saved it and then failed. Writes only when a name is new.
  *
  * @param cwd - Project root directory
- * @param names - Package names (no version specifiers)
+ * @param names - Package names (no version specifiers) install tried to add
  */
-export function addOwnedPackages(cwd: string, names: readonly string[]): void {
-  const config = readConfig(cwd) ?? { installedPacks: [] };
+export function recordOwnedPackages(cwd: string, names: readonly string[]): void {
+  const manifest = readFileSafe(nodePath.join(cwd, 'package.json'));
+  if (!manifest) return;
+  const { dependencies = {}, devDependencies = {} } = JSON.parse(manifest) as {
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
+  };
   const owned = getOwnedPackages(cwd);
-  const added = names.filter(name => !owned.includes(name));
+  const added = names.filter(
+    name =>
+      !owned.includes(name) &&
+      (Object.hasOwn(devDependencies, name) || Object.hasOwn(dependencies, name)),
+  );
   if (added.length === 0) return;
+  const config = readConfig(cwd) ?? { installedPacks: [] };
   config.ownedPackages = [...owned, ...added];
   writeConfig(cwd, config);
 }

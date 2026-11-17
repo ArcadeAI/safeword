@@ -65909,12 +65909,16 @@ function getOwnedPackages(cwd) {
   const owned = readConfig2(cwd)?.ownedPackages;
   return Array.isArray(owned) ? owned.filter((name) => typeof name === "string") : [];
 }
-function addOwnedPackages(cwd, names) {
-  const config = readConfig2(cwd) ?? { installedPacks: [] };
+function recordOwnedPackages(cwd, names) {
+  const manifest = readFileSafe(nodePath83.join(cwd, "package.json"));
+  if (!manifest)
+    return;
+  const { dependencies = {}, devDependencies = {} } = JSON.parse(manifest);
   const owned = getOwnedPackages(cwd);
-  const added = names.filter((name) => !owned.includes(name));
+  const added = names.filter((name) => !owned.includes(name) && (Object.hasOwn(devDependencies, name) || Object.hasOwn(dependencies, name)));
   if (added.length === 0)
     return;
+  const config = readConfig2(cwd) ?? { installedPacks: [] };
   config.ownedPackages = [...owned, ...added];
   writeConfig(cwd, config);
 }
@@ -75369,14 +75373,14 @@ function recordInstalledPackages(packagesToInstall, installation, completedEffec
     });
   }
 }
-function recordOwnedPackages(cwd, schema, packagesToInstall, installation, completedEffects) {
-  if (!installation.installed)
+function recordSafewordOwnedPackages(cwd, schema, packagesToInstall, installation, completedEffects) {
+  if (!installation.attempted)
     return;
-  const owned = ownershipTrackedPackageNames(schema, packagesToInstall);
-  if (owned.length === 0)
+  const tracked = ownershipTrackedPackageNames(schema, packagesToInstall);
+  if (tracked.length === 0)
     return;
   observeFileStage(cwd, [".safeword/config.json"], completedEffects, () => {
-    addOwnedPackages(cwd, owned);
+    recordOwnedPackages(cwd, tracked);
   });
 }
 function applyPackageCompatibility(cwd, completedEffects, offline) {
@@ -75514,7 +75518,7 @@ async function applySetup(cwd, input) {
       report: false
     }));
     recordInstalledPackages(result.packagesToInstall, installation, completedEffects);
-    recordOwnedPackages(cwd, setupSchema, result.packagesToInstall, installation, completedEffects);
+    recordSafewordOwnedPackages(cwd, setupSchema, result.packagesToInstall, installation, completedEffects);
     const pythonSetup = observeFileStage(cwd, pythonObservationTargets(cwd), completedEffects, () => adapters.configurePython(cwd, context, { offline: input.offline }));
     if (pythonSetup.attempted) {
       for (const target of pythonSetup.attemptedTools) {
