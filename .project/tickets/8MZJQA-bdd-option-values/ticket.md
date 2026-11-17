@@ -18,6 +18,7 @@ last_modified: 2026-11-17T15:46:26.635Z
 ## Scope
 
 - `templates/cucumber/cucumber.mjs`: the argument right after a value-taking Cucumber option (`--name`, `--tags`, `--format`, `--import`, `-p`, …) is that option's value, never a feature path. Arguments after a bare `--` stay positional.
+- Every remaining positional argument is a feature path, as Cucumber itself reads it, so directory forms (`features/checkout/`, `./features`) also drop the default globs. Cross-agent review flagged the directory forms; this is the third defect from the old name-shape guessing, so the classifier is replaced rather than patched.
 - New template hash in `cucumber-template-revisions.ts`; dogfood sync and regenerated surfaces.
 
 ## Out of scope

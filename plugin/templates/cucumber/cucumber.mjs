@@ -53,38 +53,41 @@ const workspaceStepImports = [
 const defaultTags = 'not @wip and not @proof.vitest and not @manual and not @live';
 const liveTags = '@live and not @manual';
 
-// Cucumber options that take a value as the next argument (`--name <REGEXP>`).
-// That value is never a feature path, even when it ends in `.feature`; the
+// Cucumber options that take a value (`--name <REGEXP>`, `-f <TYPE>`). That
+// value is never a feature path, even when it ends in `.feature`; the
 // `--option=value` form is a single argument and needs no special case.
-const valueTakingOptions = new Set([
-  '-c',
+const valueTakingLongOptions = new Set([
   '--config',
-  '-f',
   '--format',
   '--format-options',
   '--i18n-keywords',
-  '-i',
   '--import',
-  '-l',
   '--loader',
   '--language',
   '--name',
   '--order',
-  '-p',
   '--profile',
   '--parallel',
   '--plugin',
   '--plugin-options',
-  '-r',
   '--require',
   '--require-module',
   '--retry',
   '--retry-tag-filter',
   '--shard',
-  '-t',
   '--tags',
   '--world-parameters',
 ]);
+// Short flags `-c -f -i -l -p -r -t` take a value. In a cluster (`-df`), the
+// first value-taking flag takes the rest of the cluster as its value
+// (`-fsummary`), or the next argument when it is the cluster's last flag.
+const shortClusterEndingInValueFlag = /^-[^cfilprt]*[cfilprt]$/;
+
+// Whether an option argument consumes the next argument as its value.
+function consumesNextArgument(option) {
+  if (option.startsWith('--')) return valueTakingLongOptions.has(option);
+  return shortClusterEndingInValueFlag.test(option);
+}
 
 // Cucumber reads every positional argument as a feature path (a file, a
 // directory, a glob, or `file.feature:12`): everything except options and
@@ -97,7 +100,7 @@ function positionalArguments(argv) {
     if (skipNext) {
       skipNext = false;
     } else if (argument.startsWith('-')) {
-      skipNext = valueTakingOptions.has(argument);
+      skipNext = consumesNextArgument(argument);
     } else {
       positionals.push(argument);
     }

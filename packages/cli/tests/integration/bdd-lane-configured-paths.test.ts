@@ -228,6 +228,11 @@ describe('scaffolded runner honors configured paths (TB2.AC2 + TB2.AC3)', () => 
         ]);
         expect(status, output).toBe(0);
         expect(output).toContain('1 scenario (1 passed)');
+
+        // `-df summary` is dry-run plus `-f summary`: `summary` is a value.
+        const dryRun = runTestBdd(directory, ['-df', 'summary']);
+        expect(dryRun.status, dryRun.output).toBe(0);
+        expect(dryRun.output).toMatch(/2 scenarios \(2 skipped\)/);
       } finally {
         rmSync(nodePath.join(directory, 'packages'), { force: true, recursive: true });
       }

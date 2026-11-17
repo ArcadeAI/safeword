@@ -167,6 +167,19 @@ describe('Cucumber config targeted path handling', () => {
   );
 
   it.each(CONFIG_SURFACES)(
+    '%s reads combined short options the way Cucumber does',
+    async (_label, relativePath) => {
+      const { hasCliFeaturePath } = await loadConfigModule(relativePath);
+
+      // `-df summary`: dry-run plus `-f summary`; the next argument is the value.
+      expect(hasCliFeaturePath(['-df', 'summary'])).toBe(false);
+      // `-fsummary`: the rest of the cluster is the value, so the next is a path.
+      expect(hasCliFeaturePath(['-fsummary', 'features/example.feature'])).toBe(true);
+      expect(hasCliFeaturePath(['-db', 'features/example.feature'])).toBe(true);
+    },
+  );
+
+  it.each(CONFIG_SURFACES)(
     '%s still finds a feature path after option values and a bare --',
     async (_label, relativePath) => {
       const { hasCliFeaturePath } = await loadConfigModule(relativePath);
