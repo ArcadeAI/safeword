@@ -76,31 +76,31 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
     },
     hook_files: {
       '.safeword/hooks/post-tool-bypass-warn.ts':
-        'f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a',
+        '33b1be799f57901e247c9b5478b56e42a727178ad99eebba09ce18a637f69956',
       '.safeword/hooks/post-tool-dependency-readiness.ts':
         '6418539671ace93e5df04b4ee4d74b9f28b241ec81bbcf2588017702d3b092f6',
       '.safeword/hooks/post-tool-lint.ts':
-        'b469fbb75df70e9493fd5c5e117ef9ab0d129bf10fed3045c57f09eefb259d47',
+        'a1779513108c3f0dc6296bb765752507c65f3ff9c29af35e1e28878ace079f06',
       '.safeword/hooks/post-tool-quality.ts':
-        '93a1be1221799d35af5bad592b772defc220399945431fc638941f704b3b1120',
+        'b2779b9d64941ee5a7dff082a27d2391260c2600c4d641b08658dd4cb3aec428',
       '.safeword/hooks/post-tool-skill-nudge.ts':
         'd71158796facccdd5cbf7b64f460b36ebef0b92c41ee3a2f2a09625483e7af39',
       '.safeword/hooks/post-tool-sync-learnings.ts':
-        'de5f52c221b2f029841beded78d65af80217949072a99c2790d503f492528290',
+        '0bb2a936c94bd99afec58b62b933e8ce097c4aea115f6844a9688f709d66a85f',
       '.safeword/hooks/post-tool-work-log.ts':
-        '8792eb3a44bc5766da80c9155690fbe3e79c67eb1d383580638c55d53e7d80c1',
+        'd7b4508fa0e3f190c9c8c83d01a08e60fd41330b8f62f7f51376f89423998766',
       '.safeword/hooks/pre-tool-architecture-stage.ts':
-        'e57bfeb13ccb403159fc8b115122937eaf3d9ca808f2ec6c8c39632fb3a4d679',
+        'dbb2fa14ce934ec71e31d7a9258247b4e42684ac69154d96b9fadd2cc18ad9d4',
       '.safeword/hooks/pre-tool-config-guard.ts':
-        '6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084',
+        '6cf974642f71ee8091f19a8d8c68246f4a2dcdba86c7f5966ea22f992c43636a',
       '.safeword/hooks/pre-tool-dependency-readiness.ts':
         '83d1369a1db26474ce498565e1f67711834137276234ca697de3be0f1abbafff',
       '.safeword/hooks/pre-tool-git-bare-fix.sh':
         '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
       '.safeword/hooks/pre-tool-quality.ts':
-        '679844e330d3c4121a6ff90a19ede2cba942acc2676dbdeefdd88070953f8b88',
+        'ed34c6a74649431fea76f3eb25900a49cc6c97f0d6dac4ebc8ce3e45b4925cce',
       '.safeword/hooks/pre-tool-stale-main.ts':
-        'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
+        '6a7c2d75a9955f661f620ee20f4210bec09fa206625d84363cd0376fc56fdf5d',
       '.safeword/hooks/prompt-questions.ts':
         'ac2f53a7c2e87cb4517b7a4c9d965bacdd262828aa28474d0441dc2edafc215d',
       '.safeword/hooks/prompt-retro-nudge.ts':
@@ -108,19 +108,19 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/prompt-timestamp.ts':
         'd7939e98528717fed556adf65dcb9fd3c24fac530ba76be2db9c5faebbac27f3',
       '.safeword/hooks/session-architecture-heal.ts':
-        '142c5a5358d57c9a587019f6e37fe84ed604638d1963e1c28eea12db2a8439f3',
+        '2288bfca27f7a039fafd5a60c4e3cf8c3e07b2f387ec2502545a16bc3005346e',
       '.safeword/hooks/session-auto-upgrade.ts':
-        '51cb48954d5b6154d1b4f831f9689fc5044cc8abf6aa9eb664fcddbf6fa859c0',
+        '58403ff9922ae1423becd4e9a682fb91d9b68db4881f4c0d8c5e46edc3ea8fc2',
       '.safeword/hooks/session-bun-check.sh':
         '47e97a2f787228347213521d8391ab6b001e19270aed8e2795f13d6ea0603c29',
       '.safeword/hooks/session-cleanup-quality.ts':
-        'f86fa64073a8c1fd6c34be118d188f14bb5faa3c1ccf4811de7a53c0a5c805d2',
+        'cfabcc1d6b07b9423f497d32624e99824631131c3749ae1d1ff615b054d49e64',
       '.safeword/hooks/session-compact-context.ts':
         '9b5276e301d827172bc25bb19e72a52de36eab53b49e7b9bf9385e407e0f851b',
       '.safeword/hooks/session-dependency-readiness.ts':
-        '295d14c5a3d8112b01259cf89ce718144a568e62e0baf5aaa19eca3fcfdc50ff',
+        '12f2c4e6d598ba26a385d534c146d56788b04e71605e917cbdf3f9f254571c31',
       '.safeword/hooks/session-lint-check.ts':
-        '6d8e5819bd52208799089d19bfdbd569fc46b9d518df4c45ab2c3b605d9647dc',
+        'fd8520c78e491419251654cf7124213c77fd3a2291cb25c5b0f0592c43eaa772',
       '.safeword/hooks/session-reply-format.ts':
         '41f7578e93188d5efacdd9ecbf29f72753a6fe98bca71fe321c61f547aeb8532',
       '.safeword/hooks/session-safeword-context.ts':
@@ -128,9 +128,9 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/session-start-reentry.ts':
         'b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d',
       '.safeword/hooks/session-version.ts':
-        'c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64',
+        '7480f836ec466c06b9bc81384710fa32e33fce67070788b1766965282d778e72',
       '.safeword/hooks/stop-quality.ts':
-        'fec90825342c80ecffa485e683267939e1ca85a38013be2cfd567372e8390b3b',
+        'f02e31d37039957088f08b91394962268dd6f3c50c52228ae39aced8ac58dbd3',
       '.safeword/hooks/stop-reentry.ts':
         'a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5',
       '.safeword/hooks/stop-retro-filing.ts':
