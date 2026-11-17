@@ -1,0 +1,100 @@
+{
+  "role": "cursor-cloud-fixture-consumer",
+  "independent_model_review": false,
+  "provider_evidence": "list-cloud-agents shows `bc-fb1e8c97-6e37-58fd-abab-bd7c2d313f03` (Fixture handoff producer) status IDLE, isArchived false, isKilled false, and its dashboard events list is empty. `bc-b4698dda-4e17-5ecd-aeb3-8500ec7d80f3` (Archive isolated fixture bytes) has the same IDLE, not archived, not killed state. There is no provider reclaim, kill, or archive event. This consumer is a new VM. That is a new session after the producer turn ended. It is not reclamation of the producer runner.",
+  "new_session": {
+    "bcId": "bc-d5d88c9b-9602-51d0-8ae9-5df91686d922",
+    "name": "Fixture handoff consumer",
+    "status": "RUNNING",
+    "isArchived": false,
+    "isKilled": false,
+    "hostname": "cursor",
+    "boot_id": "3665df16-2695-46b7-a43d-83c68178a5bd",
+    "new_vm": true,
+    "new_session_after_producer_turn_ended": true,
+    "reclamation_of_producer_runner": false,
+    "producer_bcId": "bc-fb1e8c97-6e37-58fd-abab-bd7c2d313f03"
+  },
+  "reclamation_distinction": "This consumer is a new VM. That is a new session after the producer turn ended. It is not reclamation of the producer runner. Provider evidence shows no reclaim, kill, or archive event. The producer bc-fb1e8c97-6e37-58fd-abab-bd7c2d313f03 was IDLE, not archived, and not killed, with an empty dashboard event list. This session is bc-d5d88c9b-9602-51d0-8ae9-5df91686d922 on boot_id 3665df16-2695-46b7-a43d-83c68178a5bd.",
+  "toolchain": {
+    "bun": "1.4.4",
+    "node": "v24.18.1",
+    "head": "bd096ce5c5938e021f0debd4678f66566932cc0a",
+    "install": "scripts/dev bun install --frozen-lockfile",
+    "build": "scripts/dev bun run --cwd packages/cli build"
+  },
+  "fixture": {
+    "path_outside_repo": true,
+    "path_outside_ticket_tree": true,
+    "helpers": [
+      "createConfiguredProject",
+      "writePlanningInventories"
+    ],
+    "helper_source_commit": "bd096ce5c5938e021f0debd4678f66566932cc0a",
+    "given_files_source": "packages/cli/tests/integration/planning-dispute-persistence.test.ts",
+    "given_files_extracted_as_source_literals": true,
+    "spec_sha256": "6a3cd2f5a57ff85506f8948c7696a8ae4c0e21bc327808a22ec9668b7b52a303",
+    "feature_sha256": "97e73572613ab9e22d33c4975afb210bf17fadcd468f5aae30229c0ffb0cbe8d",
+    "review_state_present_before": false,
+    "review_state_present_after": false,
+    "review_integrity_key_present_before": false,
+    "review_integrity_key_present_after": false,
+    "SAFEWORD_REVIEW_KEY_ROOT": "unset"
+  },
+  "byte_checks": {
+    "ticket": {
+      "blob": "f1c96d305de08f235436c56a0b96548a4acac7dc",
+      "sha256": "f727181ef4d73133853de7cc9ae1d040e69c25e079f9fca9f3046e75a6c66234",
+      "archive_matches_blob": true,
+      "disk_matches_blob": true,
+      "unchanged_after_command": true,
+      "passed": true
+    },
+    "plan": {
+      "blob": "3c53b54e675bf85de59e0af8f4c95ad72a5f668b",
+      "sha256": "2430088b9888d81d45b2c0b63f298de4b99977cbd4f1b2cb58c02b5344a7566f",
+      "expected_sha256": "2430088b9888d81d45b2c0b63f298de4b99977cbd4f1b2cb58c02b5344a7566f",
+      "archive_matches_blob": true,
+      "disk_matches_blob": true,
+      "sha256_matches": true,
+      "unchanged_after_command": true,
+      "passed": true
+    }
+  },
+  "command": {
+    "argv": "timeout 5s env SAFEWORD_AGENT_RUNTIME=cursor scripts/dev bun packages/cli/dist/cli.js --json --no-input ticket record-review-disposition PEN123 6687956e-4ba0-49b0-ad4c-51140236d5e4 1 --reason \"The accepted Product Plan says: No optional audit export.\" --cwd <isolated-fixture>",
+    "runs": 1,
+    "retried": false,
+    "review_key_root_set": false,
+    "timeout_program": "GNU coreutils timeout 9.4",
+    "exit_code": 2,
+    "timeout_killed": false,
+    "elapsed_ns": 133302570,
+    "stdout_bytes": 1001,
+    "stderr_bytes": 0,
+    "stdout_sha256": "23c40ca343e58a4e9556d6ef170d6ea0f3978618221afedec88e560b4586fb8a",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_file": "2026-11-17-cursor-cloud-fixture-consumer-disposition.stdout",
+    "stderr_file": "2026-11-17-cursor-cloud-fixture-consumer-disposition.stderr"
+  },
+  "match": {
+    "question": "Decline this suggestion outside accepted scope? Consider adding an optional approval audit export.",
+    "question_matched": true,
+    "reason": "The accepted Product Plan says: No optional audit export.",
+    "reason_matched": true,
+    "action": "Ask the user to decide: Decline this suggestion outside accepted scope? Consider adding an optional approval audit export.",
+    "action_matched": true,
+    "exit_code": 2,
+    "state": "action_required",
+    "status": "pending",
+    "within_5_seconds": true,
+    "ticket_bytes_unchanged": true,
+    "plan_bytes_unchanged": true,
+    "design_approval_added": false,
+    "disposition": "pending-user-decision",
+    "disposition_changed_to_decline_or_acceptance": false
+  },
+  "integrity_key_absent_from_every_committed_file": true,
+  "review_job_committed": false,
+  "fixture_project_committed": false
+}
