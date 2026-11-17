@@ -26,10 +26,30 @@ import { recordSignal } from '../../templates/hooks/lib/self-report.js';
 import { createTemporaryDirectory, removeTemporaryDirectory, TIMEOUT_QUICK } from '../helpers';
 
 const HOOKS = nodePath.resolve(import.meta.dirname, '../../templates/hooks');
-const DOGFOOD_AUTO_UPGRADE = nodePath.resolve(
-  import.meta.dirname,
-  '../../../../.safeword/hooks/session-auto-upgrade.ts',
-);
+const DOGFOOD_HOOKS = nodePath.resolve(import.meta.dirname, '../../../../.safeword/hooks');
+const DOGFOOD_AUTO_UPGRADE = nodePath.join(DOGFOOD_HOOKS, 'session-auto-upgrade.ts');
+/** Installed hook files written at install time, with no template counterpart. */
+const INSTALL_GENERATED = new Set(['lib/owned-paths.ts']);
+
+/**
+ * Every hook file the installed entrypoint loads through relative imports,
+ * as paths relative to the hooks directory.
+ */
+function installedImportClosure(entry: string): string[] {
+  const seen = new Set<string>();
+  const pending = [entry];
+  while (pending.length > 0) {
+    const relative = pending.pop() ?? '';
+    if (seen.has(relative)) continue;
+    seen.add(relative);
+    const source = readFileSync(nodePath.join(DOGFOOD_HOOKS, relative), 'utf8');
+    for (const [, specifier] of source.matchAll(/from '(\.{1,2}\/[^']+)'/g)) {
+      const resolved = nodePath.join(nodePath.dirname(relative), specifier ?? '');
+      pending.push(resolved.replace(/\.js$/, '.ts'));
+    }
+  }
+  return [...seen].toSorted((a, b) => a.localeCompare(b));
+}
 
 function enrolledRepo(directory: string): string {
   mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
@@ -181,12 +201,17 @@ describe('session-level hooks follow the session pointer (#5467)', () => {
     delete environment.CI;
     delete environment.SAFEWORD_NO_AUTO_UPGRADE;
 
-    // The installed copy: the template imports a file generated at install.
-    // It must be byte-identical to the shipped template, so this proves the
-    // template's behavior.
-    expect(readFileSync(DOGFOOD_AUTO_UPGRADE, 'utf8')).toBe(
-      readFileSync(nodePath.join(HOOKS, 'session-auto-upgrade.ts'), 'utf8'),
-    );
+    // The installed copy runs, because the hook imports a file generated at
+    // install. Every other file it loads must be byte-identical to the
+    // shipped template, so this proves the template's behavior.
+    const closure = installedImportClosure('session-auto-upgrade.ts');
+    expect(closure).toContain('lib/project-directory.ts');
+    for (const relative of closure) {
+      if (INSTALL_GENERATED.has(relative)) continue;
+      expect(readFileSync(nodePath.join(DOGFOOD_HOOKS, relative), 'utf8'), relative).toBe(
+        readFileSync(nodePath.join(HOOKS, relative), 'utf8'),
+      );
+    }
     const result = spawnSync('bun', [DOGFOOD_AUTO_UPGRADE], {
       input: JSON.stringify({
         session_id: sessionId,
