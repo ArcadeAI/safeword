@@ -198,6 +198,22 @@ function plannedFileEffect(cwd: string, target: string): Effect {
   return { kind: existsSync(nodePath.join(cwd, target)) ? 'update' : 'create', target };
 }
 
+/**
+ * The config write that records Safeword-owned packages, when install plans one.
+ */
+function plannedOwnershipRecordEffects(
+  cwd: string,
+  schema: SafewordSchema,
+  packages: readonly Effect[],
+): Effect[] {
+  const installing = packages
+    .filter(effect => effect.kind === 'install')
+    .map(effect => effect.target);
+  return ownershipTrackedPackageNames(schema, installing).length > 0
+    ? [plannedFileEffect(cwd, '.safeword/config.json')]
+    : [];
+}
+
 function existingFileEffects(cwd: string, targets: readonly string[]): Effect[] {
   return targets.flatMap(target =>
     existsSync(nodePath.join(cwd, target)) ? [{ kind: 'update', target }] : [],
@@ -572,6 +588,7 @@ export async function createSetupPlan(
     ...(publicRetroConfigNeedsUpdate(cwd)
       ? [{ kind: 'update' as const, target: '.safeword/config.json' }]
       : []),
+    ...plannedOwnershipRecordEffects(cwd, schema, reconciliationEffects.packages),
   ];
   const packageFiles = reconciliationPackages ? plannedJavaScriptPackageFiles(cwd) : [];
   const python = plannedPythonEffects(cwd);

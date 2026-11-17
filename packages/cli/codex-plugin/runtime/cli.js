@@ -74484,6 +74484,10 @@ function configureArchitecture(cwd) {
 function plannedFileEffect(cwd, target) {
   return { kind: existsSync52(nodePath115.join(cwd, target)) ? "update" : "create", target };
 }
+function plannedOwnershipRecordEffects(cwd, schema, packages) {
+  const installing = packages.filter((effect) => effect.kind === "install").map((effect) => effect.target);
+  return ownershipTrackedPackageNames(schema, installing).length > 0 ? [plannedFileEffect(cwd, ".safeword/config.json")] : [];
+}
 function existingFileEffects(cwd, targets) {
   return targets.flatMap((target) => existsSync52(nodePath115.join(cwd, target)) ? [{ kind: "update", target }] : []);
 }
@@ -74765,7 +74769,8 @@ async function createSetupPlan(cwd, schema, options = {}) {
   const reconciliationPackages = reconciliationEffects.packages.length > 0;
   const compatibilityFiles = [
     ...!configured || configNeedsCompatibilityUpdate(cwd) ? [plannedFileEffect(cwd, ".safeword/config.json")] : [],
-    ...publicRetroConfigNeedsUpdate(cwd) ? [{ kind: "update", target: ".safeword/config.json" }] : []
+    ...publicRetroConfigNeedsUpdate(cwd) ? [{ kind: "update", target: ".safeword/config.json" }] : [],
+    ...plannedOwnershipRecordEffects(cwd, schema, reconciliationEffects.packages)
   ];
   const packageFiles = reconciliationPackages ? plannedJavaScriptPackageFiles(cwd) : [];
   const python = plannedPythonEffects(cwd);

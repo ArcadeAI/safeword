@@ -930,6 +930,81 @@ fs.writeFileSync("package-lock.json", JSON.stringify(lock, null, 2) + "\\n");
     expect(packageLock.updatedByFixture).toBe(true);
   });
 
+  it('previews the ownership record for a typescript the package manager adds (KQMPR5)', async () => {
+    const directory = temporaryDirectory();
+    const configured = await runCliWithoutInstall(
+      ['install', '--agents=none', '--scope=project', '--no-input', '--json', '--cwd', directory],
+      { cwd: directory },
+    );
+    expect(configured.exitCode).toBe(0);
+    // Every Safeword package is current except the compiler for the BDD steps.
+    writeJson(directory, 'package.json', {
+      name: 'missing-compiler',
+      private: true,
+      devDependencies: {
+        '@cucumber/cucumber': '^13.0.0',
+        '@types/node': '^25.0.0',
+        'dependency-cruiser': '^17.0.0',
+        eslint: '^9.22.0',
+        jiti: '^2.2.0',
+        knip: '^6.0.0',
+        prettier: '^3.0.0',
+        safeword: `^${VERSION}`,
+        tsx: '^4.0.0',
+      },
+    });
+    writeJson(directory, 'package-lock.json', { lockfileVersion: 3, packages: {} });
+    const bin = nodePath.join(directory, 'bin');
+    mkdirSync(bin);
+    const npm = nodePath.join(bin, 'npm');
+    // Saves each requested package to devDependencies, as `npm install -D` does.
+    writeFileSync(
+      npm,
+      String.raw`#!/bin/sh
+set -eu
+node -e '
+const fs = require("node:fs");
+const manifest = JSON.parse(fs.readFileSync("package.json", "utf8"));
+for (const spec of process.argv.slice(1).filter(argument => !argument.startsWith("-"))) {
+  const at = spec.lastIndexOf("@");
+  if (at > 0) manifest.devDependencies[spec.slice(0, at)] = spec.slice(at + 1);
+}
+fs.writeFileSync("package.json", JSON.stringify(manifest, null, 2) + "\n");
+' -- "$@"
+`,
+    );
+    chmodSync(npm, 0o755);
+
+    const { envelope: planEnvelope } = await planProject(directory);
+    expectEffectsInclude(planEnvelope, 'packages', [
+      { kind: 'install', target: 'typescript@~6.0.0' },
+    ]);
+
+    const installed = await runCli(
+      ['install', '--agents=none', '--scope=project', '--no-input', '--json', '--cwd', directory],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:${process.env.PATH ?? ''}`,
+          SAFEWORD_SKIP_INSTALL: '',
+          SAFEWORD_SKIP_SKILLS: '1',
+        },
+      },
+    );
+    expect(installed.exitCode, installed.stdout).toBe(0);
+    expect(readJson(directory, '.safeword/config.json')).toMatchObject({
+      ownedPackages: ['typescript'],
+    });
+
+    const installEnvelope = JSON.parse(installed.stdout) as LifecycleEnvelope;
+    const planned = new Set((planEnvelope.data.plan.effects.files ?? []).map(effectIdentity));
+    const applied = (installEnvelope.effects.files ?? []).map(effectIdentity);
+    expect(
+      applied.filter(effect => !planned.has(effect)),
+      'unplanned files effects',
+    ).toEqual([]);
+  });
+
   it('does not run a package manager for an offline compatibility update', async () => {
     const directory = temporaryDirectory();
     configureProject(directory);
