@@ -180,6 +180,33 @@ describe('closeout binding follows the worktree closeout runs in (#5467)', () =>
     },
   );
 
+  it.each([
+    'cd -- WORKTREE && CLOSEOUT',
+    'cd -P WORKTREE && CLOSEOUT',
+    'pushd WORKTREE && CLOSEOUT',
+    'cd WORKTREE && popd && CLOSEOUT',
+    '(cd WORKTREE && CLOSEOUT)',
+    'builtin cd WORKTREE && CLOSEOUT',
+    'cd WORKTREE/../worktree-* && CLOSEOUT',
+    'cd WORKTREE | true; CLOSEOUT',
+    'cd WORKTREE & CLOSEOUT',
+    'env -C WORKTREE CLOSEOUT',
+  ])('denies closeout behind a directory change it does not follow: %s', form => {
+    repo();
+
+    const result = runClaudeHook(
+      primary,
+      form.split('WORKTREE').join(worktreeA).split('CLOSEOUT').join(CLOSEOUT),
+      'claude-session-forms',
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    const output = JSON.parse(result.stdout) as {
+      hookSpecificOutput?: { permissionDecision?: string };
+    };
+    expect(output.hookSpecificOutput?.permissionDecision).toBe('deny');
+  });
+
   it('denies two closeout runs in one command, since only one binding can be recorded', () => {
     repo();
 

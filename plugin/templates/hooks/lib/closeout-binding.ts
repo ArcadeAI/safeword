@@ -373,63 +373,63 @@ function closeoutBindingPath(projectDirectory: string): string {
   );
 }
 
+/**
+ * A shell word with no expansion or control characters. A double-quoted part may name the plugin
+ * root, as the plugin's closeout command does.
+ */
+const PLAIN_WORD = String.raw`(?:[^\s$\x60~*?[\]{}()'"\\;&|<>]|"(?:\$\{CLAUDE_PLUGIN_ROOT\}|[^"$\x60\\])*")+`;
+
+/**
+ * The only command shapes that run closeout with a binding: `bun <script> <plain args>`, optionally
+ * after one `cd <plain path> &&`. Shell has too many ways to change or fork a directory (pipes,
+ * background jobs, subshells, `env -C`, `pushd`) for a hook to follow them reliably, so any other
+ * shape that runs closeout is denied with a recovery the agent can follow at once.
+ */
+// eslint-disable-next-line security/detect-non-literal-regexp -- built only from the constant above
+const CLOSEOUT_COMMAND = new RegExp(
+  String.raw`^\s*(?:cd\s+(?!-)(?<directory>${PLAIN_WORD})\s*&&\s*)?bun\s+(?<script>${PLAIN_WORD})(?:\s+[\w./:=@+-]+)*\s*$`,
+  'u',
+);
+
 export type CloseoutBindingTarget =
   { kind: 'tree'; projectDirectory: string } | { kind: 'unresolved' };
 
 /**
- * Where a closeout command will run, so its binding lands where closeout reads it: the git
- * working tree of the shell cwd after any `cd`/`pushd` that precedes the closeout segment.
- * Closeout reads from `git rev-parse --show-toplevel` of its own cwd. `unresolved` means a
- * preceding directory change the hook cannot follow (a variable, `~`, `-`, or no argument), or
- * more than one closeout run, which one binding cannot serve. Returns undefined when the command
- * does not run closeout.
+ * Where a closeout command will run, so its binding lands where closeout reads it: the git working
+ * tree of the shell cwd, or of a leading `cd <plain path>`. Closeout reads its binding from
+ * `git rev-parse --show-toplevel` of its own cwd. `unresolved` means the command runs a closeout
+ * script in any other shape, or runs one other than this project's or the plugin's. Returns
+ * undefined when the command runs no closeout script.
  */
 export function closeoutBindingTarget(
   command: string,
   shellDirectory: string,
   pluginRoot: string | undefined = process.env.CLAUDE_PLUGIN_ROOT,
 ): CloseoutBindingTarget | undefined {
-  let directory: string | undefined = shellDirectory;
-  let found: CloseoutBindingTarget | undefined;
-  for (const segment of splitShellSegments(command)) {
+  const runsCloseoutScript = splitShellSegments(command).some(segment => {
     const words = commandWords(segment);
-    const tree: string = nearestGitTree(directory ?? shellDirectory) ?? directory ?? shellDirectory;
-    if (
+    return (
       nodePath.basename(words[0] ?? '') === 'bun' &&
-      (isCloseoutCleanupPath(words[1], pluginRoot, tree) ||
-        isCloseoutCleanupPath(words[1], pluginRoot, scriptProjectRoot(words[1])))
-    ) {
-      if (found !== undefined || directory === undefined) return { kind: 'unresolved' };
-      found = { kind: 'tree', projectDirectory: tree };
-    }
-    if (directory !== undefined && (words[0] === 'cd' || words[0] === 'pushd')) {
-      const destination = words[1]?.replaceAll('"', '').replaceAll("'", '');
-      directory =
-        destination === undefined || destination === '-' || /[$`~]/.test(destination)
-          ? undefined
-          : nodePath.resolve(directory, destination);
-    }
-  }
-  return found;
-}
-
-/**
- * The enrolled project an absolute closeout script path lives in. Closeout reads its binding from
- * its cwd wherever the script lives, so any enrolled project's closeout script is closeout.
- */
-function scriptProjectRoot(token: string | undefined): string | undefined {
-  const suffix = '/.safeword/scripts/closeout-cleanup.ts';
-  const path = token?.replaceAll('"', '').replaceAll("'", '');
-  if (path === undefined || !nodePath.isAbsolute(path) || !path.endsWith(suffix)) return undefined;
-  const root = path.slice(0, -suffix.length);
-  return hasSafewordProjectMarker(root) ? root : undefined;
+      (words[1] ?? '').replaceAll('"', '').endsWith('/closeout-cleanup.ts')
+    );
+  });
+  if (!runsCloseoutScript) return undefined;
+  const match = CLOSEOUT_COMMAND.exec(command);
+  if (!match?.groups?.script) return { kind: 'unresolved' };
+  const directory = match.groups.directory
+    ? nodePath.resolve(shellDirectory, match.groups.directory.replaceAll('"', ''))
+    : shellDirectory;
+  const tree = nearestGitTree(directory) ?? directory;
+  return isCloseoutCleanupPath(match.groups.script, pluginRoot, tree)
+    ? { kind: 'tree', projectDirectory: tree }
+    : { kind: 'unresolved' };
 }
 
 /** The plain recovery for a closeout command whose working tree the hook cannot tell. */
 export const CLOSEOUT_UNRESOLVED_DIRECTORY_MESSAGE =
-  'Closeout must confirm this session in the worktree it runs in, and this command changes ' +
-  'directory in a way the hook cannot follow. Change into the worktree first, then run ' +
-  'closeout as its own command: `bun .safeword/scripts/closeout-cleanup.ts --pr <number>`.';
+  'Closeout must confirm this session in the worktree it runs in, so it runs only as its own ' +
+  "command with the worktree's own script, optionally after one plain `cd <path> &&`: " +
+  '`bun .safeword/scripts/closeout-cleanup.ts --pr <number>`. Run it that way.';
 
 export function rememberCloseoutBinding(input: RememberCloseoutBindingInput): boolean {
   const id = nonEmptyString(input.id);
