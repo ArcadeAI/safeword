@@ -5,7 +5,8 @@
  * reads it from the git root of its own cwd. These tests launch the session in
  * the primary checkout of a real repository, run closeout's command in a
  * linked worktree, and read the binding the way closeout does: from that
- * worktree's root.
+ * worktree's root. Real closeout adopting the session is proven end to end in
+ * closeout-host-adapters.test.ts.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -164,65 +165,6 @@ describe('closeout binding follows the worktree closeout runs in (#5467)', () =>
       .filter(name => name.startsWith('closeout-session-binding'))
       .map(name => readFileSync(nodePath.join(stateDirectory, name), 'utf8'));
     expect(after).toEqual(before);
-  });
-
-  /** Binding files waiting in a tree's default namespace root. */
-  function pendingBindings(tree: string): string[] {
-    return readdirSync(nodePath.join(tree, '.project')).filter(name =>
-      name.startsWith('closeout-session-binding'),
-    );
-  }
-
-  it('real closeout in each worktree adopts only that worktree session', () => {
-    repo();
-    // Closeout counts a session as bound only when its transcript names it.
-    const transcript = (id: string, cwd: string): string => {
-      const path = nodePath.join(root, `${id}.jsonl`);
-      writeFileSync(path, `${JSON.stringify({ sessionId: id, cwd })}\n`);
-      return path;
-    };
-    const transcriptA = transcript('session-a', worktreeA);
-    const transcriptB = transcript('session-b', worktreeB);
-    expect(runClaudeHook(worktreeA, CLOSEOUT, 'session-a', transcriptA).status).toBe(0);
-    expect(runClaudeHook(worktreeB, CLOSEOUT, 'session-b', transcriptB).status).toBe(0);
-    // gh and the Safeword CLI fail fast: closeout adopts its binding before it
-    // observes the pull request, and reports a missing one as an advisory.
-    const stubBin = nodePath.join(root, 'stub-bin');
-    mkdirSync(stubBin);
-    writeFileSync(nodePath.join(stubBin, 'gh'), '#!/bin/sh\nexit 1\n');
-    chmodSync(nodePath.join(stubBin, 'gh'), 0o755);
-    const failingCli = nodePath.join(root, 'failing-cli.ts');
-    writeFileSync(failingCli, 'process.exit(1);\n');
-    const closeout = (tree: string): string => {
-      const result = spawnSync(
-        'bun',
-        [
-          nodePath.join(repoRoot, 'packages/cli/templates/scripts/closeout-cleanup.ts'),
-          '--pr',
-          '42',
-        ],
-        {
-          cwd: tree,
-          env: {
-            ...hostEnvironment(primary),
-            SAFEWORD_CLI: failingCli,
-            PATH: `${stubBin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
-          },
-          encoding: 'utf8',
-          timeout: 60_000,
-        },
-      );
-      return `${result.stdout}${result.stderr}`;
-    };
-    const MISSING = 'the current host session binding is missing or expired';
-
-    // Control: the primary checkout holds no binding, so closeout reports it missing.
-    expect(closeout(primary)).toContain(MISSING);
-    expect(closeout(worktreeA)).not.toContain(MISSING);
-    expect(pendingBindings(worktreeA)).toEqual([]);
-    expect(pendingBindings(worktreeB)).toHaveLength(1);
-    expect(closeout(worktreeB)).not.toContain(MISSING);
-    expect(pendingBindings(worktreeB)).toEqual([]);
   });
 
   it('closeout run inside a worktree finds the binding the Codex hook recorded', () => {
