@@ -110,6 +110,23 @@ describe('managed file refresh while unmodified', () => {
     expect(readFileSync(path, 'utf8')).toContain(`safeword@${CURRENT_PIN}`);
   });
 
+  it('lists a stale refreshable file as updated in the upgrade preview it then rewrites', async () => {
+    const stale = body('0.60.0');
+    const path = install(stale);
+    const schema = schemaWith(definition(true));
+
+    // The dry run is what the user approves, so it must name every file the
+    // upgrade will rewrite — and leave the file untouched itself.
+    const preview = await reconcile(schema, 'upgrade', context(), { dryRun: true });
+    expect(preview.updated).toContain(TARGET);
+    expect(preview.created).not.toContain(TARGET);
+    expect(readFileSync(path, 'utf8')).toBe(stale);
+
+    const applied = await reconcile(schema, 'upgrade', context());
+    expect(applied.updated).toContain(TARGET);
+    expect(readFileSync(path, 'utf8')).toContain(`safeword@${CURRENT_PIN}`);
+  });
+
   it('leaves a customized workflow entirely alone, pin included', async () => {
     const customized = `${body('0.60.0')}# customer added this\n`;
     const path = install(customized);

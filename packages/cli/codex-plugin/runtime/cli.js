@@ -66740,6 +66740,7 @@ function computeUpgradePlan(schema, ctx) {
   const managedFilesResult = planManagedFilesActions(schema.managedFiles, ctx);
   actions.push(...managedFilesResult.actions);
   wouldCreate.push(...managedFilesResult.created);
+  wouldUpdate.push(...managedFilesResult.updated);
   const omittedManagedFiles = planOmittedManagedRemoval(schema.managedFiles, ctx);
   actions.push(...omittedManagedFiles.actions);
   wouldRemove.push(...omittedManagedFiles.removed);

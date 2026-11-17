@@ -787,10 +787,11 @@ function computeUpgradePlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
   wouldCreate.push(...ownedFilesResult.created);
   wouldUpdate.push(...ownedFilesResult.updated);
 
-  // 3. Create missing managed files (don't update existing)
+  // 3. Create missing managed files; refresh only unmodified opt-in scaffolds
   const managedFilesResult = planManagedFilesActions(schema.managedFiles, ctx);
   actions.push(...managedFilesResult.actions);
   wouldCreate.push(...managedFilesResult.created);
+  wouldUpdate.push(...managedFilesResult.updated);
 
   // 3b. Remove exact conditional scaffolds when their feature is disabled.
   const omittedManagedFiles = planOmittedManagedRemoval(schema.managedFiles, ctx);
