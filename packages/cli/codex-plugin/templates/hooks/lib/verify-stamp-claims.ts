@@ -16,7 +16,8 @@
 // skips never reach the coordinator at all.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { createReviewReceiptReader } from './read-receipt.js';
@@ -41,7 +42,86 @@ function addPaths(paths: Set<string>, output: string | undefined): boolean {
   return true;
 }
 
-/** Current branch plus staged, unstaged, and untracked work, relative to the project directory. */
+const EXEMPT_ATTRIBUTES = ['linguist-generated', 'linguist-vendored'] as const;
+
+/**
+ * The work files the merge base marks generated or vendored (issue #5870).
+ *
+ * Attributes come from the base commit's own `.gitattributes`, read through an
+ * empty scratch repository so neither system, global, nor the project's
+ * `info/attributes` can apply: a branch cannot exempt its own files. Any Git
+ * failure exempts nothing, which keeps the coverage requirement fail-closed.
+ */
+function baseExemptFiles(projectDirectory: string, base: string, files: string[]): Set<string> {
+  const exempt = new Set<string>();
+  if (files.length === 0) return exempt;
+  const prefix = runGit(projectDirectory, ['rev-parse', '--show-prefix'])?.trim();
+  const objects = runGit(projectDirectory, [
+    'rev-parse',
+    '--path-format=absolute',
+    '--git-path',
+    'objects',
+  ])?.trim();
+  if (prefix === undefined || !objects) return exempt;
+
+  const scratch = mkdtempSync(nodePath.join(tmpdir(), 'safeword-stamp-attr-'));
+  try {
+    const nullFile = process.platform === 'win32' ? 'NUL' : '/dev/null';
+    const env = {
+      PATH: process.env.PATH,
+      ...(process.platform === 'win32' && { SystemRoot: process.env.SystemRoot }),
+      GIT_CONFIG_NOSYSTEM: '1',
+      GIT_ATTR_NOSYSTEM: '1',
+      GIT_CONFIG_GLOBAL: nullFile,
+    };
+    const bare = nodePath.join(scratch, 'bare');
+    const template = nodePath.join(scratch, 'template');
+    mkdirSync(template);
+    if (
+      spawnSync('git', ['init', '--bare', '-q', `--template=${template}`, bare], { env }).status !==
+      0
+    )
+      return exempt;
+    const repoPaths = files.map(file => `${prefix}${file}`);
+    const result = spawnSync(
+      'git',
+      [
+        '--git-dir',
+        bare,
+        '-c',
+        `core.attributesFile=${nullFile}`,
+        'check-attr',
+        `--source=${base}`,
+        '-z',
+        '--stdin',
+        ...EXEMPT_ATTRIBUTES,
+      ],
+      {
+        env: { ...env, GIT_ALTERNATE_OBJECT_DIRECTORIES: objects },
+        input: `${repoPaths.join('\0')}\0`,
+        encoding: 'utf8',
+        timeout: 5000,
+        maxBuffer: 4 * 1024 * 1024,
+      },
+    );
+    if (result.status !== 0 || typeof result.stdout !== 'string') return exempt;
+    const fields = result.stdout.split('\0');
+    if (fields.pop() !== '' || fields.length % 3 !== 0) return exempt;
+    const byRepoPath = new Map(repoPaths.map((repoPath, index) => [repoPath, files[index]]));
+    for (let offset = 0; offset < fields.length; offset += 3) {
+      const file = byRepoPath.get(fields[offset] ?? '');
+      if (file !== undefined && fields[offset + 2] === 'true') exempt.add(file);
+    }
+    return exempt;
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+/**
+ * Current branch plus staged, unstaged, and untracked work, relative to the
+ * project directory, less what the merge base marks generated or vendored.
+ */
 function currentWorkFiles(projectDirectory: string): string[] {
   const base = closestDefaultMergeBase(projectDirectory);
   if (base.state !== 'found') return [];
@@ -59,7 +139,9 @@ function currentWorkFiles(projectDirectory: string): string[] {
     !addPaths(paths, runGit(projectDirectory, ['ls-files', '--others', '--exclude-standard', '-z']))
   )
     return [];
-  return [...paths];
+  const files = [...paths];
+  const exempt = baseExemptFiles(projectDirectory, base.sha, files);
+  return files.filter(file => !exempt.has(file));
 }
 
 /** Dynamic project facts needed to bind a receipt to the phase's real work. */
