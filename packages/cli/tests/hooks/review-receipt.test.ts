@@ -234,6 +234,24 @@ describe('receiptGateVerdict — stamps that claim independence', () => {
     ).toEqual({ ok: true });
   });
 
+  it('names the changed files an implement review left uncovered', () => {
+    const claim = claimFor({
+      phase: 'implement',
+      implementationFiles: ['packages/cli/src/changed.ts', 'packages/cli/tests/changed.test.ts'],
+    });
+
+    const verdict = receiptGateVerdict(claim, {
+      ...approved,
+      kind: 'quality-review',
+      targets: ['packages/cli/src/changed.ts'],
+    });
+
+    expect(verdict.ok).toBe(false);
+    expect(!verdict.ok && verdict.reason).toMatch(
+      /not reviewed: packages\/cli\/tests\/changed\.test\.ts$/u,
+    );
+  });
+
   it('honors exact coordinator exclusions without granting unrelated authored coverage', () => {
     const source = 'packages/cli/src/changed.ts';
     const generated = 'plugin/runtime/cli.js';
