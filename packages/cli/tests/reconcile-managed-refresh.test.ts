@@ -105,13 +105,7 @@ describe('managed file refresh while unmodified', () => {
     return path;
   }
 
-  it('advances a stale pin on upgrade', async () => {
-    const path = install(body('0.60.0'));
-    await reconcile(schemaWith(definition(true)), 'upgrade', context());
-    expect(readFileSync(path, 'utf8')).toContain(`safeword@${CURRENT_PIN}`);
-  });
-
-  it('lists a stale refreshable file as updated in the upgrade preview it then rewrites', async () => {
+  it('previews a stale pin as an update, then advances it on upgrade', async () => {
     const stale = body('0.60.0');
     const path = install(stale);
     const schema = schemaWith(definition(true));
@@ -126,6 +120,18 @@ describe('managed file refresh while unmodified', () => {
     const applied = await reconcile(schema, 'upgrade', context());
     expect(applied.updated).toContain(TARGET);
     expect(readFileSync(path, 'utf8')).toContain(`safeword@${CURRENT_PIN}`);
+  });
+
+  it('leaves an already-current file out of the upgrade preview', async () => {
+    install(body(CURRENT_PIN));
+    const { plan } = await createReconciliationPlan(
+      dir,
+      'upgrade',
+      schemaWith(definition(true)),
+      context(),
+    );
+    // Over-reporting is the opposite failure: a no-op must not ask for approval.
+    expect(plan.effects.files.map(effect => effect.target)).not.toContain(TARGET);
   });
 
   it('leaves a customized workflow entirely alone, pin included', async () => {
