@@ -188,6 +188,24 @@ describe('pre-tool-stale-main hook (real git)', () => {
     }
   });
 
+  it('stays silent when the command changes repository before the checkout (#5467)', () => {
+    putLocalMainBehind();
+    // The shell starts in the stale launch checkout, but the checkout runs in
+    // another repository: the launch checkout's stale main is irrelevant.
+    const other = createTemporaryDirectory();
+    try {
+      git(other, 'init');
+      git(other, 'checkout', '-b', 'main');
+
+      const result = runHook(workdir, `cd ${other} && git checkout main`, workdir);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout.trim()).toBe('');
+    } finally {
+      removeTemporaryDirectory(other);
+    }
+  });
+
   it('warns about the shell repository when the shell is in the launch checkout', () => {
     putLocalMainBehind();
 

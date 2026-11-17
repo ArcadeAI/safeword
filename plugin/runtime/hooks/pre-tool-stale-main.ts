@@ -11,6 +11,7 @@ import process from 'node:process';
 
 import {
   type BranchDivergence,
+  changesDirectoryBeforeCheckout,
   decideStaleBranchWarning,
   parseCheckoutTarget,
 } from './lib/branch-staleness.ts';
@@ -31,8 +32,11 @@ try {
 
 if ((input.tool_name ?? '') !== 'Bash') process.exit(0);
 
-const target = parseCheckoutTarget(input.tool_input?.command ?? '');
+const command = input.tool_input?.command ?? '';
+const target = parseCheckoutTarget(command);
 if (target === null) process.exit(0);
+// `cd repo; git switch x` checks out in another repository than the shell's.
+if (changesDirectoryBeforeCheckout(command)) process.exit(0);
 
 // The checkout runs in the shell's repository. Warn only when that repository
 // is the Safeword project the shell resolves to: a shell in an unrelated,
