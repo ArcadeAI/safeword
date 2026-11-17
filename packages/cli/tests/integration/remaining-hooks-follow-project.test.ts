@@ -14,6 +14,7 @@ import {
   mkdirSync,
   readFileSync,
   realpathSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import nodePath from 'node:path';
@@ -106,6 +107,23 @@ describe('remaining hooks act on the resolved project (#5467)', () => {
       tool_name: 'Edit',
       cwd: launch,
       tool_input: { file_path: file, old_string: 'a', new_string: 'b' },
+    });
+
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('ask');
+  });
+
+  it('pre-tool-config-guard asks before an edit through a symlink to a protected config', () => {
+    const config = nodePath.join(worktree, 'eslint.config.js');
+    writeFileSync(config, 'export default [];\n');
+    const alias = nodePath.join(worktree, 'src/settings.js');
+    symlinkSync(config, alias);
+
+    const result = runHook('pre-tool-config-guard.ts', launch, {
+      hook_event_name: 'PreToolUse',
+      tool_name: 'Edit',
+      cwd: launch,
+      tool_input: { file_path: alias, old_string: '[]', new_string: '[{}]' },
     });
 
     expect(result.status).toBe(0);

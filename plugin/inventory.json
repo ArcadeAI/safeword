@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "b00d39aa89ea885fbfa19cd80e829df9c299267466984ddc999ba22036cfb938"
+      "sha256": "77ce8bd78d02dd324fad94cec5e53d78565980899c75845317c5405f3d1575e9"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "85b561c0543334be4ee7a0e32c34f522facb2059434bf74a2d9801fd2233bf66"
+      "sha256": "7fc349b30dd8c41834d3c114e7f151b15e61bb7b12c1b7ef5b58091986159a19"
     },
     {
       "path": "runtime/event-groups.json",
@@ -515,7 +515,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-config-guard.ts",
-      "sha256": "b9992b51fc6e46e6301d60eb8861a311bf9b40fa8b3f52fee9d77ee52e877165"
+      "sha256": "6cf974642f71ee8091f19a8d8c68246f4a2dcdba86c7f5966ea22f992c43636a"
     },
     {
       "path": "runtime/hooks/pre-tool-dependency-readiness.ts",
@@ -1511,7 +1511,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-config-guard.ts",
-      "sha256": "b9992b51fc6e46e6301d60eb8861a311bf9b40fa8b3f52fee9d77ee52e877165"
+      "sha256": "6cf974642f71ee8091f19a8d8c68246f4a2dcdba86c7f5966ea22f992c43636a"
     },
     {
       "path": "templates/hooks/pre-tool-dependency-readiness.ts",

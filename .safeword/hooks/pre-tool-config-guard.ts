@@ -3,7 +3,11 @@
 // Requires user approval before modifying quality config files
 
 import { existsSync } from 'node:fs';
-import { resolveLaunchDirectory, resolveToolProjectDirectory } from './lib/project-directory.ts';
+import {
+  canonicalEditTarget,
+  resolveLaunchDirectory,
+  resolveToolProjectDirectory,
+} from './lib/project-directory.ts';
 
 interface HookInput {
   tool_name?: string;
@@ -57,7 +61,8 @@ try {
 }
 
 const filePath = input.tool_input?.file_path ?? input.tool_input?.notebook_path;
-const projectDir = resolveToolProjectDirectory(resolveLaunchDirectory(), {
+const launchDirectory = resolveLaunchDirectory();
+const projectDir = resolveToolProjectDirectory(launchDirectory, {
   tool: input.tool_name ?? '',
   editedFile: filePath ?? '',
   cwd: input.cwd,
@@ -73,9 +78,11 @@ if (!filePath) {
   process.exit(0);
 }
 
-// Check if file matches any protected pattern
+// Check both the path as given and where it really lands: an innocuously named
+// symlink to a protected config must not slip past the guard.
+const editTarget = canonicalEditTarget(launchDirectory, filePath, input.cwd);
 for (const { pattern, category } of PROTECTED_PATTERNS) {
-  if (pattern.test(filePath)) {
+  if (pattern.test(filePath) || pattern.test(editTarget)) {
     const output: HookOutput = {
       hookSpecificOutput: {
         hookEventName: 'PreToolUse',
