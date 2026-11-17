@@ -2,7 +2,7 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ Full local suite at e81e42996: 11,914 tests pass and 3 fail. Two failures are `lint-go-context` (local Go toolchain mismatch; this change touches no Go). The third was the plugin runtime's byte alignment for `closeout-binding.ts`, fixed in 4f1c8824f. After that fix, the closeout suites (closeout-skill, closeout-binding-worktree, closeout-session-binding) pass 75/75, and closeout-host-adapters passes.
+**Test Suite:** ✓ Full local suite at e81e42996: 11,914 tests pass and 3 fail. Two failures are `lint-go-context` (local Go toolchain mismatch; this change touches no Go). The third was the plugin runtime's byte alignment for `closeout-binding.ts`, fixed in 4f1c8824f. After the last fix (ad26f53ba), the closeout suites (closeout-skill, closeout-binding-worktree, closeout-session-binding) pass 77/77, and closeout-host-adapters passes.
 **Gherkin:** ⏭️ Not affected — no feature files or steps changed. CI runs the acceptance lane.
 **Build:** ✅ Success
 **Lint:** ✅ Clean (`bun run lint`, including `tsc`, at 4f1c8824f; the later hook changes type-check clean)
