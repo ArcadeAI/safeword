@@ -2,10 +2,11 @@
 id: ZNTA0Y
 slug: remaining-hook-projects
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
+external_issue: https://github.com/ArcadeAI/safeword/issues/5467
 created: 2026-11-17T08:26:03.255Z
-last_modified: 2026-11-17T08:26:03.255Z
+last_modified: 2026-11-17T10:30:00.000Z
 ---
 
 # Run every per-tool and SessionStart hook in the worktree a session works in
@@ -36,3 +37,4 @@ PR: #5664. Design: `.project/designs/5467-project-directory-resolution.md`.
 
 - 2026-11-17T08:26:03.255Z Started: Created ticket ZNTA0Y
 - 2026-11-17T10:30:00.000Z Complete: cross-agent review approved (1a5e9a94, f7cfb41e); verify recorded in verify.md
+- 2026-11-17T10:26:42.629Z Phase: intake → done
