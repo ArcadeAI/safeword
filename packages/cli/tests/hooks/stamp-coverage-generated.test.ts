@@ -8,7 +8,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -21,36 +21,58 @@ function git(cwd: string, ...args: string[]): void {
   if (result.status !== 0) throw new Error(`git ${args.join(' ')} failed: ${result.stderr}`);
 }
 
+function gitPath(): string {
+  const result = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' });
+  return result.stdout.trim();
+}
+
 function write(root: string, relative: string, content: string): void {
   const path = nodePath.join(root, relative);
   mkdirSync(nodePath.dirname(path), { recursive: true });
   writeFileSync(path, content);
 }
 
+function initRepo(root: string, attributes: string, files: Record<string, string>): void {
+  git(root, 'init', '-q', '-b', 'main');
+  git(root, 'config', 'user.email', 'test@example.com');
+  git(root, 'config', 'user.name', 'Test');
+  git(root, 'config', 'commit.gpgsign', 'false');
+  write(root, '.gitattributes', attributes);
+  for (const [relative, content] of Object.entries(files)) write(root, relative, content);
+  git(root, 'add', '-A');
+  git(root, 'commit', '-q', '-m', 'base');
+  git(root, 'checkout', '-q', '-b', 'work');
+}
+
+function commitAll(root: string, message: string): void {
+  git(root, 'add', '-A');
+  git(root, 'commit', '-q', '-m', message);
+}
+
+/** The project's implement-phase coverage set, sorted for stable comparison. */
+function coverageSet(projectDirectory: string): string[] {
+  const files = reviewClaimContext(
+    projectDirectory,
+    nodePath.join(projectDirectory, '.project/tickets/T1'),
+  ).implementationFiles;
+  return [...(files ?? [])].toSorted((left, right) => left.localeCompare(right));
+}
+
 describe('implement-phase coverage set', () => {
   let root: string;
 
-  const implementationFiles = (): readonly string[] | undefined =>
-    reviewClaimContext(root, nodePath.join(root, '.project/tickets/T1')).implementationFiles;
-
   beforeEach(() => {
     root = mkdtempSync(nodePath.join(tmpdir(), 'stamp-coverage-'));
-    git(root, 'init', '-q', '-b', 'main');
-    git(root, 'config', 'user.email', 'test@example.com');
-    git(root, 'config', 'user.name', 'Test');
-    git(root, 'config', 'commit.gpgsign', 'false');
-    write(
+    initRepo(
       root,
-      '.gitattributes',
       'mirror/** linguist-generated=true\nvendor/** linguist-vendored\nmirror/README.md -linguist-generated\n',
+      {
+        'src/feature.ts': 'export const a = 1;\n',
+        'mirror/feature.js': 'export const a = 1;\n',
+        'mirror/README.md': '# Mirror\n',
+        'vendor/lib.js': 'module.exports = 1;\n',
+      },
     );
-    write(root, 'src/feature.ts', 'export const a = 1;\n');
-    write(root, 'mirror/feature.js', 'export const a = 1;\n');
-    write(root, 'mirror/README.md', '# Mirror\n');
-    write(root, 'vendor/lib.js', 'module.exports = 1;\n');
-    git(root, 'add', '-A');
-    git(root, 'commit', '-q', '-m', 'base');
-    git(root, 'checkout', '-q', '-b', 'work');
   });
 
   afterEach(() => {
@@ -63,12 +85,9 @@ describe('implement-phase coverage set', () => {
     write(root, 'mirror/README.md', '# Mirror v2\n');
     write(root, 'vendor/lib.js', 'module.exports = 2;\n');
     write(root, 'mirror/new.js', 'export {};\n');
-    git(root, 'add', '-A');
-    git(root, 'commit', '-q', '-m', 'work');
+    commitAll(root, 'work');
 
-    expect(
-      [...(implementationFiles() ?? [])].toSorted((left, right) => left.localeCompare(right)),
-    ).toEqual(['mirror/README.md', 'src/feature.ts']);
+    expect(coverageSet(root)).toEqual(['mirror/README.md', 'src/feature.ts']);
   });
 
   it('keeps a staged edit that the working tree reverts', () => {
@@ -77,20 +96,75 @@ describe('implement-phase coverage set', () => {
     write(root, 'src/feature.ts', 'export const a = 1;\n');
     write(root, 'src/other.ts', 'export const b = 1;\n');
 
-    expect(
-      [...(implementationFiles() ?? [])].toSorted((left, right) => left.localeCompare(right)),
-    ).toEqual(['src/feature.ts', 'src/other.ts']);
+    expect(coverageSet(root)).toEqual(['src/feature.ts', 'src/other.ts']);
   });
 
-  it('still requires review of a file the branch itself marks generated', () => {
+  it('still requires a file the branch marks generated in its own .gitattributes', () => {
     write(root, 'src/feature.ts', 'export const a = 2;\n');
     write(root, '.gitattributes', 'src/** linguist-generated=true\n');
-    git(root, 'add', '-A');
-    git(root, 'commit', '-q', '-m', 'self-exempt');
+    commitAll(root, 'self-exempt');
+
+    expect(coverageSet(root)).toEqual(['.gitattributes', 'src/feature.ts']);
+  });
+
+  it('still requires a file marked generated only in .git/info/attributes', () => {
+    write(root, 'src/feature.ts', 'export const a = 2;\n');
+    commitAll(root, 'work');
     write(root, '.git/info/attributes', 'src/** linguist-generated=true\n');
 
-    expect(
-      [...(implementationFiles() ?? [])].toSorted((left, right) => left.localeCompare(right)),
-    ).toEqual(['.gitattributes', 'src/feature.ts']);
+    expect(coverageSet(root)).toEqual(['src/feature.ts']);
+  });
+
+  // Without the injected failure the mirror file would be exempt, so a pass
+  // proves both that the failure happened and that it exempted nothing.
+  it.each(['check-attr', 'init'])(
+    'exempts nothing when the attribute read fails at git %s',
+    failingCommand => {
+      write(root, 'src/feature.ts', 'export const a = 2;\n');
+      write(root, 'mirror/feature.js', 'export const a = 2;\n');
+      commitAll(root, 'work');
+      const shim = mkdtempSync(nodePath.join(tmpdir(), 'stamp-coverage-git-'));
+      write(
+        shim,
+        'git',
+        `#!/bin/sh\nfor arg in "$@"; do [ "$arg" = "${failingCommand}" ] && exit 128; done\nexec "${gitPath()}" "$@"\n`,
+      );
+      chmodSync(nodePath.join(shim, 'git'), 0o755);
+      const previousPath = process.env.PATH;
+      process.env.PATH = `${shim}${nodePath.delimiter}${previousPath ?? ''}`;
+      try {
+        expect(coverageSet(root)).toEqual(['mirror/feature.js', 'src/feature.ts']);
+      } finally {
+        process.env.PATH = previousPath;
+        rmSync(shim, { recursive: true, force: true });
+      }
+    },
+  );
+});
+
+describe('implement-phase coverage set for a project in a repository subfolder', () => {
+  let root: string;
+
+  beforeEach(() => {
+    root = mkdtempSync(nodePath.join(tmpdir(), 'stamp-coverage-sub-'));
+    initRepo(root, 'app/mirror/** linguist-generated=true\n', {
+      'app/src/feature.ts': 'export const a = 1;\n',
+      'app/mirror/feature.js': 'export const a = 1;\n',
+      'other/outside.ts': 'export const c = 1;\n',
+    });
+  });
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('exempts base-marked files under the project and reports project-relative paths', () => {
+    write(root, 'app/src/feature.ts', 'export const a = 2;\n');
+    write(root, 'app/mirror/feature.js', 'export const a = 2;\n');
+    write(root, 'other/outside.ts', 'export const c = 2;\n');
+    commitAll(root, 'work');
+    write(root, 'app/src/untracked.ts', 'export const d = 1;\n');
+
+    expect(coverageSet(nodePath.join(root, 'app'))).toEqual(['src/feature.ts', 'src/untracked.ts']);
   });
 });
