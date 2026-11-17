@@ -180,6 +180,15 @@ describe('Cucumber config targeted path handling', () => {
   );
 
   it.each(CONFIG_SURFACES)(
+    '%s lets a value-taking option consume a bare -- as its value',
+    async (_label, relativePath) => {
+      const { hasCliFeaturePath } = await loadConfigModule(relativePath);
+
+      expect(hasCliFeaturePath(['--name', '--', '--format', 'summary'])).toBe(false);
+    },
+  );
+
+  it.each(CONFIG_SURFACES)(
     '%s still finds a feature path after option values and a bare --',
     async (_label, relativePath) => {
       const { hasCliFeaturePath } = await loadConfigModule(relativePath);

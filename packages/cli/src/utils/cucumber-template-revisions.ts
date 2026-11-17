@@ -32,7 +32,7 @@ const CUCUMBER_TEMPLATE_REVISION_HASHES: ReadonlySet<string> = new Set([
   // CLI feature paths with Cucumber line selectors (`example.feature:12`)
   '8a7df82ba68b703459279a48677e341e64e63703d48d2a8ea7dbb0788f56a777',
   // 8MZJQA — every positional argument (not option values) is a feature path
-  '2d287c8c16a33b06a091b0c6a3143df4e5c7bdaba0d160ee2d025771c103e439',
+  '0ea4b8f83a1ca225977ee8e4235ea4f6af92cae9ef13f505bc78ef4195d67a38',
 ]);
 
 /** True when `content` is a shipped revision of safeword's lane template. */

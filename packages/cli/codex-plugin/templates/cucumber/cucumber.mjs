@@ -96,9 +96,11 @@ function positionalArguments(argv) {
   const positionals = [];
   let skipNext = false;
   for (const [index, argument] of argv.entries()) {
-    if (argument === '--') return [...positionals, ...argv.slice(index + 1)];
+    // A pending option value comes first: `--name --` uses `--` as the name.
     if (skipNext) {
       skipNext = false;
+    } else if (argument === '--') {
+      return [...positionals, ...argv.slice(index + 1)];
     } else if (argument.startsWith('-')) {
       skipNext = consumesNextArgument(argument);
     } else {

@@ -199,7 +199,7 @@ describe('scaffolded runner honors configured paths (TB2.AC2 + TB2.AC3)', () => 
         [
           'Feature: Option value',
           '',
-          '  Scenario: option-value feature in a workspace package',
+          '  Scenario: option-value feature -- in a workspace package',
           '    When the workspace package scenario runs',
           '',
         ].join('\n'),
@@ -233,6 +233,12 @@ describe('scaffolded runner honors configured paths (TB2.AC2 + TB2.AC3)', () => 
         const dryRun = runTestBdd(directory, ['-df', 'summary']);
         expect(dryRun.status, dryRun.output).toBe(0);
         expect(dryRun.output).toMatch(/2 scenarios \(2 skipped\)/);
+
+        // `--name --`: the bare `--` is the name expression, not the end of
+        // options, so the following arguments are still options.
+        const dashName = runTestBdd(directory, ['--name', '--', '--format', 'summary']);
+        expect(dashName.status, dashName.output).toBe(0);
+        expect(dashName.output).toContain('1 scenario (1 passed)');
       } finally {
         rmSync(nodePath.join(directory, 'packages'), { force: true, recursive: true });
       }
