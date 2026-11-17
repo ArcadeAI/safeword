@@ -38,7 +38,7 @@ import {
 import { resolveRunIdentity } from './lib/run-identity.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 
-installCrashCapture('post-tool-quality');
+const crashCapture = installCrashCapture('post-tool-quality');
 
 interface HookInput {
   session_id?: string;
@@ -84,6 +84,7 @@ const projectDirectory = resolveToolProjectDirectory(launchProjectDirectory, {
 if (!hasSafewordProjectMarker(projectDirectory)) {
   process.exit(0);
 }
+crashCapture.setProject(projectDirectory);
 
 // Stop and other session-level hooks have no edited file and a cwd that follows
 // `cd`; they find this session's state through the tree its last edit landed in.

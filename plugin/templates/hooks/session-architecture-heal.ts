@@ -11,8 +11,9 @@ import nodePath from 'node:path';
 
 import { safewordCli } from './lib/safeword-cli.ts';
 import process from 'node:process';
+import { projectEnvironment, readSessionProjectDirectory } from './lib/project-directory.ts';
 
-const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const projectDir = readSessionProjectDirectory();
 
 // Not a safeword project — nothing to do.
 if (!existsSync(nodePath.join(projectDir, '.safeword'))) {
@@ -24,6 +25,7 @@ if (cli === undefined) process.exit(0);
 
 spawnSync(cli.command, [...cli.args, 'architecture'], {
   cwd: projectDir,
+  env: projectEnvironment(projectDir),
   stdio: 'inherit',
   timeout: 30_000,
 });

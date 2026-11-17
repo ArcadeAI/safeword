@@ -82,7 +82,7 @@ import {
 import { evaluateParentContract } from './lib/product-plan-contract.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 
-installCrashCapture('pre-tool-quality');
+const crashCapture = installCrashCapture('pre-tool-quality');
 
 const EDIT_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'];
 
@@ -545,6 +545,7 @@ const projectDirectory = resolveToolProjectDirectory(launchProjectDirectory, {
   editedFile: requestedEditedFile,
   cwd: input.cwd,
 });
+crashCapture.setProject(projectDirectory);
 const canonicalProjectDirectory = realpathSync(projectDirectory);
 
 // ---------------------------------------------------------------------------
