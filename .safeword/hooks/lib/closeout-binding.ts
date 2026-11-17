@@ -388,7 +388,7 @@ const SCRIPT_WORD = String.raw`(?:[^\s$\x60~*?[\]{}()'"\\;&|<>]|"(?:\$\{CLAUDE_P
  */
 // eslint-disable-next-line security/detect-non-literal-regexp -- built only from the constant above
 const CLOSEOUT_COMMAND = new RegExp(
-  String.raw`^\s*(?:cd\s+(?="?\/)(?<directory>${DIRECTORY_WORD})\s*&&\s*)?bun\s+(?<script>${SCRIPT_WORD})(?:\s+[\w./:=@+-]+)*\s*$`,
+  String.raw`^[ \t]*(?:cd[ \t]+(?="?\/)(?<directory>${DIRECTORY_WORD})[ \t]*&&[ \t]*)?bun[ \t]+(?<script>${SCRIPT_WORD})(?:[ \t]+[\w./:=@+-]+)*[ \t]*$`,
   'u',
 );
 

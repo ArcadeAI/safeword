@@ -194,6 +194,7 @@ describe('closeout binding follows the worktree closeout runs in (#5467)', () =>
     'bun run .safeword/scripts/closeout-cleanup.ts --pr 42',
     './.safeword/scripts/closeout-cleanup.ts --pr 42',
     'node .safeword/scripts/closeout-cleanup.ts --pr 42',
+    'CLOSEOUT\nbun .safeword/scripts/closeout-cleanup.ts --pr 43',
     'cd worktree-a && CLOSEOUT',
     'cd "$TARGET" && exec bun .safeword/scripts/closeout-cleanup.ts --pr 42',
     'time bun .safeword/scripts/closeout-cleanup.ts --pr 42',
