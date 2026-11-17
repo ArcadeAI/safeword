@@ -8,7 +8,14 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -159,9 +166,23 @@ describe('remaining hooks act on the resolved project (#5467)', () => {
     expect(realpathSync(runs[0]?.project ?? '')).toBe(realpathSync(worktree));
   });
 
-  it("the done gate's test plan is resolved for the worktree, not the launch checkout", () => {
-    const log = stubWorktreeCli();
-    const script = `const { runTests } = await import(${JSON.stringify(nodePath.join(HOOKS, 'lib/test-runner.ts'))});\nrunTests(${JSON.stringify(worktree)});`;
+  it('the done gate runs the test plan the CLI resolves for the worktree', () => {
+    // Like the real CLI, the stub resolves the plan for the project named by
+    // CLAUDE_PROJECT_DIR: its test command runs there and leaves a marker.
+    mkdirSync(nodePath.join(worktree, 'packages/cli/src'), { recursive: true });
+    writeFileSync(nodePath.join(worktree, 'packages/cli/package.json'), '{"name":"safeword"}\n');
+    writeFileSync(
+      nodePath.join(worktree, 'packages/cli/src/cli.ts'),
+      [
+        'const project = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();',
+        "const kind = process.argv[process.argv.indexOf('--kind') + 1];",
+        "const plan = kind === 'test'",
+        "  ? [{ command: 'touch tests-ran-here', cwd: project, runner: 'test', language: 'javascript', available: true }]",
+        '  : [];',
+        'console.log(JSON.stringify({ schema_version: 1, data: { plan } }));',
+      ].join('\n'),
+    );
+    const script = `const { runTests } = await import(${JSON.stringify(nodePath.join(HOOKS, 'lib/test-runner.ts'))});\nconsole.log(JSON.stringify(runTests(${JSON.stringify(worktree)})));`;
 
     const result = spawnSync('bun', ['-e', script], {
       cwd: launch,
@@ -171,11 +192,15 @@ describe('remaining hooks act on the resolved project (#5467)', () => {
     });
 
     expect(result.status, result.stderr).toBe(0);
-    const testPlans = cliRuns(log).filter(run => run.args.includes('test-plan'));
-    expect(testPlans.length).toBeGreaterThan(0);
-    for (const run of testPlans) {
-      expect(realpathSync(run.project)).toBe(realpathSync(worktree));
-    }
+    const testResult = JSON.parse(result.stdout.trim().split('\n').at(-1) ?? '{}') as {
+      passed?: boolean;
+      skipped?: boolean;
+      resolutionFailed?: boolean;
+    };
+    expect(testResult).toMatchObject({ passed: true, skipped: false });
+    expect(testResult.resolutionFailed).not.toBe(true);
+    expect(existsSync(nodePath.join(worktree, 'tests-ran-here'))).toBe(true);
+    expect(existsSync(nodePath.join(launch, 'tests-ran-here'))).toBe(false);
   });
 
   it("post-tool-lint runs the linter with the worktree's config for a relative edit", () => {
