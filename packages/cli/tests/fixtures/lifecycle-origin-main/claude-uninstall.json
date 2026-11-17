@@ -2,5 +2,5 @@
   "integration": "claude",
   "operation": "uninstall",
   "result_sha256": "e8c1e14ce5ef2de248897bf1da8333b342ff741fdf5b9c13dcf87bf076ad8384",
-  "tree_sha256": "209b54c169e37c27222117acffaa65815ed6aeb44e43e6798150999a0f9308e4"
+  "tree_sha256": "ae47920bc05dcb596befd1cd2f3641168bf306cae0cede94a8901d6e685cd2e8"
 }

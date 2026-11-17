@@ -2,7 +2,7 @@
  * E2E Tests: TypeScript Tooling Validation
  *
  * Verifies that TypeScript tooling actually works:
- * - tsconfig.json is created for TypeScript projects
+ * - tsconfig.json is created for TypeScript projects and the TypeScript BDD lane
  * - Type-checked ESLint rules catch real errors
  * - JavaScript-only projects don't get TypeScript tooling
  *
@@ -201,8 +201,9 @@ describe('E2E: JavaScript-Only Project', () => {
     }
   });
 
-  it('does NOT create tsconfig.json for JS-only projects', () => {
-    expect(fileExists(projectDirectory, 'tsconfig.json')).toBe(false);
+  it('creates tsconfig.json for the BDD lane steps even in JS-only projects (#6966)', () => {
+    // The scaffolded steps/*.ts need a compiler and project for type-aware lint.
+    expect(fileExists(projectDirectory, 'tsconfig.json')).toBe(true);
   });
 
   it('still creates eslint.config.mjs', () => {

@@ -14830,13 +14830,13 @@ const nextPaths = detect.findNextConfigPaths(${directoryVariable});
 // Note: Astro config only lints .astro files, so we combine it with TypeScript config
 // to also lint .ts files in Astro projects
 // Note: In monorepos, Next.js uses React config + scoped Next.js rules
-const baseConfigs = {
-  next: nextPaths ? configs.recommendedTypeScriptReact : configs.recommendedTypeScriptNext,
-  react: configs.recommendedTypeScriptReact,
-  astro: [...configs.recommendedTypeScript, ...configs.astro],
-  typescript: configs.recommendedTypeScript,
-  javascript: configs.recommended,
-};
+const baseConfigs = new Map([
+  ["next", nextPaths ? configs.recommendedTypeScriptReact : configs.recommendedTypeScriptNext],
+  ["react", configs.recommendedTypeScriptReact],
+  ["astro", [...configs.recommendedTypeScript, ...configs.astro]],
+  ["typescript", configs.recommendedTypeScript],
+  ["javascript", configs.recommended],
+]);
 
 // Build scoped Next.js rules for monorepos
 // Each Next.js app gets its own scoped config with files: pattern
@@ -14859,14 +14859,14 @@ const eslintConfigPrettier = safeword.prettierConfig;
 
 const { detect, configs } = safeword;
 const __dirname = import.meta.dirname;
-const deps = detect.collectAllDeps(__dirname);
-const framework = detect.detectFramework(deps);
+const dependencies = detect.collectAllDeps(__dirname);
+const framework = detect.detectFramework(dependencies);
 
 ${getMonorepoSnippet("__dirname")}
 
 export default defineConfig([
   { ignores: detect.getIgnores() },
-  ...baseConfigs[framework],
+  ...baseConfigs.get(framework),
   ...scopedNextConfigs,
 ${OPTIONAL_CONFIGS_SNIPPET}
   eslintConfigPrettier,
@@ -14879,14 +14879,14 @@ import safeword from "safeword/eslint";
 
 const { detect, configs } = safeword;
 const __dirname = import.meta.dirname;
-const deps = detect.collectAllDeps(__dirname);
-const framework = detect.detectFramework(deps);
+const dependencies = detect.collectAllDeps(__dirname);
+const framework = detect.detectFramework(dependencies);
 
 ${getMonorepoSnippet("__dirname")}
 
 export default defineConfig([
   { ignores: detect.getIgnores() },
-  ...baseConfigs[framework],
+  ...baseConfigs.get(framework),
   ...scopedNextConfigs,
 ${OPTIONAL_CONFIGS_SNIPPET}
 ]);
@@ -14896,16 +14896,20 @@ function getSafewordEslintConfig(existingConfig, hasExistingFormatter = false) {
   if (existingConfig?.startsWith(".eslintrc")) {
     return getSafewordEslintConfigLegacy(existingConfig, hasExistingFormatter);
   }
-  return getSafewordEslintConfigExtending(existingConfig ?? "eslint.config.mjs", hasExistingFormatter);
+  return getSafewordEslintConfigExtending(existingConfig ?? "eslint.config.mjs", hasExistingFormatter, existingConfig === undefined);
 }
-function getSafewordEslintConfigExtending(existingConfig, hasExistingFormatter) {
+function getSafewordEslintConfigExtending(existingConfig, hasExistingFormatter, projectUsesSafewordPreset) {
   const prettier = getPrettierConfig(hasExistingFormatter);
+  const existsSyncDirective = projectUsesSafewordPreset ? `// eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed path beside this file
+` : "";
   const safewordImport = hasExistingFormatter ? "" : `import safeword from "safeword/eslint";
 `;
   return `// Safeword ESLint config - extends project config with stricter rules
 // Used by hooks for LLM enforcement. Human pre-commits use project config.
 // Re-run \`safeword install\` to regenerate after project config changes.
 import { existsSync } from "node:fs";
+import { URL } from "node:url";
+
 ${safewordImport}${prettier.import}
 
 // Ticket 139: existsSync gate + no try/catch.
@@ -14917,10 +14921,19 @@ ${safewordImport}${prettier.import}
 let projectConfig = [];
 const projectConfigPath = new URL("../${existingConfig}", import.meta.url);
 
+/**
+ * Whether the project config is TypeScript and must be loaded through jiti.
+ * @param {URL} configPath - Location of the project ESLint config.
+ * @returns {boolean} True for .ts, .mts, and .cts configs.
+ */
 function isTypeScriptProjectConfig(configPath) {
   return /\\.[cm]?ts$/.test(configPath.pathname);
 }
 
+/**
+ * Load the project's own ESLint config so its rules stay authoritative.
+ * @returns {Promise<unknown>} The project config's default export.
+ */
 async function loadProjectConfig() {
   if (isTypeScriptProjectConfig(projectConfigPath)) {
     const { createJiti } = await import("jiti");
@@ -14931,7 +14944,7 @@ async function loadProjectConfig() {
   return loaded.default;
 }
 
-if (existsSync(projectConfigPath)) {
+${existsSyncDirective}if (existsSync(projectConfigPath)) {
   projectConfig = await loadProjectConfig();
   if (!Array.isArray(projectConfig)) {
     projectConfig = [projectConfig];
@@ -15004,17 +15017,17 @@ function matchedHookWithIf(matcher, ifRule, command) {
   };
 }
 var OPTIONAL_CONFIGS_SNIPPET = `  // Testing configs - only if detected (plugins have framework peer deps)
-  ...(detect.hasVitest(deps) ? configs.vitest : []),
-  ...(detect.hasBunTest(deps, __dirname) ? configs.bunTest : []),
-  ...(detect.hasPlaywright(deps) ? configs.playwright : []),
+  ...(detect.hasVitest(dependencies) ? configs.vitest : []),
+  ...(detect.hasBunTest(dependencies, __dirname) ? configs.bunTest : []),
+  ...(detect.hasPlaywright(dependencies) ? configs.playwright : []),
   // Storybook - only if detected (v10+ requires storybook peer dep)
-  ...(detect.hasStorybook(deps) ? configs.storybook : []),
+  ...(detect.hasStorybook(dependencies) ? configs.storybook : []),
   // TanStack Query - only if detected (has typescript peer dep)
-  ...(detect.hasTanstackQuery(deps) ? configs.tanstackQuery : []),
+  ...(detect.hasTanstackQuery(dependencies) ? configs.tanstackQuery : []),
   // Tailwind - only if detected (plugin needs tailwind config to validate classes)
-  ...(detect.hasTailwind(deps) ? configs.tailwind : []),
+  ...(detect.hasTailwind(dependencies) ? configs.tailwind : []),
   // Turborepo - only if detected (validates env vars are declared in turbo.json)
-  ...(detect.hasTurbo(deps) ? configs.turbo : []),`, SAFEWORD_STRICT_RULES_FULL = `// Safeword strict rules - applied after project rules (win on conflict)
+  ...(detect.hasTurbo(dependencies) ? configs.turbo : []),`, SAFEWORD_STRICT_RULES_FULL = `// Safeword strict rules - applied after project rules (win on conflict)
 const safewordStrictRules = {
   rules: {
     // Prevent common LLM mistakes
@@ -15207,7 +15220,7 @@ function mergeFormatScripts(scripts, projectType) {
   addScriptIfMissing(scripts, "format", "prettier --write .");
   addScriptIfMissing(scripts, "format:check", "prettier --check .");
 }
-var SAFEWORD_PRIMARY_LINT_SCRIPT = "eslint . && bun run lint:gherkin", PRETTIER_DEFAULTS, BIOME_JSON_MERGE, DPRINT_JSON_MERGE, OXFMT_JSON_MERGE, typescriptOwnedFiles, typescriptManagedFiles, GHERKIN_LINT_SCRIPT = "safeword project lint-gherkin", typescriptJsonMerges, ESLINT_PACKAGE = "eslint@^10.0.0", JITI_PACKAGE = "jiti@^2.2.0", typescriptPackages;
+var SAFEWORD_PRIMARY_LINT_SCRIPT = "eslint . && bun run lint:gherkin", PRETTIER_DEFAULTS, BIOME_JSON_MERGE, DPRINT_JSON_MERGE, OXFMT_JSON_MERGE, typescriptOwnedFiles, typescriptManagedFiles, GHERKIN_LINT_SCRIPT = "safeword project lint-gherkin", typescriptJsonMerges, ESLINT_PACKAGE = "eslint@^10.0.0", JITI_PACKAGE = "jiti@^2.2.0", TYPESCRIPT_PACKAGE = "typescript@~6.0.0", typescriptPackages;
 var init_files5 = __esm(() => {
   init_owned_paths();
   init_config();
@@ -15301,7 +15314,7 @@ var init_files5 = __esm(() => {
       generator: (ctx) => {
         if (!ctx.languages?.javascript)
           return;
-        if (!ctx.developmentDeps.typescript && !ctx.developmentDeps["typescript-eslint"]) {
+        if (!ctx.developmentDeps.typescript && !ctx.developmentDeps["typescript-eslint"] && !ctx.projectType.scaffoldBddLane) {
           return;
         }
         return JSON.stringify({
@@ -15312,7 +15325,10 @@ var init_files5 = __esm(() => {
             strict: true,
             esModuleInterop: true,
             skipLibCheck: true,
-            noEmit: true
+            noEmit: true,
+            ...(ctx.projectType.scaffoldBddLane || Boolean(ctx.developmentDeps["@types/node"])) && {
+              types: ["node"]
+            }
           },
           include: ["**/*.ts", "**/*.tsx"],
           exclude: ["node_modules", "dist", "build"]
@@ -15444,6 +15460,7 @@ var init_files5 = __esm(() => {
     ],
     conditional: {
       scaffoldBddLane: ["@cucumber/cucumber", "tsx", "@types/node"],
+      typescriptToolchain: [TYPESCRIPT_PACKAGE],
       standard: ["prettier"],
       astro: ["prettier-plugin-astro"],
       tailwind: ["prettier-plugin-tailwindcss"],
@@ -66321,9 +66338,9 @@ import nodePath86 from "path";
 function getConditionalPackages(conditionalPackages, projectType) {
   const packages = [];
   for (const [key, dependencies] of Object.entries(conditionalPackages)) {
-    const inverted = INVERTED_PACKAGE_CONDITIONS[key];
-    if (inverted) {
-      if (inverted(projectType))
+    const derived = DERIVED_PACKAGE_CONDITIONS[key];
+    if (derived) {
+      if (derived(projectType))
         packages.push(...dependencies);
       continue;
     }
@@ -67253,7 +67270,7 @@ function shouldRemoveTextPatchTarget(content, definition) {
   const trimmed = content.trim();
   return definition.removeFileIfContentEquals?.some((candidate) => trimmed === candidate.trim()) ?? false;
 }
-var HUSKY_DIR = ".husky", PLANNING_CONTRACT_TEMPLATES, CHMOD_PATHS, PRETTIER_PACKAGES, INVERTED_PACKAGE_CONDITIONS, ReconcileExecutionError;
+var HUSKY_DIR = ".husky", PLANNING_CONTRACT_TEMPLATES, CHMOD_PATHS, PRETTIER_PACKAGES, DERIVED_PACKAGE_CONDITIONS, ReconcileExecutionError;
 var init_reconcile2 = __esm(() => {
   init_phase_contract();
   init_shared_clause_integrity();
@@ -67269,8 +67286,9 @@ var init_reconcile2 = __esm(() => {
     "prettier-plugin-tailwindcss",
     "prettier-plugin-sh"
   ]);
-  INVERTED_PACKAGE_CONDITIONS = {
-    standard: (projectType) => !projectType.existingFormatter
+  DERIVED_PACKAGE_CONDITIONS = {
+    standard: (projectType) => !projectType.existingFormatter,
+    typescriptToolchain: (projectType) => projectType.scaffoldBddLane && !projectType.typescriptAvailable
   };
   ReconcileExecutionError = class ReconcileExecutionError extends Error {
     partial;
@@ -67613,7 +67631,8 @@ var init_cucumber_template_revisions = __esm(() => {
     "3d22842f73c62e497a525dbe0a126b42bf2202fb8369ede29ba45b6d1e493fb6",
     "929014fb4ce6ca1483b292757b6044be89932028f5bb21ba82c28ffd66b09e53",
     "1295e832b1b3bdd0faa963e218bd489c9c252a981fc8e315d4814d4208384a5f",
-    "0ec4cb6d65b39e01f8aff27c4ca3841e0271a43b5435492676450f0fb3cfac27"
+    "0ec4cb6d65b39e01f8aff27c4ca3841e0271a43b5435492676450f0fb3cfac27",
+    "6a57388de5cc64693ef6e557a71d58e9f4603a2a6dc231b19f9005445f0ebb8b"
   ]);
 });
 
@@ -67852,6 +67871,7 @@ function detectProjectType(packageJson, cwd) {
     publishableLibrary: detectPublishable(packageJson),
     shell: cwd ? hasShellScripts(cwd) : false,
     hasJsSource: cwd ? hasJsSource(cwd) : false,
+    typescriptAvailable: "typescript" in allDependencies || cwd !== undefined && existsSync42(nodePath89.join(cwd, "node_modules/typescript/package.json")),
     ...detectCucumberLane(cwd),
     ...detectExistingTooling(cwd, scripts)
   };

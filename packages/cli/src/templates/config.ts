@@ -45,13 +45,13 @@ const nextPaths = detect.findNextConfigPaths(${directoryVariable});
 // Note: Astro config only lints .astro files, so we combine it with TypeScript config
 // to also lint .ts files in Astro projects
 // Note: In monorepos, Next.js uses React config + scoped Next.js rules
-const baseConfigs = {
-  next: nextPaths ? configs.recommendedTypeScriptReact : configs.recommendedTypeScriptNext,
-  react: configs.recommendedTypeScriptReact,
-  astro: [...configs.recommendedTypeScript, ...configs.astro],
-  typescript: configs.recommendedTypeScript,
-  javascript: configs.recommended,
-};
+const baseConfigs = new Map([
+  ["next", nextPaths ? configs.recommendedTypeScriptReact : configs.recommendedTypeScriptNext],
+  ["react", configs.recommendedTypeScriptReact],
+  ["astro", [...configs.recommendedTypeScript, ...configs.astro]],
+  ["typescript", configs.recommendedTypeScript],
+  ["javascript", configs.recommended],
+]);
 
 // Build scoped Next.js rules for monorepos
 // Each Next.js app gets its own scoped config with files: pattern
@@ -66,17 +66,17 @@ const scopedNextConfigs = nextPaths?.flatMap((filePath) =>
  * Used by all 3 ESLint config generators.
  */
 const OPTIONAL_CONFIGS_SNIPPET = `  // Testing configs - only if detected (plugins have framework peer deps)
-  ...(detect.hasVitest(deps) ? configs.vitest : []),
-  ...(detect.hasBunTest(deps, __dirname) ? configs.bunTest : []),
-  ...(detect.hasPlaywright(deps) ? configs.playwright : []),
+  ...(detect.hasVitest(dependencies) ? configs.vitest : []),
+  ...(detect.hasBunTest(dependencies, __dirname) ? configs.bunTest : []),
+  ...(detect.hasPlaywright(dependencies) ? configs.playwright : []),
   // Storybook - only if detected (v10+ requires storybook peer dep)
-  ...(detect.hasStorybook(deps) ? configs.storybook : []),
+  ...(detect.hasStorybook(dependencies) ? configs.storybook : []),
   // TanStack Query - only if detected (has typescript peer dep)
-  ...(detect.hasTanstackQuery(deps) ? configs.tanstackQuery : []),
+  ...(detect.hasTanstackQuery(dependencies) ? configs.tanstackQuery : []),
   // Tailwind - only if detected (plugin needs tailwind config to validate classes)
-  ...(detect.hasTailwind(deps) ? configs.tailwind : []),
+  ...(detect.hasTailwind(dependencies) ? configs.tailwind : []),
   // Turborepo - only if detected (validates env vars are declared in turbo.json)
-  ...(detect.hasTurbo(deps) ? configs.turbo : []),`;
+  ...(detect.hasTurbo(dependencies) ? configs.turbo : []),`;
 
 /**
  * Full strict rules for safeword ESLint configs that extend existing project configs.
@@ -139,14 +139,14 @@ const eslintConfigPrettier = safeword.prettierConfig;
 
 const { detect, configs } = safeword;
 const __dirname = import.meta.dirname;
-const deps = detect.collectAllDeps(__dirname);
-const framework = detect.detectFramework(deps);
+const dependencies = detect.collectAllDeps(__dirname);
+const framework = detect.detectFramework(dependencies);
 
 ${getMonorepoSnippet('__dirname')}
 
 export default defineConfig([
   { ignores: detect.getIgnores() },
-  ...baseConfigs[framework],
+  ...baseConfigs.get(framework),
   ...scopedNextConfigs,
 ${OPTIONAL_CONFIGS_SNIPPET}
   eslintConfigPrettier,
@@ -165,14 +165,14 @@ import safeword from "safeword/eslint";
 
 const { detect, configs } = safeword;
 const __dirname = import.meta.dirname;
-const deps = detect.collectAllDeps(__dirname);
-const framework = detect.detectFramework(deps);
+const dependencies = detect.collectAllDeps(__dirname);
+const framework = detect.detectFramework(dependencies);
 
 ${getMonorepoSnippet('__dirname')}
 
 export default defineConfig([
   { ignores: detect.getIgnores() },
-  ...baseConfigs[framework],
+  ...baseConfigs.get(framework),
   ...scopedNextConfigs,
 ${OPTIONAL_CONFIGS_SNIPPET}
 ]);
@@ -203,6 +203,7 @@ export function getSafewordEslintConfig(
   return getSafewordEslintConfigExtending(
     existingConfig ?? 'eslint.config.mjs',
     hasExistingFormatter,
+    existingConfig === undefined,
   );
 }
 
@@ -212,8 +213,16 @@ export function getSafewordEslintConfig(
 function getSafewordEslintConfigExtending(
   existingConfig: string,
   hasExistingFormatter: boolean,
+  projectUsesSafewordPreset: boolean,
 ): string {
   const prettier = getPrettierConfig(hasExistingFormatter);
+  // ESLint 10 lints this file with itself (nearest-config lookup), composed with
+  // the project config. Name a security rule only when that config is safeword's
+  // own: under a custom config the rule may be undefined, and a directive naming
+  // an undefined rule is itself an error.
+  const existsSyncDirective = projectUsesSafewordPreset
+    ? '// eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed path beside this file\n'
+    : '';
   // Need safeword import only when using prettier (for safeword.prettierConfig)
   const safewordImport = hasExistingFormatter ? '' : 'import safeword from "safeword/eslint";\n';
 
@@ -221,6 +230,8 @@ function getSafewordEslintConfigExtending(
 // Used by hooks for LLM enforcement. Human pre-commits use project config.
 // Re-run \`safeword install\` to regenerate after project config changes.
 import { existsSync } from "node:fs";
+import { URL } from "node:url";
+
 ${safewordImport}${prettier.import}
 
 // Ticket 139: existsSync gate + no try/catch.
@@ -232,10 +243,19 @@ ${safewordImport}${prettier.import}
 let projectConfig = [];
 const projectConfigPath = new URL("../${existingConfig}", import.meta.url);
 
+/**
+ * Whether the project config is TypeScript and must be loaded through jiti.
+ * @param {URL} configPath - Location of the project ESLint config.
+ * @returns {boolean} True for .ts, .mts, and .cts configs.
+ */
 function isTypeScriptProjectConfig(configPath) {
   return /\\.[cm]?ts$/.test(configPath.pathname);
 }
 
+/**
+ * Load the project's own ESLint config so its rules stay authoritative.
+ * @returns {Promise<unknown>} The project config's default export.
+ */
 async function loadProjectConfig() {
   if (isTypeScriptProjectConfig(projectConfigPath)) {
     const { createJiti } = await import("jiti");
@@ -246,7 +266,7 @@ async function loadProjectConfig() {
   return loaded.default;
 }
 
-if (existsSync(projectConfigPath)) {
+${existsSyncDirective}if (existsSync(projectConfigPath)) {
   projectConfig = await loadProjectConfig();
   if (!Array.isArray(projectConfig)) {
     projectConfig = [projectConfig];

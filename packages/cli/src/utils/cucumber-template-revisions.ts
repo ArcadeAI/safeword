@@ -29,6 +29,8 @@ const CUCUMBER_TEMPLATE_REVISION_HASHES: ReadonlySet<string> = new Set([
   '1295e832b1b3bdd0faa963e218bd489c9c252a981fc8e315d4814d4208384a5f',
   // ECGEP9 — automated lane distinguishes Vitest-backed proof from unfinished work
   '0ec4cb6d65b39e01f8aff27c4ca3841e0271a43b5435492676450f0fb3cfac27',
+  // #6966 — JSDoc and braces so the scaffold passes the preset it installs
+  '6a57388de5cc64693ef6e557a71d58e9f4603a2a6dc231b19f9005445f0ebb8b',
 ]);
 
 /** True when `content` is a shipped revision of safeword's lane template. */

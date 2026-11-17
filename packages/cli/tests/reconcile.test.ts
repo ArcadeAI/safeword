@@ -43,6 +43,7 @@ const DEFAULT_PROJECT_TYPE = {
   publishableLibrary: false,
   shell: false,
   hasJsSource: true, // default reconcile fixture is a JS project (gets knip + dependency-cruiser)
+  typescriptAvailable: false,
   existingLinter: false,
   existingFormatter: false,
   existingPrettierConfig: false,

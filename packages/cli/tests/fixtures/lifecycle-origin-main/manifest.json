@@ -1,18 +1,18 @@
 {
   "originMainCommit": "f22e2997ba8ef68d3d198ca2d937bfbf35fdab87",
-  "templatesSha256": "886f69ef5c96a4e34bd14eb2d7c908176339714b5403118a10929327ab02b691",
+  "templatesSha256": "5e2bd84964a573959f46b1b86f703d58fe53e70dc28dcd056c9e32a2b5ad69fe",
   "fixtures": {
-    "claude-install": "9998cee662634ae923ef1ed25994fa1a32a91e811440f3024f2f87b3dd907557",
-    "claude-check": "ea2a16301b6f4bef67c9ab3c827d0bba483672e6dad83a054f47c75c522942da",
-    "claude-upgrade": "eb29ae792c7a12501345c8db8a058f1534f03c22fb3341497ae518d7810a44fa",
-    "claude-uninstall": "b4e8fd0fdc09804365ef4c909d0532c75448db68a1134881e89562bed74e3eba",
-    "codex-install": "96670230588ae0f51e06133feccf3a8150a82a17d8e5727379888b8eed0d9f69",
-    "codex-check": "a793e1d96112a1099fcc605c1e4a64e0e7beac37ac499168cab6c056857d4bec",
-    "codex-upgrade": "f11f320f77a31aa8c0e9da3626fa6af6cfa03f7d7c55740599ce26610d73338b",
-    "codex-uninstall": "6453ef2e167ad4aaddd488bdba1c17af9749ad23396e9819f3a3667378899994",
-    "cursor-install": "ea75631d5b1731bfcd38f0879b433dc2c4bae7f9b45bf27b943303ef273a19b8",
-    "cursor-check": "928c2d2435f9daa7edb5e3ec6f260c34527a0a64dc04cc09a65a45dc4f04cb0e",
-    "cursor-upgrade": "4b88fcfb4575148b4700296c5e7cfbe8c1104091ad05116e501895062f62cb58",
-    "cursor-uninstall": "64cefd53f05df720a5cd93e9dc9c00aac6d7685636c1adca70019d121b43bd11"
+    "claude-install": "f955deaf7ccebfb68ee1b4eb5d4c7b00a03ff77086b21b5126ccda2f1fd43522",
+    "claude-check": "ccfaa21187652b47978be88dec8cfe716ce9d86dac69d40fdb691b0ef3feb805",
+    "claude-upgrade": "e4810fc74bda42fc3713f3e2e7ed00c6ac175a20a0877cbdf7bf8ae095ff451a",
+    "claude-uninstall": "476f752d865f394ed0b12a47863e15700b15f2b6a26ad9b315a929bf6ebc4a57",
+    "codex-install": "c741fba6e86d518070762540ce0da07993fe71e8a880257e09b1652c2820694e",
+    "codex-check": "a7359827bc553481678c7768cdb8c8827397d912c5f776efb26cf1836b8c3b1f",
+    "codex-upgrade": "e492dbd3d22d6c728fe81de9d23ccfdc62c2aeffaaa2db4164e2e25fb5a065da",
+    "codex-uninstall": "effa1ef02f2b7e7a8deeb74b1affb9161b9c220641cacf5ef935ddad156792ef",
+    "cursor-install": "4674d43ab59aab1fb648f8b2e8e994504f60ef7ef18d98215e479258e67cb655",
+    "cursor-check": "47d2c4e69f545f212e4a68e5cab045cb4f6542a8de9bc936389352f8e3024a89",
+    "cursor-upgrade": "db62db6920b3add855891a8144e5060c0df3a20d490ca2f56c4d89e24f4b60a2",
+    "cursor-uninstall": "6a73248fc7e1e2f260ffb6146715ac806084639ecaa08a66265a16b0fdbac10b"
   }
 }

@@ -10,12 +10,20 @@ import process from 'node:process';
 
 const projectRoot = import.meta.dirname;
 
+/**
+ * Keep a configured path only when it is a non-empty string.
+ * @param {unknown} value - Raw value read from .safeword/config.json.
+ * @returns {string | undefined} The value, or undefined when unusable.
+ */
 function nonEmptyString(value) {
   return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
-// Configured lane directories from .safeword/config.json (safe on missing or
-// unparseable config — defaults below always apply).
+/**
+ * Configured lane directories from .safeword/config.json (safe on missing or
+ * unparseable config — defaults below always apply).
+ * @returns {{ features: string | undefined, steps: string | undefined }} Relocated lane directories.
+ */
 function readConfiguredLaneDirectories() {
   try {
     const config = JSON.parse(
@@ -67,8 +75,15 @@ const cliFeatureDirectories = new Set([
     : []),
 ]);
 
+/**
+ * Whether one CLI argument names a feature file or feature directory.
+ * @param {string} argument - A positional or flag argument passed to cucumber-js.
+ * @returns {boolean} True when the argument selects features.
+ */
 function isCliFeaturePathArgument(argument) {
-  if (argument.startsWith('-')) return false;
+  if (argument.startsWith('-')) {
+    return false;
+  }
   return (
     argument.endsWith('.feature') ||
     argument.includes('*.feature') ||
@@ -76,10 +91,20 @@ function isCliFeaturePathArgument(argument) {
   );
 }
 
+/**
+ * Whether the cucumber-js invocation already names the features to run.
+ * @param {string[]} argv - CLI arguments after the executable.
+ * @returns {boolean} True when any argument selects features.
+ */
 export function hasCliFeaturePath(argv = process.argv.slice(2)) {
   return argv.some(argument => isCliFeaturePathArgument(argument));
 }
 
+/**
+ * Build the default lane config; CLI feature paths replace the default globs.
+ * @param {string[]} argv - CLI arguments after the executable.
+ * @returns {Record<string, unknown>} cucumber-js configuration.
+ */
 export function buildCucumberConfig(argv = process.argv.slice(2)) {
   const config = {
     import: workspaceStepImports,
@@ -93,6 +118,11 @@ export function buildCucumberConfig(argv = process.argv.slice(2)) {
   return config;
 }
 
+/**
+ * Build the `live` profile: the default lane config restricted to `@live` scenarios.
+ * @param {string[]} argv - CLI arguments after the executable.
+ * @returns {Record<string, unknown>} cucumber-js configuration.
+ */
 function buildLiveCucumberConfig(argv = process.argv.slice(2)) {
   return {
     ...buildCucumberConfig(argv),

@@ -24,6 +24,12 @@ import { rules as safewordRules } from '../eslint-rules/index.js';
  */
 export const JS_TS_FILES = ['**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}'];
 
+/** Where safeword's BDD lane keeps cucumber step definitions (root and workspaces). */
+export const CUCUMBER_STEP_GLOBS = [
+  'steps/**/*.{js,ts,mjs,mts}',
+  '**/features/steps/**/*.{js,ts,mjs,mts}',
+];
+
 /**
  * Add files restriction to config objects.
  * Handles both single config objects and arrays of configs.
@@ -309,6 +315,17 @@ const basePluginsUnscoped: any[] = [
       'unicorn/no-unused-properties': 'error', // Dead code in enum-like objects
       'unicorn/consistent-destructuring': 'error', // Don't mix props.x and {x} = props
       'unicorn/prefer-import-meta-properties': 'error', // import.meta.dirname > __dirname
+    },
+  },
+
+  // Cucumber registers worlds, hooks, and steps by calling into the runner at
+  // import time (setWorldConstructor, Given/When/Then), so a step-definition
+  // module with an export is not a side-effect smell.
+  {
+    name: 'safeword/cucumber-steps',
+    files: CUCUMBER_STEP_GLOBS,
+    rules: {
+      'unicorn/no-top-level-side-effects': 'off',
     },
   },
 

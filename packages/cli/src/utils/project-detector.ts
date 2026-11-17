@@ -595,6 +595,9 @@ export function detectProjectType(packageJson: PackageJsonWithScripts, cwd?: str
     publishableLibrary: detectPublishable(packageJson),
     shell: cwd ? hasShellScripts(cwd) : false,
     hasJsSource: cwd ? hasJsSource(cwd) : false,
+    typescriptAvailable:
+      'typescript' in allDependencies ||
+      (cwd !== undefined && existsSync(nodePath.join(cwd, 'node_modules/typescript/package.json'))),
     ...detectCucumberLane(cwd),
     ...detectExistingTooling(cwd, scripts),
   };

@@ -2,6 +2,8 @@
 // Used by hooks for LLM enforcement. Human pre-commits use project config.
 // Re-run `safeword install` to regenerate after project config changes.
 import { existsSync } from "node:fs";
+import { URL } from "node:url";
+
 import safeword from "safeword/eslint";
 const eslintConfigPrettier = safeword.prettierConfig;
 
@@ -14,10 +16,19 @@ const eslintConfigPrettier = safeword.prettierConfig;
 let projectConfig = [];
 const projectConfigPath = new URL("../eslint.config.ts", import.meta.url);
 
+/**
+ * Whether the project config is TypeScript and must be loaded through jiti.
+ * @param {URL} configPath - Location of the project ESLint config.
+ * @returns {boolean} True for .ts, .mts, and .cts configs.
+ */
 function isTypeScriptProjectConfig(configPath) {
   return /\.[cm]?ts$/.test(configPath.pathname);
 }
 
+/**
+ * Load the project's own ESLint config so its rules stay authoritative.
+ * @returns {Promise<unknown>} The project config's default export.
+ */
 async function loadProjectConfig() {
   if (isTypeScriptProjectConfig(projectConfigPath)) {
     const { createJiti } = await import("jiti");

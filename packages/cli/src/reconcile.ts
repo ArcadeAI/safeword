@@ -66,15 +66,19 @@ const PRETTIER_PACKAGES = new Set([
   'prettier-plugin-sh',
 ]);
 
-// Conditional-package keys whose condition is the ABSENCE of existing tooling,
-// rather than a truthy ProjectType field: "standard" = no existing formatter.
-const INVERTED_PACKAGE_CONDITIONS: Record<string, (projectType: ProjectType) => boolean> = {
+// Conditional-package keys whose condition is derived rather than a truthy
+// ProjectType field of the same name: "standard" = no existing formatter;
+// "typescriptToolchain" = the TypeScript BDD lane is scaffolded and no
+// typescript is declared or resolvable yet.
+const DERIVED_PACKAGE_CONDITIONS: Record<string, (projectType: ProjectType) => boolean> = {
   standard: projectType => !projectType.existingFormatter,
+  typescriptToolchain: projectType =>
+    projectType.scaffoldBddLane && !projectType.typescriptAvailable,
 };
 
 /**
  * Get conditional packages based on project type.
- * Handles inverted keys (standard) and prettier filtering for existing formatters.
+ * Handles derived keys (standard, typescriptToolchain) and prettier filtering for existing formatters.
  */
 function getConditionalPackages(
   conditionalPackages: Record<string, string[]>,
@@ -83,9 +87,9 @@ function getConditionalPackages(
   const packages: string[] = [];
 
   for (const [key, dependencies] of Object.entries(conditionalPackages)) {
-    const inverted = INVERTED_PACKAGE_CONDITIONS[key];
-    if (inverted) {
-      if (inverted(projectType)) packages.push(...dependencies);
+    const derived = DERIVED_PACKAGE_CONDITIONS[key];
+    if (derived) {
+      if (derived(projectType)) packages.push(...dependencies);
       continue;
     }
 
