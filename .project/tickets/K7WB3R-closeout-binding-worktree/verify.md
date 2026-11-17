@@ -5,7 +5,7 @@
 **Test Suite:** ✓ Full local suite at e81e42996: 11,914 tests pass and 3 fail. Two failures are `lint-go-context` (local Go toolchain mismatch; this change touches no Go). The third was the plugin runtime's byte alignment for `closeout-binding.ts`, fixed in 4f1c8824f. After that fix, the closeout suites (closeout-skill, closeout-binding-worktree, closeout-session-binding) pass 75/75, and closeout-host-adapters passes.
 **Gherkin:** ⏭️ Not affected — no feature files or steps changed. CI runs the acceptance lane.
 **Build:** ✅ Success
-**Lint:** ✅ Clean (`bun run lint`, including `tsc`, at 4f1c8824f)
+**Lint:** ✅ Clean (`bun run lint`, including `tsc`, at 4f1c8824f; the later hook changes type-check clean)
 **Typecheck:** ✅ Clean
 **Scenarios:** ⏭️ Skipped — task ticket, no test-definitions.md
 **Refactor:** ✅ Completed — one `closeoutBindingTarget` decides for all three hosts. Segment-by-segment shell parsing was replaced by two exact allowed command shapes.
@@ -23,5 +23,6 @@ Audit passed — `depcruise --affected` against the merge base: no dependency vi
 
 - Cross-agent quality-review (codex gpt-6.1-sol, independence: cross-agent) approved f72ebe9b on pass 14, and a21db496 approved the same code for the intake stamp. Passes 4–13 found shell-form edge cases. The class fix was to stop interpreting shell: detection fails closed, and only `bun <trusted closeout script> <plain args>`, optionally after one `cd <absolute plain path> &&`, records a binding.
 - The review context stated the trust boundary: the hook is a correctness aid for an honest agent, not a security control against deliberate evasion.
-- After approval, only the recovery message wording changed (to avoid a script path the plugin generator rewrites), and an unused import was removed.
+- Three final passes after that approval asked for: newlines treated as command separators (e2b971af); the denial to give the exact command to run (f92918b6); and a quoted plugin script path with spaces to be kept in that command (3c81b410). All are fixed and tested. The final review, 500fe103, approved and stamped intake.
+- The recovery message is built from the agent's command at run time, so it carries no literal path for the plugin generator to rewrite. That had broken the plugin runtime's byte alignment.
 - The implement-phase stamp is a recorded skip: review packets cannot carry the generated plugin mirrors, and the hand-written code is covered by the reviews above.
