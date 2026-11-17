@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "ec96aee8cc42339b2ffeeafde66bea818c0a29418260802cc99399983a323c38"
+      "sha256": "1a0c720e8905dbad2494756b1ecfe50b67a9108f34fcebe76a499d8e751ad949"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "f6e2f6579038ce4b57c2b63ef56c76abf8d578eb85cb89987a7bf4b5b813324f"
+      "sha256": "36ba5fd2e0e764a4b06f1ad319197770ac52e41781756809ea5e535a8aab3362"
     },
     {
       "path": "runtime/event-groups.json",
@@ -211,7 +211,7 @@
     },
     {
       "path": "runtime/hooks/lib/checkbox-transitions.ts",
-      "sha256": "60f4ec6b1d19d96b9969e436963b5d79ef5d282783ceb4d117e236ab16f73a84"
+      "sha256": "a9d1fada716e909e0107fc3d1eef39d6298bfa6858c7124a063e9a59f93f5dae"
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
@@ -283,7 +283,7 @@
     },
     {
       "path": "runtime/hooks/lib/ledger-git.ts",
-      "sha256": "c09cedbf74875a3f4aaf08bda560313716edbb14ab2e1b1889f1f9bf1d9bd976"
+      "sha256": "3c6d0b2da576ad39b30071477f45c19d5885ad237e1c73163db0f0e3149d1808"
     },
     {
       "path": "runtime/hooks/lib/ledger-validation.ts",
@@ -527,7 +527,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "f03045332b667ad8bacd678e44a0d63bd43a3cbf8fb0c0ed83851472286e9eb2"
+      "sha256": "bd4f55da91700574d8f5c647fb6879a5cc60df32b70a2485165917e163ed979a"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -677,7 +677,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "df18ad99d56b08a42a18cfa0ee834e8b6d0ec51c775dbd7c1f878f6445314f8e"
+      "sha256": "ba6343c8c02e8746faabea8f614549025753516aa543de82596f615e7dbb5dec"
     },
     {
       "path": "skills/bdd/VERIFY.md",
@@ -1211,7 +1211,7 @@
     },
     {
       "path": "templates/hooks/lib/checkbox-transitions.ts",
-      "sha256": "60f4ec6b1d19d96b9969e436963b5d79ef5d282783ceb4d117e236ab16f73a84"
+      "sha256": "a9d1fada716e909e0107fc3d1eef39d6298bfa6858c7124a063e9a59f93f5dae"
     },
     {
       "path": "templates/hooks/lib/closeout-binding.ts",
@@ -1283,7 +1283,7 @@
     },
     {
       "path": "templates/hooks/lib/ledger-git.ts",
-      "sha256": "c09cedbf74875a3f4aaf08bda560313716edbb14ab2e1b1889f1f9bf1d9bd976"
+      "sha256": "3c6d0b2da576ad39b30071477f45c19d5885ad237e1c73163db0f0e3149d1808"
     },
     {
       "path": "templates/hooks/lib/ledger-validation.ts",
@@ -1523,7 +1523,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "31ac0237706c22ceb829c9f15b2c7b67fcd629e58d293792df38a6b159eb07fe"
+      "sha256": "aa1c7f33bf24f75deaba6c8a60f6659a884ba18314c55da6d277fab9b063ec25"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",
@@ -1703,7 +1703,7 @@
     },
     {
       "path": "templates/skills/bdd/TDD.md",
-      "sha256": "f18f14822d63c7a91199ca4a0d0277a1d7e5521156980a2f7e259ceaea1c93ef"
+      "sha256": "cb4c44d1e197849eb5cc8ce6304e859cab16f1250974c7e31e112d369d4ac0c3"
     },
     {
       "path": "templates/skills/bdd/VERIFY.md",

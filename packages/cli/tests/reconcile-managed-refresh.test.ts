@@ -20,6 +20,7 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { createReconciliationPlan } from '../src/cli-protocol/reconciliation';
 import { reconcile } from '../src/reconcile';
 import type { ManagedFileDefinition, ProjectContext, SafewordSchema } from '../src/schema';
 
@@ -104,10 +105,33 @@ describe('managed file refresh while unmodified', () => {
     return path;
   }
 
-  it('advances a stale pin on upgrade', async () => {
-    const path = install(body('0.60.0'));
-    await reconcile(schemaWith(definition(true)), 'upgrade', context());
+  it('previews a stale pin as an update, then advances it on upgrade', async () => {
+    const stale = body('0.60.0');
+    const path = install(stale);
+    const schema = schemaWith(definition(true));
+
+    // The setup plan is what the user approves, so it must name every file the
+    // upgrade will rewrite — and building it must leave the file untouched.
+    const { plan } = await createReconciliationPlan(dir, 'upgrade', schema, context());
+    expect(plan.effects.files).toContainEqual({ kind: 'update', target: TARGET });
+    expect(plan.effects.files).not.toContainEqual({ kind: 'create', target: TARGET });
+    expect(readFileSync(path, 'utf8')).toBe(stale);
+
+    const applied = await reconcile(schema, 'upgrade', context());
+    expect(applied.updated).toContain(TARGET);
     expect(readFileSync(path, 'utf8')).toContain(`safeword@${CURRENT_PIN}`);
+  });
+
+  it('leaves an already-current file out of the upgrade preview', async () => {
+    install(body(CURRENT_PIN));
+    const { plan } = await createReconciliationPlan(
+      dir,
+      'upgrade',
+      schemaWith(definition(true)),
+      context(),
+    );
+    // Over-reporting is the opposite failure: a no-op must not ask for approval.
+    expect(plan.effects.files.map(effect => effect.target)).not.toContain(TARGET);
   });
 
   it('leaves a customized workflow entirely alone, pin included', async () => {

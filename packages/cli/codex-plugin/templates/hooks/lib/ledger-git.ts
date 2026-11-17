@@ -18,7 +18,8 @@ function git(cwd: string, args: string[], input?: string): string {
   }).trim();
 }
 
-function resolveCommitSha(cwd: string, sha: string): string | undefined {
+/** Full SHA of the commit `sha` names in this repository, or undefined if none. */
+export function resolveCommitSha(cwd: string, sha: string): string | undefined {
   try {
     return git(cwd, ['rev-parse', '--verify', `${sha}^{commit}`]);
   } catch {

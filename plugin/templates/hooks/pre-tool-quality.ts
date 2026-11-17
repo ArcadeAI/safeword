@@ -26,7 +26,12 @@ import { closeoutBindingTarget, rememberCloseoutBinding } from './lib/closeout-b
 import { detectBroadProcessKill } from './lib/process-kill-guard.ts';
 import { evaluateBlockedOnGate } from './lib/blocked-on-gate.ts';
 import { isGitOperationInProgress } from './lib/git-operation.ts';
-import { applyUniqueEdit, collectNewTransitions } from './lib/checkbox-transitions.ts';
+import {
+  applyUniqueEdit,
+  type CheckboxTransition,
+  collectNewTransitions,
+} from './lib/checkbox-transitions.ts';
+import { resolveCommitSha } from './lib/ledger-git.ts';
 import {
   isEmptyFrontmatterValue,
   parseFrontmatter,
@@ -1230,8 +1235,24 @@ if (
       'Check each scenario separately so its independent receipts and current proof are verified at the edit boundary.',
     );
   }
+  // A checked row citing a SHA that names no commit was never evidence (a typo,
+  // usually). Let it be rewritten in place to a SHA that does name a commit, so
+  // a mistyped annotation cannot permanently block closeout (#6987).
+  const correctsPhantomSha = (transition: CheckboxTransition): boolean => {
+    const prior = classifyAnnotation(transition.priorAnnotation ?? '');
+    const next = classifyAnnotation(transition.annotation);
+    return (
+      prior.kind === 'sha' &&
+      isValidSha(prior.value) &&
+      resolveCommitSha(projectDirectory, prior.value) === undefined &&
+      next.kind === 'sha' &&
+      isValidSha(next.value) &&
+      resolveCommitSha(projectDirectory, next.value) !== undefined
+    );
+  };
   for (const transition of transitions) {
     if (transition.historicalEvidenceRemoved === true) {
+      if (correctsPhantomSha(transition)) continue;
       deny(
         `Cannot move, rewrite, uncheck, or remove a ${transition.step} row that already carries historical evidence.`,
         `Keep the checked ${transition.step} row and its scenario binding intact. If you are renaming a scenario while checking another row, split those changes into separate edits.`,
@@ -1287,6 +1308,12 @@ if (
       deny(
         `Cannot mark "[x] ${transition.step}" with malformed SHA: ${JSON.stringify(kind.value)}.`,
         `Use "${transition.step} <7-40 hexadecimal commit SHA>" or "${transition.step} skip: <non-empty reason>".`,
+      );
+    }
+    if (kind.kind === 'sha' && resolveCommitSha(projectDirectory, kind.value) === undefined) {
+      deny(
+        `Cannot mark "[x] ${transition.step}" with ${kind.value}: no commit with that SHA exists in this repository.`,
+        `Check the SHA with \`git log --oneline\` and use the commit that holds this ${transition.step} work, or "${transition.step} skip: <non-empty reason>".`,
       );
     }
     if (
