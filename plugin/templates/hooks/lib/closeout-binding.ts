@@ -440,7 +440,11 @@ export function closeoutBindingTarget(
 ): CloseoutBindingTarget | undefined {
   const runsCloseoutScript = splitShellSegments(command).some(segment => {
     const words = commandWords(segment).map(word => word.replaceAll('"', '').replaceAll("'", ''));
-    const reader = FILE_READERS.has(nodePath.basename(words[0] ?? ''));
+    const program = nodePath.basename(words[0] ?? '');
+    // Git can define and run a shell alias inline; with inline config it is not a reader.
+    const inlineGitConfig =
+      program === 'git' && words.some(word => word === '-c' || word.startsWith('--config'));
+    const reader = FILE_READERS.has(program) && !inlineGitConfig;
     // A reader only reads a word that is the bare script path; the script named inside a larger
     // value (a git alias, a sed or awk program) can still run.
     return words.some(

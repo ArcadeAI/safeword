@@ -200,6 +200,7 @@ describe('closeout binding follows the worktree closeout runs in (#5467)', () =>
     'cd "$TARGET" && exec bun .safeword/scripts/closeout-cleanup.ts --pr 42',
     'time bun .safeword/scripts/closeout-cleanup.ts --pr 42',
     `cd "$TARGET" && git -c 'alias.finish=!bun .safeword/scripts/closeout-cleanup.ts' finish --pr 42`,
+    `cd "$TARGET" && git -c alias.finish='!bun' finish .safeword/scripts/closeout-cleanup.ts --pr 42`,
   ])('denies closeout behind a directory change it does not follow: %s', form => {
     repo();
 
