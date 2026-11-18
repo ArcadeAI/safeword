@@ -262,6 +262,28 @@ describe('closeout binding follows the worktree closeout runs in (#5467)', () =>
     );
   });
 
+  it('gives a recovery the hook accepts when the agent used a ./ script path', () => {
+    repo();
+    const denied = runClaudeHook(
+      primary,
+      'cd "$TARGET" && bun ./.safeword/scripts/closeout-cleanup.ts --pr 42',
+      'claude-session-dot',
+    );
+    const reason = (
+      JSON.parse(denied.stdout) as { hookSpecificOutput?: { permissionDecisionReason?: string } }
+    ).hookSpecificOutput?.permissionDecisionReason;
+    const recovery = /`(bun [^`]+)`/u.exec(reason ?? '')?.[1];
+    expect(recovery).toBeDefined();
+
+    // Following the recovery from the worktree is accepted and records the binding.
+    const retried = runClaudeHook(worktreeA, recovery ?? '', 'claude-session-dot');
+
+    expect(retried.stdout).not.toContain('deny');
+    expect(readFreshCloseoutBinding({ projectDirectory: worktreeA })).toMatchObject({
+      id: 'claude-session-dot',
+    });
+  });
+
   it('denies two closeout runs in one command, since only one binding can be recorded', () => {
     repo();
 

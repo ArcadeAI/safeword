@@ -471,7 +471,11 @@ function unresolved(command: string): CloseoutBindingTarget {
   const script = words?.[scriptIndex] ?? '';
   // Keep the agent's own script whenever it is a plain path (quoted if it has spaces), so a
   // plugin script stays the plugin's; a script named inside a larger value falls back.
-  const bareScript = script.replaceAll('"', '').replaceAll("'", '');
+  // Drop a leading `./`: the hook accepts only the bare relative form, so a retry must use it.
+  const bareScript = script
+    .replaceAll('"', '')
+    .replaceAll("'", '')
+    .replace(/^(?:\.\/)+/u, '');
   const plainScript = /^[^=!]*closeout-cleanup\.ts$/u.test(bareScript)
     ? /\s/u.test(bareScript)
       ? `"${bareScript}"`
