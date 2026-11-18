@@ -161,18 +161,27 @@ function toDraft(value: unknown): SpooledDraft | undefined {
  * draft that the working copy neither holds nor has acknowledged (an ack means
  * it was filed, even if a sandboxed drain could not prune the durable copy).
  */
+function draftKey(draft: SpooledDraft): string {
+  return `${draft.route ?? 'direct-v2'}\0${draft.signature}`;
+}
+
+/** A direct draft whose signature carries a filed ack; server-routed drafts never are. */
+function isFiled(draft: SpooledDraft, filedSignatures: ReadonlySet<string>): boolean {
+  return draft.route !== 'server-v3' && filedSignatures.has(draft.signature);
+}
+
 function readAllSpooledDrafts(projectDirectory: string, sessionId: string): SpooledDraft[] {
   const working = readJsonlRecords(draftSpoolPath(projectDirectory, sessionId), toDraft);
   const durable = separateDurablePath(projectDirectory, sessionId);
   if (durable === undefined) return working;
-  const known = new Set([
-    ...working.map(draft => draft.signature),
-    ...readAcks(projectDirectory, sessionId).map(ack => ack.signature),
-  ]);
+  // Identity is route plus signature: a filed ack covers only direct drafts,
+  // as markDraftsFiled does, so a server-routed draft is never hidden by one.
+  const known = new Set(working.map(draftKey));
+  const filed = new Set(readAcks(projectDirectory, sessionId).map(ack => ack.signature));
   const additions: SpooledDraft[] = [];
   for (const draft of readJsonlRecords(durable, toDraft)) {
-    if (known.has(draft.signature)) continue;
-    known.add(draft.signature);
+    if (known.has(draftKey(draft)) || isFiled(draft, filed)) continue;
+    known.add(draftKey(draft));
     additions.push(draft);
   }
   return [...working, ...additions];
@@ -297,14 +306,14 @@ export function stageRetroSpool(projectDirectory: string, sessionId: string): st
   if (durable === undefined) return working;
   try {
     mirrorAcks(projectDirectory, sessionId, durable);
-    const acknowledged = new Set(readAcks(projectDirectory, sessionId).map(ack => ack.signature));
-    rewriteSpool(durable, draft => !acknowledged.has(draft.signature));
+    const filed = new Set(readAcks(projectDirectory, sessionId).map(ack => ack.signature));
+    rewriteSpool(durable, draft => !isFiled(draft, filed));
     const drafts = readAllSpooledDrafts(projectDirectory, sessionId);
-    const staged = new Set(readJsonlRecords(working, toDraft).map(draft => draft.signature));
-    if (drafts.every(draft => staged.has(draft.signature))) return working;
+    const staged = new Set(readJsonlRecords(working, toDraft).map(draftKey));
+    if (drafts.every(draft => staged.has(draftKey(draft)))) return working;
     atomicWriteFile(working, serializeDrafts(drafts));
-    const written = new Set(readJsonlRecords(working, toDraft).map(draft => draft.signature));
-    return drafts.every(draft => written.has(draft.signature)) ? working : undefined;
+    const written = new Set(readJsonlRecords(working, toDraft).map(draftKey));
+    return drafts.every(draft => written.has(draftKey(draft))) ? working : undefined;
   } catch {
     // The next handoff retries the staging.
     return undefined;

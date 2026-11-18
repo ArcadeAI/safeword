@@ -20760,20 +20760,24 @@ function toDraft(value) {
     ...route === undefined ? {} : { route }
   };
 }
+function draftKey(draft) {
+  return `${draft.route ?? "direct-v2"}\x00${draft.signature}`;
+}
+function isFiled(draft, filedSignatures) {
+  return draft.route !== "server-v3" && filedSignatures.has(draft.signature);
+}
 function readAllSpooledDrafts(projectDirectory, sessionId) {
   const working = readJsonlRecords(draftSpoolPath(projectDirectory, sessionId), toDraft);
   const durable = separateDurablePath(projectDirectory, sessionId);
   if (durable === undefined)
     return working;
-  const known = new Set([
-    ...working.map((draft) => draft.signature),
-    ...readAcks(projectDirectory, sessionId).map((ack) => ack.signature)
-  ]);
+  const known = new Set(working.map(draftKey));
+  const filed = new Set(readAcks(projectDirectory, sessionId).map((ack) => ack.signature));
   const additions = [];
   for (const draft of readJsonlRecords(durable, toDraft)) {
-    if (known.has(draft.signature))
+    if (known.has(draftKey(draft)) || isFiled(draft, filed))
       continue;
-    known.add(draft.signature);
+    known.add(draftKey(draft));
     additions.push(draft);
   }
   return [...working, ...additions];

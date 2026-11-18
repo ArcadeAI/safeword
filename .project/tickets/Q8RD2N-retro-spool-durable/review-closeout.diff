@@ -1,5 +1,5 @@
 diff --git a/packages/cli/templates/scripts/closeout-cleanup.ts b/packages/cli/templates/scripts/closeout-cleanup.ts
-index b0d2bd435..16f2219ac 100644
+index b0d2bd435..cb9ddc859 100644
 --- a/packages/cli/templates/scripts/closeout-cleanup.ts
 +++ b/packages/cli/templates/scripts/closeout-cleanup.ts
 @@ -21,7 +21,7 @@ import {
@@ -16,7 +16,7 @@ index b0d2bd435..16f2219ac 100644
      pendingDrafts,
      evidenceHash: snapshot.digest,
 -    ...(pendingDrafts > 0 ? { spoolPath: realpathSync(draftSpoolPath(root, binding.id)) } : {}),
-+    ...(pendingDrafts > 0 ? { spoolPath: realpathSync(stageRetroSpool(root, binding.id)) } : {}),
++    ...stagedSpool(root, binding.id, pendingDrafts),
      ...(failure === undefined ? {} : { failure }),
    };
  }
@@ -25,10 +25,28 @@ index b0d2bd435..16f2219ac 100644
      pendingDrafts,
      evidenceHash: receipt.snapshot.digest,
 -    ...(pendingDrafts > 0 ? { spoolPath: realpathSync(draftSpoolPath(root, sessionId)) } : {}),
-+    ...(pendingDrafts > 0 ? { spoolPath: realpathSync(stageRetroSpool(root, sessionId)) } : {}),
++    ...stagedSpool(root, sessionId, pendingDrafts),
      failure: complete ? undefined : 'filing',
    };
  }
+@@ -2082,6 +2082,17 @@ function reobserveCleanupTargets(
+   };
+ }
+ 
++/** The staged working copy to hand the filer, when drafts are pending and staging succeeded. */
++function stagedSpool(
++  root: string,
++  sessionId: string,
++  pendingDrafts: number,
++): { spoolPath?: string } {
++  if (pendingDrafts === 0) return {};
++  const staged = stageRetroSpool(root, sessionId);
++  return staged === undefined ? {} : { spoolPath: realpathSync(staged) };
++}
++
+ function preserveRetroSpool(plan: CleanupPlan): string | undefined {
+   const removal = plan.operations.find(operation => operation.kind === 'remove-worktree');
+   if (!removal) return undefined;
 diff --git a/packages/cli/tests/integration/closeout-host-adapters.test.ts b/packages/cli/tests/integration/closeout-host-adapters.test.ts
 index 11a0d0248..df88dd9ce 100644
 --- a/packages/cli/tests/integration/closeout-host-adapters.test.ts

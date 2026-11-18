@@ -19,6 +19,7 @@ import {
   draftSpoolPath,
   durableDraftSpoolPath,
   markDraftsAcceptedByServer,
+  readServerSpooledDrafts,
   readSpooledDrafts,
   recordFiledAck,
   spoolDrafts,
@@ -243,6 +244,19 @@ describe('retro spool survives a deleted worktree (#5467)', () => {
     expect(stopHook(worktree)).toBeUndefined();
     expect(lines(draftSpoolPath(worktree, SESSION))).toEqual([]);
     expect(lines(durableDraftSpoolPath(worktree, SESSION))).toEqual([]);
+  });
+
+  it('never lets a filed direct ack hide or prune a server-routed draft with the same signature', () => {
+    git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
+    recordFiledAck(worktree, SESSION, { signature: 'retro:aaaaaaaaaaaa', issue: 7 });
+    spoolDrafts(worktree, SESSION, [{ ...draft('retro:aaaaaaaaaaaa'), route: 'server-v3' }]);
+
+    stopHook(worktree);
+
+    expect(readServerSpooledDrafts(worktree, SESSION).map(spooled => spooled.signature)).toEqual([
+      'retro:aaaaaaaaaaaa',
+    ]);
+    expect(lines(durableDraftSpoolPath(worktree, SESSION))).toHaveLength(1);
   });
 
   it('removes a server-accepted draft from both copies', () => {
