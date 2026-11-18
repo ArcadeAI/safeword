@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "e4b444decf8dec87c298051c9118b2b2969fe8ba683d639804f0c4c16f01007a"
+      "sha256": "81beceda35c8b765575b3445a918a569d81627e02574c98b117af206843e8301"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "4bc766dc8d39eeb5d87d0ae7a355738427430722bfdfdebaf2edfcd422810840"
+      "sha256": "36ba5fd2e0e764a4b06f1ad319197770ac52e41781756809ea5e535a8aab3362"
     },
     {
       "path": "runtime/event-groups.json",
@@ -215,7 +215,7 @@
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
-      "sha256": "9a7e35d35ed97bec61ce010f6d6fbe5256f34e9d425729a318287589f29ae5f8"
+      "sha256": "7abb8e7746d75b8eed2b0bba2bf1051041a30acd982ff5ffef6484334bcc59b7"
     },
     {
       "path": "runtime/hooks/lib/closest-base-ref.ts",
@@ -339,7 +339,7 @@
     },
     {
       "path": "runtime/hooks/lib/project-directory.ts",
-      "sha256": "adc04bbadef078c1c026ca32578acf5540c04f659b4fb43389251235523c8081"
+      "sha256": "93dd6d433c4ad88b12c191fcba5221d5293ac1f226c1ebf13a6261482d052f49"
     },
     {
       "path": "runtime/hooks/lib/project-knowledge.ts",
@@ -527,7 +527,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "751bf5d9c0f28fe43d48227fa97839bb3972173962d03191b7502d01e4465cf5"
+      "sha256": "bd4f55da91700574d8f5c647fb6879a5cc60df32b70a2485165917e163ed979a"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -1135,7 +1135,7 @@
     },
     {
       "path": "templates/hooks/codex/pre-tool-quality.ts",
-      "sha256": "a493c91ee667ed38dc04522fc48e859834c84ba520acbb413bfd9ca50ec0187e"
+      "sha256": "d6f2b7cd2584c7e86b1c004cb7f4cc53d2ffa6e7f6489238902aab4c3459f48b"
     },
     {
       "path": "templates/hooks/codex/stop.ts",
@@ -1147,7 +1147,7 @@
     },
     {
       "path": "templates/hooks/cursor/before-shell-execution.ts",
-      "sha256": "14d2bf5e1bf53db68ea9052675827b976909463afbccb8f4f658f92601a15344"
+      "sha256": "90c954cdbb784cb3420eaa79934fd42b9af2c2f1f4465bc69ad2b09606883407"
     },
     {
       "path": "templates/hooks/cursor/gate-adapter.ts",
@@ -1215,7 +1215,7 @@
     },
     {
       "path": "templates/hooks/lib/closeout-binding.ts",
-      "sha256": "d6b974800d50b058e88a77daf8a27f4c60591f96ec3c381bfda1ac6bd3246df5"
+      "sha256": "567c435d50f7bdf065c6aa38e05d773400cec564b99d62a692d50b6a7d54603c"
     },
     {
       "path": "templates/hooks/lib/closest-base-ref.ts",
@@ -1335,7 +1335,7 @@
     },
     {
       "path": "templates/hooks/lib/project-directory.ts",
-      "sha256": "adc04bbadef078c1c026ca32578acf5540c04f659b4fb43389251235523c8081"
+      "sha256": "93dd6d433c4ad88b12c191fcba5221d5293ac1f226c1ebf13a6261482d052f49"
     },
     {
       "path": "templates/hooks/lib/project-knowledge.ts",
@@ -1523,7 +1523,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "36c1187912359ac6d545f9b47e97cf2204ae1cbc4e3cc94690819db1b7c86d07"
+      "sha256": "aa1c7f33bf24f75deaba6c8a60f6659a884ba18314c55da6d277fab9b063ec25"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",

@@ -314,9 +314,9 @@ const CODEX_RUNTIME_ASSETS: Record<string, ManagedFileDefinition> = Object.fromE
  * skill-invocations, re-entry, dependency-readiness). Single source for both
  * the per-root `.gitignore` managed file (`NAMESPACE_GITIGNORE_CONTENT`) and the
  * repo-root `.gitignore` block (`SAFEWORD_TRANSIENT_PATHS`). Patterns are exact
- * filenames plus the one `quality-state*` glob — never a bare `*` — so durable
- * siblings (tickets/, learnings/, principles.md, personas.md, glossary.md,
- * surfaces.md) stay tracked.
+ * filenames plus the `quality-state*` and per-worktree `closeout-session-binding*`
+ * globs — never a bare `*` — so durable siblings (tickets/, learnings/,
+ * principles.md, personas.md, glossary.md, surfaces.md) stay tracked.
  */
 const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
   'quality-state*.json',
@@ -327,7 +327,7 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
   're-entry.md',
   'dependency-readiness.json',
   'readiness-ticket.json',
-  'closeout-session-binding.json',
+  'closeout-session-binding*.json',
   'codex-review-stamp-identity.json',
   'cursor-review-stamp-identity.json',
 ];
@@ -372,6 +372,17 @@ export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
  * also decides which `.safeword/` entries prove no install ran.
  */
 const GITIGNORE_BLOCK_PATHS: readonly string[] = ['node_modules/', ...SAFEWORD_TRANSIENT_PATHS];
+
+/**
+ * Transient paths earlier releases wrote into the repo-root block and later replaced. The
+ * rerender must still recognize them as Safeword's, or an upgrade stops claiming the old block at
+ * the first one and strands every line after it outside the managed block.
+ */
+const RETIRED_TRANSIENT_PATHS: readonly string[] = [
+  // Now one file per working tree (#5467).
+  '.project/closeout-session-binding.json',
+  '.safeword-project/closeout-session-binding.json',
+];
 
 /**
  * Top-level `.safeword/` entries that carry no proof a project install ever ran.
@@ -1560,9 +1571,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       // line is still claimed by the exact in-order match.
       // eslint-disable-next-line security/detect-non-literal-regexp -- derived only from the source-controlled constant above
       rerenderOwnedLinePattern: new RegExp(
-        `^(?:${SAFEWORD_TRANSIENT_PATHS.map(path =>
-          path.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`),
-        ).join('|')})$`,
+        `^(?:${[...SAFEWORD_TRANSIENT_PATHS, ...RETIRED_TRANSIENT_PATHS]
+          .map(path => path.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`))
+          .join('|')})$`,
         'u',
       ),
       marker: '# Safeword - Local cache and transient state',

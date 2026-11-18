@@ -482,6 +482,31 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(readFileSync(gitignorePath, 'utf8')).toBe('customer-cache/\n');
     });
 
+    it('rerenders a block whose retired exact paths became globs without leaving them behind', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA, SAFEWORD_TRANSIENT_PATHS } = await import('../src/schema.js');
+      const gitignorePath = nodePath.join(temporaryDirectory, '.gitignore');
+      // The block as the previous release wrote it, with the exact binding filename.
+      const previousPaths = SAFEWORD_TRANSIENT_PATHS.map(path =>
+        path.replace('closeout-session-binding*.json', 'closeout-session-binding.json'),
+      );
+      writeFileSync(
+        gitignorePath,
+        `customer-cache/\n\n# Safeword - Local cache and transient state\nnode_modules/\n${previousPaths.join('\n')}\n`,
+      );
+      createPackageJson();
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', createContext());
+
+      const lines = readFileSync(gitignorePath, 'utf8').split('\n');
+      expect(lines).not.toContain('.project/closeout-session-binding.json');
+      expect(lines).not.toContain('.safeword-project/closeout-session-binding.json');
+      expect(
+        lines.filter(line => line === '.project/codex-review-stamp-identity.json'),
+      ).toHaveLength(1);
+      expect(lines).toContain('.project/closeout-session-binding*.json');
+    });
+
     it('ignores node_modules on a fresh install with no .gitignore (#6764)', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');

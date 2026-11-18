@@ -202,7 +202,7 @@ function insideGitTree(start: string): boolean {
 }
 
 /** The first directory at or above `start` holding `.git` (a directory or gitfile). */
-function nearestGitTree(start: string): string | undefined {
+export function nearestGitTree(start: string): string | undefined {
   for (let directory = start; ; directory = nodePath.dirname(directory)) {
     if (existsSync(nodePath.join(directory, '.git'))) return directory;
     if (nodePath.dirname(directory) === directory) return undefined;
