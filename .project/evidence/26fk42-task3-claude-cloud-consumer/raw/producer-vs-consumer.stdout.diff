@@ -1,0 +1,14 @@
+2c2
+<  "changed": true,
+---
+>  "changed": false,
+18,24c18
+<   "files": [
+<    {
+<     "kind": "update",
+<     "operation": "write",
+<     "target": ".project/tickets/PEN123-portable-question/ticket.md"
+<    }
+<   ],
+---
+>   "files": [],

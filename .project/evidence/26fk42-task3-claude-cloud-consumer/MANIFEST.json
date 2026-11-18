@@ -1,0 +1,93 @@
+{
+  "schema": "26fk42-task3-consumer-handoff/v1",
+  "ticket": "26FK42 resolve-disputed-plan-findings, execution-plan Task 3 (consumer side, Claude Code Cloud only)",
+  "simulation_label": "Reviewer was SIMULATED in the producer only (stub at packages/cli/tests/integration/planning-dispute-persistence.test.ts:86-108). The consumer ran no reviewer. Cloud hosts, branch handoff and the consumer CLI run are real.",
+  "host": {
+    "kind": "Claude Code Cloud (native remote session)",
+    "session_id": "session_01ES15yWX896qjmZSgdKpJf8",
+    "remote_session_id": "cse_01ES15yWX896qjmZSgdKpJf8",
+    "environment_id": "env_012M8RUtKt8w3FpdxLiJUSyA",
+    "environment_kind": "anthropic_cloud",
+    "remote_environment_type": "cloud_default",
+    "container_id": "container_01MnNWeUBkpQjFmTCjmQ4TKB",
+    "vm_hostname": "vm",
+    "vm_boot_id": "78bd0baa-5180-4ed5-aa45-74ab3612e11c",
+    "kernel": "Linux 6.18.44-fc-v595 x86_64",
+    "claude_code_container_version": "2.1.327",
+    "session_created_at": "2026-11-18T04:49:28.793805Z"
+  },
+  "differs_from_producer": {
+    "session_id": ["session_01ES15yUL83q2HYXYcvyibyD", "session_01ES15yWX896qjmZSgdKpJf8"],
+    "container_id": ["container_01SennFwQx5qnp8EVbQBrKTm", "container_01MnNWeUBkpQjFmTCjmQ4TKB"],
+    "vm_boot_id": ["52cccf7b-8770-45e8-bff3-14a84ebcb13d", "78bd0baa-5180-4ed5-aa45-74ab3612e11c"],
+    "kernel": ["Linux 6.18.44-fc-v553", "Linux 6.18.44-fc-v595"],
+    "claude_code_container_version": ["2.1.326", "2.1.327"],
+    "same_environment_id": "env_012M8RUtKt8w3FpdxLiJUSyA (same user environment config, different VM)"
+  },
+  "handoff": {
+    "producer_branch": "claude/26fk42-task3-producer-fixture-j6s1vk",
+    "producer_commit": "0680150e4cdd6c201f8b59892ebe956edebd9429",
+    "fetch": "git fetch origin claude/26fk42-task3-producer-fixture-j6s1vk (normal fetch)",
+    "archive_sha256_expected": "76d96a908fc3c38261b2ee1a6db9e2a7a406359f48258c45e4ea15cbd0f1ea7a",
+    "archive_sha256_actual": "76d96a908fc3c38261b2ee1a6db9e2a7a406359f48258c45e4ea15cbd0f1ea7a",
+    "inner_sha256sums": "sha256sum -c SHA256SUMS: all 14 entries OK",
+    "fixture_restored_from_path_map": {
+      "fixture/dot-project/tickets/PEN123-portable-question/ticket.md": ".project/tickets/PEN123-portable-question/ticket.md",
+      "fixture/dot-project/tickets/PEN123-portable-question/impl-plan.md": ".project/tickets/PEN123-portable-question/impl-plan.md",
+      "fixture/dot-project/tickets/PEN123-portable-question/spec.md": ".project/tickets/PEN123-portable-question/spec.md",
+      "fixture/features/approval.feature": "features/approval.feature"
+    },
+    "nothing_else_seeded": "No .safeword config/state, no review job, no key, no extra pending record. The only pending record is the one already in the unchanged producer ticket."
+  },
+  "source": {
+    "head_commit": "dc5033ddd7660eaf991544a70a4697c2ed47c078",
+    "green_commit_ancestor": "032f5525bad15b9f341760aa81f77e28d1b23872",
+    "production_edits": false,
+    "built_cli_sha256": "91c9810b43f3efc5774713bef3d29fcfb38c6f6c8eb0b82d7f0c1f71cd8af43b",
+    "built_cli_matches_producer": true,
+    "review_disposition_ts_sha256": "362618a13fe86d4ac74cd294e4bf76901641af069f29a76766fbecc2bec64a57",
+    "review_job_ts_sha256": "f6cb1ad4255740a58581e410ca297390ec60edfc759d88cceb09fa623a78b74d",
+    "persistence_test_sha256": "65faa067ff8aa1ab1837ad14cb35d90d39ea3ec8f18ab74aad40d7a2cc1d1b7c",
+    "helpers_sha256": "b4ec370347ad00dfd8356addfde4bb201a20f443a9d2f9428c808906667614a8"
+  },
+  "toolchain": {
+    "launcher": "scripts/dev (mise 2026.11.9, scratchpad install)",
+    "bun": "1.4.4",
+    "node": "v24.18.1",
+    "build": "cd packages/cli && ../../scripts/dev bun run build"
+  },
+  "command": {
+    "invocation": "scripts/dev node driver/consumer.mjs <extracted-archive> packages/cli/dist/cli.js <proof-dir>",
+    "cli_argv": ["<node v24.18.1>", "packages/cli/dist/cli.js", "ticket", "record-review-disposition", "PEN123", "c3a6e35a-738e-441e-9492-a1519f74f66d", "1", "--reason", "The accepted Product Plan says: No optional audit export.", "--cwd", "<fixture-root>", "--json", "--no-input"],
+    "process_cwd": "<fixture-root>",
+    "env": ["NODE_ENV=test (as producer runCli injected, tests/helpers.ts:465)", "SAFEWORD_AGENT_RUNTIME=codex", "SAFEWORD_REVIEW_KEY_ROOT=<fresh empty dir>"],
+    "stdin": "empty",
+    "timeout_ms": 5000
+  },
+  "result": {
+    "started_at": "see raw/consumer-run.json",
+    "exit_code": 2,
+    "wall_ms": 146,
+    "state": "action_required",
+    "status": "pending",
+    "disposition": "pending-user-decision",
+    "question_reason_action_finding_identical_to_producer": true,
+    "stdout_differences_vs_producer": "changed true->false and effects.files [ticket write]->[] (idempotent replay; raw/producer-vs-consumer.stdout.diff)",
+    "ticket_sha256_after": "422fda95940386f4c57ea964cde64eb330c3da07063ea893f1bacfa9be9e6b09",
+    "plan_sha256_after": "2430088b9888d81d45b2c0b63f298de4b99977cbd4f1b2cb58c02b5344a7566f",
+    "design_approval_present": false,
+    "integrity_key_absent_before_and_after": true,
+    "review_job_absent_before_and_after": true,
+    "filesystem_wide_review_integrity_key_count_before_and_after": [0, 0],
+    "terminal_approval_attempted": false,
+    "all_19_checks_pass": true
+  },
+  "not_proven": [
+    "Original-runner destruction is untested; the user accepted a separate fresh-VM consumer on 2026-11-17 instead.",
+    "Reviewer was simulated in the producer; no live reviewer verdict exists for this fixture.",
+    "Cursor Cloud Agents, native-local hosts and NTB comprehension evidence are not covered.",
+    "Routing, admission safety, broader key-encoding checks and Tasks 4-8 remain outstanding.",
+    "Historical failures, the missing RED records and all 33 deferred cases are unchanged.",
+    "This does not prove broader 26FK42 feature completion."
+  ]
+}

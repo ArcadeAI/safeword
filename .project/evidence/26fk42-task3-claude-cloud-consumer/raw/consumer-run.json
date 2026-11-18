@@ -1,0 +1,92 @@
+{
+  "schema": "26fk42-task3-consumer-run/v1",
+  "consumer_argv": [
+    "<node>",
+    "<built-cli>",
+    "ticket",
+    "record-review-disposition",
+    "PEN123",
+    "c3a6e35a-738e-441e-9492-a1519f74f66d",
+    "1",
+    "--reason",
+    "The accepted Product Plan says: No optional audit export.",
+    "--cwd",
+    "<fixture-root>",
+    "--json",
+    "--no-input"
+  ],
+  "process_cwd": "<fixture-root>",
+  "env_names": [
+    "NODE_ENV=test",
+    "SAFEWORD_AGENT_RUNTIME=codex",
+    "SAFEWORD_REVIEW_KEY_ROOT=<fresh empty dir>"
+  ],
+  "stdin": "empty (closed)",
+  "node": "v24.18.1",
+  "node_hostname": "vm",
+  "fixture_root_basename": "safeword-consumer-caPEfo",
+  "started_at": "2026-11-18T04:52:11.439Z",
+  "exited_at": "2026-11-18T04:52:11.586Z",
+  "wall_ms": 146,
+  "budget_ms": 5000,
+  "exit_code": 2,
+  "signal": null,
+  "spawn_error": null,
+  "before": {
+    "test_key_root_key_exists": false,
+    "test_key_root_files": [],
+    "default_state_key_exists": false,
+    "fixture_review_job_exists": false,
+    "fixture_files": [
+      ".project/tickets/PEN123-portable-question/impl-plan.md",
+      ".project/tickets/PEN123-portable-question/spec.md",
+      ".project/tickets/PEN123-portable-question/ticket.md",
+      "features/approval.feature"
+    ],
+    "ticket_sha256": "422fda95940386f4c57ea964cde64eb330c3da07063ea893f1bacfa9be9e6b09",
+    "plan_sha256": "2430088b9888d81d45b2c0b63f298de4b99977cbd4f1b2cb58c02b5344a7566f",
+    "ticket_has_design_approval": false
+  },
+  "after": {
+    "test_key_root_key_exists": false,
+    "test_key_root_files": [],
+    "default_state_key_exists": false,
+    "fixture_review_job_exists": false,
+    "fixture_files": [
+      ".project/tickets/PEN123-portable-question/impl-plan.md",
+      ".project/tickets/PEN123-portable-question/spec.md",
+      ".project/tickets/PEN123-portable-question/ticket.md",
+      "features/approval.feature"
+    ],
+    "ticket_sha256": "422fda95940386f4c57ea964cde64eb330c3da07063ea893f1bacfa9be9e6b09",
+    "plan_sha256": "2430088b9888d81d45b2c0b63f298de4b99977cbd4f1b2cb58c02b5344a7566f",
+    "ticket_has_design_approval": false
+  },
+  "checks": {
+    "exit_code_is_2": true,
+    "not_timed_out": true,
+    "under_5000ms": true,
+    "stdout_parsed": true,
+    "state_action_required": true,
+    "status_pending": true,
+    "disposition_pending_user_decision": true,
+    "same_question": true,
+    "same_reason": true,
+    "same_action": true,
+    "same_finding": true,
+    "same_review_id": true,
+    "ticket_unchanged_vs_archive": true,
+    "plan_unchanged_vs_archive": true,
+    "no_design_approval": true,
+    "key_absent_before": true,
+    "key_absent_after": true,
+    "review_job_absent_before": true,
+    "review_job_absent_after": true
+  },
+  "all_checks_pass": true,
+  "sha256": {
+    "consumer.stdout.json": "6b0959d65e70de3fc04a67d9f4e13ab4ce4295267d00d8ff96b3f6927640f21e",
+    "consumer.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "built_cli": "91c9810b43f3efc5774713bef3d29fcfb38c6f6c8eb0b82d7f0c1f71cd8af43b"
+  }
+}

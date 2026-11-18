@@ -1,0 +1,121 @@
+// 26FK42 Task 3 consumer driver (disposable, not committed as a test).
+// Usage: node consumer.mjs <extracted-archive-dir> <built-cli.js> <proof-out-dir>
+import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import {
+  copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync,
+} from 'node:fs';
+import { homedir, hostname, tmpdir } from 'node:os';
+import nodePath from 'node:path';
+
+const [archiveDir, cliPath, outDir] = process.argv.slice(2);
+const sha = (buf) => createHash('sha256').update(buf).digest('hex');
+const fileSha = (p) => sha(readFileSync(p));
+mkdirSync(outDir, { recursive: true });
+
+const manifest = JSON.parse(readFileSync(nodePath.join(archiveDir, 'MANIFEST.json'), 'utf8'));
+const producerStdout = JSON.parse(readFileSync(nodePath.join(archiveDir, 'raw/producer.stdout.json'), 'utf8'));
+const reviewId = 'c3a6e35a-738e-441e-9492-a1519f74f66d';
+const reason = 'The accepted Product Plan says: No optional audit export.';
+
+const fixture = mkdtempSync(nodePath.join(process.env.FIXTURE_PARENT ?? tmpdir(), 'safeword-consumer-'));
+const keyRoot = mkdtempSync(nodePath.join(process.env.FIXTURE_PARENT ?? tmpdir(), 'empty-key-root-'));
+for (const [from, to] of Object.entries(manifest.fixture_path_map)) {
+  const target = nodePath.join(fixture, to);
+  mkdirSync(nodePath.dirname(target), { recursive: true });
+  copyFileSync(nodePath.join(archiveDir, from), target);
+}
+const ticketPath = nodePath.join(fixture, '.project/tickets/PEN123-portable-question/ticket.md');
+const planPath = nodePath.join(fixture, '.project/tickets/PEN123-portable-question/impl-plan.md');
+
+function listAll(dir) {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { recursive: true, withFileTypes: true })
+    .filter((e) => e.isFile())
+    .map((e) => nodePath.relative(dir, nodePath.join(e.parentPath ?? e.path, e.name)));
+}
+function authorityProbe() {
+  const xdg = process.env.XDG_STATE_HOME ?? nodePath.join(homedir(), '.local', 'state');
+  return {
+    test_key_root_key_exists: existsSync(nodePath.join(keyRoot, 'safeword/review-integrity.key')),
+    test_key_root_files: listAll(keyRoot),
+    default_state_key_exists: existsSync(nodePath.join(xdg, 'safeword/review-integrity.key')),
+    fixture_review_job_exists: existsSync(nodePath.join(fixture, `.safeword/state/reviews/${reviewId}.json`)),
+    fixture_files: listAll(fixture).sort(),
+    ticket_sha256: fileSha(ticketPath),
+    plan_sha256: fileSha(planPath),
+    ticket_has_design_approval: /^design_approval:/m.test(readFileSync(ticketPath, 'utf8')),
+  };
+}
+
+const before = authorityProbe();
+const argv = [
+  cliPath, 'ticket', 'record-review-disposition', 'PEN123', reviewId, '1',
+  '--reason', reason, '--cwd', fixture, '--json', '--no-input',
+];
+const env = { ...process.env, NODE_ENV: 'test', SAFEWORD_AGENT_RUNTIME: 'codex', SAFEWORD_REVIEW_KEY_ROOT: keyRoot };
+const startedAt = new Date().toISOString();
+const t0 = performance.now();
+const run = spawnSync(process.execPath, argv, { cwd: fixture, env, timeout: 5000, encoding: 'utf8', input: '' });
+const wallMs = performance.now() - t0;
+const exitedAt = new Date().toISOString();
+const after = authorityProbe();
+
+writeFileSync(nodePath.join(outDir, 'consumer.stdout.json'), run.stdout ?? '');
+writeFileSync(nodePath.join(outDir, 'consumer.stderr.txt'), run.stderr ?? '');
+
+let parsed = null;
+try { parsed = JSON.parse(run.stdout); } catch { /* recorded as parse failure below */ }
+const pd = producerStdout.data;
+const cd = parsed?.data ?? {};
+const checks = {
+  exit_code_is_2: run.status === 2,
+  not_timed_out: run.error?.code !== 'ETIMEDOUT' && run.signal === null,
+  under_5000ms: wallMs < 5000,
+  stdout_parsed: parsed !== null,
+  state_action_required: parsed?.state === 'action_required',
+  status_pending: cd.status === 'pending',
+  disposition_pending_user_decision: cd.disposition === 'pending-user-decision',
+  same_question: cd.question === pd.question,
+  same_reason: cd.reason === pd.reason,
+  same_action: cd.action === pd.action,
+  same_finding: cd.finding === pd.finding,
+  same_review_id: cd.review_id === pd.review_id,
+  ticket_unchanged_vs_archive: after.ticket_sha256 === manifest_ticket_sha(),
+  plan_unchanged_vs_archive: after.plan_sha256 === '2430088b9888d81d45b2c0b63f298de4b99977cbd4f1b2cb58c02b5344a7566f',
+  no_design_approval: !after.ticket_has_design_approval,
+  key_absent_before: !before.test_key_root_key_exists && !before.default_state_key_exists,
+  key_absent_after: !after.test_key_root_key_exists && !after.default_state_key_exists,
+  review_job_absent_before: !before.fixture_review_job_exists,
+  review_job_absent_after: !after.fixture_review_job_exists,
+};
+function manifest_ticket_sha() { return '422fda95940386f4c57ea964cde64eb330c3da07063ea893f1bacfa9be9e6b09'; }
+
+const record = {
+  schema: '26fk42-task3-consumer-run/v1',
+  consumer_argv: ['<node>', '<built-cli>', ...argv.slice(1).map((a) => (a === fixture ? '<fixture-root>' : a))],
+  process_cwd: '<fixture-root>',
+  env_names: ['NODE_ENV=test', 'SAFEWORD_AGENT_RUNTIME=codex', 'SAFEWORD_REVIEW_KEY_ROOT=<fresh empty dir>'],
+  stdin: 'empty (closed)',
+  node: process.version,
+  node_hostname: hostname(),
+  fixture_root_basename: nodePath.basename(fixture),
+  started_at: startedAt,
+  exited_at: exitedAt,
+  wall_ms: Math.round(wallMs),
+  budget_ms: 5000,
+  exit_code: run.status,
+  signal: run.signal,
+  spawn_error: run.error ? String(run.error.code ?? run.error.message) : null,
+  before,
+  after,
+  checks,
+  all_checks_pass: Object.values(checks).every(Boolean),
+  sha256: {
+    'consumer.stdout.json': sha(run.stdout ?? ''),
+    'consumer.stderr.txt': sha(run.stderr ?? ''),
+    built_cli: fileSha(cliPath),
+  },
+};
+writeFileSync(nodePath.join(outDir, 'consumer-run.json'), `${JSON.stringify(record, null, 2)}\n`);
+console.log(JSON.stringify({ exit: run.status, wallMs: record.wall_ms, all: record.all_checks_pass, checks }, null, 2));

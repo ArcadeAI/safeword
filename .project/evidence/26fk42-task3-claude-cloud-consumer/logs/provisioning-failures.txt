@@ -1,0 +1,10 @@
+Consumer VM provisioning failures (retained verbatim in substance; none affected the run):
+1. `npm install @jdxcode/mise@2026.11.9` (scratchpad prefix): npm blocked the package's
+   preinstall script ("warn install-scripts ... preinstall: node installArchSpecificPackage.js"),
+   so no mise binary was produced. Worked around by installing
+   `@jdxcode/mise-linux-x64@2026.11.9` (prebuilt binary, no install script) into the scratchpad.
+2. `mise link bun@1.4.4 /root/.bun` / `mise install node@24.18.1`: mise printed
+   "GitHub access to this repository is not enabled for this session" and
+   "Remote versions cannot be fetched for astral-sh/uv ... 403 Forbidden" (egress policy).
+   Bun 1.4.4 was linked from the image; Node 24.18.1 installed. `scripts/dev bun --version`
+   = 1.4.4, `scripts/dev node --version` = v24.18.1. No repo pin or shell profile changed.
