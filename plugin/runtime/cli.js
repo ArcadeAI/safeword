@@ -3522,7 +3522,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6cf974642f71ee8091f19a8d8c68246f4a2dcdba86c7f5966ea22f992c43636a",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "83d1369a1db26474ce498565e1f67711834137276234ca697de3be0f1abbafff",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "36c1187912359ac6d545f9b47e97cf2204ae1cbc4e3cc94690819db1b7c86d07",
+        ".safeword/hooks/pre-tool-quality.ts": "aa1c7f33bf24f75deaba6c8a60f6659a884ba18314c55da6d277fab9b063ec25",
         ".safeword/hooks/pre-tool-stale-main.ts": "6a7c2d75a9955f661f620ee20f4210bec09fa206625d84363cd0376fc56fdf5d",
         ".safeword/hooks/prompt-questions.ts": "ac2f53a7c2e87cb4517b7a4c9d965bacdd262828aa28474d0441dc2edafc215d",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -16083,7 +16083,7 @@ function schemaForSharedAgentRuntime(schema, needed) {
     return schema;
   return filterSchemaPaths(schema, (path) => !isSharedAgentRuntimePath(path));
 }
-var PLANNING_DATA_GUIDE_PATH = ".safeword/guides/data-architecture-guide.md", PLANNING_CONTRACT_TEMPLATE_PATHS, MCP_JSON_MERGE, MARKDOWNLINT_CLI2_IGNORES_MERGE, CURSOR_RULE_WRAPPER_OWNED_FILES, CURSOR_COMMAND_WRAPPER_OWNED_FILES, CURSOR_SHARED_SKILL_FILES, CURSOR_SHARED_SKILL_OWNED_FILES, CURSOR_SHARED_SKILL_DIRS, CODEX_RUNTIME_ASSET_FILENAMES, CODEX_RUNTIME_ASSETS, NAMESPACE_TRANSIENT_BASENAMES, SAFEWORD_TRANSIENT_PATHS, GITIGNORE_BLOCK_PATHS, SAFEWORD_TRANSIENT_ROOT_ENTRIES, NAMESPACE_GITIGNORE_PATTERNS, NAMESPACE_GITIGNORE_CONTENT, PRETTIER_EXCLUSIONS_HEADER = "# Safeword - managed prettier exclusions (owned dirs)", GITATTRIBUTES_HEADER = "# Safeword - managed merge strategy for generated artifacts", BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT = "test:bdd", SHARED_FILING_INVARIANTS, SESSION_TOKEN_RULE, BOUNDARY_SHIM_MARKER = "# Safeword boundary gate", TERMINAL_HANDOFF_CONTRACT_MARKERS, SAFEWORD_SCHEMA, ALL_SCHEMA_PATH_COLLECTIONS, CURSOR_PROJECT_PATHS, SHARED_AGENT_RUNTIME_ROOTS;
+var PLANNING_DATA_GUIDE_PATH = ".safeword/guides/data-architecture-guide.md", PLANNING_CONTRACT_TEMPLATE_PATHS, MCP_JSON_MERGE, MARKDOWNLINT_CLI2_IGNORES_MERGE, CURSOR_RULE_WRAPPER_OWNED_FILES, CURSOR_COMMAND_WRAPPER_OWNED_FILES, CURSOR_SHARED_SKILL_FILES, CURSOR_SHARED_SKILL_OWNED_FILES, CURSOR_SHARED_SKILL_DIRS, CODEX_RUNTIME_ASSET_FILENAMES, CODEX_RUNTIME_ASSETS, NAMESPACE_TRANSIENT_BASENAMES, SAFEWORD_TRANSIENT_PATHS, GITIGNORE_BLOCK_PATHS, RETIRED_TRANSIENT_PATHS, SAFEWORD_TRANSIENT_ROOT_ENTRIES, NAMESPACE_GITIGNORE_PATTERNS, NAMESPACE_GITIGNORE_CONTENT, PRETTIER_EXCLUSIONS_HEADER = "# Safeword - managed prettier exclusions (owned dirs)", GITATTRIBUTES_HEADER = "# Safeword - managed merge strategy for generated artifacts", BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT = "test:bdd", SHARED_FILING_INVARIANTS, SESSION_TOKEN_RULE, BOUNDARY_SHIM_MARKER = "# Safeword boundary gate", TERMINAL_HANDOFF_CONTRACT_MARKERS, SAFEWORD_SCHEMA, ALL_SCHEMA_PATH_COLLECTIONS, CURSOR_PROJECT_PATHS, SHARED_AGENT_RUNTIME_ROOTS;
 var init_schema = __esm(() => {
   init_historical_ownership();
   init_inventory();
@@ -16201,7 +16201,7 @@ var init_schema = __esm(() => {
     "re-entry.md",
     "dependency-readiness.json",
     "readiness-ticket.json",
-    "closeout-session-binding.json",
+    "closeout-session-binding*.json",
     "codex-review-stamp-identity.json",
     "cursor-review-stamp-identity.json"
   ];
@@ -16218,6 +16218,10 @@ var init_schema = __esm(() => {
     ...[".project", ".safeword-project"].flatMap((root) => NAMESPACE_TRANSIENT_BASENAMES.map((name) => `${root}/${name}`))
   ];
   GITIGNORE_BLOCK_PATHS = ["node_modules/", ...SAFEWORD_TRANSIENT_PATHS];
+  RETIRED_TRANSIENT_PATHS = [
+    ".project/closeout-session-binding.json",
+    ".safeword-project/closeout-session-binding.json"
+  ];
   SAFEWORD_TRANSIENT_ROOT_ENTRIES = [
     ...new Set(SAFEWORD_TRANSIENT_PATHS.filter((path) => path.startsWith(".safeword/")).map((path) => path.slice(".safeword/".length).split("/", 1)[0] ?? ""))
   ].filter((name) => name !== "");
@@ -16970,7 +16974,7 @@ ${GITIGNORE_BLOCK_PATHS.join(`
 `)}
 `,
         rerender: true,
-        rerenderOwnedLinePattern: new RegExp(`^(?:${SAFEWORD_TRANSIENT_PATHS.map((path) => path.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`)).join("|")})$`, "u"),
+        rerenderOwnedLinePattern: new RegExp(`^(?:${[...SAFEWORD_TRANSIENT_PATHS, ...RETIRED_TRANSIENT_PATHS].map((path) => path.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`)).join("|")})$`, "u"),
         marker: "# Safeword - Local cache and transient state"
       },
       ".prettierignore": {
