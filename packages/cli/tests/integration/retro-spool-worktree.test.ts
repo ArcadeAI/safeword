@@ -9,7 +9,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -32,6 +32,7 @@ import {
   retroDraft as draft,
   TIMEOUT_QUICK,
 } from '../helpers';
+import { blockWrites } from '../helpers/io-failure';
 
 const STOP_HOOK = nodePath.join(repoRoot, 'packages/cli/templates/hooks/stop-retro-filing.ts');
 const SESSION = 'sess-worktree';
@@ -82,9 +83,6 @@ describe('retro spool survives a deleted worktree (#5467)', () => {
   });
 
   afterEach(() => {
-    chmodSync(primary, 0o755);
-    const shared = nodePath.join(primary, '.git', 'safeword');
-    if (existsSync(shared)) chmodSync(shared, 0o755);
     removeTemporaryDirectory(root);
   });
 
@@ -157,13 +155,11 @@ describe('retro spool survives a deleted worktree (#5467)', () => {
     git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
     spoolDrafts(worktree, SESSION, [draft('retro:aaaaaaaaaaaa')]);
     expect(stopHook(worktree)?.decision).toBe('block');
-    const sharedDirectory = nodePath.dirname(durableDraftSpoolPath(worktree, SESSION));
-
     // A sandboxed filer can write only inside the workspace.
-    chmodSync(sharedDirectory, 0o555);
+    const unblock = blockSharedLedgers(worktree);
     recordFiledAck(worktree, SESSION, { signature: 'retro:aaaaaaaaaaaa', issue: 7 });
     drainRetroSpool(draftSpoolPath(worktree, SESSION));
-    chmodSync(sharedDirectory, 0o755);
+    unblock();
 
     expect(stopHook(worktree)).toBeUndefined();
     expect(readSpooledDrafts(worktree, SESSION)).toEqual([]);
@@ -173,12 +169,10 @@ describe('retro spool survives a deleted worktree (#5467)', () => {
     git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
     spoolDrafts(worktree, SESSION, [draft('retro:aaaaaaaaaaaa')]);
     expect(stopHook(worktree)?.decision).toBe('block');
-    const sharedDirectory = nodePath.dirname(durableDraftSpoolPath(worktree, SESSION));
-
-    chmodSync(sharedDirectory, 0o555);
+    const unblock = blockSharedLedgers(worktree);
     recordFiledAck(worktree, SESSION, { signature: 'retro:aaaaaaaaaaaa', issue: 7 });
     drainRetroSpool(draftSpoolPath(worktree, SESSION));
-    chmodSync(sharedDirectory, 0o755);
+    unblock();
     // The filer's turn ends: the Stop hook copies the acks to the shared folder.
     expect(stopHook(worktree)).toBeUndefined();
     git(primary, 'worktree', 'remove', '--force', worktree);
@@ -190,17 +184,12 @@ describe('retro spool survives a deleted worktree (#5467)', () => {
   it('hands the filer nothing, and spends no attempt, when staging cannot write the working copy', () => {
     git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
     spoolDrafts(worktree, SESSION, [draft('retro:aaaaaaaaaaaa')]);
-    const workingDirectory = nodePath.dirname(draftSpoolPath(worktree, SESSION));
-    mkdirSync(workingDirectory, { recursive: true });
-    chmodSync(workingDirectory, 0o555);
+    const working = blockWrites(draftSpoolPath(worktree, SESSION));
 
-    try {
-      expect(stopHook(worktree)).toBeUndefined();
-      expect(stopHook(worktree)).toBeUndefined();
-      expect(stopHook(worktree)).toBeUndefined();
-    } finally {
-      chmodSync(workingDirectory, 0o755);
-    }
+    expect(stopHook(worktree)).toBeUndefined();
+    expect(stopHook(worktree)).toBeUndefined();
+    expect(stopHook(worktree)).toBeUndefined();
+    rmSync(working, { recursive: true });
 
     const dispatched = stopHook(worktree);
     expect(dispatched?.reason).toContain(draftSpoolPath(worktree, SESSION));
@@ -209,12 +198,10 @@ describe('retro spool survives a deleted worktree (#5467)', () => {
 
   it('falls back to the working copy when the shared directory cannot be written', () => {
     git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
-    const sharedParent = nodePath.join(realGitDirectory(primary), 'safeword');
-    mkdirSync(sharedParent, { recursive: true });
-    chmodSync(sharedParent, 0o555);
+    const durable = blockWrites(durableDraftSpoolPath(worktree, SESSION));
 
     spoolDrafts(worktree, SESSION, [draft('retro:aaaaaaaaaaaa')]);
-    chmodSync(sharedParent, 0o755);
+    rmSync(durable, { recursive: true });
 
     expect(lines(draftSpoolPath(worktree, SESSION))).toHaveLength(1);
     expect(stopHook(worktree)?.decision).toBe('block');
@@ -310,11 +297,9 @@ describe('retro spool survives a deleted worktree (#5467)', () => {
     git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
     spoolDrafts(worktree, SESSION, [{ ...draft('retro:aaaaaaaaaaaa'), route: 'server-v3' }]);
     stageRetroSpool(worktree, SESSION);
-    const sharedDirectory = nodePath.dirname(durableDraftSpoolPath(worktree, SESSION));
-
-    chmodSync(sharedDirectory, 0o555);
+    const unblock = blockSharedLedgers(worktree);
     markDraftsAcceptedByServer(worktree, SESSION, ['retro:aaaaaaaaaaaa']);
-    chmodSync(sharedDirectory, 0o755);
+    unblock();
 
     stopHook(worktree);
     expect(readServerSpooledDrafts(worktree, SESSION)).toEqual([]);
@@ -348,6 +333,17 @@ describe('retro spool survives a deleted worktree (#5467)', () => {
     expect(durableDraftSpoolPath(plain, SESSION)).toBe(draftSpoolPath(plain, SESSION));
   });
 });
+
+/** Make the shared folder's ack and removal ledgers unwritable, as an agent sandbox does. */
+function blockSharedLedgers(projectDirectory: string): () => void {
+  const base = durableDraftSpoolPath(projectDirectory, SESSION).slice(0, -'.jsonl'.length);
+  const ledgers = [`${base}.acks.jsonl`, `${base}.removed.jsonl`].map(ledger =>
+    blockWrites(ledger),
+  );
+  return () => {
+    for (const ledger of ledgers) rmSync(ledger, { recursive: true });
+  };
+}
 
 function realGitDirectory(primary: string): string {
   return git(primary, 'rev-parse', '--path-format=absolute', '--git-common-dir');
