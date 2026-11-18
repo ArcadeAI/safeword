@@ -301,6 +301,24 @@ describe('retro spool survives a deleted worktree (#5467)', () => {
     expect(readServerSpooledDrafts(worktree, SESSION)).toEqual([]);
   });
 
+  it('never brings back a drained draft when a stale staging write lands after the drain', () => {
+    git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
+    spoolDrafts(worktree, SESSION, [draft('retro:aaaaaaaaaaaa'), draft('retro:bbbbbbbbbbbb')]);
+    const working = draftSpoolPath(worktree, SESSION);
+    stageRetroSpool(worktree, SESSION);
+    const staleSnapshot = readFileSync(working, 'utf8');
+
+    recordFiledAck(worktree, SESSION, { signature: 'retro:aaaaaaaaaaaa', issue: 7 });
+    drainRetroSpool(working);
+    // A staging pass that read before the drain writes its snapshot after it.
+    writeFileSync(working, staleSnapshot);
+
+    expect(readSpooledDrafts(worktree, SESSION).map(spooled => spooled.signature)).toEqual([
+      'retro:bbbbbbbbbbbb',
+    ]);
+    expect(stopHook(worktree)?.reason).toContain('1 sanitized finding ');
+  });
+
   it('outside git, the durable copy is the working copy', () => {
     const plain = nodePath.join(root, 'plain');
     mkdirSync(plain);

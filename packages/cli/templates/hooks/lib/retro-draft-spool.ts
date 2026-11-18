@@ -156,11 +156,7 @@ function toDraft(value: unknown): SpooledDraft | undefined {
   };
 }
 
-/**
- * The session's drafts across both copies: the working copy, then each durable
- * draft that the working copy neither holds nor has acknowledged (an ack means
- * it was filed, even if a sandboxed drain could not prune the durable copy).
- */
+/** A draft's identity: route plus signature, as markDraftsFiled and markDraftsAcceptedByServer use. */
 function draftKey(draft: SpooledDraft): string {
   return `${draft.route ?? 'direct-v2'}\0${draft.signature}`;
 }
@@ -170,16 +166,22 @@ function isFiled(draft: SpooledDraft, filedSignatures: ReadonlySet<string>): boo
   return draft.route !== 'server-v3' && filedSignatures.has(draft.signature);
 }
 
+/**
+ * The session's drafts across both copies: the working copy, then each durable
+ * draft it does not hold. A draft the removal ledger names is skipped in either
+ * copy, because removals are recorded before any copy is rewritten: a staging
+ * write that raced a drain cannot bring a removed draft back. A durable draft
+ * with a filed ack is skipped too (filed, even if a sandbox kept the ledger
+ * from being written); a working draft with an ack stays, so the filer can
+ * drain it.
+ */
 function readAllSpooledDrafts(projectDirectory: string, sessionId: string): SpooledDraft[] {
   const working = readJsonlRecords(draftSpoolPath(projectDirectory, sessionId), toDraft);
   const durable = separateDurablePath(projectDirectory, sessionId);
   if (durable === undefined) return working;
-  // Identity is route plus signature: a filed ack covers only direct drafts,
-  // as markDraftsFiled does, so a server-routed draft is never hidden by one.
-  const known = new Set([
-    ...working.map(draftKey),
-    ...sessionRemovals(projectDirectory, sessionId, durable),
-  ]);
+  const removals = sessionRemovals(projectDirectory, sessionId, durable);
+  const pending = working.filter(draft => !removals.has(draftKey(draft)));
+  const known = new Set([...pending.map(draftKey), ...removals]);
   const filed = new Set(readAcks(projectDirectory, sessionId).map(ack => ack.signature));
   const additions: SpooledDraft[] = [];
   for (const draft of readJsonlRecords(durable, toDraft)) {
@@ -187,7 +189,7 @@ function readAllSpooledDrafts(projectDirectory: string, sessionId: string): Spoo
     known.add(draftKey(draft));
     additions.push(draft);
   }
-  return [...working, ...additions];
+  return [...pending, ...additions];
 }
 
 /**

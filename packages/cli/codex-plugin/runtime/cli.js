@@ -20771,10 +20771,9 @@ function readAllSpooledDrafts(projectDirectory, sessionId) {
   const durable = separateDurablePath(projectDirectory, sessionId);
   if (durable === undefined)
     return working;
-  const known = new Set([
-    ...working.map(draftKey),
-    ...sessionRemovals(projectDirectory, sessionId, durable)
-  ]);
+  const removals = sessionRemovals(projectDirectory, sessionId, durable);
+  const pending = working.filter((draft) => !removals.has(draftKey(draft)));
+  const known = new Set([...pending.map(draftKey), ...removals]);
   const filed = new Set(readAcks(projectDirectory, sessionId).map((ack) => ack.signature));
   const additions = [];
   for (const draft of readJsonlRecords(durable, toDraft)) {
@@ -20783,7 +20782,7 @@ function readAllSpooledDrafts(projectDirectory, sessionId) {
     known.add(draftKey(draft));
     additions.push(draft);
   }
-  return [...working, ...additions];
+  return [...pending, ...additions];
 }
 function readSpooledDrafts(projectDirectory, sessionId) {
   return readAllSpooledDrafts(projectDirectory, sessionId).filter((draft) => draft.route !== "server-v3");
