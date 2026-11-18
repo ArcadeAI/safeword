@@ -131,6 +131,122 @@ describe('scaffolded runner honors configured paths (TB2.AC2 + TB2.AC3)', () => 
   );
 
   it(
+    'runs only the targeted directory when a directory path is passed',
+    () => {
+      writeTestFile(
+        directory,
+        'features/targeted/targeted.feature',
+        [
+          'Feature: Targeted directory',
+          '',
+          '  Scenario: targeted scenario',
+          '    When the targeted scenario runs',
+          '',
+        ].join('\n'),
+      );
+      writeTestFile(
+        directory,
+        'features/untargeted.feature',
+        [
+          'Feature: Untargeted',
+          '',
+          '  Scenario: untargeted scenario',
+          '    When the untargeted scenario runs',
+          '',
+        ].join('\n'),
+      );
+      writeTestFile(
+        directory,
+        'steps/targeted.steps.ts',
+        [
+          "import { When } from '@cucumber/cucumber';",
+          '',
+          "When('the targeted scenario runs', function () {",
+          '  // Scenario reached.',
+          '});',
+          '',
+          "When('the untargeted scenario runs', function () {",
+          "  throw new Error('untargeted scenario ran despite the directory path');",
+          '});',
+          '',
+        ].join('\n'),
+      );
+      try {
+        // A trailing slash is a valid Cucumber directory path that no exact
+        // directory-name match recognizes.
+        const { output, status } = runTestBdd(directory, [
+          'features/targeted/',
+          '--format',
+          'summary',
+        ]);
+        expect(status, output).toBe(0);
+        expect(output).toContain('1 scenario (1 passed)');
+      } finally {
+        rmSync(nodePath.join(directory, 'features/targeted'), { force: true, recursive: true });
+        rmSync(nodePath.join(directory, 'features/untargeted.feature'), { force: true });
+        rmSync(nodePath.join(directory, 'steps/targeted.steps.ts'), { force: true });
+      }
+    },
+    TIMEOUT_SETUP,
+  );
+
+  it(
+    'keeps workspace feature directories when an option value ends in .feature',
+    () => {
+      writeTestFile(
+        directory,
+        'packages/demo/features/option-value.feature',
+        [
+          'Feature: Option value',
+          '',
+          '  Scenario: option-value feature -- in a workspace package',
+          '    When the workspace package scenario runs',
+          '',
+        ].join('\n'),
+      );
+      writeTestFile(
+        directory,
+        'packages/demo/features/steps/option-value.steps.ts',
+        [
+          "import { When } from '@cucumber/cucumber';",
+          '',
+          "When('the workspace package scenario runs', function () {",
+          '  // Scenario reached.',
+          '});',
+          '',
+        ].join('\n'),
+      );
+      try {
+        // `--name` takes a regular expression; this one ends in `.feature` and
+        // matches the workspace scenario's name. Read as a feature path, it
+        // would drop the workspace globs and the scenario would never be found.
+        const { output, status } = runTestBdd(directory, [
+          '--name',
+          'option-value.feature',
+          '--format',
+          'summary',
+        ]);
+        expect(status, output).toBe(0);
+        expect(output).toContain('1 scenario (1 passed)');
+
+        // `-df summary` is dry-run plus `-f summary`: `summary` is a value.
+        const dryRun = runTestBdd(directory, ['-df', 'summary']);
+        expect(dryRun.status, dryRun.output).toBe(0);
+        expect(dryRun.output).toMatch(/2 scenarios \(2 skipped\)/);
+
+        // `--name --`: the bare `--` is the name expression, not the end of
+        // options, so the following arguments are still options.
+        const dashName = runTestBdd(directory, ['--name', '--', '--format', 'summary']);
+        expect(dashName.status, dashName.output).toBe(0);
+        expect(dashName.output).toContain('1 scenario (1 passed)');
+      } finally {
+        rmSync(nodePath.join(directory, 'packages'), { force: true, recursive: true });
+      }
+    },
+    TIMEOUT_SETUP,
+  );
+
+  it(
     'bdd-lane-collision-detection-and-paths.TB2.AC3.runner_defaults_apply_without_a_config_file',
     () => {
       rmSync(nodePath.join(directory, '.safeword/config.json'), { force: true });
