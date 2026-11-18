@@ -1114,7 +1114,7 @@ function runBoundRetroWindows(
     complete,
     pendingDrafts,
     evidenceHash: snapshot.digest,
-    ...(pendingDrafts > 0 ? { spoolPath: realpathSync(stageRetroSpool(root, binding.id)) } : {}),
+    ...stagedSpool(root, binding.id, pendingDrafts),
     ...(failure === undefined ? {} : { failure }),
   };
 }
@@ -1482,7 +1482,7 @@ function retroObservationFromReceipt(
     complete,
     pendingDrafts,
     evidenceHash: receipt.snapshot.digest,
-    ...(pendingDrafts > 0 ? { spoolPath: realpathSync(stageRetroSpool(root, sessionId)) } : {}),
+    ...stagedSpool(root, sessionId, pendingDrafts),
     failure: complete ? undefined : 'filing',
   };
 }
@@ -2080,6 +2080,17 @@ function reobserveCleanupTargets(
           }
         : baseline.verification,
   };
+}
+
+/** The staged working copy to hand the filer, when drafts are pending and staging succeeded. */
+function stagedSpool(
+  root: string,
+  sessionId: string,
+  pendingDrafts: number,
+): { spoolPath?: string } {
+  if (pendingDrafts === 0) return {};
+  const staged = stageRetroSpool(root, sessionId);
+  return staged === undefined ? {} : { spoolPath: realpathSync(staged) };
 }
 
 function preserveRetroSpool(plan: CleanupPlan): string | undefined {

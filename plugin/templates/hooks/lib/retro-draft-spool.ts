@@ -285,26 +285,30 @@ function serializeDrafts(drafts: readonly SpooledDraft[]): string {
 /**
  * Bring the session's durable drafts into the working copy and return its path
  * — the one place a spool path is handed to the filer (Stop gate, nudge,
- * closeout). Durable drafts the working copy already acknowledged are pruned
- * from the durable copy here, in hook code, for a drain that ran where the
- * durable copy could not be written. Best-effort: on a failed write the filer
- * still gets the path, and the next handoff retries.
+ * closeout). This hook-side step also copies the working copy's acks to the
+ * durable copy and prunes the durable drafts they acknowledge, for a filer that
+ * ran where the durable copy could not be written. Returns undefined when the
+ * working copy does not end up holding every pending draft, so no caller hands
+ * the filer a spool that is missing the findings it was dispatched for.
  */
-export function stageRetroSpool(projectDirectory: string, sessionId: string): string {
+export function stageRetroSpool(projectDirectory: string, sessionId: string): string | undefined {
   const working = draftSpoolPath(projectDirectory, sessionId);
   const durable = separateDurablePath(projectDirectory, sessionId);
   if (durable === undefined) return working;
   try {
+    mirrorAcks(projectDirectory, sessionId, durable);
     const acknowledged = new Set(readAcks(projectDirectory, sessionId).map(ack => ack.signature));
     rewriteSpool(durable, draft => !acknowledged.has(draft.signature));
     const drafts = readAllSpooledDrafts(projectDirectory, sessionId);
-    if (drafts.length > readJsonlRecords(working, toDraft).length) {
-      atomicWriteFile(working, serializeDrafts(drafts));
-    }
+    const staged = new Set(readJsonlRecords(working, toDraft).map(draft => draft.signature));
+    if (drafts.every(draft => staged.has(draft.signature))) return working;
+    atomicWriteFile(working, serializeDrafts(drafts));
+    const written = new Set(readJsonlRecords(working, toDraft).map(draft => draft.signature));
+    return drafts.every(draft => written.has(draft.signature)) ? working : undefined;
   } catch {
-    // Fail open: the next handoff retries the staging.
+    // The next handoff retries the staging.
+    return undefined;
   }
-  return working;
 }
 
 export function markDraftsFiled(
@@ -360,7 +364,41 @@ function toAck(value: unknown): FiledAck | undefined {
  * that a removed draft was filed — local contract validation, no network.
  */
 export function readAcks(projectDirectory: string, sessionId: string): FiledAck[] {
-  return readJsonlRecords(ackFilePath(projectDirectory, sessionId), toAck);
+  const working = readJsonlRecords(ackFilePath(projectDirectory, sessionId), toAck);
+  const durable = separateDurablePath(projectDirectory, sessionId);
+  if (durable === undefined) return working;
+  const seen = new Set(working.map(ackKey));
+  return [
+    ...working,
+    ...readJsonlRecords(durableAckPath(durable), toAck).filter(ack => !seen.has(ackKey(ack))),
+  ];
+}
+
+function ackKey(ack: FiledAck): string {
+  return `${ack.signature}\0${String(ack.issue)}`;
+}
+
+/** The durable copy's ack ledger, beside the durable spool. */
+function durableAckPath(durableSpool: string): string {
+  return `${durableSpool.slice(0, -SPOOL_EXTENSION.length)}.acks.jsonl`;
+}
+
+/**
+ * Copy the working copy's acks into the durable ledger, so a filed draft stays
+ * filed after its worktree is deleted. Best-effort: a sandboxed filer cannot
+ * write it, and the next hook-side staging copies them instead.
+ */
+function mirrorAcks(projectDirectory: string, sessionId: string, durableSpool: string): void {
+  const ledger = durableAckPath(durableSpool);
+  const recorded = new Set(readJsonlRecords(ledger, toAck).map(ackKey));
+  const missing = readJsonlRecords(ackFilePath(projectDirectory, sessionId), toAck).filter(
+    ack => !recorded.has(ackKey(ack)),
+  );
+  tryAppendJsonlRecords(
+    ledger,
+    missing.map(ack => JSON.stringify({ signature: ack.signature, issue: ack.issue })),
+    Number.POSITIVE_INFINITY,
+  );
 }
 
 /**
@@ -387,6 +425,8 @@ export function recordFiledAck(
 
 /** Drain only drafts with a reader-visible, destination-bound acknowledgement. */
 export function drainAcknowledgedDrafts(projectDirectory: string, sessionId: string): void {
+  const durable = separateDurablePath(projectDirectory, sessionId);
+  if (durable !== undefined) mirrorAcks(projectDirectory, sessionId, durable);
   markDraftsFiled(
     projectDirectory,
     sessionId,

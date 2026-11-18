@@ -87,6 +87,8 @@ export function decideRetroFilingNudge(
   if (drafts.length === 0) return undefined;
   const key = batchKey(drafts.map(draft => draft.signature));
   if (readNudgeMarker(projectDirectory, sessionId) === key) return undefined;
+  const spoolPath = stageRetroSpool(projectDirectory, sessionId);
+  if (spoolPath === undefined) return undefined;
   writeNudgeMarker(projectDirectory, sessionId, key);
-  return formatRetroNudge(drafts.length, stageRetroSpool(projectDirectory, sessionId));
+  return formatRetroNudge(drafts.length, spoolPath);
 }

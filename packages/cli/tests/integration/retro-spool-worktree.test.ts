@@ -168,6 +168,44 @@ describe('retro spool survives a deleted worktree (#5467)', () => {
     expect(lines(durableDraftSpoolPath(worktree, SESSION))).toEqual([]);
   });
 
+  it('keeps a sandboxed filing filed after the worktree is deleted', () => {
+    git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
+    spoolDrafts(worktree, SESSION, [draft('retro:aaaaaaaaaaaa')]);
+    expect(stopHook(worktree)?.decision).toBe('block');
+    const sharedDirectory = nodePath.dirname(durableDraftSpoolPath(worktree, SESSION));
+
+    chmodSync(sharedDirectory, 0o555);
+    recordFiledAck(worktree, SESSION, { signature: 'retro:aaaaaaaaaaaa', issue: 7 });
+    drainRetroSpool(draftSpoolPath(worktree, SESSION));
+    chmodSync(sharedDirectory, 0o755);
+    // The filer's turn ends: the Stop hook copies the acks to the shared folder.
+    expect(stopHook(worktree)).toBeUndefined();
+    git(primary, 'worktree', 'remove', '--force', worktree);
+
+    expect(stopHook(primary)).toBeUndefined();
+    expect(readSpooledDrafts(primary, SESSION)).toEqual([]);
+  });
+
+  it('hands the filer nothing, and spends no attempt, when staging cannot write the working copy', () => {
+    git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
+    spoolDrafts(worktree, SESSION, [draft('retro:aaaaaaaaaaaa')]);
+    const workingDirectory = nodePath.dirname(draftSpoolPath(worktree, SESSION));
+    mkdirSync(workingDirectory, { recursive: true });
+    chmodSync(workingDirectory, 0o555);
+
+    try {
+      expect(stopHook(worktree)).toBeUndefined();
+      expect(stopHook(worktree)).toBeUndefined();
+      expect(stopHook(worktree)).toBeUndefined();
+    } finally {
+      chmodSync(workingDirectory, 0o755);
+    }
+
+    const dispatched = stopHook(worktree);
+    expect(dispatched?.reason).toContain(draftSpoolPath(worktree, SESSION));
+    expect(lines(draftSpoolPath(worktree, SESSION))).toHaveLength(1);
+  });
+
   it('falls back to the working copy when the shared directory cannot be written', () => {
     git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
     const sharedParent = nodePath.join(realGitDirectory(primary), 'safeword');

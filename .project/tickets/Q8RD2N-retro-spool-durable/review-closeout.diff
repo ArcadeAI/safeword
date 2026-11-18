@@ -1,0 +1,67 @@
+diff --git a/packages/cli/templates/scripts/closeout-cleanup.ts b/packages/cli/templates/scripts/closeout-cleanup.ts
+index b0d2bd435..16f2219ac 100644
+--- a/packages/cli/templates/scripts/closeout-cleanup.ts
++++ b/packages/cli/templates/scripts/closeout-cleanup.ts
+@@ -21,7 +21,7 @@ import {
+   readFreshCloseoutBinding,
+   resolveExactCodexTranscript,
+ } from '../hooks/lib/closeout-binding.ts';
+-import { draftSpoolPath, readAcks, readSpooledDrafts } from '../hooks/lib/retro-draft-spool.ts';
++import { readAcks, readSpooledDrafts, stageRetroSpool } from '../hooks/lib/retro-draft-spool.ts';
+ import { resolveRunIdentity } from '../hooks/lib/run-identity.ts';
+ 
+ export const POST_MERGE_VERIFICATION_KINDS = ['verify', 'build', 'typecheck', 'bdd'] as const;
+@@ -1114,7 +1114,7 @@ function runBoundRetroWindows(
+     complete,
+     pendingDrafts,
+     evidenceHash: snapshot.digest,
+-    ...(pendingDrafts > 0 ? { spoolPath: realpathSync(draftSpoolPath(root, binding.id)) } : {}),
++    ...(pendingDrafts > 0 ? { spoolPath: realpathSync(stageRetroSpool(root, binding.id)) } : {}),
+     ...(failure === undefined ? {} : { failure }),
+   };
+ }
+@@ -1482,7 +1482,7 @@ function retroObservationFromReceipt(
+     complete,
+     pendingDrafts,
+     evidenceHash: receipt.snapshot.digest,
+-    ...(pendingDrafts > 0 ? { spoolPath: realpathSync(draftSpoolPath(root, sessionId)) } : {}),
++    ...(pendingDrafts > 0 ? { spoolPath: realpathSync(stageRetroSpool(root, sessionId)) } : {}),
+     failure: complete ? undefined : 'filing',
+   };
+ }
+diff --git a/packages/cli/tests/integration/closeout-host-adapters.test.ts b/packages/cli/tests/integration/closeout-host-adapters.test.ts
+index 11a0d0248..df88dd9ce 100644
+--- a/packages/cli/tests/integration/closeout-host-adapters.test.ts
++++ b/packages/cli/tests/integration/closeout-host-adapters.test.ts
+@@ -22,6 +22,7 @@ import { VERSION } from '../../src/version.js';
+ import { readFreshCloseoutBinding } from '../../templates/hooks/lib/closeout-binding.ts';
+ import {
+   draftSpoolPath,
++  durableDraftSpoolPath,
+   readSpooledDrafts,
+   recordFiledAck,
+   spoolDrafts,
+@@ -557,7 +558,8 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
+     });
+     spoolDrafts(fixture.topic, id, [draft]);
+     spoolDrafts(fixture.topic, unrelatedId, [unrelated]);
+-    const unrelatedPath = draftSpoolPath(fixture.topic, unrelatedId);
++    // Another session's draft lives in the shared git directory (#5467), which closeout never removes.
++    const unrelatedPath = durableDraftSpoolPath(fixture.topic, unrelatedId);
+     const unrelatedBefore = readFileSync(unrelatedPath);
+     bindHostSession({
+       runtime: 'claude',
+@@ -624,12 +626,7 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
+     expect(existsSync(fixture.topic)).toBe(false);
+     expect(existsSync(durableContinuation)).toBe(true);
+     expect(runOrThrow('git', ['status', '--porcelain'], fixture.main, environment)).toBe('');
+-    const durableUnrelatedPath = nodePath.join(
+-      fixture.main,
+-      '.safeword/retro-drafts',
+-      nodePath.basename(unrelatedPath),
+-    );
+-    expect(readFileSync(durableUnrelatedPath)).toEqual(unrelatedBefore);
++    expect(readFileSync(unrelatedPath)).toEqual(unrelatedBefore);
+ 
+     const validation = spawnSync(
+       'bun',

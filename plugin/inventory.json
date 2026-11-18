@@ -111,7 +111,7 @@
     },
     {
       "path": "resources/scripts/closeout-cleanup.ts",
-      "sha256": "11d3990ae17c8ee72c2305e1edec3438a5fdc07ea6e2a080dc2556eed8e8a407"
+      "sha256": "982951f2127c58405b1d2db28c4d079f25e2e7fba2c1888fc099192b2e0cb63f"
     },
     {
       "path": "resources/templates/adr-template.md",
@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "0d50917082952015974f0dc76af9347cd5637eda4ee74a750268056595946fd2"
+      "sha256": "bf0b1183e34650dddf04c09adf4ac71d7822bd5bbe9f15cb4d5815ae01892bcd"
     },
     {
       "path": "runtime/dispatch.js",
@@ -383,7 +383,7 @@
     },
     {
       "path": "runtime/hooks/lib/retro-draft-spool.ts",
-      "sha256": "b1426e81604b644d6f5659bc0b589cecf72a440db7c22c2b72106022fdaaaea2"
+      "sha256": "7390a881b302ad41868b9c68865ab58fd301bb93240ddbcaf0537cc204eef139"
     },
     {
       "path": "runtime/hooks/lib/retro-extract.ts",
@@ -391,11 +391,11 @@
     },
     {
       "path": "runtime/hooks/lib/retro-filing-gate.ts",
-      "sha256": "ccd408dfa104e6788b17d7066528028c6a217e2533532038dd1b7e12e29beb45"
+      "sha256": "6ce566d640cf97183b7ed097350127eabebc1e932d70d231254ba780e03fc5cf"
     },
     {
       "path": "runtime/hooks/lib/retro-nudge.ts",
-      "sha256": "82652575726f3d97e970622c5caa0b362330eb6199965f0af67a92a3006a484d"
+      "sha256": "d26c5df1161470d97e736f2bfc8cdd683ccba666728b93cf4b7f7b2760190a9a"
     },
     {
       "path": "runtime/hooks/lib/retro-trigger.ts",
@@ -1379,7 +1379,7 @@
     },
     {
       "path": "templates/hooks/lib/retro-draft-spool.ts",
-      "sha256": "b1426e81604b644d6f5659bc0b589cecf72a440db7c22c2b72106022fdaaaea2"
+      "sha256": "7390a881b302ad41868b9c68865ab58fd301bb93240ddbcaf0537cc204eef139"
     },
     {
       "path": "templates/hooks/lib/retro-extract.ts",
@@ -1387,11 +1387,11 @@
     },
     {
       "path": "templates/hooks/lib/retro-filing-gate.ts",
-      "sha256": "ccd408dfa104e6788b17d7066528028c6a217e2533532038dd1b7e12e29beb45"
+      "sha256": "6ce566d640cf97183b7ed097350127eabebc1e932d70d231254ba780e03fc5cf"
     },
     {
       "path": "templates/hooks/lib/retro-nudge.ts",
-      "sha256": "fdc00a6779086db4deffdc4c4a479ec5f553d8be8bf9482608498bc5149b71b3"
+      "sha256": "c65b130183bd40e1f1af422921a069ad5bb46d30740ef2741cfb1f03e098eaef"
     },
     {
       "path": "templates/hooks/lib/retro-trigger.ts",
@@ -1667,7 +1667,7 @@
     },
     {
       "path": "templates/scripts/closeout-cleanup.ts",
-      "sha256": "01d0a72fdba73cb34777734fb8a5b3dd93daf9e050959ff23cf595a8e85b51ee"
+      "sha256": "931b1a44319a4a2bcad19fd1ebe2275b651e9fd774c175e33913a99ef8f386bc"
     },
     {
       "path": "templates/skills/audit/SKILL.md",

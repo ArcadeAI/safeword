@@ -21,6 +21,9 @@ last_modified: 2026-11-18T14:45:00.000Z
 - The working copy stays in the project's `.safeword/retro-drafts/`. Before Safeword hands a spool to the filer (Stop gate, nudge, closeout), it brings in durable drafts that aren't in the working copy and haven't been acknowledged there. So the filer never reads or writes inside `.git`.
 - A draft removal (filed, or accepted by the server) applies to both copies. A durable copy that can't be written (an agent sandbox) is pruned at the next handoff, using the working copy's acknowledgements.
 - If the durable copy can't be written, the writer falls back to the working copy, which is today's behavior.
+- Acks are copied to a durable ledger beside the durable copy (by the drain, and by the next hook-side handoff), so a filed draft stays filed after its worktree is deleted.
+- If the working copy can't take the pending drafts, nothing is dispatched and no filing attempt is spent.
+- Known limit: a sandboxed filer whose worktree is deleted before its turn's Stop hook runs (and without closeout) leaves its acks only in the deleted worktree. The finding can then be dispatched again, and the filer's marker dedup is the backstop.
 
 ## Decision (deviates from the plan)
 

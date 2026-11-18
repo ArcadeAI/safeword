@@ -245,6 +245,8 @@ export function decideRetroFilingGate(
     );
   }
   if (drafts.length === 0) return undefined;
+  // A batch the working copy could not take stays queued, and costs no attempt.
+  if (spoolPath === undefined) return undefined;
   const key = batchKey(drafts.map(draft => draft.signature));
   // Dispatch emission is gated on selfReport.file; a watch-only install
   // (capture on, file off) still SNAPSHOTS the batch so later unexplained

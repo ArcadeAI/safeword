@@ -20844,7 +20844,27 @@ function toAck(value) {
   return isFiledAck(value) ? value : undefined;
 }
 function readAcks(projectDirectory, sessionId) {
-  return readJsonlRecords(ackFilePath(projectDirectory, sessionId), toAck);
+  const working = readJsonlRecords(ackFilePath(projectDirectory, sessionId), toAck);
+  const durable = separateDurablePath(projectDirectory, sessionId);
+  if (durable === undefined)
+    return working;
+  const seen = new Set(working.map(ackKey));
+  return [
+    ...working,
+    ...readJsonlRecords(durableAckPath(durable), toAck).filter((ack) => !seen.has(ackKey(ack)))
+  ];
+}
+function ackKey(ack) {
+  return `${ack.signature}\x00${String(ack.issue)}`;
+}
+function durableAckPath(durableSpool) {
+  return `${durableSpool.slice(0, -SPOOL_EXTENSION.length)}.acks.jsonl`;
+}
+function mirrorAcks(projectDirectory, sessionId, durableSpool) {
+  const ledger = durableAckPath(durableSpool);
+  const recorded = new Set(readJsonlRecords(ledger, toAck).map(ackKey));
+  const missing = readJsonlRecords(ackFilePath(projectDirectory, sessionId), toAck).filter((ack) => !recorded.has(ackKey(ack)));
+  tryAppendJsonlRecords(ledger, missing.map((ack) => JSON.stringify({ signature: ack.signature, issue: ack.issue })), Number.POSITIVE_INFINITY);
 }
 function recordFiledAck(projectDirectory, sessionId, ack) {
   if (!isFiledAck(ack))
@@ -20855,6 +20875,9 @@ function recordFiledAck(projectDirectory, sessionId, ack) {
   return readAcks(projectDirectory, sessionId).some((recorded) => recorded.signature === ack.signature && recorded.issue === ack.issue);
 }
 function drainAcknowledgedDrafts(projectDirectory, sessionId) {
+  const durable = separateDurablePath(projectDirectory, sessionId);
+  if (durable !== undefined)
+    mirrorAcks(projectDirectory, sessionId, durable);
   markDraftsFiled(projectDirectory, sessionId, readAcks(projectDirectory, sessionId).map((ack) => ack.signature));
 }
 function spoolDrafts(projectDirectory, sessionId, drafts) {
