@@ -17,4 +17,6 @@
 **Surface Evidence:** ⏭️ N/A — no affected surfaces
 **Evidence limits:** ✅ None — CI on the final head is the evidence
 
+Closed at a1dc6734a after the user approved the merge.
+
 Audit passed — test-only diff; generated surfaces current, CI Dependency audit passes after merging main's picomatch ignore (#7767).
