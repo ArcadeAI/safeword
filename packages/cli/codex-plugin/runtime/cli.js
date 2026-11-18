@@ -20771,7 +20771,10 @@ function readAllSpooledDrafts(projectDirectory, sessionId) {
   const durable = separateDurablePath(projectDirectory, sessionId);
   if (durable === undefined)
     return working;
-  const known = new Set(working.map(draftKey));
+  const known = new Set([
+    ...working.map(draftKey),
+    ...sessionRemovals(projectDirectory, sessionId, durable)
+  ]);
   const filed = new Set(readAcks(projectDirectory, sessionId).map((ack) => ack.signature));
   const additions = [];
   for (const draft of readJsonlRecords(durable, toDraft)) {
@@ -20803,11 +20806,40 @@ function verifyDraftBody(draft) {
 }
 function removeDrafts(projectDirectory, sessionId, removedSignatures, routeMatches) {
   const removed = new Set(removedSignatures);
-  const keep = (draft) => !removed.has(draft.signature) || !routeMatches(draft);
-  rewriteSpool(draftSpoolPath(projectDirectory, sessionId), keep);
+  const isRemoved = (draft) => removed.has(draft.signature) && routeMatches(draft);
   const durable = separateDurablePath(projectDirectory, sessionId);
-  if (durable !== undefined)
-    rewriteSpool(durable, keep);
+  if (durable !== undefined) {
+    const keys = readAllSpooledDrafts(projectDirectory, sessionId).filter((draft) => isRemoved(draft)).map(draftKey);
+    appendRemovals(removalLedgerPath(projectDirectory, sessionId), keys);
+    appendRemovals(siblingOf(durable, REMOVED_SUFFIX), keys);
+  }
+  rewriteSpool(draftSpoolPath(projectDirectory, sessionId), (draft) => !isRemoved(draft));
+}
+function removalLedgerPath(projectDirectory, sessionId) {
+  return spoolSiblingPath(projectDirectory, sessionId, REMOVED_SUFFIX);
+}
+function siblingOf(durableSpool, suffix) {
+  return `${durableSpool.slice(0, -SPOOL_EXTENSION.length)}${suffix}`;
+}
+function toRemovalKey(value) {
+  if (typeof value !== "object" || value === null)
+    return;
+  const { key } = value;
+  return typeof key === "string" && key.length > 0 ? key : undefined;
+}
+function readRemovals(file) {
+  return new Set(readJsonlRecords(file, toRemovalKey));
+}
+function appendRemovals(file, keys) {
+  const recorded = readRemovals(file);
+  const missing = [...new Set(keys)].filter((key) => !recorded.has(key));
+  tryAppendJsonlRecords(file, missing.map((key) => JSON.stringify({ key })), Number.POSITIVE_INFINITY);
+}
+function sessionRemovals(projectDirectory, sessionId, durable) {
+  return new Set([
+    ...readRemovals(removalLedgerPath(projectDirectory, sessionId)),
+    ...readRemovals(siblingOf(durable, REMOVED_SUFFIX))
+  ]);
 }
 function rewriteSpool(file, keep) {
   try {
@@ -20862,7 +20894,7 @@ function ackKey(ack) {
   return `${ack.signature}\x00${String(ack.issue)}`;
 }
 function durableAckPath(durableSpool) {
-  return `${durableSpool.slice(0, -SPOOL_EXTENSION.length)}.acks.jsonl`;
+  return siblingOf(durableSpool, ".acks.jsonl");
 }
 function mirrorAcks(projectDirectory, sessionId, durableSpool) {
   const ledger = durableAckPath(durableSpool);
@@ -20892,7 +20924,7 @@ function spoolDrafts(projectDirectory, sessionId, drafts) {
   }
   appendJsonlRecords(draftSpoolPath(projectDirectory, sessionId), records, MAX_DRAFTS_PER_SESSION);
 }
-var MAX_DRAFTS_PER_SESSION = 20, SPOOL_DIR, SPOOL_EXTENSION = ".jsonl";
+var MAX_DRAFTS_PER_SESSION = 20, SPOOL_DIR, SPOOL_EXTENSION = ".jsonl", REMOVED_SUFFIX = ".removed.jsonl";
 var init_retro_draft_spool = __esm(() => {
   init_jsonl_spool();
   SPOOL_DIR = nodePath38.join(".safeword", "retro-drafts");

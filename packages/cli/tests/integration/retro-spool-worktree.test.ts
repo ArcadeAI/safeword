@@ -23,6 +23,7 @@ import {
   readSpooledDrafts,
   recordFiledAck,
   spoolDrafts,
+  stageRetroSpool,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
 import {
   createTemporaryDirectory,
@@ -148,11 +149,11 @@ describe('retro spool survives a deleted worktree (#5467)', () => {
     expect(drainRetroSpool(draftSpoolPath(worktree, SESSION))).toEqual({ state: 'drained' });
 
     expect(lines(draftSpoolPath(worktree, SESSION))).toEqual([]);
-    expect(lines(durableDraftSpoolPath(worktree, SESSION))).toEqual([]);
+    expect(readSpooledDrafts(worktree, SESSION)).toEqual([]);
     expect(stopHook(worktree)).toBeUndefined();
   });
 
-  it('prunes the durable copy from working-copy acks when the drain could not write it', () => {
+  it('stays drained from working-copy acks when the drain could not write the shared folder', () => {
     git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
     spoolDrafts(worktree, SESSION, [draft('retro:aaaaaaaaaaaa')]);
     expect(stopHook(worktree)?.decision).toBe('block');
@@ -163,10 +164,9 @@ describe('retro spool survives a deleted worktree (#5467)', () => {
     recordFiledAck(worktree, SESSION, { signature: 'retro:aaaaaaaaaaaa', issue: 7 });
     drainRetroSpool(draftSpoolPath(worktree, SESSION));
     chmodSync(sharedDirectory, 0o755);
-    expect(lines(durableDraftSpoolPath(worktree, SESSION))).toHaveLength(1);
 
     expect(stopHook(worktree)).toBeUndefined();
-    expect(lines(durableDraftSpoolPath(worktree, SESSION))).toEqual([]);
+    expect(readSpooledDrafts(worktree, SESSION)).toEqual([]);
   });
 
   it('keeps a sandboxed filing filed after the worktree is deleted', () => {
@@ -243,7 +243,6 @@ describe('retro spool survives a deleted worktree (#5467)', () => {
 
     expect(stopHook(worktree)).toBeUndefined();
     expect(lines(draftSpoolPath(worktree, SESSION))).toEqual([]);
-    expect(lines(durableDraftSpoolPath(worktree, SESSION))).toEqual([]);
   });
 
   it('never lets a filed direct ack hide or prune a server-routed draft with the same signature', () => {
@@ -265,8 +264,41 @@ describe('retro spool survives a deleted worktree (#5467)', () => {
 
     markDraftsAcceptedByServer(worktree, SESSION, ['retro:aaaaaaaaaaaa']);
 
-    expect(lines(durableDraftSpoolPath(worktree, SESSION))).toEqual([]);
+    expect(readServerSpooledDrafts(worktree, SESSION)).toEqual([]);
     expect(lines(draftSpoolPath(worktree, SESSION))).toEqual([]);
+  });
+
+  it('never rewrites the shared copy, so a draft appended during a removal survives', () => {
+    git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
+    spoolDrafts(worktree, SESSION, [draft('retro:aaaaaaaaaaaa')]);
+    stageRetroSpool(worktree, SESSION);
+    const durableBefore = readFileSync(durableDraftSpoolPath(worktree, SESSION), 'utf8');
+
+    recordFiledAck(worktree, SESSION, { signature: 'retro:aaaaaaaaaaaa', issue: 7 });
+    drainRetroSpool(draftSpoolPath(worktree, SESSION));
+    stopHook(worktree);
+    expect(readFileSync(durableDraftSpoolPath(worktree, SESSION), 'utf8')).toBe(durableBefore);
+
+    // The background retro writer appends while the gate reconciles.
+    spoolDrafts(worktree, SESSION, [draft('retro:bbbbbbbbbbbb')]);
+    expect(stopHook(worktree)?.decision).toBe('block');
+    expect(readSpooledDrafts(worktree, SESSION).map(spooled => spooled.signature)).toEqual([
+      'retro:bbbbbbbbbbbb',
+    ]);
+  });
+
+  it('never restores a server-accepted draft the durable copy could not drop', () => {
+    git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
+    spoolDrafts(worktree, SESSION, [{ ...draft('retro:aaaaaaaaaaaa'), route: 'server-v3' }]);
+    stageRetroSpool(worktree, SESSION);
+    const sharedDirectory = nodePath.dirname(durableDraftSpoolPath(worktree, SESSION));
+
+    chmodSync(sharedDirectory, 0o555);
+    markDraftsAcceptedByServer(worktree, SESSION, ['retro:aaaaaaaaaaaa']);
+    chmodSync(sharedDirectory, 0o755);
+
+    stopHook(worktree);
+    expect(readServerSpooledDrafts(worktree, SESSION)).toEqual([]);
   });
 
   it('outside git, the durable copy is the working copy', () => {

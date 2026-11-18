@@ -9,4 +9,6 @@ Facts the design relies on (verified this session):
 - Hooks (Stop gate, nudge) and closeout run as host processes, not through the agent's file tools.
 - `git rev-parse --path-format=absolute --git-common-dir` (git >= 2.31) returns the directory every worktree shares.
 
+Concurrency: the durable copy is append-only (never rewritten); removals are tombstones in `<spool>.removed.jsonl` beside each copy. The working copy's read-modify-write (drain) racing a concurrent append is pre-existing on main. Writers now append to the durable copy, so the working copy only receives appends as the fallback when the durable write fails.
+
 Callers changed: Stop gate (`decideRetroFilingGate`), nudge (`decideRetroFilingNudge`), closeout (`stageRetroSpool` before `realpathSync`), see review-closeout.diff. `retro run` writes via `spoolDrafts`.

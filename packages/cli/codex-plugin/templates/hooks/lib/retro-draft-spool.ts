@@ -176,7 +176,10 @@ function readAllSpooledDrafts(projectDirectory: string, sessionId: string): Spoo
   if (durable === undefined) return working;
   // Identity is route plus signature: a filed ack covers only direct drafts,
   // as markDraftsFiled does, so a server-routed draft is never hidden by one.
-  const known = new Set(working.map(draftKey));
+  const known = new Set([
+    ...working.map(draftKey),
+    ...sessionRemovals(projectDirectory, sessionId, durable),
+  ]);
   const filed = new Set(readAcks(projectDirectory, sessionId).map(ack => ack.signature));
   const additions: SpooledDraft[] = [];
   for (const draft of readJsonlRecords(durable, toDraft)) {
@@ -266,11 +269,70 @@ function removeDrafts(
   routeMatches: (draft: SpooledDraft) => boolean,
 ): void {
   const removed = new Set(removedSignatures);
-  const keep = (draft: SpooledDraft): boolean =>
-    !removed.has(draft.signature) || !routeMatches(draft);
-  rewriteSpool(draftSpoolPath(projectDirectory, sessionId), keep);
+  const isRemoved = (draft: SpooledDraft): boolean =>
+    removed.has(draft.signature) && routeMatches(draft);
   const durable = separateDurablePath(projectDirectory, sessionId);
-  if (durable !== undefined) rewriteSpool(durable, keep);
+  if (durable !== undefined) {
+    // The durable copy is append-only, so a concurrent writer's append is never
+    // lost to a rewrite: its removals live in the ledger beside it instead.
+    const keys = readAllSpooledDrafts(projectDirectory, sessionId)
+      .filter(draft => isRemoved(draft))
+      .map(draftKey);
+    appendRemovals(removalLedgerPath(projectDirectory, sessionId), keys);
+    appendRemovals(siblingOf(durable, REMOVED_SUFFIX), keys);
+  }
+  rewriteSpool(draftSpoolPath(projectDirectory, sessionId), draft => !isRemoved(draft));
+}
+
+/**
+ * The removal ledger: one `{key}` line per draft removed from the session (filed
+ * or server-accepted), beside each copy. Reads filter the durable copy by it,
+ * since that copy is never rewritten; the working copy stays authoritative for
+ * what it holds. Each copy's ledger is mirrored to the durable one at handoff,
+ * for a removal made where the durable ledger could not be written.
+ */
+const REMOVED_SUFFIX = '.removed.jsonl';
+
+function removalLedgerPath(projectDirectory: string, sessionId: string): string {
+  return spoolSiblingPath(projectDirectory, sessionId, REMOVED_SUFFIX);
+}
+
+/** A durable spool's sibling with `suffix` in place of the spool extension. */
+function siblingOf(durableSpool: string, suffix: string): string {
+  return `${durableSpool.slice(0, -SPOOL_EXTENSION.length)}${suffix}`;
+}
+
+function toRemovalKey(value: unknown): string | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const { key } = value as Record<string, unknown>;
+  return typeof key === 'string' && key.length > 0 ? key : undefined;
+}
+
+function readRemovals(file: string): Set<string> {
+  return new Set(readJsonlRecords(file, toRemovalKey));
+}
+
+/** Append the keys a ledger lacks. Best-effort; never throws. */
+function appendRemovals(file: string, keys: readonly string[]): void {
+  const recorded = readRemovals(file);
+  const missing = [...new Set(keys)].filter(key => !recorded.has(key));
+  tryAppendJsonlRecords(
+    file,
+    missing.map(key => JSON.stringify({ key })),
+    Number.POSITIVE_INFINITY,
+  );
+}
+
+/** Every removal recorded beside either copy. */
+function sessionRemovals(
+  projectDirectory: string,
+  sessionId: string,
+  durable: string,
+): Set<string> {
+  return new Set([
+    ...readRemovals(removalLedgerPath(projectDirectory, sessionId)),
+    ...readRemovals(siblingOf(durable, REMOVED_SUFFIX)),
+  ]);
 }
 
 /** Rewrite one spool file to the drafts `keep` accepts. Best-effort; never throws. */
@@ -294,9 +356,9 @@ function serializeDrafts(drafts: readonly SpooledDraft[]): string {
 /**
  * Bring the session's durable drafts into the working copy and return its path
  * — the one place a spool path is handed to the filer (Stop gate, nudge,
- * closeout). This hook-side step also copies the working copy's acks to the
- * durable copy and prunes the durable drafts they acknowledge, for a filer that
- * ran where the durable copy could not be written. Returns undefined when the
+ * closeout). This hook-side step also copies the working copy's acks and
+ * removals beside the durable copy, for a filer that ran where the durable copy
+ * could not be written. Returns undefined when the
  * working copy does not end up holding every pending draft, so no caller hands
  * the filer a spool that is missing the findings it was dispatched for.
  */
@@ -306,8 +368,9 @@ export function stageRetroSpool(projectDirectory: string, sessionId: string): st
   if (durable === undefined) return working;
   try {
     mirrorAcks(projectDirectory, sessionId, durable);
-    const filed = new Set(readAcks(projectDirectory, sessionId).map(ack => ack.signature));
-    rewriteSpool(durable, draft => !isFiled(draft, filed));
+    appendRemovals(siblingOf(durable, REMOVED_SUFFIX), [
+      ...readRemovals(removalLedgerPath(projectDirectory, sessionId)),
+    ]);
     const drafts = readAllSpooledDrafts(projectDirectory, sessionId);
     const staged = new Set(readJsonlRecords(working, toDraft).map(draftKey));
     if (drafts.every(draft => staged.has(draftKey(draft)))) return working;
@@ -389,7 +452,7 @@ function ackKey(ack: FiledAck): string {
 
 /** The durable copy's ack ledger, beside the durable spool. */
 function durableAckPath(durableSpool: string): string {
-  return `${durableSpool.slice(0, -SPOOL_EXTENSION.length)}.acks.jsonl`;
+  return siblingOf(durableSpool, '.acks.jsonl');
 }
 
 /**
