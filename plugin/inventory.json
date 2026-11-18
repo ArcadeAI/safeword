@@ -383,7 +383,7 @@
     },
     {
       "path": "runtime/hooks/lib/retro-draft-spool.ts",
-      "sha256": "9645fbd8b2713b9f6a1d94bf481ea71beb571d0e205ebf574d5b026d5cb2ad1f"
+      "sha256": "2dd84eaf8537b5f5fc37a919b9dc327cbb64a4236c17f4334f36070ef6356398"
     },
     {
       "path": "runtime/hooks/lib/retro-extract.ts",
@@ -1379,7 +1379,7 @@
     },
     {
       "path": "templates/hooks/lib/retro-draft-spool.ts",
-      "sha256": "9645fbd8b2713b9f6a1d94bf481ea71beb571d0e205ebf574d5b026d5cb2ad1f"
+      "sha256": "2dd84eaf8537b5f5fc37a919b9dc327cbb64a4236c17f4334f36070ef6356398"
     },
     {
       "path": "templates/hooks/lib/retro-extract.ts",

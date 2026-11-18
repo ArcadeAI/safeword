@@ -317,6 +317,10 @@ describe('retro spool survives a deleted worktree (#5467)', () => {
       'retro:bbbbbbbbbbbb',
     ]);
     expect(stopHook(worktree)?.reason).toContain('1 sanitized finding ');
+    // The file the filer is handed holds only the pending draft.
+    expect(
+      lines(working).map(line => (JSON.parse(line) as { signature: string }).signature),
+    ).toEqual(['retro:bbbbbbbbbbbb']);
   });
 
   it('outside git, the durable copy is the working copy', () => {

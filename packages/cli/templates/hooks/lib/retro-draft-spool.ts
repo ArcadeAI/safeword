@@ -373,12 +373,14 @@ export function stageRetroSpool(projectDirectory: string, sessionId: string): st
     appendRemovals(siblingOf(durable, REMOVED_SUFFIX), [
       ...readRemovals(removalLedgerPath(projectDirectory, sessionId)),
     ]);
+    // The handed-off file holds exactly the pending drafts: every durable
+    // addition, and no draft the removal ledger names.
     const drafts = readAllSpooledDrafts(projectDirectory, sessionId);
-    const staged = new Set(readJsonlRecords(working, toDraft).map(draftKey));
-    if (drafts.every(draft => staged.has(draftKey(draft)))) return working;
+    const pending = drafts.map(draftKey).join('\n');
+    const physical = (): string => readJsonlRecords(working, toDraft).map(draftKey).join('\n');
+    if (physical() === pending) return working;
     atomicWriteFile(working, serializeDrafts(drafts));
-    const written = new Set(readJsonlRecords(working, toDraft).map(draftKey));
-    return drafts.every(draft => written.has(draftKey(draft))) ? working : undefined;
+    return physical() === pending ? working : undefined;
   } catch {
     // The next handoff retries the staging.
     return undefined;
