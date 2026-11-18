@@ -21,7 +21,7 @@ import {
   readFreshCloseoutBinding,
   resolveExactCodexTranscript,
 } from '../hooks/lib/closeout-binding.ts';
-import { draftSpoolPath, readAcks, readSpooledDrafts } from '../hooks/lib/retro-draft-spool.ts';
+import { readAcks, readSpooledDrafts, stageRetroSpool } from '../hooks/lib/retro-draft-spool.ts';
 import { resolveRunIdentity } from '../hooks/lib/run-identity.ts';
 
 export const POST_MERGE_VERIFICATION_KINDS = ['verify', 'build', 'typecheck', 'bdd'] as const;
@@ -1114,7 +1114,7 @@ function runBoundRetroWindows(
     complete,
     pendingDrafts,
     evidenceHash: snapshot.digest,
-    ...(pendingDrafts > 0 ? { spoolPath: realpathSync(draftSpoolPath(root, binding.id)) } : {}),
+    ...(pendingDrafts > 0 ? { spoolPath: realpathSync(stageRetroSpool(root, binding.id)) } : {}),
     ...(failure === undefined ? {} : { failure }),
   };
 }
@@ -1482,7 +1482,7 @@ function retroObservationFromReceipt(
     complete,
     pendingDrafts,
     evidenceHash: receipt.snapshot.digest,
-    ...(pendingDrafts > 0 ? { spoolPath: realpathSync(draftSpoolPath(root, sessionId)) } : {}),
+    ...(pendingDrafts > 0 ? { spoolPath: realpathSync(stageRetroSpool(root, sessionId)) } : {}),
     failure: complete ? undefined : 'filing',
   };
 }

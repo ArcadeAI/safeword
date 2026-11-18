@@ -22,9 +22,9 @@ import {
   resolveExactCodexTranscript,
 } from '../../runtime/hooks/lib/closeout-binding.ts';
 import {
-  draftSpoolPath,
   readAcks,
   readSpooledDrafts,
+  stageRetroSpool,
 } from '../../runtime/hooks/lib/retro-draft-spool.ts';
 import { resolveRunIdentity } from '../../runtime/hooks/lib/run-identity.ts';
 
@@ -1118,7 +1118,7 @@ function runBoundRetroWindows(
     complete,
     pendingDrafts,
     evidenceHash: snapshot.digest,
-    ...(pendingDrafts > 0 ? { spoolPath: realpathSync(draftSpoolPath(root, binding.id)) } : {}),
+    ...(pendingDrafts > 0 ? { spoolPath: realpathSync(stageRetroSpool(root, binding.id)) } : {}),
     ...(failure === undefined ? {} : { failure }),
   };
 }
@@ -1486,7 +1486,7 @@ function retroObservationFromReceipt(
     complete,
     pendingDrafts,
     evidenceHash: receipt.snapshot.digest,
-    ...(pendingDrafts > 0 ? { spoolPath: realpathSync(draftSpoolPath(root, sessionId)) } : {}),
+    ...(pendingDrafts > 0 ? { spoolPath: realpathSync(stageRetroSpool(root, sessionId)) } : {}),
     failure: complete ? undefined : 'filing',
   };
 }

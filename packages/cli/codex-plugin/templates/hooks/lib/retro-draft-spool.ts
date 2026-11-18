@@ -16,7 +16,9 @@
 // Self-contained (node:* only): the CLI's `src/` imports it AND the surfacing hook
 // runs it under bun in a customer repo. `SpooledDraft` is structurally `RetroDraft`.
 
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import {
@@ -52,7 +54,7 @@ export interface SpooledDraft {
 /** Per-session spool cap — bounds a crash-looping or runaway session's disk use. */
 const MAX_DRAFTS_PER_SESSION = 20;
 
-/** Spool lives under the project's `.safeword/` so it travels with the install. */
+/** The working copy lives under the project's `.safeword/`, inside the agent's workspace. */
 const SPOOL_DIR = nodePath.join('.safeword', 'retro-drafts');
 
 /** The extension every retro spool name carries and every sibling marker replaces. */
@@ -65,9 +67,43 @@ function spoolName(sessionId: string): string {
   return `${sessionId.replaceAll(/[^\w.-]/g, '_').slice(0, 80) || 'unknown'}${SPOOL_EXTENSION}`;
 }
 
-/** Absolute path of the per-session retro-draft spool file. */
+/**
+ * Absolute path of the per-session working copy: the spool the filer is handed,
+ * reads, acknowledges beside, and drains. It stays in the project so the filer
+ * never needs write access outside its workspace.
+ */
 export function draftSpoolPath(projectDirectory: string, sessionId: string): string {
   return nodePath.join(projectDirectory, SPOOL_DIR, spoolName(sessionId));
+}
+
+/**
+ * The durable copy's directory: `<git common dir>/safeword/retro-drafts/` (#5467).
+ * Every worktree of a repository shares the common dir, so drafts written here
+ * survive the worktree they were written in, however it is removed. Git itself
+ * resolves the common dir, so worktree link formats stay its concern. Outside
+ * git (or with a git too old for `--path-format`), the working copy's directory.
+ */
+function durableSpoolDirectory(projectDirectory: string): string {
+  const result = spawnSync(
+    'git',
+    ['-C', projectDirectory, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+    { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000 },
+  );
+  const commonDirectory = result.status === 0 ? result.stdout.trim() : '';
+  return commonDirectory.length > 0
+    ? nodePath.join(commonDirectory, 'safeword', 'retro-drafts')
+    : nodePath.join(projectDirectory, SPOOL_DIR);
+}
+
+/** Absolute path of the per-session durable copy. Hooks and the CLI write it; the filer never does. */
+export function durableDraftSpoolPath(projectDirectory: string, sessionId: string): string {
+  return nodePath.join(durableSpoolDirectory(projectDirectory), spoolName(sessionId));
+}
+
+/** The durable copy's path when it is a separate file, else undefined. */
+function separateDurablePath(projectDirectory: string, sessionId: string): string | undefined {
+  const durable = durableDraftSpoolPath(projectDirectory, sessionId);
+  return durable === draftSpoolPath(projectDirectory, sessionId) ? undefined : durable;
 }
 
 /**
@@ -120,8 +156,26 @@ function toDraft(value: unknown): SpooledDraft | undefined {
   };
 }
 
+/**
+ * The session's drafts across both copies: the working copy, then each durable
+ * draft that the working copy neither holds nor has acknowledged (an ack means
+ * it was filed, even if a sandboxed drain could not prune the durable copy).
+ */
 function readAllSpooledDrafts(projectDirectory: string, sessionId: string): SpooledDraft[] {
-  return readJsonlRecords(draftSpoolPath(projectDirectory, sessionId), toDraft);
+  const working = readJsonlRecords(draftSpoolPath(projectDirectory, sessionId), toDraft);
+  const durable = separateDurablePath(projectDirectory, sessionId);
+  if (durable === undefined) return working;
+  const known = new Set([
+    ...working.map(draft => draft.signature),
+    ...readAcks(projectDirectory, sessionId).map(ack => ack.signature),
+  ]);
+  const additions: SpooledDraft[] = [];
+  for (const draft of readJsonlRecords(durable, toDraft)) {
+    if (known.has(draft.signature)) continue;
+    known.add(draft.signature);
+    additions.push(draft);
+  }
+  return [...working, ...additions];
 }
 
 /**
@@ -202,17 +256,55 @@ function removeDrafts(
   removedSignatures: readonly string[],
   routeMatches: (draft: SpooledDraft) => boolean,
 ): void {
+  const removed = new Set(removedSignatures);
+  const keep = (draft: SpooledDraft): boolean =>
+    !removed.has(draft.signature) || !routeMatches(draft);
+  rewriteSpool(draftSpoolPath(projectDirectory, sessionId), keep);
+  const durable = separateDurablePath(projectDirectory, sessionId);
+  if (durable !== undefined) rewriteSpool(durable, keep);
+}
+
+/** Rewrite one spool file to the drafts `keep` accepts. Best-effort; never throws. */
+function rewriteSpool(file: string, keep: (draft: SpooledDraft) => boolean): void {
   try {
-    const removed = new Set(removedSignatures);
-    const remaining = readAllSpooledDrafts(projectDirectory, sessionId).filter(
-      draft => !removed.has(draft.signature) || !routeMatches(draft),
-    );
-    const body =
-      remaining.length > 0 ? `${remaining.map(draft => draftLine(draft)).join('\n')}\n` : '';
-    atomicWriteFile(draftSpoolPath(projectDirectory, sessionId), body);
+    if (!existsSync(file)) return;
+    const drafts = readJsonlRecords(file, toDraft);
+    const remaining = drafts.filter(draft => keep(draft));
+    if (remaining.length === drafts.length) return;
+    atomicWriteFile(file, serializeDrafts(remaining));
   } catch {
-    // Self-observation must never break the host. Swallow.
+    // Self-observation must never break the host. Swallow. A durable copy a
+    // sandbox could not rewrite is pruned at the next handoff from the acks.
   }
+}
+
+function serializeDrafts(drafts: readonly SpooledDraft[]): string {
+  return drafts.length > 0 ? `${drafts.map(draft => draftLine(draft)).join('\n')}\n` : '';
+}
+
+/**
+ * Bring the session's durable drafts into the working copy and return its path
+ * — the one place a spool path is handed to the filer (Stop gate, nudge,
+ * closeout). Durable drafts the working copy already acknowledged are pruned
+ * from the durable copy here, in hook code, for a drain that ran where the
+ * durable copy could not be written. Best-effort: on a failed write the filer
+ * still gets the path, and the next handoff retries.
+ */
+export function stageRetroSpool(projectDirectory: string, sessionId: string): string {
+  const working = draftSpoolPath(projectDirectory, sessionId);
+  const durable = separateDurablePath(projectDirectory, sessionId);
+  if (durable === undefined) return working;
+  try {
+    const acknowledged = new Set(readAcks(projectDirectory, sessionId).map(ack => ack.signature));
+    rewriteSpool(durable, draft => !acknowledged.has(draft.signature));
+    const drafts = readAllSpooledDrafts(projectDirectory, sessionId);
+    if (drafts.length > readJsonlRecords(working, toDraft).length) {
+      atomicWriteFile(working, serializeDrafts(drafts));
+    }
+  } catch {
+    // Fail open: the next handoff retries the staging.
+  }
+  return working;
 }
 
 export function markDraftsFiled(
@@ -364,9 +456,13 @@ export function spoolDrafts(
   sessionId: string,
   drafts: readonly SpooledDraft[],
 ): void {
-  appendJsonlRecords(
-    draftSpoolPath(projectDirectory, sessionId),
-    drafts.map(draft => draftLine(draft)),
-    MAX_DRAFTS_PER_SESSION,
-  );
+  const records = drafts.map(draft => draftLine(draft));
+  // The durable copy first; where it cannot be written (an agent sandbox that
+  // confines writes to the workspace), the working copy keeps today's behavior.
+  // A draft written to both is read once: reads dedupe by signature.
+  const durable = separateDurablePath(projectDirectory, sessionId);
+  if (durable !== undefined && tryAppendJsonlRecords(durable, records, MAX_DRAFTS_PER_SESSION)) {
+    return;
+  }
+  appendJsonlRecords(draftSpoolPath(projectDirectory, sessionId), records, MAX_DRAFTS_PER_SESSION);
 }

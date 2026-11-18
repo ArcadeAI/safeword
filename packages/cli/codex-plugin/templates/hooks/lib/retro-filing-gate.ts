@@ -25,10 +25,10 @@ import { readFileSync } from 'node:fs';
 
 import { atomicWriteFile } from './jsonl-spool.js';
 import {
-  draftSpoolPath,
   readAcks,
   readSpooledDrafts,
   spoolSiblingPath,
+  stageRetroSpool,
 } from './retro-draft-spool.js';
 import { batchKey } from './retro-nudge.js';
 import { captureBareDrain, readSelfReportConfig } from './self-report.js';
@@ -231,6 +231,8 @@ export function decideRetroFilingGate(
   options: FilingGateOptions = {},
 ): string | undefined {
   const config = readSelfReportConfig(projectDirectory);
+  // The filer only ever sees the working copy, so bring the durable drafts in first.
+  const spoolPath = stageRetroSpool(projectDirectory, sessionId);
   const drafts = readSpooledDrafts(projectDirectory, sessionId);
   const marker = readAttemptMarker(projectDirectory, sessionId);
   if (config.capture) {
@@ -264,8 +266,5 @@ export function decideRetroFilingGate(
     attempts: attempts + 1,
     signatures: drafts.map(draft => draft.signature),
   });
-  return (options.formatDispatch ?? formatFilingDispatch)(
-    drafts.length,
-    draftSpoolPath(projectDirectory, sessionId),
-  );
+  return (options.formatDispatch ?? formatFilingDispatch)(drafts.length, spoolPath);
 }
