@@ -469,15 +469,19 @@ function unresolved(command: string): CloseoutBindingTarget {
     .find(segmentWords => segmentWords.some(word => word.includes('closeout-cleanup.ts')));
   const scriptIndex = words?.findIndex(word => word.includes('closeout-cleanup.ts')) ?? -1;
   const script = words?.[scriptIndex] ?? '';
-  // Keep the agent's own script whenever it is a plain path (quoted if it has spaces), so a
+  // Keep the agent's own script whenever it is a plain path (double-quoted if it has spaces or
+  // names the plugin root, which the command shape only accepts inside quotes), so a
   // plugin script stays the plugin's; a script named inside a larger value falls back.
   // Drop a leading `./`: the hook accepts only the bare relative form, so a retry must use it.
   const bareScript = script
     .replaceAll('"', '')
     .replaceAll("'", '')
     .replace(/^(?:\.\/)+/u, '');
-  const plainScript = /^[^=!]*closeout-cleanup\.ts$/u.test(bareScript)
-    ? /\s/u.test(bareScript)
+  const keepsScript =
+    /^[^=!]*closeout-cleanup\.ts$/u.test(bareScript) &&
+    !bareScript.replaceAll('\${CLAUDE_PLUGIN_ROOT}', '').includes('$');
+  const plainScript = keepsScript
+    ? /[\s$]/u.test(bareScript)
       ? `"${bareScript}"`
       : bareScript
     : ['.safeword', 'scripts', 'closeout-cleanup.ts'].join('/');
