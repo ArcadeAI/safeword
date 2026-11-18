@@ -18,7 +18,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import {
@@ -283,7 +283,13 @@ function removeDrafts(
     appendRemovals(removalLedgerPath(projectDirectory, sessionId), keys);
     appendRemovals(siblingOf(durable, REMOVED_SUFFIX), keys);
   }
-  rewriteSpool(draftSpoolPath(projectDirectory, sessionId), draft => !isRemoved(draft));
+  const working = draftSpoolPath(projectDirectory, sessionId);
+  // Busy: leave the drafts; the ledger already hides them and the next drain retries.
+  withWorkingCopyLock(
+    working,
+    () => rewriteSpool(working, draft => !isRemoved(draft)),
+    () => undefined,
+  );
 }
 
 /**
@@ -355,6 +361,51 @@ function serializeDrafts(drafts: readonly SpooledDraft[]): string {
   return drafts.length > 0 ? `${drafts.map(draft => draftLine(draft)).join('\n')}\n` : '';
 }
 
+/** How long a working-copy writer waits for the lock, and when a held lock counts as abandoned. */
+const LOCK_WAIT_MS = 2000;
+const LOCK_STALE_MS = 10_000;
+const LOCK_POLL_MS = 20;
+
+/**
+ * Run `operation` holding the working copy's lock (a sibling directory, since
+ * mkdir is atomic). Staging, the drain's rewrite and the fallback append take
+ * it, so a rewrite can never replace a file another writer just appended to.
+ * A lock older than LOCK_STALE_MS was abandoned by a killed process and is
+ * cleared. When the lock cannot be taken in time, `onBusy` decides.
+ */
+function withWorkingCopyLock<T>(file: string, operation: () => T, onBusy: () => T): T {
+  const lock = `${file}.lock`;
+  const deadline = Date.now() + LOCK_WAIT_MS;
+  for (;;) {
+    try {
+      mkdirSync(nodePath.dirname(file), { recursive: true });
+      mkdirSync(lock);
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') return onBusy();
+      if (lockIsStale(lock)) {
+        rmSync(lock, { recursive: true, force: true });
+        continue;
+      }
+      if (Date.now() >= deadline) return onBusy();
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, LOCK_POLL_MS);
+    }
+  }
+  try {
+    return operation();
+  } finally {
+    rmSync(lock, { recursive: true, force: true });
+  }
+}
+
+function lockIsStale(lock: string): boolean {
+  try {
+    return Date.now() - statSync(lock).mtimeMs > LOCK_STALE_MS;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Bring the session's durable drafts into the working copy and return its path
  * — the one place a spool path is handed to the filer (Stop gate, nudge,
@@ -375,12 +426,18 @@ export function stageRetroSpool(projectDirectory: string, sessionId: string): st
     ]);
     // The handed-off file holds exactly the pending drafts: every durable
     // addition, and no draft the removal ledger names.
-    const drafts = readAllSpooledDrafts(projectDirectory, sessionId);
-    const pending = drafts.map(draftKey).join('\n');
-    const physical = (): string => readJsonlRecords(working, toDraft).map(draftKey).join('\n');
-    if (physical() === pending) return working;
-    atomicWriteFile(working, serializeDrafts(drafts));
-    return physical() === pending ? working : undefined;
+    return withWorkingCopyLock(
+      working,
+      () => {
+        const drafts = readAllSpooledDrafts(projectDirectory, sessionId);
+        const pending = drafts.map(draftKey).join('\n');
+        const physical = (): string => readJsonlRecords(working, toDraft).map(draftKey).join('\n');
+        if (physical() === pending) return working;
+        atomicWriteFile(working, serializeDrafts(drafts));
+        return physical() === pending ? working : undefined;
+      },
+      () => undefined,
+    );
   } catch {
     // The next handoff retries the staging.
     return undefined;
@@ -583,9 +640,13 @@ export function spoolDrafts(
     const held = new Set(readJsonlRecords(durable, toDraft).map(draftKey));
     fallback = drafts.filter(draft => !held.has(draftKey(draft)));
   }
-  appendJsonlRecords(
-    draftSpoolPath(projectDirectory, sessionId),
-    fallback.map(draft => draftLine(draft)),
-    MAX_DRAFTS_PER_SESSION,
-  );
+  const working = draftSpoolPath(projectDirectory, sessionId);
+  const append = (): void =>
+    appendJsonlRecords(
+      working,
+      fallback.map(draft => draftLine(draft)),
+      MAX_DRAFTS_PER_SESSION,
+    );
+  // Busy: append anyway, because a dropped draft is worse than a rare race.
+  if (fallback.length > 0) withWorkingCopyLock(working, append, append);
 }

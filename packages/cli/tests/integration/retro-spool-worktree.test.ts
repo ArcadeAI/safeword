@@ -9,7 +9,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -325,6 +325,37 @@ describe('retro spool survives a deleted worktree (#5467)', () => {
     expect(
       lines(working).map(line => (JSON.parse(line) as { signature: string }).signature),
     ).toEqual(['retro:bbbbbbbbbbbb']);
+  });
+
+  it('never replaces the working copy while another writer holds it', () => {
+    git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
+    spoolDrafts(worktree, SESSION, [draft('retro:aaaaaaaaaaaa')]);
+    const working = draftSpoolPath(worktree, SESSION);
+    mkdirSync(nodePath.dirname(working), { recursive: true });
+    // A fallback writer is mid-append: its draft exists only in the working copy.
+    writeFileSync(working, `${JSON.stringify(draft('retro:bbbbbbbbbbbb'))}\n`);
+    mkdirSync(`${working}.lock`);
+
+    expect(stageRetroSpool(worktree, SESSION)).toBeUndefined();
+    expect(lines(working)).toHaveLength(1);
+
+    rmSync(`${working}.lock`, { recursive: true });
+    expect(stageRetroSpool(worktree, SESSION)).toBe(working);
+    expect(
+      lines(working).map(line => (JSON.parse(line) as { signature: string }).signature),
+    ).toEqual(['retro:bbbbbbbbbbbb', 'retro:aaaaaaaaaaaa']);
+  });
+
+  it('clears a lock abandoned by a killed writer', () => {
+    git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
+    spoolDrafts(worktree, SESSION, [draft('retro:aaaaaaaaaaaa')]);
+    const working = draftSpoolPath(worktree, SESSION);
+    mkdirSync(`${working}.lock`, { recursive: true });
+    const abandoned = new Date(Date.now() - 60_000);
+    utimesSync(`${working}.lock`, abandoned, abandoned);
+
+    expect(stageRetroSpool(worktree, SESSION)).toBe(working);
+    expect(existsSync(`${working}.lock`)).toBe(false);
   });
 
   it('outside git, the durable copy is the working copy', () => {
