@@ -196,6 +196,7 @@ describe('closeout binding follows the worktree closeout runs in (#5467)', () =>
     'bun run .safeword/scripts/closeout-cleanup.ts --pr 42',
     './.safeword/scripts/closeout-cleanup.ts --pr 42',
     'node .safeword/scripts/closeout-cleanup.ts --pr 42',
+    'bun $HOME/.safeword/scripts/closeout-cleanup.ts --pr 42',
     'CLOSEOUT\nbun .safeword/scripts/closeout-cleanup.ts --pr 43',
     'cd worktree-a && CLOSEOUT',
     'cd "$TARGET" && exec bun .safeword/scripts/closeout-cleanup.ts --pr 42',
@@ -281,6 +282,41 @@ describe('closeout binding follows the worktree closeout runs in (#5467)', () =>
     expect(retried.stdout).not.toContain('deny');
     expect(readFreshCloseoutBinding({ projectDirectory: worktreeA })).toMatchObject({
       id: 'claude-session-dot',
+    });
+  });
+
+  it("gives a recovery the hook accepts when the agent used the plugin's closeout command", () => {
+    repo();
+    const plugin = nodePath.join(root, 'plugin');
+    const environment = { ...hostEnvironment(primary), CLAUDE_PLUGIN_ROOT: plugin };
+    const run = (cwd: string, command: string) =>
+      spawnSync('bun', [nodePath.join(HOOKS, 'pre-tool-quality.ts')], {
+        cwd: primary,
+        env: environment,
+        input: JSON.stringify({
+          session_id: 'claude-session-plugin-retry',
+          hook_event_name: 'PreToolUse',
+          cwd,
+          tool_name: 'Bash',
+          tool_input: { command },
+        }),
+        encoding: 'utf8',
+      });
+    const denied = run(
+      primary,
+      'cd "$TARGET" && bun "${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts --pr 42',
+    );
+    const reason = (
+      JSON.parse(denied.stdout) as { hookSpecificOutput?: { permissionDecisionReason?: string } }
+    ).hookSpecificOutput?.permissionDecisionReason;
+    const recovery = /`(bun [^`]+)`/u.exec(reason ?? '')?.[1];
+    expect(recovery).toBeDefined();
+
+    const retried = run(worktreeA, recovery ?? '');
+
+    expect(retried.stdout).not.toContain('deny');
+    expect(readFreshCloseoutBinding({ projectDirectory: worktreeA })).toMatchObject({
+      id: 'claude-session-plugin-retry',
     });
   });
 
