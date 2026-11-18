@@ -61,59 +61,82 @@ const workspaceStepImports = [
 const defaultTags = 'not @wip and not @proof.vitest and not @manual and not @live';
 const liveTags = '@live and not @manual';
 
-const cliFeatureDirectories = new Set([
-  'features',
-  'packages',
-  'apps',
-  'libs',
-  'modules',
-  // A bare configured directory passed as a positional arg is a feature path
-  // too — without this, `cucumber-js tests/behaviors` would still get the
-  // config's default paths merged in.
-  ...(configuredFeaturesDirectory
-    ? [configuredFeaturesDirectory, configuredFeaturesDirectory.split('/', 1)[0]]
-    : []),
+// Cucumber options that take a value (`--name <REGEXP>`, `-f <TYPE>`). That
+// value is never a feature path, even when it ends in `.feature`; the
+// `--option=value` form is a single argument and needs no special case.
+const valueTakingLongOptions = new Set([
+  '--config',
+  '--format',
+  '--format-options',
+  '--i18n-keywords',
+  '--import',
+  '--loader',
+  '--language',
+  '--name',
+  '--order',
+  '--profile',
+  '--parallel',
+  '--plugin',
+  '--plugin-options',
+  '--require',
+  '--require-module',
+  '--retry',
+  '--retry-tag-filter',
+  '--shard',
+  '--tags',
+  '--world-parameters',
 ]);
+// Short flags `-c -f -i -l -p -r -t` take a value. In a cluster (`-df`), the
+// first value-taking flag takes the rest of the cluster as its value
+// (`-fsummary`), or the next argument when it is the cluster's last flag.
+const shortClusterEndingInValueFlag = /^-[^cfilprt]*[cfilprt]$/;
 
 /**
- * Whether an argument is a `.feature` path, optionally with Cucumber line
- * selectors (`example.feature:12`, `example.feature:12:30`).
- * @param {string} argument - A positional argument passed to cucumber-js.
- * @returns {boolean} True for a feature file path with valid line selectors.
+ * Whether an option argument consumes the next argument as its value.
+ * @param {string} option - An argument starting with `-`.
+ * @returns {boolean} True when the next argument is this option's value.
  */
-function isFeatureFileArgument(argument) {
-  const marker = '.feature';
-  const markerIndex = argument.lastIndexOf(marker);
-  if (markerIndex === -1) {
-    return false;
+function consumesNextArgument(option) {
+  if (option.startsWith('--')) {
+    return valueTakingLongOptions.has(option);
   }
-  const [leading, ...lines] = argument.slice(markerIndex + marker.length).split(':');
-  return leading === '' && lines.every(line => /^\d+$/.test(line));
+  return shortClusterEndingInValueFlag.test(option);
 }
 
 /**
- * Whether one CLI argument names a feature file or feature directory.
- * @param {string} argument - A positional or flag argument passed to cucumber-js.
- * @returns {boolean} True when the argument selects features.
+ * Cucumber reads every positional argument as a feature path (a file, a
+ * directory, a glob, or `file.feature:12`): everything except options and
+ * their values, plus every argument after a bare `--`.
+ * @param {string[]} argv - CLI arguments after the executable.
+ * @returns {string[]} The positional arguments.
  */
-function isCliFeaturePathArgument(argument) {
-  if (argument.startsWith('-')) {
-    return false;
+function positionalArguments(argv) {
+  const positionals = [];
+  let skipNext = false;
+  for (const [index, argument] of argv.entries()) {
+    // A pending option value comes first: `--name --` uses `--` as the name.
+    if (skipNext) {
+      skipNext = false;
+    } else if (argument === '--') {
+      return [...positionals, ...argv.slice(index + 1)];
+    } else if (argument.startsWith('-') && argument !== '-') {
+      skipNext = consumesNextArgument(argument);
+    } else {
+      positionals.push(argument);
+    }
   }
-  return (
-    isFeatureFileArgument(argument) ||
-    argument.includes('*.feature') ||
-    cliFeatureDirectories.has(argument)
-  );
+  return positionals;
 }
 
 /**
- * Whether the cucumber-js invocation already names the features to run.
+ * Whether the cucumber-js invocation names features. Any CLI feature path
+ * replaces the default globs, so a targeted run never picks up unselected
+ * scenarios.
  * @param {string[]} argv - CLI arguments after the executable.
  * @returns {boolean} True when any argument selects features.
  */
 export function hasCliFeaturePath(argv = process.argv.slice(2)) {
-  return argv.some(argument => isCliFeaturePathArgument(argument));
+  return positionalArguments(argv).length > 0;
 }
 
 /**

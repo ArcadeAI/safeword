@@ -124,13 +124,17 @@ describe('Cucumber config targeted path handling', () => {
   );
 
   it.each(CONFIG_SURFACES)(
-    '%s rejects malformed line selectors as feature paths',
+    '%s treats any positional directory form as a CLI feature path',
     async (_label, relativePath) => {
-      const { hasCliFeaturePath } = await loadConfigModule(relativePath);
+      const { buildCucumberConfig, hasCliFeaturePath } = await loadConfigModule(relativePath);
 
-      expect(hasCliFeaturePath(['features/example.feature:'])).toBe(false);
-      expect(hasCliFeaturePath(['features/example.feature:abc'])).toBe(false);
-      expect(hasCliFeaturePath(['features/example.featurex'])).toBe(false);
+      expect(hasCliFeaturePath(['./features'])).toBe(true);
+      expect(hasCliFeaturePath(['features/'])).toBe(true);
+      expect(hasCliFeaturePath(['features/checkout'])).toBe(true);
+      expect(hasCliFeaturePath(['tests/behaviors/subset'])).toBe(true);
+      // A lone `-` is positional to Cucumber's parser, not an option.
+      expect(hasCliFeaturePath(['-'])).toBe(true);
+      expect(buildCucumberConfig(['features/checkout/'])).not.toHaveProperty('paths');
     },
   );
 
@@ -149,6 +153,51 @@ describe('Cucumber config targeted path handling', () => {
       const { hasCliFeaturePath } = await loadConfigModule(relativePath);
 
       expect(hasCliFeaturePath(['--import', 'features/support.ts'])).toBe(false);
+    },
+  );
+
+  it.each(CONFIG_SURFACES)(
+    '%s does not treat a value-taking option argument as a feature path',
+    async (_label, relativePath) => {
+      const { buildCucumberConfig, hasCliFeaturePath } = await loadConfigModule(relativePath);
+
+      expect(hasCliFeaturePath(['--name', 'checkout.feature'])).toBe(false);
+      expect(hasCliFeaturePath(['-p', 'features'])).toBe(false);
+      expect(hasCliFeaturePath(['--format', 'summary', '--name', 'checkout.feature'])).toBe(false);
+      expect(buildCucumberConfig(['--name', 'checkout.feature'])).toHaveProperty('paths');
+    },
+  );
+
+  it.each(CONFIG_SURFACES)(
+    '%s reads combined short options the way Cucumber does',
+    async (_label, relativePath) => {
+      const { hasCliFeaturePath } = await loadConfigModule(relativePath);
+
+      // `-df summary`: dry-run plus `-f summary`; the next argument is the value.
+      expect(hasCliFeaturePath(['-df', 'summary'])).toBe(false);
+      // `-fsummary`: the rest of the cluster is the value, so the next is a path.
+      expect(hasCliFeaturePath(['-fsummary', 'features/example.feature'])).toBe(true);
+      expect(hasCliFeaturePath(['-db', 'features/example.feature'])).toBe(true);
+    },
+  );
+
+  it.each(CONFIG_SURFACES)(
+    '%s lets a value-taking option consume a bare -- as its value',
+    async (_label, relativePath) => {
+      const { hasCliFeaturePath } = await loadConfigModule(relativePath);
+
+      expect(hasCliFeaturePath(['--name', '--', '--format', 'summary'])).toBe(false);
+    },
+  );
+
+  it.each(CONFIG_SURFACES)(
+    '%s still finds a feature path after option values and a bare --',
+    async (_label, relativePath) => {
+      const { hasCliFeaturePath } = await loadConfigModule(relativePath);
+
+      expect(hasCliFeaturePath(['--name', 'checkout', 'features/example.feature'])).toBe(true);
+      expect(hasCliFeaturePath(['--dry-run', 'features/example.feature'])).toBe(true);
+      expect(hasCliFeaturePath(['--', '--name.feature'])).toBe(true);
     },
   );
 });
