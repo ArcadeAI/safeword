@@ -26,3 +26,7 @@ Audit passed — `depcruise --affected` against the merge base: no dependency vi
 - Three final passes after that approval asked for: newlines treated as command separators (e2b971af); the denial to give the exact command to run (f92918b6); and a quoted plugin script path with spaces to be kept in that command (3c81b410). All are fixed and tested. The final review, 500fe103, approved and stamped intake.
 - The recovery message is built from the agent's command at run time, so it carries no literal path for the plugin generator to rewrite. That had broken the plugin runtime's byte alignment.
 - The implement-phase stamp is a recorded skip: review packets cannot carry the generated plugin mirrors, and the hand-written code is covered by the reviews above.
+- Re-verified at c7149f55a after two CI-only fixes:
+  - The audit job ignores GHSA-fc5q-39xc-vjpf. That picomatch advisory has no patched release, so the ignore follows the workflow's existing policy.
+  - The closeout pattern is now a regex literal, which the host ESLint baseline requires, and it is byte-equivalent to the reviewed pattern.
+  - CI is green on that head (CI run 44161247045), and locally the shipped-template ESLint baseline passes 4/4 and the closeout suites pass 77/77.
