@@ -220,6 +220,25 @@ describe('retro spool survives a deleted worktree (#5467)', () => {
     expect(stopHook(worktree)?.decision).toBe('block');
   });
 
+  it("keeps every draft when an append crosses the shared copy's per-session cap", () => {
+    git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
+    const signature = (index: number): string => `retro:${String(index).padStart(12, '0')}`;
+    spoolDrafts(
+      worktree,
+      SESSION,
+      Array.from({ length: 19 }, (_, index) => draft(signature(index))),
+    );
+    // The first 19 are already staged into the working copy, which has one slot left.
+    stageRetroSpool(worktree, SESSION);
+    spoolDrafts(worktree, SESSION, [draft(signature(19)), draft(signature(20))]);
+
+    expect(lines(durableDraftSpoolPath(worktree, SESSION))).toHaveLength(20);
+    const signatures = readSpooledDrafts(worktree, SESSION).map(spooled => spooled.signature);
+    expect(signatures.toSorted((left, right) => left.localeCompare(right))).toEqual(
+      Array.from({ length: 21 }, (_, index) => signature(index)),
+    );
+  });
+
   it('dispatches a finding in both copies once, and a pre-upgrade working-copy draft too', () => {
     git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
     const legacy = draftSpoolPath(worktree, SESSION);

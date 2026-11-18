@@ -572,13 +572,20 @@ export function spoolDrafts(
   sessionId: string,
   drafts: readonly SpooledDraft[],
 ): void {
-  const records = drafts.map(draft => draftLine(draft));
-  // The durable copy first; where it cannot be written (an agent sandbox that
-  // confines writes to the workspace), the working copy keeps today's behavior.
-  // A draft written to both is read once: reads dedupe by signature.
+  // The durable copy first; where it cannot take a draft (an agent sandbox that
+  // confines writes to the workspace, or its cap), the working copy keeps
+  // today's behavior for exactly the drafts the durable copy does not hold.
   const durable = separateDurablePath(projectDirectory, sessionId);
-  if (durable !== undefined && tryAppendJsonlRecords(durable, records, MAX_DRAFTS_PER_SESSION)) {
-    return;
+  let fallback = drafts;
+  if (durable !== undefined) {
+    const lines = drafts.map(draft => draftLine(draft));
+    if (tryAppendJsonlRecords(durable, lines, MAX_DRAFTS_PER_SESSION)) return;
+    const held = new Set(readJsonlRecords(durable, toDraft).map(draftKey));
+    fallback = drafts.filter(draft => !held.has(draftKey(draft)));
   }
-  appendJsonlRecords(draftSpoolPath(projectDirectory, sessionId), records, MAX_DRAFTS_PER_SESSION);
+  appendJsonlRecords(
+    draftSpoolPath(projectDirectory, sessionId),
+    fallback.map(draft => draftLine(draft)),
+    MAX_DRAFTS_PER_SESSION,
+  );
 }

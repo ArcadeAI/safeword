@@ -20916,12 +20916,16 @@ function drainAcknowledgedDrafts(projectDirectory, sessionId) {
   markDraftsFiled(projectDirectory, sessionId, readAcks(projectDirectory, sessionId).map((ack) => ack.signature));
 }
 function spoolDrafts(projectDirectory, sessionId, drafts) {
-  const records = drafts.map((draft) => draftLine(draft));
   const durable = separateDurablePath(projectDirectory, sessionId);
-  if (durable !== undefined && tryAppendJsonlRecords(durable, records, MAX_DRAFTS_PER_SESSION)) {
-    return;
+  let fallback = drafts;
+  if (durable !== undefined) {
+    const lines = drafts.map((draft) => draftLine(draft));
+    if (tryAppendJsonlRecords(durable, lines, MAX_DRAFTS_PER_SESSION))
+      return;
+    const held = new Set(readJsonlRecords(durable, toDraft).map(draftKey));
+    fallback = drafts.filter((draft) => !held.has(draftKey(draft)));
   }
-  appendJsonlRecords(draftSpoolPath(projectDirectory, sessionId), records, MAX_DRAFTS_PER_SESSION);
+  appendJsonlRecords(draftSpoolPath(projectDirectory, sessionId), fallback.map((draft) => draftLine(draft)), MAX_DRAFTS_PER_SESSION);
 }
 var MAX_DRAFTS_PER_SESSION = 20, SPOOL_DIR, SPOOL_EXTENSION = ".jsonl", REMOVED_SUFFIX = ".removed.jsonl";
 var init_retro_draft_spool = __esm(() => {
