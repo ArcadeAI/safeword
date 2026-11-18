@@ -12,8 +12,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- ESLint config types are incompatible across plugin packages */
 
 import pluginJsdoc from 'eslint-plugin-jsdoc';
+import { parser as typescriptParser } from 'typescript-eslint';
 
-import { basePlugins, prettierConfig } from './base.js';
+import { basePlugins, CUCUMBER_TYPESCRIPT_STEP_GLOBS, prettierConfig } from './base.js';
 
 /**
  * JavaScript recommended config - core plugins without TypeScript
@@ -29,6 +30,14 @@ export const recommended: any[] = [
   // JSDoc - JavaScript needs docs (no type safety net)
   // Using error config - LLMs ignore warnings
   pluginJsdoc.configs['flat/recommended-error'],
+
+  // Safeword's BDD steps are TypeScript even in a JavaScript project: parse them
+  // with the TypeScript parser (syntax only, no type-checked rules).
+  {
+    name: 'safeword/typescript-step-files',
+    files: CUCUMBER_TYPESCRIPT_STEP_GLOBS,
+    languageOptions: { parser: typescriptParser },
+  },
 
   // Prettier must be last to disable conflicting rules
   prettierConfig,

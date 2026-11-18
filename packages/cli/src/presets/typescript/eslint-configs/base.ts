@@ -30,6 +30,12 @@ export const CUCUMBER_STEP_GLOBS = [
   '**/features/steps/**/*.{js,ts,mjs,mts}',
 ];
 
+/** The BDD lane's TypeScript step files, which a JavaScript project still has. */
+export const CUCUMBER_TYPESCRIPT_STEP_GLOBS = [
+  'steps/**/*.{ts,mts}',
+  '**/features/steps/**/*.{ts,mts}',
+];
+
 /**
  * Add files restriction to config objects.
  * Handles both single config objects and arrays of configs.

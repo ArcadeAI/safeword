@@ -59,6 +59,24 @@ describe('recommended config', () => {
     }).not.toThrow();
   });
 
+  it('parses TypeScript BDD step files in a JavaScript project (6SNC09)', () => {
+    const projectRoot = import.meta.dirname;
+    const linter = new Linter({ configType: 'flat', cwd: projectRoot });
+    const stepFile = `${projectRoot}/steps/inline.ts`;
+    const stepCode = `import { Given } from '@cucumber/cucumber';
+
+Given('a counter', function (this: { count: number }) {
+  this.count = 1;
+});
+`;
+
+    const parseErrors = linter
+      .verify(stepCode, recommended, { filename: stepFile })
+      .filter(message => message.fatal);
+
+    expect(parseErrors).toEqual([]);
+  });
+
   it('returns no errors for valid code', () => {
     const linter = new Linter({ configType: 'flat' });
 

@@ -352,6 +352,19 @@ describe('E2E: JavaScript-Only Project', () => {
     expect(findings).toEqual([]);
   });
 
+  it('keeps JavaScript lint rules on the project files after adding typescript (6SNC09)', () => {
+    const result = runEslint(projectDirectory, '--print-config', ['src/index.js']);
+    // --print-config resolves each rule to [severity, ...options]; 0 is off.
+    const enabledRules = Object.entries(
+      (JSON.parse(result.stdout) as { rules: Record<string, [number, ...unknown[]]> }).rules,
+    )
+      .filter(([, [severity]]) => severity !== 0)
+      .map(([rule]) => rule);
+
+    expect(enabledRules).toContain('jsdoc/require-jsdoc');
+    expect(enabledRules.filter(rule => rule.startsWith('@typescript-eslint/'))).toEqual([]);
+  });
+
   // Last: removes Safeword from the shared fixture.
   it('removes the typescript it installed on full uninstall', async () => {
     const remaining = await developmentDependenciesAfterFullUninstall(projectDirectory);

@@ -67530,9 +67530,18 @@ function scanWorkspaceDirectory(rootDirectory, pattern) {
   } catch {}
   return allDependencies;
 }
+function readSafewordOwnedPackages(rootDirectory) {
+  try {
+    const config = JSON.parse(readFileSync61(path7.join(rootDirectory, ".safeword", "config.json"), "utf8"));
+    return Array.isArray(config.ownedPackages) ? config.ownedPackages.filter((name) => typeof name === "string") : [];
+  } catch {
+    return [];
+  }
+}
 function collectAllDependencies(rootDirectory) {
   const rootPackagePath = path7.join(rootDirectory, "package.json");
-  const allDependencies = readPackageDependencies(rootPackagePath);
+  const ownedPackages = new Set(readSafewordOwnedPackages(rootDirectory));
+  const allDependencies = Object.fromEntries(Object.entries(readPackageDependencies(rootPackagePath)).filter(([name]) => !ownedPackages.has(name)));
   for (const pattern of getMonorepoPatterns(rootDirectory)) {
     Object.assign(allDependencies, scanWorkspaceDirectory(rootDirectory, pattern));
   }

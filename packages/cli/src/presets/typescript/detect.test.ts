@@ -234,3 +234,37 @@ describe('hasBunTest', () => {
     expect(detect.hasBunTest({}, temporaryDirectory)).toBe(false);
   });
 });
+
+describe('collectAllDeps', () => {
+  let temporaryDirectory: string;
+
+  beforeEach(() => {
+    temporaryDirectory = mkdtempSync(path.join(tmpdir(), 'detect-owned-'));
+    writeFileSync(
+      path.join(temporaryDirectory, 'package.json'),
+      JSON.stringify({ devDependencies: { typescript: '~6.0.0' } }),
+    );
+  });
+
+  afterEach(() => {
+    rmSync(temporaryDirectory, { recursive: true, force: true });
+  });
+
+  it('keeps a JavaScript app JavaScript when its only typescript is the one Safeword added', () => {
+    mkdirSync(path.join(temporaryDirectory, '.safeword'));
+    writeFileSync(
+      path.join(temporaryDirectory, '.safeword', 'config.json'),
+      JSON.stringify({ ownedPackages: ['typescript'] }),
+    );
+
+    const framework = detect.detectFramework(detect.collectAllDeps(temporaryDirectory));
+
+    expect(framework).toBe('javascript');
+  });
+
+  it('treats a typescript the project declared itself as a TypeScript app', () => {
+    const framework = detect.detectFramework(detect.collectAllDeps(temporaryDirectory));
+
+    expect(framework).toBe('typescript');
+  });
+});
