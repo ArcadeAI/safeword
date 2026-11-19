@@ -2,7 +2,7 @@
 id: KQMPR5
 slug: remove-installed-typescript-on-full-uninstall
 type: patch
-phase: intake
+phase: verify
 status: in_progress
 parent: 4ZRS4P
 external_prs:
@@ -33,3 +33,5 @@ last_modified: 2026-11-17T15:46:13.697Z
 <!-- Progress history, not part of the accepted contract: record scope and decisions above. -->
 
 - 2026-11-17T15:46:13.697Z Started: Created ticket KQMPR5
+- 2026-11-17T16:59:33.892Z Phase: intake → implement
+- 2026-11-17T17:00:25.324Z Phase: implement → verify
