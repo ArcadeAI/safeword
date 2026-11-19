@@ -22,6 +22,7 @@ import {
   resolveExactCodexTranscript,
 } from '../../runtime/hooks/lib/closeout-binding.ts';
 import {
+  mergeSpoolFile,
   readAcks,
   readSpooledDrafts,
   stageRetroSpool,
@@ -2122,6 +2123,11 @@ function preserveRetroSpool(plan: CleanupPlan): string | undefined {
       if (!entry.isFile()) continue;
       const source = nodePath.join(sourceDirectory, entry.name);
       const target = nodePath.join(targetDirectory, entry.name);
+      // Spools and ledgers merge, so records only this checkout holds survive.
+      if (entry.name.endsWith('.jsonl')) {
+        mergeSpoolFile(source, target);
+        continue;
+      }
       const bytes = readFileSync(source);
       if (!existsSync(target) || !readFileSync(target).equals(bytes)) {
         const temporary = `${target}.${randomUUID()}.tmp`;

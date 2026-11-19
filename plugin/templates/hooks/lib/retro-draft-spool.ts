@@ -18,7 +18,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, rmSync, statSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import {
@@ -422,6 +422,32 @@ function lockIsStale(lock: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Merge another checkout's spool-directory file (a spool or a ledger) into
+ * `target`, keeping every record either holds: the target's lines stay, and each
+ * source line it lacks is appended. Runs under the target's working-copy lock
+ * with no deadline, as the fallback append does, so a staging write cannot
+ * replace the merge. Throws on failure, so a caller about to delete the source
+ * can stop.
+ */
+export function mergeSpoolFile(source: string, target: string): void {
+  const merge = (): void => {
+    const existing = existsSync(target) ? readFileSync(target, 'utf8') : '';
+    const recorded = new Set(nonEmptyLines(existing));
+    const missing = [...new Set(nonEmptyLines(readFileSync(source, 'utf8')))].filter(
+      line => !recorded.has(line),
+    );
+    if (missing.length === 0) return;
+    const separator = existing.length > 0 && !existing.endsWith('\n') ? '\n' : '';
+    appendFileSync(target, `${separator}${missing.join('\n')}\n`, { mode: 0o600 });
+  };
+  withWorkingCopyLock(target, merge, merge, Number.POSITIVE_INFINITY);
+}
+
+function nonEmptyLines(contents: string): string[] {
+  return contents.split('\n').filter(line => line.trim().length > 0);
 }
 
 /**

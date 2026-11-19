@@ -21,7 +21,12 @@ import {
   readFreshCloseoutBinding,
   resolveExactCodexTranscript,
 } from '../hooks/lib/closeout-binding.ts';
-import { readAcks, readSpooledDrafts, stageRetroSpool } from '../hooks/lib/retro-draft-spool.ts';
+import {
+  mergeSpoolFile,
+  readAcks,
+  readSpooledDrafts,
+  stageRetroSpool,
+} from '../hooks/lib/retro-draft-spool.ts';
 import { resolveRunIdentity } from '../hooks/lib/run-identity.ts';
 
 export const POST_MERGE_VERIFICATION_KINDS = ['verify', 'build', 'typecheck', 'bdd'] as const;
@@ -2118,6 +2123,11 @@ function preserveRetroSpool(plan: CleanupPlan): string | undefined {
       if (!entry.isFile()) continue;
       const source = nodePath.join(sourceDirectory, entry.name);
       const target = nodePath.join(targetDirectory, entry.name);
+      // Spools and ledgers merge, so records only this checkout holds survive.
+      if (entry.name.endsWith('.jsonl')) {
+        mergeSpoolFile(source, target);
+        continue;
+      }
       const bytes = readFileSync(source);
       if (!existsSync(target) || !readFileSync(target).equals(bytes)) {
         const temporary = `${target}.${randomUUID()}.tmp`;

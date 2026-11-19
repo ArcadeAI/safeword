@@ -19,6 +19,7 @@ import {
   draftSpoolPath,
   durableDraftSpoolPath,
   markDraftsAcceptedByServer,
+  mergeSpoolFile,
   readServerSpooledDrafts,
   readSpooledDrafts,
   recordFiledAck,
@@ -401,6 +402,43 @@ describe('retro spool survives a deleted worktree (#5467)', () => {
 
     expect(stageRetroSpool(worktree, SESSION)).toBe(working);
     expect(existsSync(`${working}.lock`)).toBe(false);
+  });
+
+  it("merging a departing worktree's spool keeps the drafts only the surviving checkout holds", () => {
+    git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
+    const source = draftSpoolPath(worktree, SESSION);
+    const target = draftSpoolPath(primary, SESSION);
+    for (const [file, signatures] of [
+      [source, ['retro:aaaaaaaaaaaa', 'retro:bbbbbbbbbbbb']],
+      [target, ['retro:aaaaaaaaaaaa', 'retro:cccccccccccc']],
+    ] as const) {
+      mkdirSync(nodePath.dirname(file), { recursive: true });
+      writeFileSync(
+        file,
+        signatures.map(signature => `${JSON.stringify(draft(signature))}\n`).join(''),
+      );
+    }
+
+    mergeSpoolFile(source, target);
+
+    expect(
+      lines(target).map(line => (JSON.parse(line) as { signature: string }).signature),
+    ).toEqual(['retro:aaaaaaaaaaaa', 'retro:cccccccccccc', 'retro:bbbbbbbbbbbb']);
+  });
+
+  it("merging waits for the surviving spool's lock, so staging cannot replace the merge", () => {
+    const source = draftSpoolPath(worktree, SESSION);
+    const target = draftSpoolPath(primary, SESSION);
+    mkdirSync(nodePath.dirname(source), { recursive: true });
+    writeFileSync(source, `${JSON.stringify(draft('retro:aaaaaaaaaaaa'))}\n`);
+    mkdirSync(`${target}.lock`, { recursive: true });
+    const held = new Date(Date.now() - 9000);
+    utimesSync(`${target}.lock`, held, held);
+
+    mergeSpoolFile(source, target);
+
+    expect(existsSync(`${target}.lock`)).toBe(false);
+    expect(lines(target)).toHaveLength(1);
   });
 
   it('outside git, the durable copy is the working copy', () => {

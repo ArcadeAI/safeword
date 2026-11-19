@@ -111,7 +111,7 @@
     },
     {
       "path": "resources/scripts/closeout-cleanup.ts",
-      "sha256": "982951f2127c58405b1d2db28c4d079f25e2e7fba2c1888fc099192b2e0cb63f"
+      "sha256": "7b4643f617f93fab528ad973ea12961f0b957048b8a1c00763e42aec5146f4d6"
     },
     {
       "path": "resources/templates/adr-template.md",
@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "0232a6a9210462a85723a1ece2221f624340e4cd0f6a3e46e471a86ba416ee66"
+      "sha256": "c962256b8e06b7076fda6d64dc8a1f0b19641279c237bde729a4074df4782748"
     },
     {
       "path": "runtime/dispatch.js",
@@ -383,7 +383,7 @@
     },
     {
       "path": "runtime/hooks/lib/retro-draft-spool.ts",
-      "sha256": "c65ac604ae153172bd1b372e741ab6c8f135db9530c01f14e225a36844267603"
+      "sha256": "6fe54fb17ea3bee57e1b00e3bea292700b54c3eb393182c60485f9b57ba78695"
     },
     {
       "path": "runtime/hooks/lib/retro-extract.ts",
@@ -1379,7 +1379,7 @@
     },
     {
       "path": "templates/hooks/lib/retro-draft-spool.ts",
-      "sha256": "c65ac604ae153172bd1b372e741ab6c8f135db9530c01f14e225a36844267603"
+      "sha256": "6fe54fb17ea3bee57e1b00e3bea292700b54c3eb393182c60485f9b57ba78695"
     },
     {
       "path": "templates/hooks/lib/retro-extract.ts",
@@ -1667,7 +1667,7 @@
     },
     {
       "path": "templates/scripts/closeout-cleanup.ts",
-      "sha256": "931b1a44319a4a2bcad19fd1ebe2275b651e9fd774c175e33913a99ef8f386bc"
+      "sha256": "fbd2d82a0ffe1e1d701247b44d5907fa09771ea1f991f248526fd981b1fe330b"
     },
     {
       "path": "templates/skills/audit/SKILL.md",
