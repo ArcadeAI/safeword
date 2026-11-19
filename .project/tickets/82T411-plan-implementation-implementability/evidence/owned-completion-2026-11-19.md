@@ -9,7 +9,7 @@ in place. Their evidence and edits remain in those checkouts.
 | --- | --- | --- |
 | Decisions complete and execution startable | G1C9PP, 7CAMAD | November 9 receipts 827f4999 and 683e7af9 explicitly pass focused decision reviewability. Actual plan repair, subsequent RED and implementation are recorded in the [completion inventory](../completion-evidence-2026-11-09.md). The November 14 Claude archive adds an Implementation Plan with five recorded decisions and an Execution Plan with concrete first proof. It later needed fixes for four output-path failure modes. This supports use of both artifacts and a real repair loop. A cold start that needs no further behavior-shaping decisions remains open. |
 | Selective review and human approval | 5F5ZZA | #7077 carries the public-CLI Work Log and contract-reference controls. The enabled-human cases in `plan-design-approval.test.ts` cover reuse and fresh approval after changed approach bytes. `execution-upstream-planning-context.test.ts` covers dependent Execution currency. Keep the actual host observation and exact fixture partitions distinct. |
-| Preserve accepted work through upgrades | YCFFNC, ZSHVEB, CGRX0H | The existing markerless transition and Product Plan parity tests cover their named fixtures. The migration feature's written examples require carrying accepted legacy decisions and tests across resume and returning to the current contract on replan. The selected migration, proportionality and recovery features collectively reported 256 undefined scenarios in the explicit-path Cucumber binding check. No in-flight upgrade or Product Plan version transition is credited from those examples. |
+| Preserve accepted work through upgrades | YCFFNC, ZSHVEB, CGRX0H | The existing markerless transition and Product Plan parity tests cover their named fixtures. The migration feature's written examples require carrying accepted legacy decisions and tests across resume and returning to the current contract on replan. Before the accepted scope edits, the selected migration, proportionality and recovery features reported 256 undefined scenarios in the explicit-path Cucumber binding check. No in-flight upgrade or Product Plan version transition is credited from those examples. |
 | Keep small work proportional | 3EG00H | The small-work feature records routing and preservation of completed proof on promotion. The binding check leaves these scenarios undefined. Existing lean task observations support the task path only. A real promotion through the phase that owns the newly discovered decision remains open. |
 | Give a concrete next action at every stop | K3EBHB | The shared verification gate now names the failed check and tells the user to fix the errors in the verification report and rerun verification. The earlier trial logs retain actual stop text and intervention. The recovery feature's undefined walkthroughs and the lack of a nontechnical participant leave comprehension open, including pending scope and dispute outcomes. |
 | Complete verification, checklist and PR preparation | A639WN, 6XW8H7, T3E4NS, YCFFNC | November 9 Codex and November 14 Claude provide real but assisted native trials. The latter recorded 87 app tests and 20 acceptance scenarios passing, five lint errors and two dependency advisories. Its ticket was marked done with ten contributor checklist rows open and no PR. The lint repair below closes one false-success path. The slicing rubric and fixture checks establish mechanics. Independently reviewable multi-PR delivery and a clean native feature journey through completed checklist and review-ready PR evidence remain open. |
@@ -64,8 +64,25 @@ comment locates feature TDD sequencing, and the inherited project non-goals
 clarify headless waits and accurately labelled fallback. The parent and child
 now record the user's #6786 and November 14 boundaries. The public reconcile
 check returns healthy for the new binding; 3EG00H returned to scenario review
-for its revised packet. The earlier approval remains historical. The other
-five bindings are still stale.
+for its revised packet. Fresh cross-agent review
+`7960fbfc-a3be-4837-b1ad-0798130f4188` approved after correcting the
+out-of-scope promotion case. The source CLI still reports that receipt
+approved. The installed Codex build reports it stale, and the current
+checkout's bundled writer refuses project-writable runtime authority.
+No scenario stamp or phase advancement was recorded.
+
+K3EBHB was also reconciled against its exact prior digest. The M2 outcome
+now names dispute routing, and the NTB Rule explicitly covers stale planning
+contracts. The child still owns only recovery wording. Its prior OpenCode
+examples and unchecked Desktop ledger remain in Git at `bf2837631`.
+Its current packet checks human and plan authority, the cause of staleness,
+and one consistent action for a headless approval wait. Independent review
+`ef7c8496-8cfe-436a-8c6f-7cecdaf81231` rejected the stale-review proof and
+`67b141ee-2138-4785-86b4-b2366c867272` rejected conflicting actions for
+the same cloud wait. The corrected packet is approved in the source runtime
+under `983229fa-cd01-456e-b9e5-0c9c7f6ed917`. The installed runtime again
+reports stale. Recovery still needs executed proofs and a real nontechnical
+walkthrough. G1C9PP, 7CAMAD, YCFFNC and ZSHVEB retain their recorded bindings.
 
 ## Concrete verification repair
 
@@ -93,6 +110,20 @@ approved the generalized checker, verification guidance and both regression
 files. The earlier lint-only review `6521e643-9daa-446c-b5a8-439cd6cf1058`
 identified nonblocking warnings in existing PR-scope and feature-ledger
 parsing. Both receipts are bounded to their respective reviewed files.
+
+The 10-file focused CLI suite passed all 398 tests, including selective
+approval, legacy entry, checklist proof and PR readiness. The CLI typecheck,
+all 277 parity pairs and 11 contracts, and all five generated surfaces pass.
+The targeted missing-plan recovery scenario initially exited 75 on the shared
+test lock, then passed all 48 steps after the lock cleared. Keep both results.
+
+The isolated repair is [Draft #8034](https://github.com/ArcadeAI/safeword/pull/8034)
+at `289161ab2fc3b879b381e065ca7284b7d2c96c4e`. The same patch is
+`a61d23e1a` on this branch. A live local Claude smoke loaded the bundled plugin
+and reached the native edit hook. It stopped before the new check because the
+disposable ticket had no authenticated verify-phase review. The native
+closeout proof remains open. The live probe was a scoped regression check
+with reported model usage under one cent, with no qualification run.
 
 ## Large-contribution slicing evidence
 

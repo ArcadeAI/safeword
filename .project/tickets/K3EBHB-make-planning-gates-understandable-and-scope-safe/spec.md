@@ -45,11 +45,12 @@ Affected:
 - Claude Code
 - Claude Code Cloud
 - OpenAI Codex
-- OpenCode — profile catalogue only; Desktop remains advisory until native hook support exists
 - Cursor
 - Cursor Cloud Agents
 
 Unaffected:
+
+- OpenCode — CLI, TUI and Desktop excluded from this epic by the user on November 14. Follow-up #7491.
 
 - Claude Code on the Web — no browser-entry-point behavior changes
 - OpenAI Codex Cloud — repository instructions are advisory and cannot enforce the local phase gate
