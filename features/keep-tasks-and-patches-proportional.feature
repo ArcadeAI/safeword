@@ -105,6 +105,7 @@ Feature: Keep tasks and patches proportional
         | trigger | work_type |
         | multiple user flows | feature |
         | new persistent state | feature |
+        | an unresolved choice that changes promised behavior | feature |
         | an unresolved public or shared contract decision | feature |
         | an unresolved durable architecture decision | feature |
         | an unresolved data ownership or lifecycle decision | feature |
@@ -155,7 +156,7 @@ Feature: Keep tasks and patches proportional
 
       Examples:
         | surface_breadth | semantic_shape | work_type |
-        | seven installed host surfaces | only mechanical parity with settled behavior | task |
+        | every configured installed host surface | only mechanical parity with settled behavior | task |
         | two public surfaces | a newly divergent user flow | feature |
 
     @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.cursor @surface.cursor-cloud-agents
@@ -168,6 +169,7 @@ Feature: Keep tasks and patches proportional
         | installed_entry | signal_state | gate_result |
         | actual installed CLI dispatch | remain within configured signals | production continues without a classification reevaluation |
         | actual installed CLI dispatch | cross the configured surface signal | production pauses until semantic reevaluation is recorded |
+        | actual installed CLI dispatch | cross only the configured size signal | production pauses until semantic reevaluation is recorded |
         | actual Claude Code lifecycle dispatch from installed project hooks | remain within configured signals | production continues without a classification reevaluation |
         | actual Claude Code lifecycle dispatch from installed project hooks | cross the configured surface signal | production pauses until semantic reevaluation is recorded |
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM | remain within configured signals | production continues without a classification reevaluation |
@@ -303,7 +305,7 @@ Feature: Keep tasks and patches proportional
     Scenario: Promotion before RED stops without inventing evidence
       Given a technical builder's task investigation records findings and exposes an unresolved in-scope public-contract design decision before any failing test exists
       When implementation would otherwise begin
-      Then production work stops, the recorded investigation findings survive the promotion, no test evidence is claimed, and the task is promoted without inventing the decision
+      Then production work stops, the recorded investigation findings survive the promotion, and the promoted work resumes at Implementation Planning with the decision open and no test evidence claimed
 
     @rejection @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed hosts promote a task when TDD exposes a feature decision
@@ -355,14 +357,14 @@ Feature: Keep tasks and patches proportional
         | actual Cursor Cloud Agents lifecycle dispatch from project hooks in a fresh runner |
 
     Scenario Outline: Out-of-scope discoveries route by consequence
-      Given a task is promoted after exposing <out_of_scope_discovery>
+      Given task TDD exposes <out_of_scope_discovery> without an in-scope feature trigger
       When its scope-boundary response is selected
-      Then <scope_result>
+      Then the work stays classified as a task and <scope_result>
 
       Examples:
         | out_of_scope_discovery | scope_result |
-        | an irrelevant out-of-scope idea | the idea is dropped and the accepted scope remains unchanged |
-        | an out-of-scope idea whose exclusion would change the accepted outcome | work remains blocked while the idea is surfaced as a user-owned scope decision |
+        | an irrelevant out-of-scope idea | the workflow drops the idea and keeps the accepted scope |
+        | an out-of-scope idea whose exclusion would change the accepted outcome | the workflow keeps work blocked while the user decides whether to include the idea |
 
   @plan-implementability.TBU3.3EG00H.R13
   Rule: plan-implementability.TBU3.3EG00H.R13 — Structural enforcement does not claim semantic classification
@@ -392,6 +394,7 @@ Feature: Keep tasks and patches proportional
         | task | a contributor-controlled documentation update | the inline task record keeps the item open until current proof is attached |
         | patch | monitoring is concretely irrelevant to a wording-only correction | the inline patch record marks monitoring not applicable with that reason |
         | task | production rollout approval owned by a human | the inline task record names the human dependency without claiming approval |
+        | patch | monitoring marked not applicable with no reason | the workflow leaves the item unresolved and asks for a concrete reason or current proof before handoff |
 
     @demo @surface.safeword-cli
     Scenario Outline: Equivalent small work reaches human review through the lightweight route
@@ -417,6 +420,6 @@ Feature: Keep tasks and patches proportional
 
     @rejection
     Scenario: A completed task checklist cannot claim merge authority
-      Given every contributor-controlled task obligation has current proof
+      Given every contributor-controlled task obligation has current proof and the task record claims the change can merge without human authority
       When Safeword reports contributor readiness
-      Then it reports the task ready for human review without creating feature plans or claiming the change may merge
+      Then it rejects the merge claim and reports the task ready for human review without creating feature plans
