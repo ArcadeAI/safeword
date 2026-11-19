@@ -20966,8 +20966,9 @@ function spoolDrafts(projectDirectory, sessionId, drafts) {
   }
   const working = draftSpoolPath(projectDirectory, sessionId);
   const append = () => appendJsonlRecords(working, fallback.map((draft) => draftLine(draft)), MAX_DRAFTS_PER_SESSION);
-  if (fallback.length > 0)
-    withWorkingCopyLock(working, append, append, LOCK_STALE_MS + LOCK_WAIT_MS);
+  if (fallback.length > 0) {
+    withWorkingCopyLock(working, append, append, Number.POSITIVE_INFINITY);
+  }
 }
 var MAX_DRAFTS_PER_SESSION = 20, SPOOL_DIR, SPOOL_EXTENSION = ".jsonl", REMOVED_SUFFIX = ".removed.jsonl", LOCK_WAIT_MS = 2000, LOCK_STALE_MS = 1e4, LOCK_POLL_MS = 20;
 var init_retro_draft_spool = __esm(() => {

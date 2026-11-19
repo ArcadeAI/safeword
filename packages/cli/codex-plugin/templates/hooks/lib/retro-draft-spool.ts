@@ -663,9 +663,11 @@ export function spoolDrafts(
       fallback.map(draft => draftLine(draft)),
       MAX_DRAFTS_PER_SESSION,
     );
-  // Wait past LOCK_STALE_MS, so the append always ends up holding the lock (a
-  // held lock is released or goes stale first) and staging cannot replace it.
-  // onBusy runs only when no lock can be created, so staging cannot take one either.
-  if (fallback.length > 0)
-    withWorkingCopyLock(working, append, append, LOCK_STALE_MS + LOCK_WAIT_MS);
+  // No deadline: the append always ends up holding the lock, so staging can never
+  // replace it. One session's writers are few and brief, and a dead holder's lock
+  // goes stale, so the wait ends. The unlocked append runs only when no lock can
+  // be created at all, and then staging and the drain cannot take one to rewrite.
+  if (fallback.length > 0) {
+    withWorkingCopyLock(working, append, append, Number.POSITIVE_INFINITY);
+  }
 }
