@@ -1028,35 +1028,28 @@ describe('Claude plugin in the Safeword source repository', () => {
     ]);
   });
 
-  it('does not accept an older prerelease the marketplace no longer offers', () => {
-    const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, KEEP_MARKETPLACE, {
-      ...released,
-      dogfoodRepo: true,
-      installedVersion: `${RELEASED_VERSION}-rc.1`,
-      payloadVersion: `${RELEASED_VERSION}-rc.1`,
-    });
-
-    expect(observeApplicableClaudePlugins(project).installations[0]?.health).toBe('wrong-version');
-  });
-
-  it('does not accept an older prerelease even when the marketplace offers it', () => {
-    const prerelease = `${RELEASED_VERSION}-rc.1`;
-    const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, KEEP_MARKETPLACE, {
-      dogfoodRepo: true,
-      installedVersion: prerelease,
-      payloadVersion: prerelease,
-      marketplaceVersion: prerelease,
-    });
-
-    expect(observeApplicableClaudePlugins(project).installations[0]?.health).toBe('wrong-version');
-  });
-
-  it('keeps requiring the CLI version when the marketplace offers a newer plugin', () => {
+  it.each([
+    {
+      case: 'an older prerelease the marketplace no longer offers',
+      installed: `${RELEASED_VERSION}-rc.1`,
+      offered: RELEASED_VERSION,
+    },
+    {
+      case: 'an older prerelease even when the marketplace offers it',
+      installed: `${RELEASED_VERSION}-rc.1`,
+      offered: `${RELEASED_VERSION}-rc.1`,
+    },
+    {
+      case: 'a plugin newer than the CLI that the marketplace offers',
+      installed: '99.0.0',
+      offered: '99.0.0',
+    },
+  ])('reports wrong-version for $case', ({ installed, offered }) => {
     const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, KEEP_MARKETPLACE, {
       dogfoodRepo: true,
-      installedVersion: '99.0.0',
-      payloadVersion: '99.0.0',
-      marketplaceVersion: '99.0.0',
+      installedVersion: installed,
+      payloadVersion: installed,
+      marketplaceVersion: offered,
     });
 
     expect(observeApplicableClaudePlugins(project).installations[0]?.health).toBe('wrong-version');
