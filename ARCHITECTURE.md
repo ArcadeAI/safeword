@@ -917,102 +917,25 @@ preserve the unknown ticket field but derive no authority from it.
 
 ### Authenticated Reduced-Independence Planning Review Fallback
 
-**Status:** Proposed
+**Status:** Receipt design retained. Routing rules superseded by [Independent Review Never Blocks](#independent-review-never-blocks).
+
 **Date:** 2026-09-20
 
-<!-- prettier-ignore -->
-| Field | Value |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Context | The independent-review coordinator already has a bounded fallback ladder, but its 2026-08-02 record says host-reported fresh-context and bounded self-review can never create a stamp and calls same-agent completion degraded. The accepted planning contract instead permits those tiers to advance with honestly reduced independence only after every stronger configured route was attempted and failed. |
-| Decision | Keep one ordered ladder: independent routes, same-agent headless review, host-reported fresh-context review, then bounded self-review. Fallback is unavailable while a stronger route remains available or before at least one configured independent route was attempted. When policy permits it, the coordinator binds every tier to the same immutable packet; host-owned tiers complete a tier-bound continuation whose typed result is integrity-sealed in the existing job store. An approval may produce a stamp-eligible receipt with the actual reviewer/tier and `reduced` independence. It never claims cross-agent independence, human approval, merge authority, or release authority. `require` policy and ungated origins remain blocking. |
-| Consequences | Planning can finish honestly when external review infrastructure is exhausted without misrepresenting assurance or creating a parallel receipt store. Phase admission authenticates and currency-checks fallback receipts exactly like independent receipts, while policy and ordered-route evidence determine whether reduced independence is admissible. Zero configured/reachable independent routes before any attempt remains a configuration block rather than an automatic fallback. |
-| Supersedes | The 2026-08-02 coordinator clauses that label all same-agent fallback `degraded`, say foreground fresh-context/self-review never create a review stamp, require host tiers to read live worktree paths without revalidated source integrity, allow `off` to coexist with a required planning review, and treat agent/process separation as sufficient under `require` when author capability is unverifiable. Every tier now reviews the same immutable coordinator packet through a tier-bound continuation. `off` blocks a required planning review; `require` blocks rather than weakening independence. The older record's route preference, typed failures, authentication, containment, and actual-provenance decisions remain in force. |
-| Alternatives | Preserve non-stamping host fallback: rejected because accepted R6 phase transitions could never advance. Treat fallback as independent: rejected because it fabricates assurance. Let hosts write ledger stamps directly: rejected because it bypasses coordinator authentication and packet identity. |
-| Reassess when | A host provides cryptographically attestable fresh-context identity, reduced-independence reviews show materially different defect-catch rates, or policy needs to distinguish which fallback tiers may advance. |
-| Implementation | Ticket `5F5ZZA`; coordinator recovery jobs, authenticated result persistence, review stamps, phase admission, and installed host recovery guidance. |
+The coordinator binds every review tier to the same immutable packet. Host-owned
+review tiers complete a tier-bound continuation whose typed result is sealed in
+the existing job store. Phase admission authenticates the receipt and checks that
+it still applies to the current work. The receipt records the actual reviewer,
+tier, and independence. Human design approval, merge authority, and release
+authority remain separate.
 
-**5F5ZZA capability-classification extension:** Cross-agent independence also
-requires a verified reviewer model with a sealed not-weaker comparison to the
-verified author model. A versioned packaged exact-model pair catalogue
-provides fire-and-forget defaults for supported models; the existing project/
-user review-route configuration authority selects routes but cannot override
-empirical comparisons with integer ranks. Each packaged comparison records its
-evidence date and revision. Provider documentation can identify selectors but
-cannot replace a pinned Safeword planning-review comparison. Missing, conflicting,
-or stale evidence leaves the pair unknown. Unknown, unverified, or
-observed weaker pairings fail closed and cannot earn cross-agent independence. Agent
-or vendor identity alone never implies model capability. The release-gating
-corpus gives each exact model the same human-labelled Product, Implementation,
-and Execution Plan packets, rubric, tools, and deterministic settings for three
-runs. A run passes only when its verdict matches, every required finding is
-present, and no forbidden finding is present. Catalogue generation requires
-every fixture to pass in at least 2 of 3 runs, at least 90% of all runs to pass,
-and the candidate's passing-run count to equal or exceed the author's on every
-fixture the author passes at least 2 of 3 times. The release-maintainer-owned
-manifest declares that floor before candidate runs; changing the floor, corpus,
-rubric, or settings invalidates the evidence and reruns every compared model.
-Each generated entry retains the
-model, corpus/rubric/settings digests, evidence date, and results digest. Release
-verification fails if a shipped default cross-vendor pair has no supported
-comparison, preventing a default install from silently falling into reduced
-review.
-
-**5F5ZZA model-identity authority:** The author model comes from trusted host
-session metadata captured by the coordinator. The reviewer model comes only
-from the coordinator resolving and launching an exact non-alias selector whose
-adapter-specific launch proof confirms the same ID. Runtime defaults, aliases,
-missing confirmation, configured/launched/confirmed mismatch, and model names
-inside reviewer output are unverified and return
-`reviewer_capability_unknown`; reviewer output never upgrades coordinator-
-observed provenance. Safeword release maintainers own refreshing a retired or
-changed default and may not waive the release gate to mint an unsupported
-packaged comparison. A retired exact selector returns its typed route failure;
-an observed exact model absent from the active catalogue returns
-`reviewer_capability_unknown`. Runtime code never invents a comparison from dated
-provider evidence. Claude Code's trusted SessionStart model field can establish
-exact author identity. Current Codex, Cursor, and OpenCode lifecycle contracts
-cannot, so those hosts return `author_capability_unknown`: `prefer` may reach an
-authenticated `reduced` receipt immediately from a successful different-agent,
-separate-process review, while `require` retains the findings but blocks. Claude
-reviewers confirm the requested exact selector through canonical model data in
-their trusted JSON envelope. Codex reviewers use the coordinator-owned exact
-`--model` argv plus successful completion after a versioned selector-contract
-probe; its JSONL does not echo model identity. OpenCode remains unverified until
-live adapter proof establishes trusted provider/model metadata, and no packaged
-independent default depends on it. Existing runtime-default reviewer routes
-remain readable and attempted but earn cross-agent classification only when the
-adapter-specific proof resolves an exact qualified model. Upgrade never rewrites
-user route lists. Existing `off` configurations block at planning review until
-the user selects `prefer` or `require`; non-Claude `require` configurations block
-until the host exposes verified author identity. Safeword never weakens policy
-automatically.
-
-**#5139 continuation proposal — pre-launch qualification:** On the supported
-verified Claude-author path, explicit cross-agent Claude/Codex model selectors
-are checked against the sealed catalogue before dispatch. Unknown exact
-selectors, unqualified explicit aliases, and observed weaker selectors receive
-typed skipped failures without receiving the packet. Routes with no explicit
-model and the unverified OpenCode adapter retain launch-and-confirm behavior;
-they cannot earn independent approval without the existing post-launch checks.
-Universal pre-egress qualification is not claimed. This narrows compatibility
-only for those explicit selectors; recovery is to pin a qualified selector.
-
-A skipped candidate can establish exhaustion of that candidate, never an
-actual independent attempt. If every independent candidate is refused before
-launch, the job stays blocked. Main's fallback requirement remains: at least
-one actual independent attempt returned a typed failure and every stronger
-route is exhausted before a reduced tier may run. Route order, retained stronger
-findings, unknown-author reduced receipts, authenticated job persistence, and
-retry currency remain unchanged. Launching already-known refusals wastes
-egress; treating skips alone as attempts would invent independent review.
-Consumers are the coordinator and continuation admission reader. Reassess when
-trusted host identity or selector confirmation changes; rollback preserves job
-history and may not infer approval from unsupported fields. This is a proposed
-continuation constraint, not promotion of the entire historical record above.
+[5F5ZZA](.project/tickets/5F5ZZA-keep-plan-reviews-current-and-trustworthy/ticket.md)
+retains the original fallback work. The [#5139 continuation proposal](.project/tickets/5F5ZZA-keep-plan-reviews-current-and-trustworthy/blocked-5139.md)
+and Git history retain the earlier model-strength catalogue, exact-model
+qualification, and typed-exhaustion proposal.
 
 ### Independent Review Never Blocks
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-11-07
 
 <!-- prettier-ignore -->
@@ -1020,11 +943,11 @@ continuation constraint, not promotion of the entire historical record above.
 | -------------- | ----- |
 | Context | A real-user trial showed every Claude-authored Execution Plan ending in `REVIEW_ROUTES_EXHAUSTED`: Codex had no Execution Plan admission, and fallback to the admitted Claude route required a failed independent attempt. The SessionStart author-model capture also never reached `safeword review run` (the env line lacked `export`; headless `claude -p` sends no model), so every Claude-authored planning review was downgraded, and Codex authors always were. |
 | Decision | Independence means a different agent reviewed. Safeword still tries a different agent first, but when none can review for any reason (absent, signed out, failed, unfunded by the run budget, or stopped after an unstoppable reviewer) it falls back to the same agent and records `reduced` independence; when no route completes, a planning review continues on the host. Reviewers are not ranked against the author's model. `require` is retired and read as `prefer`. |
-| Consequences | Planning reviews no longer block on independence; receipts still name the actual reviewer and achieved independence, and phase admission accepts `reduced`. Reviewers are not qualified: every review kind uses the latest Opus (`opus`) or Sol (`gpt-6.1-sol`) first and may retry on Sonnet or Terra. |
+| Consequences | Planning reviews no longer block on independence; receipts still name the actual reviewer and achieved independence, and phase admission accepts `reduced`. Reviewers are not qualified: the coordinator uses the configured model route and records the reviewer that actually completed the review. |
 | Supersedes | The fallback precondition above ("at least one actual independent attempt"), the 5F5ZZA capability-classification extension (author-model capability pairs, `reviewer_capability_unknown` / `reviewer_capability_weaker`, `AUTHOR_CAPABILITY_UNKNOWN`), `require` enforcement, the MR5M3A `crossModelReview` ceiling, and Execution Plan reviewer qualification (the 63-case conformance corpus and admission evidence). |
 | Alternatives | Fix the author-model `export` and keep strength ranking: rejected because strength ranking would exclude specialist reviewers and headless hosts still supply no model. Keep `require` as opt-in: rejected because it reintroduces blocking. |
 | Reassess when | A host can attest the author model, or reduced-independence reviews show materially worse defect detection. |
-| Implementation | Ticket `K8VPME`; `coordinator.ts` route loop and host continuation, `policy.ts`, `phase-admission.ts`, `delivery-admission.ts`, `review-ledger.ts`; `session-author-model.ts`, the Execution Plan conformance corpus and admission, and the reviewer capability harness removed. |
+| Implementation | Ticket `K8VPME`, shipped in [#6786](https://github.com/ArcadeAI/safeword/pull/6786); `coordinator.ts` route loop and host continuation, `policy.ts`, `phase-admission.ts`, `delivery-admission.ts`, `review-ledger.ts`; `session-author-model.ts`, the Execution Plan conformance corpus and admission, and the reviewer capability harness removed. |
 
 ### Frozen Transcript Fixture Testing
 
