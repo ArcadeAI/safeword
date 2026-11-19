@@ -12,6 +12,8 @@
  */
 
 import { execSync, spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 
 import { safewordCli } from './safeword-cli.js';
 import { projectEnvironment } from './project-directory.js';
@@ -84,11 +86,77 @@ export function timeoutMsForTestCommand(kind: TestCommand['kind']): number {
   return kind === 'bdd' ? BDD_TEST_TIMEOUT_MS : TEST_TIMEOUT_MS;
 }
 
+/**
+ * Project-level files mise reads its tool pins from (environment-specific and `.local` variants
+ * omitted: a project that pins tools has one of these).
+ */
+const MISE_PROJECT_CONFIG_FILES = [
+  'mise.toml',
+  '.mise.toml',
+  'mise/config.toml',
+  '.mise/config.toml',
+  '.config/mise.toml',
+  '.config/mise/config.toml',
+  '.tool-versions',
+];
+
+/** `mise bin-paths` only reads configuration; it never installs. */
+const MISE_TIMEOUT_MS = 10_000;
+
 /** Maximum lines of test output to inject into the block reason. */
 const MAX_OUTPUT_LINES = 30;
 
 /** Maximum characters of test output to inject into the block reason. */
 const MAX_OUTPUT_CHARS = 3000;
+
+interface ToolchainEnvironment {
+  environment: NodeJS.ProcessEnv;
+  /** Why a project pin exists but could not be applied. */
+  note?: string;
+}
+
+/**
+ * The hook inherits the agent host's PATH, which can lead to a different runtime than the project
+ * pins: the Claude desktop app's Bun 1.3.14 cannot read a lockfileVersion 3 bun.lock that the
+ * pinned Bun 1.4.4 writes. When the project pins tools with mise, put the pinned tool directories
+ * ahead of the inherited PATH, as `mise exec` and a project's own pinned git hooks do. A project
+ * without a mise config keeps its PATH, so a global mise default never changes it.
+ */
+function pinnedToolchainEnvironment(projectDirectory: string): ToolchainEnvironment {
+  const environment = process.env;
+  const pinsTools = MISE_PROJECT_CONFIG_FILES.some(file =>
+    existsSync(path.join(projectDirectory, file)),
+  );
+  if (!pinsTools) return { environment };
+  const result = spawnSync('mise', ['-C', projectDirectory, 'bin-paths'], {
+    encoding: 'utf8',
+    timeout: MISE_TIMEOUT_MS,
+    env: environment,
+  });
+  // No mise installed: the project's pin cannot be honored, and the PATH stays as it was.
+  if ((result.error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT') {
+    return { environment };
+  }
+  if (result.error || result.status !== 0) {
+    const detail =
+      result.stderr?.trim() || result.error?.message || `mise bin-paths exited ${result.status}`;
+    return {
+      environment,
+      note: `Pinned toolchain not applied; tests ran with the inherited PATH. ${detail}`,
+    };
+  }
+  const pinnedDirectories = result.stdout
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean);
+  if (pinnedDirectories.length === 0) return { environment };
+  return {
+    environment: {
+      ...environment,
+      PATH: [...pinnedDirectories, environment.PATH].filter(Boolean).join(path.delimiter),
+    },
+  };
+}
 
 /**
  * Resolve the safeword CLI invocation. `SAFEWORD_CLI` (a path to cli.js/cli.ts run
@@ -106,7 +174,11 @@ function safewordCliCommand(cwd: string): [string, ...string[]] | undefined {
  * visible and fail closed without being executed. Resolver failures remain distinct from a valid
  * empty plan so the completion gate does not penalize projects that genuinely have no tests.
  */
-function resolvePlanCommands(cwd: string, kind: 'test' | 'bdd'): TestPlanResolution {
+function resolvePlanCommands(
+  cwd: string,
+  kind: 'test' | 'bdd',
+  environment: NodeJS.ProcessEnv,
+): TestPlanResolution {
   const cli = safewordCliCommand(cwd);
   if (cli === undefined) {
     return {
@@ -120,7 +192,7 @@ function resolvePlanCommands(cwd: string, kind: 'test' | 'bdd'): TestPlanResolut
     {
       encoding: 'utf8',
       timeout: TEST_TIMEOUT_MS,
-      env: { ...projectEnvironment(cwd), SAFEWORD_NO_UPDATE_CHECK: '1' },
+      env: { ...projectEnvironment(cwd, environment), SAFEWORD_NO_UPDATE_CHECK: '1' },
     },
   );
   if (result.error || !result.stdout) {
@@ -182,10 +254,10 @@ function resolvePlanCommands(cwd: string, kind: 'test' | 'bdd'): TestPlanResolut
 }
 
 /** Resolved unit/native and acceptance suites, both owned by test-plan. */
-function getTestCommands(cwd: string): TestPlanResolution {
-  const tests = resolvePlanCommands(cwd, 'test');
+function getTestCommands(cwd: string, environment: NodeJS.ProcessEnv): TestPlanResolution {
+  const tests = resolvePlanCommands(cwd, 'test', environment);
   if (!tests.ok) return tests;
-  const acceptance = resolvePlanCommands(cwd, 'bdd');
+  const acceptance = resolvePlanCommands(cwd, 'bdd', environment);
   if (!acceptance.ok) return acceptance;
   return { ok: true, commands: [...tests.commands, ...acceptance.commands] };
 }
@@ -212,8 +284,8 @@ function truncateOutput(output: string): string {
  * handler carries its own runtime identity, project root, and plugin routes;
  * forwarding them overrides the projects and runtimes tests create for themselves.
  */
-function testSubprocessEnvironment(): NodeJS.ProcessEnv {
-  const environment = { ...process.env };
+function testSubprocessEnvironment(toolchain: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const environment = { ...toolchain };
   delete environment.SAFEWORD_AGENT_RUNTIME;
   delete environment.CODEX_THREAD_ID;
   delete environment.CLAUDE_PROJECT_DIR;
@@ -223,7 +295,10 @@ function testSubprocessEnvironment(): NodeJS.ProcessEnv {
   return environment;
 }
 
-function runSingleTestCommand(testCommand: TestCommand): {
+function runSingleTestCommand(
+  testCommand: TestCommand,
+  toolchain: NodeJS.ProcessEnv,
+): {
   passed: boolean;
   output: string;
   toolchainMissing?: boolean;
@@ -242,7 +317,7 @@ function runSingleTestCommand(testCommand: TestCommand): {
       timeout: timeoutMs,
       stdio: 'pipe',
       encoding: 'utf8',
-      env: testSubprocessEnvironment(),
+      env: testSubprocessEnvironment(toolchain),
     });
     return { passed: true, output: formatCommandOutput(testCommand, output) };
   } catch (error) {
@@ -281,15 +356,17 @@ function runSingleTestCommand(testCommand: TestCommand): {
  * Run the project's test suite and return the result.
  *
  * - Resolves unit/native and acceptance commands from `safeword project test-plan`.
+ * - Resolves and runs them with the project's mise-pinned tools first on PATH, when it pins any.
  * - Uses execSync for synchronous execution with a configured timeout.
  * - Returns skipped=true if no runnable command was found (caller should not block).
  */
 export function runTests(cwd: string): TestResult {
-  const resolution = getTestCommands(cwd);
+  const toolchain = pinnedToolchainEnvironment(cwd);
+  const resolution = getTestCommands(cwd, toolchain.environment);
   if (!resolution.ok) {
     return {
       passed: false,
-      output: truncateOutput(resolution.reason),
+      output: truncateOutput([toolchain.note, resolution.reason].filter(Boolean).join('\n\n')),
       skipped: false,
       resolutionFailed: true,
     };
@@ -297,14 +374,14 @@ export function runTests(cwd: string): TestResult {
   const { commands } = resolution;
   if (commands.length === 0) return { passed: true, output: '', skipped: true };
 
-  const outputs: string[] = [];
+  const outputs: string[] = toolchain.note === undefined ? [] : [toolchain.note];
   const failureOutputs: string[] = [];
   const unavailableDiagnostics: string[] = [];
   let passed = true;
   let toolchainMissing = false;
 
   for (const testCommand of commands) {
-    const result = runSingleTestCommand(testCommand);
+    const result = runSingleTestCommand(testCommand, toolchain.environment);
     outputs.push(result.output);
     if (!result.passed) failureOutputs.push(result.output);
     if (!testCommand.available) unavailableDiagnostics.push(result.output);
