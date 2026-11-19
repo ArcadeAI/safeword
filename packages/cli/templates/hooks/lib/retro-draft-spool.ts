@@ -281,7 +281,7 @@ function removeDrafts(
       .filter(draft => isRemoved(draft))
       .map(draftKey);
     appendRemovals(removalLedgerPath(projectDirectory, sessionId), keys);
-    appendRemovals(siblingOf(durable, REMOVED_SUFFIX), keys);
+    appendRemovals(durableRemovalPath(durable), keys);
   }
   const working = draftSpoolPath(projectDirectory, sessionId);
   // Busy: leave the drafts; the ledger already hides them and the next drain retries.
@@ -308,6 +308,18 @@ function removalLedgerPath(projectDirectory: string, sessionId: string): string 
 /** A durable spool's sibling with `suffix` in place of the spool extension. */
 function siblingOf(durableSpool: string, suffix: string): string {
   return `${durableSpool.slice(0, -SPOOL_EXTENSION.length)}${suffix}`;
+}
+
+/** The durable copy's removal ledger, beside the durable spool. */
+function durableRemovalPath(durableSpool: string): string {
+  return siblingOf(durableSpool, REMOVED_SUFFIX);
+}
+
+/** Copy the working copy's removals into the durable ledger. Best-effort; never throws. */
+function mirrorRemovals(projectDirectory: string, sessionId: string, durableSpool: string): void {
+  appendRemovals(durableRemovalPath(durableSpool), [
+    ...readRemovals(removalLedgerPath(projectDirectory, sessionId)),
+  ]);
 }
 
 function toRemovalKey(value: unknown): string | undefined {
@@ -339,7 +351,7 @@ function sessionRemovals(
 ): Set<string> {
   return new Set([
     ...readRemovals(removalLedgerPath(projectDirectory, sessionId)),
-    ...readRemovals(siblingOf(durable, REMOVED_SUFFIX)),
+    ...readRemovals(durableRemovalPath(durable)),
   ]);
 }
 
@@ -352,8 +364,8 @@ function rewriteSpool(file: string, keep: (draft: SpooledDraft) => boolean): voi
     if (remaining.length === drafts.length) return;
     atomicWriteFile(file, serializeDrafts(remaining));
   } catch {
-    // Self-observation must never break the host. Swallow. A durable copy a
-    // sandbox could not rewrite is pruned at the next handoff from the acks.
+    // Self-observation must never break the host. Swallow. The removal ledger
+    // already hides these drafts, and the next drain retries the rewrite.
   }
 }
 
@@ -421,9 +433,7 @@ export function stageRetroSpool(projectDirectory: string, sessionId: string): st
   if (durable === undefined) return working;
   try {
     mirrorAcks(projectDirectory, sessionId, durable);
-    appendRemovals(siblingOf(durable, REMOVED_SUFFIX), [
-      ...readRemovals(removalLedgerPath(projectDirectory, sessionId)),
-    ]);
+    mirrorRemovals(projectDirectory, sessionId, durable);
     // The handed-off file holds exactly the pending drafts: every durable
     // addition, and no draft the removal ledger names.
     return withWorkingCopyLock(

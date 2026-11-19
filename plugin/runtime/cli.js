@@ -20810,7 +20810,7 @@ function removeDrafts(projectDirectory, sessionId, removedSignatures, routeMatch
   if (durable !== undefined) {
     const keys = readAllSpooledDrafts(projectDirectory, sessionId).filter((draft) => isRemoved(draft)).map(draftKey);
     appendRemovals(removalLedgerPath(projectDirectory, sessionId), keys);
-    appendRemovals(siblingOf(durable, REMOVED_SUFFIX), keys);
+    appendRemovals(durableRemovalPath(durable), keys);
   }
   const working = draftSpoolPath(projectDirectory, sessionId);
   withWorkingCopyLock(working, () => rewriteSpool(working, (draft) => !isRemoved(draft)), () => {
@@ -20822,6 +20822,9 @@ function removalLedgerPath(projectDirectory, sessionId) {
 }
 function siblingOf(durableSpool, suffix) {
   return `${durableSpool.slice(0, -SPOOL_EXTENSION.length)}${suffix}`;
+}
+function durableRemovalPath(durableSpool) {
+  return siblingOf(durableSpool, REMOVED_SUFFIX);
 }
 function toRemovalKey(value) {
   if (typeof value !== "object" || value === null)
@@ -20840,7 +20843,7 @@ function appendRemovals(file, keys) {
 function sessionRemovals(projectDirectory, sessionId, durable) {
   return new Set([
     ...readRemovals(removalLedgerPath(projectDirectory, sessionId)),
-    ...readRemovals(siblingOf(durable, REMOVED_SUFFIX))
+    ...readRemovals(durableRemovalPath(durable))
   ]);
 }
 function rewriteSpool(file, keep) {
