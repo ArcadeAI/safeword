@@ -25,6 +25,7 @@ import {
   spoolDrafts,
   stageRetroSpool,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
+import { decideRetroFilingNudge } from '../../templates/hooks/lib/retro-nudge.js';
 import {
   createTemporaryDirectory,
   removeTemporaryDirectory,
@@ -173,8 +174,11 @@ describe('retro spool survives a deleted worktree (#5467)', () => {
     recordFiledAck(worktree, SESSION, { signature: 'retro:aaaaaaaaaaaa', issue: 7 });
     drainRetroSpool(draftSpoolPath(worktree, SESSION));
     unblock();
+    const sharedAcks = `${durableDraftSpoolPath(worktree, SESSION).slice(0, -'.jsonl'.length)}.acks.jsonl`;
+    expect(lines(sharedAcks)).toEqual([]);
     // The filer's turn ends: the Stop hook copies the acks to the shared folder.
     expect(stopHook(worktree)).toBeUndefined();
+    expect(lines(sharedAcks)).toHaveLength(1);
     git(primary, 'worktree', 'remove', '--force', worktree);
 
     expect(stopHook(primary)).toBeUndefined();
@@ -194,6 +198,30 @@ describe('retro spool survives a deleted worktree (#5467)', () => {
     const dispatched = stopHook(worktree);
     expect(dispatched?.reason).toContain(draftSpoolPath(worktree, SESSION));
     expect(lines(draftSpoolPath(worktree, SESSION))).toHaveLength(1);
+  });
+
+  it('nudges with the working copy after the worktree that spooled the draft is deleted', () => {
+    git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
+    spoolDrafts(worktree, SESSION, [draft('retro:aaaaaaaaaaaa')]);
+    git(primary, 'worktree', 'remove', '--force', worktree);
+
+    const nudge = decideRetroFilingNudge(primary, SESSION);
+
+    expect(nudge).toContain(
+      `1 unfiled finding from this session at ${draftSpoolPath(primary, SESSION)}`,
+    );
+    expect(lines(draftSpoolPath(primary, SESSION))).toHaveLength(1);
+  });
+
+  it('skips the nudge, and retries it next time, when staging cannot write the working copy', () => {
+    git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
+    spoolDrafts(worktree, SESSION, [draft('retro:aaaaaaaaaaaa')]);
+    const working = blockWrites(draftSpoolPath(worktree, SESSION));
+
+    expect(decideRetroFilingNudge(worktree, SESSION)).toBeUndefined();
+    rmSync(working, { recursive: true });
+
+    expect(decideRetroFilingNudge(worktree, SESSION)).toContain(draftSpoolPath(worktree, SESSION));
   });
 
   it('falls back to the working copy when the shared directory cannot be written', () => {
