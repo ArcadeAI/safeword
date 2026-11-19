@@ -5,6 +5,10 @@
  * `recommended` (JS) and `recommendedTypeScript` configs.
  */
 
+import { existsSync, readFileSync } from 'node:fs';
+import nodePath from 'node:path';
+import process from 'node:process';
+
 import js from '@eslint/js';
 import eslintComments from '@eslint-community/eslint-plugin-eslint-comments';
 import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript';
@@ -23,6 +27,45 @@ import { rules as safewordRules } from '../eslint-rules/index.js';
  * Excludes .astro, .vue, .svelte which use different parsers
  */
 export const JS_TS_FILES = ['**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}'];
+
+const STEP_FILE_EXTENSIONS = '{js,ts,mjs,mts}';
+
+/**
+ * The project's .safeword/config.json: the nearest one at or above `start`, so
+ * running ESLint from a subfolder still finds the project root's setting.
+ */
+function readProjectSafewordConfig(start: string): { paths?: { steps?: unknown } } | undefined {
+  for (let directory = nodePath.resolve(start); ; directory = nodePath.dirname(directory)) {
+    const configPath = nodePath.join(directory, '.safeword', 'config.json');
+    if (existsSync(configPath)) {
+      try {
+        return JSON.parse(readFileSync(configPath, 'utf8')) as { paths?: { steps?: unknown } };
+      } catch {
+        return undefined;
+      }
+    }
+    if (nodePath.dirname(directory) === directory) return undefined;
+  }
+}
+
+/**
+ * The step folder a project relocated with `paths.steps` (the setting
+ * cucumber.mjs reads), relative to the project root like the config's globs.
+ */
+function configuredStepsDirectory(start: string): string | undefined {
+  const steps = readProjectSafewordConfig(start)?.paths?.steps;
+  return typeof steps === 'string' && steps.length > 0 ? steps : undefined;
+}
+
+/** Where safeword's BDD lane keeps cucumber step definitions (root, workspaces, relocated). */
+export function cucumberStepGlobs(start: string = process.cwd()): string[] {
+  const relocated = configuredStepsDirectory(start);
+  return [
+    `steps/**/*.${STEP_FILE_EXTENSIONS}`,
+    `**/features/steps/**/*.${STEP_FILE_EXTENSIONS}`,
+    ...(relocated ? [`${relocated}/**/*.${STEP_FILE_EXTENSIONS}`] : []),
+  ];
+}
 
 /**
  * Add files restriction to config objects.
@@ -309,6 +352,17 @@ const basePluginsUnscoped: any[] = [
       'unicorn/no-unused-properties': 'error', // Dead code in enum-like objects
       'unicorn/consistent-destructuring': 'error', // Don't mix props.x and {x} = props
       'unicorn/prefer-import-meta-properties': 'error', // import.meta.dirname > __dirname
+    },
+  },
+
+  // Cucumber registers worlds, hooks, and steps by calling into the runner at
+  // import time (setWorldConstructor, Given/When/Then), so a step-definition
+  // module with an export is not a side-effect smell.
+  {
+    name: 'safeword/cucumber-steps',
+    files: cucumberStepGlobs(),
+    rules: {
+      'unicorn/no-top-level-side-effects': 'off',
     },
   },
 

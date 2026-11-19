@@ -3487,7 +3487,7 @@ var init_historical_catalogue_generated = __esm(() => {
       files: {
         ".claude/agents/safeword-retro-filer.md": "008fa4b5777834118ba0efd008862df52dd32d3feec2218537d7c90cbfdfd904",
         ".claude/agents/safeword-reviewer.md": "54f2b47dec3639b711b7c2557b017c452b4667aa7092296a01328c7b5668efaf",
-        ".claude/skills/audit/SKILL.md": "02c6353beb320c6370788c7845ec193ec08532f05ed6f6174585aa8a68456470",
+        ".claude/skills/audit/SKILL.md": "379473dba1ec5a9322adcc4f46a827811b1caa90991cd7b6a14c32234515332c",
         ".claude/skills/bdd/DISCOVERY.md": "9d8f44d62752433582ce76ea019716a09fabcfb3af65c9fc644dd60972372557",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
         ".claude/skills/bdd/PLAN_EXECUTION.md": "b32e1b0778773165d0a66bd49d0a57ffc7653c8707381d89090268b3dc56853d",
@@ -14903,13 +14903,13 @@ const nextPaths = detect.findNextConfigPaths(${directoryVariable});
 // Note: Astro config only lints .astro files, so we combine it with TypeScript config
 // to also lint .ts files in Astro projects
 // Note: In monorepos, Next.js uses React config + scoped Next.js rules
-const baseConfigs = {
-  next: nextPaths ? configs.recommendedTypeScriptReact : configs.recommendedTypeScriptNext,
-  react: configs.recommendedTypeScriptReact,
-  astro: [...configs.recommendedTypeScript, ...configs.astro],
-  typescript: configs.recommendedTypeScript,
-  javascript: configs.recommended,
-};
+const baseConfigs = new Map([
+  ["next", nextPaths ? configs.recommendedTypeScriptReact : configs.recommendedTypeScriptNext],
+  ["react", configs.recommendedTypeScriptReact],
+  ["astro", [...configs.recommendedTypeScript, ...configs.astro]],
+  ["typescript", configs.recommendedTypeScript],
+  ["javascript", configs.recommended],
+]);
 
 // Build scoped Next.js rules for monorepos
 // Each Next.js app gets its own scoped config with files: pattern
@@ -14932,14 +14932,14 @@ const eslintConfigPrettier = safeword.prettierConfig;
 
 const { detect, configs } = safeword;
 const __dirname = import.meta.dirname;
-const deps = detect.collectAllDeps(__dirname);
-const framework = detect.detectFramework(deps);
+const dependencies = detect.collectAllDeps(__dirname);
+const framework = detect.detectFramework(dependencies);
 
 ${getMonorepoSnippet("__dirname")}
 
 export default defineConfig([
   { ignores: detect.getIgnores() },
-  ...baseConfigs[framework],
+  ...baseConfigs.get(framework),
   ...scopedNextConfigs,
 ${OPTIONAL_CONFIGS_SNIPPET}
   eslintConfigPrettier,
@@ -14952,14 +14952,14 @@ import safeword from "safeword/eslint";
 
 const { detect, configs } = safeword;
 const __dirname = import.meta.dirname;
-const deps = detect.collectAllDeps(__dirname);
-const framework = detect.detectFramework(deps);
+const dependencies = detect.collectAllDeps(__dirname);
+const framework = detect.detectFramework(dependencies);
 
 ${getMonorepoSnippet("__dirname")}
 
 export default defineConfig([
   { ignores: detect.getIgnores() },
-  ...baseConfigs[framework],
+  ...baseConfigs.get(framework),
   ...scopedNextConfigs,
 ${OPTIONAL_CONFIGS_SNIPPET}
 ]);
@@ -14979,6 +14979,9 @@ function getSafewordEslintConfigExtending(existingConfig, hasExistingFormatter) 
 // Used by hooks for LLM enforcement. Human pre-commits use project config.
 // Re-run \`safeword install\` to regenerate after project config changes.
 import { existsSync } from "node:fs";
+import { URL } from "node:url";
+
+import { ESLint } from "eslint";
 ${safewordImport}${prettier.import}
 
 // Ticket 139: existsSync gate + no try/catch.
@@ -14990,10 +14993,19 @@ ${safewordImport}${prettier.import}
 let projectConfig = [];
 const projectConfigPath = new URL("../${existingConfig}", import.meta.url);
 
+/**
+ * Whether the project config is TypeScript and must be loaded through jiti.
+ * @param {URL} configPath - Location of the project ESLint config.
+ * @returns {boolean} True for .ts, .mts, and .cts configs.
+ */
 function isTypeScriptProjectConfig(configPath) {
   return /\\.[cm]?ts$/.test(configPath.pathname);
 }
 
+/**
+ * Load the project's own ESLint config so its rules stay authoritative.
+ * @returns {Promise<unknown>} The project config's default export.
+ */
 async function loadProjectConfig() {
   if (isTypeScriptProjectConfig(projectConfigPath)) {
     const { createJiti } = await import("jiti");
@@ -15013,11 +15025,14 @@ if (existsSync(projectConfigPath)) {
 
 ${SAFEWORD_STRICT_RULES_FULL}
 
+${SAFEWORD_DIRECTORY_IGNORE}
+
 // Composition order (ticket 138): safeword rules FIRST, customer config LAST.
 // Flat config is "later wins" \u2014 this makes the customer's project config
 // authoritative for the LLM hook. Customer overrides (e.g. 'no-unused-vars': 'off')
 // take effect here instead of being silently overridden by safeword's strict layer.
 export default [
+  ...ownDirectoryIgnore,
   safewordStrictRules,
   ...projectConfig,
 ${prettier.configEntry}
@@ -15032,6 +15047,7 @@ function getSafewordEslintConfigLegacy(existingConfig, hasExistingFormatter) {
 // Used by hooks for LLM enforcement. Human pre-commits use project config.
 // NOTE: Legacy .eslintrc.* format is deprecated. Consider migrating to eslint.config.mjs
 import { FlatCompat } from "@eslint/eslintrc";
+import { ESLint } from "eslint";
 ${safewordImport}${prettier.import}
 
 console.warn("Safeword: Legacy .eslintrc.* detected. Consider migrating to eslint.config.mjs");
@@ -15049,9 +15065,12 @@ try {
 
 ${SAFEWORD_STRICT_RULES_FULL}
 
+${SAFEWORD_DIRECTORY_IGNORE}
+
 // Composition order (ticket 138): safeword rules FIRST, customer config LAST.
 // See getSafewordEslintConfigExtending for rationale.
 export default [
+  ...ownDirectoryIgnore,
   safewordStrictRules,
   ...projectConfig,
 ${prettier.configEntry}
@@ -15077,17 +15096,17 @@ function matchedHookWithIf(matcher, ifRule, command) {
   };
 }
 var OPTIONAL_CONFIGS_SNIPPET = `  // Testing configs - only if detected (plugins have framework peer deps)
-  ...(detect.hasVitest(deps) ? configs.vitest : []),
-  ...(detect.hasBunTest(deps, __dirname) ? configs.bunTest : []),
-  ...(detect.hasPlaywright(deps) ? configs.playwright : []),
+  ...(detect.hasVitest(dependencies) ? configs.vitest : []),
+  ...(detect.hasBunTest(dependencies, __dirname) ? configs.bunTest : []),
+  ...(detect.hasPlaywright(dependencies) ? configs.playwright : []),
   // Storybook - only if detected (v10+ requires storybook peer dep)
-  ...(detect.hasStorybook(deps) ? configs.storybook : []),
+  ...(detect.hasStorybook(dependencies) ? configs.storybook : []),
   // TanStack Query - only if detected (has typescript peer dep)
-  ...(detect.hasTanstackQuery(deps) ? configs.tanstackQuery : []),
+  ...(detect.hasTanstackQuery(dependencies) ? configs.tanstackQuery : []),
   // Tailwind - only if detected (plugin needs tailwind config to validate classes)
-  ...(detect.hasTailwind(deps) ? configs.tailwind : []),
+  ...(detect.hasTailwind(dependencies) ? configs.tailwind : []),
   // Turborepo - only if detected (validates env vars are declared in turbo.json)
-  ...(detect.hasTurbo(deps) ? configs.turbo : []),`, SAFEWORD_STRICT_RULES_FULL = `// Safeword strict rules - applied after project rules (win on conflict)
+  ...(detect.hasTurbo(dependencies) ? configs.turbo : []),`, SAFEWORD_STRICT_RULES_FULL = `// Safeword strict rules - applied after project rules (win on conflict)
 const safewordStrictRules = {
   rules: {
     // Prevent common LLM mistakes
@@ -15114,7 +15133,13 @@ const safewordStrictRules = {
     "no-var": "error",
     "prefer-const": "error",
   },
-};`, COMPLETION_HOOK_TIMEOUT_SECONDS, CURSOR_HOOKS, HOOKS_DIR = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks', EDIT_TOOLS = "Edit|Write|MultiEdit|NotebookEdit", SETTINGS_HOOKS;
+};`, SAFEWORD_DIRECTORY_IGNORE = `// ESLint 10 lints each file with its nearest config, which for vendored files
+// under .safeword/ is this one. Ignore this directory by absolute path so it
+// holds whether ESLint found this file itself or the hook passed --config.
+const ownDirectoryIgnore =
+  Number(ESLint.version.split(".", 1)[0]) >= 10
+    ? [{ basePath: import.meta.dirname, ignores: ["**"] }]
+    : [];`, COMPLETION_HOOK_TIMEOUT_SECONDS, CURSOR_HOOKS, HOOKS_DIR = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks', EDIT_TOOLS = "Edit|Write|MultiEdit|NotebookEdit", SETTINGS_HOOKS;
 var init_config = __esm(() => {
   COMPLETION_HOOK_TIMEOUT_SECONDS = 40 * 60;
   CURSOR_HOOKS = {
@@ -15280,7 +15305,7 @@ function mergeFormatScripts(scripts, projectType) {
   addScriptIfMissing(scripts, "format", "prettier --write .");
   addScriptIfMissing(scripts, "format:check", "prettier --check .");
 }
-var SAFEWORD_PRIMARY_LINT_SCRIPT = "eslint . && bun run lint:gherkin", PRETTIER_DEFAULTS, BIOME_JSON_MERGE, DPRINT_JSON_MERGE, OXFMT_JSON_MERGE, typescriptOwnedFiles, typescriptManagedFiles, GHERKIN_LINT_SCRIPT = "safeword project lint-gherkin", typescriptJsonMerges, ESLINT_PACKAGE = "eslint@^10.0.0", JITI_PACKAGE = "jiti@^2.2.0", typescriptPackages;
+var SAFEWORD_PRIMARY_LINT_SCRIPT = "eslint . && bun run lint:gherkin", PRETTIER_DEFAULTS, BIOME_JSON_MERGE, DPRINT_JSON_MERGE, OXFMT_JSON_MERGE, typescriptOwnedFiles, typescriptManagedFiles, GHERKIN_LINT_SCRIPT = "safeword project lint-gherkin", typescriptJsonMerges, ESLINT_PACKAGE = "eslint@^10.0.0", JITI_PACKAGE = "jiti@^2.2.0", TYPESCRIPT_PACKAGE = "typescript@~6.0.0", typescriptPackages;
 var init_files5 = __esm(() => {
   init_owned_paths();
   init_config();
@@ -15374,7 +15399,7 @@ var init_files5 = __esm(() => {
       generator: (ctx) => {
         if (!ctx.languages?.javascript)
           return;
-        if (!ctx.developmentDeps.typescript && !ctx.developmentDeps["typescript-eslint"]) {
+        if (!ctx.developmentDeps.typescript && !ctx.developmentDeps["typescript-eslint"] && !ctx.projectType.scaffoldBddLane) {
           return;
         }
         return JSON.stringify({
@@ -15385,7 +15410,10 @@ var init_files5 = __esm(() => {
             strict: true,
             esModuleInterop: true,
             skipLibCheck: true,
-            noEmit: true
+            noEmit: true,
+            ...(ctx.projectType.scaffoldBddLane || Boolean(ctx.developmentDeps["@types/node"])) && {
+              types: ["node"]
+            }
           },
           include: ["**/*.ts", "**/*.tsx"],
           exclude: ["node_modules", "dist", "build"]
@@ -15517,6 +15545,7 @@ var init_files5 = __esm(() => {
     ],
     conditional: {
       scaffoldBddLane: ["@cucumber/cucumber", "tsx", "@types/node"],
+      typescriptToolchain: [TYPESCRIPT_PACKAGE],
       standard: ["prettier"],
       astro: ["prettier-plugin-astro"],
       tailwind: ["prettier-plugin-tailwindcss"],
@@ -66045,6 +66074,36 @@ function addInstalledPack(cwd, packId) {
     writeConfig(cwd, config);
   }
 }
+function readDeclaredDependencies(cwd) {
+  const manifest = readFileSafe(nodePath83.join(cwd, "package.json"));
+  if (!manifest)
+    return {};
+  const { dependencies = {}, devDependencies = {} } = JSON.parse(manifest);
+  return { ...dependencies, ...devDependencies };
+}
+function readOwnershipRecord(cwd) {
+  const owned = readConfig2(cwd)?.ownedPackages;
+  if (typeof owned !== "object" || owned === null || Array.isArray(owned))
+    return {};
+  return Object.fromEntries(Object.entries(owned).filter(([, range]) => typeof range === "string"));
+}
+function getOwnedPackages(cwd) {
+  const declared = readDeclaredDependencies(cwd);
+  return Object.entries(readOwnershipRecord(cwd)).filter(([name, range]) => declared[name] === range).map(([name]) => name);
+}
+function recordOwnedPackages(cwd, names) {
+  const declared = readDeclaredDependencies(cwd);
+  const record = readOwnershipRecord(cwd);
+  const added = names.flatMap((name) => {
+    const range = declared[name];
+    return range === undefined || Object.hasOwn(record, name) ? [] : [[name, range]];
+  });
+  if (added.length === 0)
+    return;
+  const config = readConfig2(cwd) ?? { installedPacks: [] };
+  config.ownedPackages = { ...record, ...Object.fromEntries(added) };
+  writeConfig(cwd, config);
+}
 var CONFIG_PATH = ".safeword/config.json";
 var init_config3 = __esm(() => {
   init_fs();
@@ -66549,12 +66608,16 @@ var init_shared_clause_integrity = __esm(() => {
 // src/reconcile.ts
 import { lstatSync as lstatSync18, readdirSync as readdirSync22, readlinkSync as readlinkSync3, unlinkSync as unlinkSync6 } from "fs";
 import nodePath87 from "path";
+function ownershipTrackedPackageNames(schema, packages) {
+  const tracked = new Set(OWNERSHIP_TRACKED_GROUPS.flatMap((group) => schema.packages.conditional[group] ?? []));
+  return packages.filter((pkg) => tracked.has(pkg)).map((pkg) => stripVersionSpecifier(pkg));
+}
 function getConditionalPackages(conditionalPackages, projectType) {
   const packages = [];
   for (const [key, dependencies] of Object.entries(conditionalPackages)) {
-    const inverted = INVERTED_PACKAGE_CONDITIONS[key];
-    if (inverted) {
-      if (inverted(projectType))
+    const derived = DERIVED_PACKAGE_CONDITIONS[key];
+    if (derived) {
+      if (derived(projectType))
         packages.push(...dependencies);
       continue;
     }
@@ -67040,7 +67103,7 @@ function computeUninstallPlan(schema, ctx, full) {
   }
   let packagesToRemove = [];
   if (full) {
-    packagesToRemove = computePackagesToRemove(schema, ctx.projectType, ctx.developmentDeps);
+    packagesToRemove = computePackagesToRemove(schema, ctx.projectType, ctx.developmentDeps, getOwnedPackages(ctx.cwd));
   } else if (Object.hasOwn(ctx.developmentDeps, "safeword")) {
     packagesToRemove = ["safeword"];
   }
@@ -67302,10 +67365,14 @@ function computePackagesToInstall(schema, projectType, installedDevelopmentDepen
     return !workspaceMembers.has(name) && !Object.hasOwn(installedDevelopmentDependencies, name);
   });
 }
-function computePackagesToRemove(schema, projectType, installedDevelopmentDependencies) {
+function computePackagesToRemove(schema, projectType, installedDevelopmentDependencies, ownedPackages) {
+  const ownedTracked = OWNERSHIP_TRACKED_GROUPS.flatMap((group) => schema.packages.conditional[group] ?? []).filter((pkg) => ownedPackages.includes(stripVersionSpecifier(pkg)));
   const safewordPackages = [
-    ...schema.packages.base,
-    ...getConditionalPackages(schema.packages.conditional, projectType)
+    ...new Set([
+      ...schema.packages.base,
+      ...getConditionalPackages(schema.packages.conditional, projectType),
+      ...ownedTracked
+    ])
   ];
   return safewordPackages.filter((pkg) => Object.hasOwn(installedDevelopmentDependencies, stripVersionSpecifier(pkg)));
 }
@@ -67485,8 +67552,9 @@ function shouldRemoveTextPatchTarget(content, definition) {
   const trimmed = content.trim();
   return definition.removeFileIfContentEquals?.some((candidate) => trimmed === candidate.trim()) ?? false;
 }
-var HUSKY_DIR = ".husky", PLANNING_CONTRACT_TEMPLATES, CHMOD_PATHS, PRETTIER_PACKAGES, INVERTED_PACKAGE_CONDITIONS, ReconcileExecutionError;
+var HUSKY_DIR = ".husky", PLANNING_CONTRACT_TEMPLATES, CHMOD_PATHS, PRETTIER_PACKAGES, DERIVED_PACKAGE_CONDITIONS, OWNERSHIP_TRACKED_GROUPS, ReconcileExecutionError;
 var init_reconcile2 = __esm(() => {
+  init_config3();
   init_phase_contract();
   init_shared_clause_integrity();
   init_schema();
@@ -67501,9 +67569,11 @@ var init_reconcile2 = __esm(() => {
     "prettier-plugin-tailwindcss",
     "prettier-plugin-sh"
   ]);
-  INVERTED_PACKAGE_CONDITIONS = {
-    standard: (projectType) => !projectType.existingFormatter
+  DERIVED_PACKAGE_CONDITIONS = {
+    standard: (projectType) => !projectType.existingFormatter,
+    typescriptToolchain: (projectType) => projectType.scaffoldBddLane && !projectType.typescriptAvailable
   };
+  OWNERSHIP_TRACKED_GROUPS = ["typescriptToolchain"];
   ReconcileExecutionError = class ReconcileExecutionError extends Error {
     partial;
     completedActions;
@@ -67638,9 +67708,21 @@ function scanWorkspaceDirectory(rootDirectory, pattern) {
   } catch {}
   return allDependencies;
 }
+function readSafewordOwnedPackages(rootDirectory, declared) {
+  try {
+    const { ownedPackages } = JSON.parse(readFileSync62(path7.join(rootDirectory, ".safeword", "config.json"), "utf8"));
+    if (typeof ownedPackages !== "object" || ownedPackages === null)
+      return new Set;
+    return new Set(Object.entries(ownedPackages).filter(([name, range]) => typeof range === "string" && declared[name] === range).map(([name]) => name));
+  } catch {
+    return new Set;
+  }
+}
 function collectAllDependencies(rootDirectory) {
   const rootPackagePath = path7.join(rootDirectory, "package.json");
-  const allDependencies = readPackageDependencies(rootPackagePath);
+  const rootDependencies = readPackageDependencies(rootPackagePath);
+  const ownedPackages = readSafewordOwnedPackages(rootDirectory, rootDependencies);
+  const allDependencies = Object.fromEntries(Object.entries(rootDependencies).filter(([name]) => !ownedPackages.has(name)));
   for (const pattern of getMonorepoPatterns(rootDirectory)) {
     Object.assign(allDependencies, scanWorkspaceDirectory(rootDirectory, pattern));
   }
@@ -67847,7 +67929,9 @@ var init_cucumber_template_revisions = __esm(() => {
     "1295e832b1b3bdd0faa963e218bd489c9c252a981fc8e315d4814d4208384a5f",
     "0ec4cb6d65b39e01f8aff27c4ca3841e0271a43b5435492676450f0fb3cfac27",
     "8a7df82ba68b703459279a48677e341e64e63703d48d2a8ea7dbb0788f56a777",
-    "04e4cc6276da5bbd40a8352bf8c2d3e4c3e3840a4ff74119cf86460fe7dd75f0"
+    "b4a856b47ac61513812f8f9cf51a1b5ca81a2959cd67dfdf85b90c1b742309f1",
+    "04e4cc6276da5bbd40a8352bf8c2d3e4c3e3840a4ff74119cf86460fe7dd75f0",
+    "7fdd68d604ed382ca3758e85bc78eae99e5d04cd511d68335403cdd0a7efad02"
   ]);
 });
 
@@ -68076,6 +68160,24 @@ function detectCucumberLane(cwd) {
     scaffoldBddLane: ownLanePresent || evidence === undefined
   };
 }
+function projectModuleFolders(cwd) {
+  const folders = [];
+  let directory = nodePath90.resolve(cwd);
+  for (;; ) {
+    folders.push(directory);
+    if (existsSync44(nodePath90.join(directory, ".git")))
+      return folders;
+    const parent = nodePath90.dirname(directory);
+    if (parent === directory)
+      return [nodePath90.resolve(cwd)];
+    directory = parent;
+  }
+}
+function resolvesTypescript(cwd) {
+  if (cwd === undefined)
+    return false;
+  return projectModuleFolders(cwd).some((folder) => existsSync44(nodePath90.join(folder, "node_modules", "typescript", "package.json")));
+}
 function detectProjectType(packageJson, cwd) {
   const dependencies = packageJson.dependencies ?? {};
   const developmentDependencies = packageJson.devDependencies ?? {};
@@ -68086,6 +68188,7 @@ function detectProjectType(packageJson, cwd) {
     publishableLibrary: detectPublishable(packageJson),
     shell: cwd ? hasShellScripts(cwd) : false,
     hasJsSource: cwd ? hasJsSource(cwd) : false,
+    typescriptAvailable: "typescript" in allDependencies || resolvesTypescript(cwd),
     ...detectCucumberLane(cwd),
     ...detectExistingTooling(cwd, scripts)
   };
@@ -74581,6 +74684,10 @@ function configureArchitecture(cwd) {
 function plannedFileEffect(cwd, target) {
   return { kind: existsSync53(nodePath115.join(cwd, target)) ? "update" : "create", target };
 }
+function plannedOwnershipRecordEffects(cwd, schema, packages) {
+  const installing = packages.filter((effect) => effect.kind === "install").map((effect) => effect.target);
+  return ownershipTrackedPackageNames(schema, installing).length > 0 ? [plannedFileEffect(cwd, ".safeword/config.json")] : [];
+}
 function existingFileEffects(cwd, targets) {
   return targets.flatMap((target) => existsSync53(nodePath115.join(cwd, target)) ? [{ kind: "update", target }] : []);
 }
@@ -74862,7 +74969,8 @@ async function createSetupPlan(cwd, schema, options = {}) {
   const reconciliationPackages = reconciliationEffects.packages.length > 0;
   const compatibilityFiles = [
     ...!configured || configNeedsCompatibilityUpdate(cwd) ? [plannedFileEffect(cwd, ".safeword/config.json")] : [],
-    ...publicRetroConfigNeedsUpdate(cwd) ? [{ kind: "update", target: ".safeword/config.json" }] : []
+    ...publicRetroConfigNeedsUpdate(cwd) ? [{ kind: "update", target: ".safeword/config.json" }] : [],
+    ...plannedOwnershipRecordEffects(cwd, schema, reconciliationEffects.packages)
   ];
   const packageFiles = reconciliationPackages ? plannedJavaScriptPackageFiles(cwd) : [];
   const python = plannedPythonEffects(cwd);
@@ -75470,6 +75578,16 @@ function recordInstalledPackages(packagesToInstall, installation, completedEffec
     });
   }
 }
+function recordSafewordOwnedPackages(cwd, schema, packagesToInstall, installation, completedEffects) {
+  if (!installation.attempted)
+    return;
+  const tracked = ownershipTrackedPackageNames(schema, packagesToInstall);
+  if (tracked.length === 0)
+    return;
+  observeFileStage(cwd, [".safeword/config.json"], completedEffects, () => {
+    recordOwnedPackages(cwd, tracked);
+  });
+}
 function applyPackageCompatibility(cwd, completedEffects, offline) {
   if (!syncPackageJsonSafewordVersion(cwd, { offline, report: false }))
     return;
@@ -75605,6 +75723,7 @@ async function applySetup(cwd, input) {
       report: false
     }));
     recordInstalledPackages(result.packagesToInstall, installation, completedEffects);
+    recordSafewordOwnedPackages(cwd, setupSchema, result.packagesToInstall, installation, completedEffects);
     const pythonSetup = observeFileStage(cwd, pythonObservationTargets(cwd), completedEffects, () => adapters.configurePython(cwd, context, { offline: input.offline }));
     if (pythonSetup.attempted) {
       for (const target of pythonSetup.attemptedTools) {

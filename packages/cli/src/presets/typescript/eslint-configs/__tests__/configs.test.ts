@@ -59,6 +59,68 @@ describe('recommended config', () => {
     }).not.toThrow();
   });
 
+  it('lints valid TypeScript BDD step files clean in a JavaScript project (6SNC09)', () => {
+    const projectRoot = import.meta.dirname;
+    const linter = new Linter({ configType: 'flat', cwd: projectRoot });
+    const stepFile = `${projectRoot}/steps/inline.ts`;
+    // Type-only names (an interface, the Record global) are not runtime values.
+    const stepCode = `import { Given } from '@cucumber/cucumber';
+
+interface Counter {
+  counts: Record<string, number>;
+}
+
+Given('a counter', function (this: Counter) {
+  this.counts = { total: 1 };
+});
+`;
+
+    // Every message counts: an unmatched file comes back as a warning, not an error.
+    const messages = linter
+      .verify(stepCode, recommended, { filename: stepFile })
+      .map(message => message.ruleId ?? message.message);
+
+    expect(messages).toEqual([]);
+  });
+
+  it('parses TypeScript files outside the step folders in a JavaScript project (6SNC09)', () => {
+    // A relocated BDD lane (paths.steps) or an app adopting TypeScript.
+    const linter = new Linter({ configType: 'flat', cwd: import.meta.dirname });
+    const messages = linter
+      .verify('export const total: number = 1;\n', recommended, {
+        filename: `${import.meta.dirname}/acceptance/steps/inline.ts`,
+      })
+      .map(message => message.ruleId ?? message.message);
+
+    expect(messages).toEqual([]);
+  });
+
+  it('parses TSX files in a JavaScript project (6SNC09)', () => {
+    const linter = new Linter({ configType: 'flat', cwd: import.meta.dirname });
+    const messages = linter
+      .verify('export const view = (label: string) => <span>{label}</span>;\n', recommended, {
+        filename: `${import.meta.dirname}/src/view.tsx`,
+      })
+      .map(message => message.ruleId ?? message.message);
+
+    expect(messages).toEqual([]);
+  });
+
+  it.each(['ts', 'tsx', 'mts', 'cts'])(
+    'lints .%s files in a JavaScript project with the TypeScript rules (6SNC09)',
+    extension => {
+      // Proves the file is configured and parsed, not skipped as unmatched.
+      const linter = new Linter({ configType: 'flat', cwd: import.meta.dirname });
+      const ruleIds = linter
+        .verify('const unused: number = 1;\nexport {};\n', recommended, {
+          filename: `${import.meta.dirname}/src/inline.${extension}`,
+        })
+        .map(message => message.ruleId);
+
+      expect(ruleIds).toContain('@typescript-eslint/no-unused-vars');
+    },
+  );
+
   it('returns no errors for valid code', () => {
     const linter = new Linter({ configType: 'flat' });
 

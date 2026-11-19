@@ -340,6 +340,7 @@ const projectType = {
   existingRustfmtConfig: undefined,
   existingSqlfluffConfig: undefined,
   hasJsSource: false,
+  typescriptAvailable: false,
   legacyEslint: false,
   nextjs: false,
   playwright: false,

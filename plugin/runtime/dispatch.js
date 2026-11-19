@@ -9272,7 +9272,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/agents/safeword-reviewer.md':
         '54f2b47dec3639b711b7c2557b017c452b4667aa7092296a01328c7b5668efaf',
       '.claude/skills/audit/SKILL.md':
-        '02c6353beb320c6370788c7845ec193ec08532f05ed6f6174585aa8a68456470',
+        '379473dba1ec5a9322adcc4f46a827811b1caa90991cd7b6a14c32234515332c',
       '.claude/skills/bdd/DISCOVERY.md':
         '9d8f44d62752433582ce76ea019716a09fabcfb3af65c9fc644dd60972372557',
       '.claude/skills/bdd/DONE.md':
