@@ -149,7 +149,6 @@ function pinnedToolchainEnvironment(projectDirectory: string): ToolchainEnvironm
     .split('\n')
     .map(line => line.trim())
     .filter(Boolean);
-  if (pinnedDirectories.length === 0) return { environment };
   return {
     environment: {
       ...environment,
