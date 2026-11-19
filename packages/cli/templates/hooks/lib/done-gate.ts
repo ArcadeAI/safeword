@@ -6,7 +6,7 @@
 // observational and its pre-tool dispatcher has a strict two-second budget. These
 // paths MUST agree on what counts as unfinished feature evidence, so it lives here:
 //
-//   - `checkVerifyArtifact` is the exact PR-scope check the Stop hook uses (it
+//   - `checkVerifyArtifact` is the shared verification check the Stop hook uses (it
 //     imports this function — there is no second copy to drift).
 //   - `evaluateDoneEvidence` is the composite the Cursor and Codex gates call. It runs
 //     the same dependency -> tests -> verify.md -> scenarios sequence the Stop
@@ -26,6 +26,8 @@ import { runTests } from './test-runner.js';
 
 /** A single line of verify.md that records whether the closing diff stayed in scope. */
 const PR_SCOPE_LINE_PATTERN = /^\*\*PR Scope:\*\*\s*(?<status>.+)$/im;
+const FAILED_VERIFY_CHECK_PATTERN =
+  /^\*\*(?<check>Test Suite|Gherkin|Build|Lint|Typecheck|Scenarios):\*\*[ \t]*❌/iu;
 const FEATURE_SOURCE_PATTERN = /^\s*(?:\*\*)?Feature source:(?:\*\*)?\s*`(?<path>[^`]+)`/im;
 const FEATURE_SOURCE_LABEL_PATTERN = /^\s*(?:\*\*)?Feature source:/im;
 
@@ -90,12 +92,25 @@ export interface VerifyArtifactStatus {
 }
 
 /**
- * Validate the PR-scope evidence inside verify.md. The /verify skill records a
+ * Reject explicit verification failures, and require passing PR-scope evidence.
+ * The /verify skill records a
  * `**PR Scope:**` line stating whether the closing diff matched the ticket; a
  * missing line or a failed/❌ status blocks done so unrelated work can't ride
  * along in the closing change. Shared verbatim with the Claude Stop gate.
  */
 export function checkVerifyArtifact(content: string): VerifyArtifactStatus {
+  const lines = content.split('\n');
+  const fenced = balancedFenceBodyLines(lines);
+  for (const [index, line] of lines.entries()) {
+    if (fenced.has(index)) continue;
+    const check = FAILED_VERIFY_CHECK_PATTERN.exec(line)?.groups?.check;
+    if (!check) continue;
+    return {
+      ok: false,
+      reason: `${check} failed. Fix the failures listed in verify.md, then run /verify again.`,
+    };
+  }
+
   const prScopeMatch = PR_SCOPE_LINE_PATTERN.exec(content);
   if (!prScopeMatch?.groups?.status) {
     return {
