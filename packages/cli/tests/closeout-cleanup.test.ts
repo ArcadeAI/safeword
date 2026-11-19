@@ -57,8 +57,8 @@ function normalizedCloseoutScript(path: string): string {
   return readFileSync(path, 'utf8')
     .replace('../../runtime/hooks/lib/closeout-binding.ts', '../hooks/lib/closeout-binding.ts')
     .replace(
-      /import \{\s*draftSpoolPath,\s*readAcks,\s*readSpooledDrafts,?\s*\} from '\.\.\/\.\.\/runtime\/hooks\/lib\/retro-draft-spool\.ts';/u,
-      "import { draftSpoolPath, readAcks, readSpooledDrafts } from '../hooks/lib/retro-draft-spool.ts';",
+      /import \{\s*mergeSpoolFile,\s*readAcks,\s*readSpooledDrafts,\s*stageRetroSpool,?\s*\} from '\.\.\/\.\.\/runtime\/hooks\/lib\/retro-draft-spool\.ts';/u,
+      "import {\n  mergeSpoolFile,\n  readAcks,\n  readSpooledDrafts,\n  stageRetroSpool,\n} from '../hooks/lib/retro-draft-spool.ts';",
     )
     .replace('../../runtime/hooks/lib/run-identity.ts', '../hooks/lib/run-identity.ts')
     .replace(

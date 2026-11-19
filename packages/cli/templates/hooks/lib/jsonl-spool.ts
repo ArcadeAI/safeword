@@ -104,10 +104,23 @@ export function tryAppendJsonlRecords(
     if (room <= 0) return false;
     const toWrite = lines.slice(0, room);
     mkdirSync(nodePath.dirname(filePath), { recursive: true });
-    appendFileSync(filePath, `${toWrite.join('\n')}\n`);
+    // An interrupted append can leave a torn last line; start on a fresh one so
+    // the new records are not joined to it (a spare blank line is skipped on read).
+    const separator = endsMidLine(filePath) ? '\n' : '';
+    appendFileSync(filePath, `${separator}${toWrite.join('\n')}\n`);
     return toWrite.length === lines.length;
   } catch {
     // Self-observation must never break the host. Swallow, but report failure.
+    return false;
+  }
+}
+
+/** True when `filePath` exists, is non-empty, and does not end with a newline. */
+function endsMidLine(filePath: string): boolean {
+  try {
+    const contents = readFileSync(filePath, 'utf8');
+    return contents.length > 0 && !contents.endsWith('\n');
+  } catch {
     return false;
   }
 }

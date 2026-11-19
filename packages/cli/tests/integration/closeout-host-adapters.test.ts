@@ -22,6 +22,7 @@ import { VERSION } from '../../src/version.js';
 import { readFreshCloseoutBinding } from '../../templates/hooks/lib/closeout-binding.ts';
 import {
   draftSpoolPath,
+  durableDraftSpoolPath,
   readSpooledDrafts,
   recordFiledAck,
   spoolDrafts,
@@ -557,7 +558,8 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
     });
     spoolDrafts(fixture.topic, id, [draft]);
     spoolDrafts(fixture.topic, unrelatedId, [unrelated]);
-    const unrelatedPath = draftSpoolPath(fixture.topic, unrelatedId);
+    // Another session's draft lives in the shared git directory (#5467), which closeout never removes.
+    const unrelatedPath = durableDraftSpoolPath(fixture.topic, unrelatedId);
     const unrelatedBefore = readFileSync(unrelatedPath);
     bindHostSession({
       runtime: 'claude',
@@ -624,12 +626,7 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
     expect(existsSync(fixture.topic)).toBe(false);
     expect(existsSync(durableContinuation)).toBe(true);
     expect(runOrThrow('git', ['status', '--porcelain'], fixture.main, environment)).toBe('');
-    const durableUnrelatedPath = nodePath.join(
-      fixture.main,
-      '.safeword/retro-drafts',
-      nodePath.basename(unrelatedPath),
-    );
-    expect(readFileSync(durableUnrelatedPath)).toEqual(unrelatedBefore);
+    expect(readFileSync(unrelatedPath)).toEqual(unrelatedBefore);
 
     const validation = spawnSync(
       'bun',

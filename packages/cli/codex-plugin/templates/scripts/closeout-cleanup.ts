@@ -21,7 +21,12 @@ import {
   readFreshCloseoutBinding,
   resolveExactCodexTranscript,
 } from '../hooks/lib/closeout-binding.ts';
-import { draftSpoolPath, readAcks, readSpooledDrafts } from '../hooks/lib/retro-draft-spool.ts';
+import {
+  mergeSpoolFile,
+  readAcks,
+  readSpooledDrafts,
+  stageRetroSpool,
+} from '../hooks/lib/retro-draft-spool.ts';
 import { resolveRunIdentity } from '../hooks/lib/run-identity.ts';
 
 export const POST_MERGE_VERIFICATION_KINDS = ['verify', 'build', 'typecheck', 'bdd'] as const;
@@ -1114,7 +1119,7 @@ function runBoundRetroWindows(
     complete,
     pendingDrafts,
     evidenceHash: snapshot.digest,
-    ...(pendingDrafts > 0 ? { spoolPath: realpathSync(draftSpoolPath(root, binding.id)) } : {}),
+    ...stagedSpool(root, binding.id, pendingDrafts),
     ...(failure === undefined ? {} : { failure }),
   };
 }
@@ -1482,7 +1487,7 @@ function retroObservationFromReceipt(
     complete,
     pendingDrafts,
     evidenceHash: receipt.snapshot.digest,
-    ...(pendingDrafts > 0 ? { spoolPath: realpathSync(draftSpoolPath(root, sessionId)) } : {}),
+    ...stagedSpool(root, sessionId, pendingDrafts),
     failure: complete ? undefined : 'filing',
   };
 }
@@ -2082,6 +2087,17 @@ function reobserveCleanupTargets(
   };
 }
 
+/** The staged working copy to hand the filer, when drafts are pending and staging succeeded. */
+function stagedSpool(
+  root: string,
+  sessionId: string,
+  pendingDrafts: number,
+): { spoolPath?: string } {
+  if (pendingDrafts === 0) return {};
+  const staged = stageRetroSpool(root, sessionId);
+  return staged === undefined ? {} : { spoolPath: realpathSync(staged) };
+}
+
 function preserveRetroSpool(plan: CleanupPlan): string | undefined {
   const removal = plan.operations.find(operation => operation.kind === 'remove-worktree');
   if (!removal) return undefined;
@@ -2107,6 +2123,11 @@ function preserveRetroSpool(plan: CleanupPlan): string | undefined {
       if (!entry.isFile()) continue;
       const source = nodePath.join(sourceDirectory, entry.name);
       const target = nodePath.join(targetDirectory, entry.name);
+      // Spools and ledgers merge, so records only this checkout holds survive.
+      if (entry.name.endsWith('.jsonl')) {
+        mergeSpoolFile(source, target);
+        continue;
+      }
       const bytes = readFileSync(source);
       if (!existsSync(target) || !readFileSync(target).equals(bytes)) {
         const temporary = `${target}.${randomUUID()}.tmp`;

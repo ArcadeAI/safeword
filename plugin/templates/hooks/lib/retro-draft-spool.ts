@@ -16,7 +16,9 @@
 // Self-contained (node:* only): the CLI's `src/` imports it AND the surfacing hook
 // runs it under bun in a customer repo. `SpooledDraft` is structurally `RetroDraft`.
 
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import {
@@ -52,7 +54,7 @@ export interface SpooledDraft {
 /** Per-session spool cap — bounds a crash-looping or runaway session's disk use. */
 const MAX_DRAFTS_PER_SESSION = 20;
 
-/** Spool lives under the project's `.safeword/` so it travels with the install. */
+/** The working copy lives under the project's `.safeword/`, inside the agent's workspace. */
 const SPOOL_DIR = nodePath.join('.safeword', 'retro-drafts');
 
 /** The extension every retro spool name carries and every sibling marker replaces. */
@@ -65,9 +67,43 @@ function spoolName(sessionId: string): string {
   return `${sessionId.replaceAll(/[^\w.-]/g, '_').slice(0, 80) || 'unknown'}${SPOOL_EXTENSION}`;
 }
 
-/** Absolute path of the per-session retro-draft spool file. */
+/**
+ * Absolute path of the per-session working copy: the spool the filer is handed,
+ * reads, acknowledges beside, and drains. It stays in the project so the filer
+ * never needs write access outside its workspace.
+ */
 export function draftSpoolPath(projectDirectory: string, sessionId: string): string {
   return nodePath.join(projectDirectory, SPOOL_DIR, spoolName(sessionId));
+}
+
+/**
+ * The durable copy's directory: `<git common dir>/safeword/retro-drafts/` (#5467).
+ * Every worktree of a repository shares the common dir, so drafts written here
+ * survive the worktree they were written in, however it is removed. Git itself
+ * resolves the common dir, so worktree link formats stay its concern. Outside
+ * git (or with a git too old for `--path-format`), the working copy's directory.
+ */
+function durableSpoolDirectory(projectDirectory: string): string {
+  const result = spawnSync(
+    'git',
+    ['-C', projectDirectory, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+    { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000 },
+  );
+  const commonDirectory = result.status === 0 ? result.stdout.trim() : '';
+  return commonDirectory.length > 0
+    ? nodePath.join(commonDirectory, 'safeword', 'retro-drafts')
+    : nodePath.join(projectDirectory, SPOOL_DIR);
+}
+
+/** Absolute path of the per-session durable copy. Hooks and the CLI write it; the filer never does. */
+export function durableDraftSpoolPath(projectDirectory: string, sessionId: string): string {
+  return nodePath.join(durableSpoolDirectory(projectDirectory), spoolName(sessionId));
+}
+
+/** The durable copy's path when it is a separate file, else undefined. */
+function separateDurablePath(projectDirectory: string, sessionId: string): string | undefined {
+  const durable = durableDraftSpoolPath(projectDirectory, sessionId);
+  return durable === draftSpoolPath(projectDirectory, sessionId) ? undefined : durable;
 }
 
 /**
@@ -120,8 +156,40 @@ function toDraft(value: unknown): SpooledDraft | undefined {
   };
 }
 
+/** A draft's identity: route plus signature, as markDraftsFiled and markDraftsAcceptedByServer use. */
+function draftKey(draft: SpooledDraft): string {
+  return `${draft.route ?? 'direct-v2'}\0${draft.signature}`;
+}
+
+/** A direct draft whose signature carries a filed ack; server-routed drafts never are. */
+function isFiled(draft: SpooledDraft, filedSignatures: ReadonlySet<string>): boolean {
+  return draft.route !== 'server-v3' && filedSignatures.has(draft.signature);
+}
+
+/**
+ * The session's drafts across both copies: the working copy, then each durable
+ * draft it does not hold. A draft the removal ledger names is skipped in either
+ * copy, because removals are recorded before any copy is rewritten: a staging
+ * write that raced a drain cannot bring a removed draft back. A durable draft
+ * with a filed ack is skipped too (filed, even if a sandbox kept the ledger
+ * from being written); a working draft with an ack stays, so the filer can
+ * drain it.
+ */
 function readAllSpooledDrafts(projectDirectory: string, sessionId: string): SpooledDraft[] {
-  return readJsonlRecords(draftSpoolPath(projectDirectory, sessionId), toDraft);
+  const working = readJsonlRecords(draftSpoolPath(projectDirectory, sessionId), toDraft);
+  const durable = separateDurablePath(projectDirectory, sessionId);
+  if (durable === undefined) return working;
+  const removals = sessionRemovals(projectDirectory, sessionId, durable);
+  const pending = working.filter(draft => !removals.has(draftKey(draft)));
+  const known = new Set([...pending.map(draftKey), ...removals]);
+  const filed = new Set(readAcks(projectDirectory, sessionId).map(ack => ack.signature));
+  const additions: SpooledDraft[] = [];
+  for (const draft of readJsonlRecords(durable, toDraft)) {
+    if (known.has(draftKey(draft)) || isFiled(draft, filed)) continue;
+    known.add(draftKey(draft));
+    additions.push(draft);
+  }
+  return [...pending, ...additions];
 }
 
 /**
@@ -202,16 +270,221 @@ function removeDrafts(
   removedSignatures: readonly string[],
   routeMatches: (draft: SpooledDraft) => boolean,
 ): void {
+  const removed = new Set(removedSignatures);
+  const isRemoved = (draft: SpooledDraft): boolean =>
+    removed.has(draft.signature) && routeMatches(draft);
+  const durable = separateDurablePath(projectDirectory, sessionId);
+  if (durable !== undefined) {
+    // The durable copy is append-only, so a concurrent writer's append is never
+    // lost to a rewrite: its removals live in the ledger beside it instead.
+    const keys = readAllSpooledDrafts(projectDirectory, sessionId)
+      .filter(draft => isRemoved(draft))
+      .map(draftKey);
+    appendRemovals(removalLedgerPath(projectDirectory, sessionId), keys);
+    appendRemovals(durableRemovalPath(durable), keys);
+  }
+  const working = draftSpoolPath(projectDirectory, sessionId);
+  // Busy: leave the drafts; the ledger already hides them and the next drain retries.
+  withSpoolLock(
+    working,
+    () => rewriteSpool(working, draft => !isRemoved(draft)),
+    () => undefined,
+  );
+}
+
+/**
+ * The removal ledger: one `{key}` line per draft removed from the session (filed
+ * or server-accepted), beside each copy. Reads filter the durable copy by it,
+ * since that copy is never rewritten; the working copy stays authoritative for
+ * what it holds. Each copy's ledger is mirrored to the durable one at handoff,
+ * for a removal made where the durable ledger could not be written.
+ */
+const REMOVED_SUFFIX = '.removed.jsonl';
+
+function removalLedgerPath(projectDirectory: string, sessionId: string): string {
+  return spoolSiblingPath(projectDirectory, sessionId, REMOVED_SUFFIX);
+}
+
+/** A durable spool's sibling with `suffix` in place of the spool extension. */
+function siblingOf(durableSpool: string, suffix: string): string {
+  return `${durableSpool.slice(0, -SPOOL_EXTENSION.length)}${suffix}`;
+}
+
+/** The durable copy's removal ledger, beside the durable spool. */
+function durableRemovalPath(durableSpool: string): string {
+  return siblingOf(durableSpool, REMOVED_SUFFIX);
+}
+
+/** Copy the working copy's removals into the durable ledger. Best-effort; never throws. */
+function mirrorRemovals(projectDirectory: string, sessionId: string, durableSpool: string): void {
+  appendRemovals(durableRemovalPath(durableSpool), [
+    ...readRemovals(removalLedgerPath(projectDirectory, sessionId)),
+  ]);
+}
+
+function toRemovalKey(value: unknown): string | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const { key } = value as Record<string, unknown>;
+  return typeof key === 'string' && key.length > 0 ? key : undefined;
+}
+
+function readRemovals(file: string): Set<string> {
+  return new Set(readJsonlRecords(file, toRemovalKey));
+}
+
+/** Append the keys a ledger lacks. Best-effort; never throws. */
+function appendRemovals(file: string, keys: readonly string[]): void {
+  const recorded = readRemovals(file);
+  const missing = [...new Set(keys)].filter(key => !recorded.has(key));
+  tryAppendJsonlRecords(
+    file,
+    missing.map(key => JSON.stringify({ key })),
+    Number.POSITIVE_INFINITY,
+  );
+}
+
+/** Every removal recorded beside either copy. */
+function sessionRemovals(
+  projectDirectory: string,
+  sessionId: string,
+  durable: string,
+): Set<string> {
+  return new Set([
+    ...readRemovals(removalLedgerPath(projectDirectory, sessionId)),
+    ...readRemovals(durableRemovalPath(durable)),
+  ]);
+}
+
+/** Rewrite one spool file to the drafts `keep` accepts. Best-effort; never throws. */
+function rewriteSpool(file: string, keep: (draft: SpooledDraft) => boolean): void {
   try {
-    const removed = new Set(removedSignatures);
-    const remaining = readAllSpooledDrafts(projectDirectory, sessionId).filter(
-      draft => !removed.has(draft.signature) || !routeMatches(draft),
-    );
-    const body =
-      remaining.length > 0 ? `${remaining.map(draft => draftLine(draft)).join('\n')}\n` : '';
-    atomicWriteFile(draftSpoolPath(projectDirectory, sessionId), body);
+    if (!existsSync(file)) return;
+    const drafts = readJsonlRecords(file, toDraft);
+    const remaining = drafts.filter(draft => keep(draft));
+    if (remaining.length === drafts.length) return;
+    atomicWriteFile(file, serializeDrafts(remaining));
   } catch {
-    // Self-observation must never break the host. Swallow.
+    // Self-observation must never break the host. Swallow. The removal ledger
+    // already hides these drafts, and the next drain retries the rewrite.
+  }
+}
+
+function serializeDrafts(drafts: readonly SpooledDraft[]): string {
+  return drafts.length > 0 ? `${drafts.map(draft => draftLine(draft)).join('\n')}\n` : '';
+}
+
+/** How long a working-copy writer waits for the lock, and when a held lock counts as abandoned. */
+const LOCK_WAIT_MS = 2000;
+const LOCK_STALE_MS = 10_000;
+const LOCK_POLL_MS = 20;
+
+/**
+ * Run `operation` holding a spool file's lock (a sibling directory, since mkdir
+ * is atomic). Every capped append and every rewrite of a spool file takes it:
+ * staging, the drain's rewrite and the fallback append on the working copy, and
+ * the capped append on the durable copy. So a rewrite can never replace a file
+ * another writer just appended to, and two writers cannot both pass the cap.
+ * A lock older than LOCK_STALE_MS was abandoned by a killed process and is
+ * cleared. When the lock cannot be taken in `waitMs`, or cannot be created at
+ * all, `onBusy` decides.
+ */
+function withSpoolLock<T>(
+  file: string,
+  operation: () => T,
+  onBusy: () => T,
+  waitMs = LOCK_WAIT_MS,
+): T {
+  const lock = `${file}.lock`;
+  const deadline = Date.now() + waitMs;
+  for (;;) {
+    try {
+      mkdirSync(nodePath.dirname(file), { recursive: true });
+      mkdirSync(lock);
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') return onBusy();
+      if (lockIsStale(lock)) {
+        rmSync(lock, { recursive: true, force: true });
+        continue;
+      }
+      if (Date.now() >= deadline) return onBusy();
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, LOCK_POLL_MS);
+    }
+  }
+  try {
+    return operation();
+  } finally {
+    rmSync(lock, { recursive: true, force: true });
+  }
+}
+
+function lockIsStale(lock: string): boolean {
+  try {
+    return Date.now() - statSync(lock).mtimeMs > LOCK_STALE_MS;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Merge another checkout's spool-directory file (a spool or a ledger) into
+ * `target`, keeping every record either holds: the target's lines stay, and each
+ * source line it lacks is appended. Runs under the target's spool lock
+ * with no deadline, as the fallback append does, so a staging write cannot
+ * replace the merge. Throws on failure, so a caller about to delete the source
+ * can stop.
+ */
+export function mergeSpoolFile(source: string, target: string): void {
+  const merge = (): void => {
+    const existing = existsSync(target) ? readFileSync(target, 'utf8') : '';
+    const recorded = new Set(nonEmptyLines(existing));
+    const missing = [...new Set(nonEmptyLines(readFileSync(source, 'utf8')))].filter(
+      line => !recorded.has(line),
+    );
+    if (missing.length === 0) return;
+    const separator = existing.length > 0 && !existing.endsWith('\n') ? '\n' : '';
+    appendFileSync(target, `${separator}${missing.join('\n')}\n`, { mode: 0o600 });
+  };
+  withSpoolLock(target, merge, merge, Number.POSITIVE_INFINITY);
+}
+
+function nonEmptyLines(contents: string): string[] {
+  return contents.split('\n').filter(line => line.trim().length > 0);
+}
+
+/**
+ * Bring the session's durable drafts into the working copy and return its path
+ * — the one place a spool path is handed to the filer (Stop gate, nudge,
+ * closeout). This hook-side step also copies the working copy's acks and
+ * removals beside the durable copy, for a filer that ran where the durable copy
+ * could not be written. Returns undefined when the
+ * working copy does not end up holding every pending draft, so no caller hands
+ * the filer a spool that is missing the findings it was dispatched for.
+ */
+export function stageRetroSpool(projectDirectory: string, sessionId: string): string | undefined {
+  const working = draftSpoolPath(projectDirectory, sessionId);
+  const durable = separateDurablePath(projectDirectory, sessionId);
+  if (durable === undefined) return working;
+  try {
+    mirrorAcks(projectDirectory, sessionId, durable);
+    mirrorRemovals(projectDirectory, sessionId, durable);
+    // The handed-off file holds exactly the pending drafts: every durable
+    // addition, and no draft the removal ledger names.
+    return withSpoolLock(
+      working,
+      () => {
+        const drafts = readAllSpooledDrafts(projectDirectory, sessionId);
+        const pending = drafts.map(draftKey).join('\n');
+        const physical = (): string => readJsonlRecords(working, toDraft).map(draftKey).join('\n');
+        if (physical() === pending) return working;
+        atomicWriteFile(working, serializeDrafts(drafts));
+        return physical() === pending ? working : undefined;
+      },
+      () => undefined,
+    );
+  } catch {
+    // The next handoff retries the staging.
+    return undefined;
   }
 }
 
@@ -268,7 +541,41 @@ function toAck(value: unknown): FiledAck | undefined {
  * that a removed draft was filed — local contract validation, no network.
  */
 export function readAcks(projectDirectory: string, sessionId: string): FiledAck[] {
-  return readJsonlRecords(ackFilePath(projectDirectory, sessionId), toAck);
+  const working = readJsonlRecords(ackFilePath(projectDirectory, sessionId), toAck);
+  const durable = separateDurablePath(projectDirectory, sessionId);
+  if (durable === undefined) return working;
+  const seen = new Set(working.map(ackKey));
+  return [
+    ...working,
+    ...readJsonlRecords(durableAckPath(durable), toAck).filter(ack => !seen.has(ackKey(ack))),
+  ];
+}
+
+function ackKey(ack: FiledAck): string {
+  return `${ack.signature}\0${String(ack.issue)}`;
+}
+
+/** The durable copy's ack ledger, beside the durable spool. */
+function durableAckPath(durableSpool: string): string {
+  return siblingOf(durableSpool, '.acks.jsonl');
+}
+
+/**
+ * Copy the working copy's acks into the durable ledger, so a filed draft stays
+ * filed after its worktree is deleted. Best-effort: a sandboxed filer cannot
+ * write it, and the next hook-side staging copies them instead.
+ */
+function mirrorAcks(projectDirectory: string, sessionId: string, durableSpool: string): void {
+  const ledger = durableAckPath(durableSpool);
+  const recorded = new Set(readJsonlRecords(ledger, toAck).map(ackKey));
+  const missing = readJsonlRecords(ackFilePath(projectDirectory, sessionId), toAck).filter(
+    ack => !recorded.has(ackKey(ack)),
+  );
+  tryAppendJsonlRecords(
+    ledger,
+    missing.map(ack => JSON.stringify({ signature: ack.signature, issue: ack.issue })),
+    Number.POSITIVE_INFINITY,
+  );
 }
 
 /**
@@ -295,6 +602,8 @@ export function recordFiledAck(
 
 /** Drain only drafts with a reader-visible, destination-bound acknowledgement. */
 export function drainAcknowledgedDrafts(projectDirectory: string, sessionId: string): void {
+  const durable = separateDurablePath(projectDirectory, sessionId);
+  if (durable !== undefined) mirrorAcks(projectDirectory, sessionId, durable);
   markDraftsFiled(
     projectDirectory,
     sessionId,
@@ -364,9 +673,36 @@ export function spoolDrafts(
   sessionId: string,
   drafts: readonly SpooledDraft[],
 ): void {
-  appendJsonlRecords(
-    draftSpoolPath(projectDirectory, sessionId),
-    drafts.map(draft => draftLine(draft)),
-    MAX_DRAFTS_PER_SESSION,
-  );
+  // The durable copy first; where it cannot take a draft (an agent sandbox that
+  // confines writes to the workspace, or its cap), the working copy keeps
+  // today's behavior for exactly the drafts the durable copy does not hold.
+  const durable = separateDurablePath(projectDirectory, sessionId);
+  let fallback = drafts;
+  if (durable !== undefined) {
+    const lines = drafts.map(draft => draftLine(draft));
+    // Under the shared copy's lock, so concurrent writers cannot both pass the cap.
+    // Busy: the working copy takes the drafts, as it does past the cap.
+    const appended = withSpoolLock(
+      durable,
+      () => tryAppendJsonlRecords(durable, lines, MAX_DRAFTS_PER_SESSION),
+      () => false,
+    );
+    if (appended) return;
+    const held = new Set(readJsonlRecords(durable, toDraft).map(draftKey));
+    fallback = drafts.filter(draft => !held.has(draftKey(draft)));
+  }
+  const working = draftSpoolPath(projectDirectory, sessionId);
+  const append = (): void =>
+    appendJsonlRecords(
+      working,
+      fallback.map(draft => draftLine(draft)),
+      MAX_DRAFTS_PER_SESSION,
+    );
+  // No deadline: the append always ends up holding the lock, so staging can never
+  // replace it. One session's writers are few and brief, and a dead holder's lock
+  // goes stale, so the wait ends. The unlocked append runs only when no lock can
+  // be created at all, and then staging and the drain cannot take one to rewrite.
+  if (fallback.length > 0) {
+    withSpoolLock(working, append, append, Number.POSITIVE_INFINITY);
+  }
 }
