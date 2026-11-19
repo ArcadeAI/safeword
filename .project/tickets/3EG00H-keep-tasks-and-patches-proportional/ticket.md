@@ -2,13 +2,14 @@
 id: 3EG00H
 slug: keep-tasks-and-patches-proportional
 type: feature
-phase: scenario-gate
+phase: plan-implementation
 status: in_progress
 phase_skips:
   - "intake: inherited the user's 2026-09-09 acceptance of the refreshed 82T411 Product Plan and its current parent contract"
   - "define-behavior: partitioned the accepted 82T411 Rule and scenario packet at Safeword's documented split restart point"
 phase_anchors:
   - scenario-gate: features/keep-tasks-and-patches-proportional.feature
+  - plan-implementation: features/keep-tasks-and-patches-proportional.feature
 scope:
   - classify patch, feature, and task work with one explicit precedence order
   - carry Delivery Checklist concerns proportionally in task and patch inline work records without introducing feature planning artifacts
@@ -29,7 +30,7 @@ parent: 82T411
 parent_job: plan-implementability.TBU3
 milestone: M3
 created: 2026-09-08T17:36:35.884Z
-last_modified: 2026-09-10T06:40:00.000Z
+last_modified: 2026-11-19T20:20:51Z
 parent_contract_digest: 52fdd2a185cea51953494482470a0e9912f7a23d5fdb3c58dbee1efac8707b0b
 ---
 
@@ -40,6 +41,8 @@ parent_contract_digest: 52fdd2a185cea51953494482470a0e9912f7a23d5fdb3c58dbee1efa
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-11-19T20:20:51Z Advanced from scenario-gate to plan-implementation after confirming and recording independent scenario approval `7960fbfc-a3be-4837-b1ad-0798130f4188`.
 
 - 2026-11-19 Reconciled the accepted parent terms. The TBU3 comment clarifies ownership of feature TDD sequencing. The M3 outcome, M3 non-goals and success threshold are unchanged. Parent non-goals clarify headless waiting and accurately labelled review fallback. Updated the scenarios to require reviews of both feature plans under #6786 and removed OpenCode delivery examples under the November 14 decision. Returned for fresh review of the revised scenario packet. Ledger and historical approvals remain intact.
 

@@ -69,7 +69,9 @@ for its revised packet. Fresh cross-agent review
 out-of-scope promotion case. The source CLI still reports that receipt
 approved. The installed Codex build reports it stale, and the current
 checkout's bundled writer refuses project-writable runtime authority.
-No scenario stamp or phase advancement was recorded.
+That attempt recorded no stamp. A separate Codex CLI profile later installed
+the matching repository build and recorded the authenticated approval.
+3EG00H advanced to Implementation Planning.
 
 K3EBHB was also reconciled against its exact prior digest. The M2 outcome
 now names dispute routing, and the NTB Rule explicitly covers stale planning
@@ -81,8 +83,10 @@ and one consistent action for a headless approval wait. Independent review
 `67b141ee-2138-4785-86b4-b2366c867272` rejected conflicting actions for
 the same cloud wait. The corrected packet is approved in the source runtime
 under `983229fa-cd01-456e-b9e5-0c9c7f6ed917`. The installed runtime again
-reports stale. Recovery still needs executed proofs and a real nontechnical
-walkthrough. G1C9PP, 7CAMAD, YCFFNC and ZSHVEB retain their recorded bindings.
+reported stale at that time. The separate CLI profile verified and recorded
+the approval, then advanced K3EBHB to Implementation Planning. Recovery still
+needs executed proofs and a real nontechnical walkthrough. G1C9PP, 7CAMAD,
+YCFFNC and ZSHVEB retain their recorded bindings.
 
 ## Concrete verification repair
 
