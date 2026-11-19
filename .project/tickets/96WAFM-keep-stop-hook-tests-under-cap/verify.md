@@ -40,6 +40,26 @@
 - Earlier Sonnet subagent pass: applied the ARCHITECTURE.md row fix. Answered: CI runs
   `bun run test` on every PR, and the smoke lanes keep the full hook directory on purpose (no cap).
 
+## Re-verification at 913c43a8f
+
+The only change since the first run is ticket records. The full `/verify` plan was re-run under
+`scripts/dev` (Bun 1.4.4) at load about 7:
+
+- retro-relay 198/198, retro-collector 153/153.
+- packages/cli, first pass: 17 failures in 9 files.
+- packages/cli, second pass: 8 failures in 5 files. Four of those files are timing-sensitive:
+  `review-wiring` (OpenCode timeouts), `opencode/host-contract`, `coding-authorization` (reviewer
+  `probe_timed_out`) and `test-runner-lock` (the cross-checkout lock). The fifth is
+  `lint-go-context`, which fails from Go drift.
+- Gherkin: 598/599. The failure is the reviewer route-order scenario in
+  `review-with-the-best-available-agent.feature:81`. Claude launched first because a route
+  probe timed out.
+- Typecheck passed. Build and dependency audit fail only on the host Go mismatch.
+
+No failing file is in this PR's diff. CI `test` (node 22 and 24), `lint` and `Go lint context` pass
+at 913c43a8f. An earlier re-run outside `scripts/dev` used Bun 1.3.14 and is discarded; its
+plugin-generation failures came from the wrong Bun version.
+
 ## Audit
 
 Audit passed, diff scope against origin/main (merge base 8974a7ad6). Errors: 0. Warnings: 0. Config
