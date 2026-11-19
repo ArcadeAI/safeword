@@ -12,7 +12,7 @@
  */
 
 import { execSync, spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { realpathSync } from 'node:fs';
 import path from 'node:path';
 
 import { safewordCli } from './safeword-cli.js';
@@ -86,21 +86,7 @@ export function timeoutMsForTestCommand(kind: TestCommand['kind']): number {
   return kind === 'bdd' ? BDD_TEST_TIMEOUT_MS : TEST_TIMEOUT_MS;
 }
 
-/**
- * Project-level files mise reads its tool pins from (environment-specific and `.local` variants
- * omitted: a project that pins tools has one of these).
- */
-const MISE_PROJECT_CONFIG_FILES = [
-  'mise.toml',
-  '.mise.toml',
-  'mise/config.toml',
-  '.mise/config.toml',
-  '.config/mise.toml',
-  '.config/mise/config.toml',
-  '.tool-versions',
-];
-
-/** `mise bin-paths` only reads configuration; it never installs. */
+/** `mise config ls` and `mise bin-paths` only read configuration; they never install. */
 const MISE_TIMEOUT_MS = 10_000;
 
 /** Lines of `mise` diagnostics kept in the pin-fallback note. */
@@ -114,8 +100,46 @@ const MAX_OUTPUT_CHARS = 3000;
 
 interface ToolchainEnvironment {
   environment: NodeJS.ProcessEnv;
-  /** Why a project pin exists but could not be applied. */
+  /** Why mise could not apply the project's pins. */
   note?: string;
+}
+
+type MiseResult = { ok: true; stdout: string } | { ok: false; missing: boolean; detail: string };
+
+function runMise(projectDirectory: string, command: string[]): MiseResult {
+  const result = spawnSync('mise', ['-C', projectDirectory, ...command], {
+    encoding: 'utf8',
+    timeout: MISE_TIMEOUT_MS,
+  });
+  if (!result.error && result.status === 0) return { ok: true, stdout: result.stdout };
+  const missing = (result.error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT';
+  // Kept short: the detail sits outside the output truncation budget.
+  const detail = (
+    result.stderr?.trim() ||
+    result.error?.message ||
+    `mise ${command.join(' ')} exited ${result.status}`
+  )
+    .split('\n')
+    .slice(0, MAX_NOTE_LINES)
+    .join('\n');
+  return { ok: false, missing, detail };
+}
+
+/**
+ * Whether a config mise loads for this project pins tools and lives inside it. mise also loads
+ * parent and global configs; those are the user's defaults, not the project's pins. Asking mise
+ * covers every file name it supports (`mise.local.toml`, `mise.<env>.toml`, `.tool-versions`, …).
+ */
+function projectPinsTools(projectDirectory: string, configList: string): boolean {
+  const projectRoot = realpathSync(projectDirectory);
+  const configs = JSON.parse(configList) as { path?: unknown; tools?: unknown }[];
+  return configs.some(
+    config =>
+      typeof config.path === 'string' &&
+      config.path.startsWith(projectRoot + path.sep) &&
+      Array.isArray(config.tools) &&
+      config.tools.length > 0,
+  );
 }
 
 /**
@@ -123,39 +147,25 @@ interface ToolchainEnvironment {
  * pins: the Claude desktop app's Bun 1.3.14 cannot read a lockfileVersion 3 bun.lock that the
  * pinned Bun 1.4.4 writes. When the project pins tools with mise, put the pinned tool directories
  * ahead of the inherited PATH, as `mise exec` and a project's own pinned git hooks do. A project
- * without a mise config keeps its PATH, so a global mise default never changes it.
+ * that pins nothing keeps its PATH, so a global mise default never changes it.
  */
 function pinnedToolchainEnvironment(projectDirectory: string): ToolchainEnvironment {
   const environment = process.env;
-  const pinsTools = MISE_PROJECT_CONFIG_FILES.some(file =>
-    existsSync(path.join(projectDirectory, file)),
-  );
-  if (!pinsTools) return { environment };
-  const result = spawnSync('mise', ['-C', projectDirectory, 'bin-paths'], {
-    encoding: 'utf8',
-    timeout: MISE_TIMEOUT_MS,
-    env: environment,
+  const notApplied = (detail: string): ToolchainEnvironment => ({
+    environment,
+    note: `Pinned toolchain not applied; tests ran with the inherited PATH. ${detail}`,
   });
-  // No mise installed: the project's pin cannot be honored, and the PATH stays as it was.
-  if ((result.error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT') {
-    return { environment };
+  const configList = runMise(projectDirectory, ['config', 'ls', '--json']);
+  // No mise installed: nothing can honor a pin, and the PATH stays as it was.
+  if (!configList.ok) return configList.missing ? { environment } : notApplied(configList.detail);
+  try {
+    if (!projectPinsTools(projectDirectory, configList.stdout)) return { environment };
+  } catch (error) {
+    return notApplied(`Unreadable mise config list: ${(error as Error).message}`);
   }
-  if (result.error || result.status !== 0) {
-    // Kept short: the note sits outside the output truncation budget.
-    const detail = (
-      result.stderr?.trim() ||
-      result.error?.message ||
-      `mise bin-paths exited ${result.status}`
-    )
-      .split('\n')
-      .slice(0, MAX_NOTE_LINES)
-      .join('\n');
-    return {
-      environment,
-      note: `Pinned toolchain not applied; tests ran with the inherited PATH. ${detail}`,
-    };
-  }
-  const pinnedDirectories = result.stdout
+  const binPaths = runMise(projectDirectory, ['bin-paths']);
+  if (!binPaths.ok) return notApplied(binPaths.detail);
+  const pinnedDirectories = binPaths.stdout
     .split('\n')
     .map(line => line.trim())
     .filter(Boolean);

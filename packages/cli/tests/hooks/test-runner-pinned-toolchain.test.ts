@@ -5,10 +5,11 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -29,18 +30,45 @@ describe('test runner with a mise-pinned project', () => {
   let bunRuntimeCalls: string;
   let originalEnvironment: Record<string, string | undefined>;
 
-  /** A fake `mise` that answers `mise -C <project> bin-paths` with the pinned bin directory. */
-  function installFakeMise(behavior: 'pinned' | 'fails'): void {
+  /**
+   * A fake `mise` for this project: `config ls --json` reports the given configs (mise prints
+   * canonical paths) and `bin-paths` prints the pinned directory, or fails like an untrusted config.
+   */
+  function installFakeMise(configs: { file: string; tools: string[] }[], binPaths: 'ok' | 'fails') {
     const fakeMiseDirectory = path.join(root, 'mise-bin');
     mkdirSync(fakeMiseDirectory, { recursive: true });
-    const answer =
-      behavior === 'pinned'
-        ? `[ "$1" = "-C" ] && [ "$2" = "${project}" ] && [ "$3" = "bin-paths" ] && echo "${pinnedBin}" && exit 0\nexit 3`
-        : `echo "mise ERROR Config files in ${project}/mise.toml are not trusted." >&2\nexit 1`;
+    const configList = JSON.stringify(
+      configs.map(({ file, tools }) => ({
+        path: path.isAbsolute(file) ? file : path.join(realpathSync(project), file),
+        tools,
+      })),
+    );
+    const binPathsAnswer =
+      binPaths === 'ok'
+        ? `echo "${pinnedBin}"`
+        : `echo "mise ERROR Config files in ${project}/mise.toml are not trusted." >&2; exit 1`;
     const fakeMise = path.join(fakeMiseDirectory, 'mise');
-    writeFileSync(fakeMise, `#!/bin/sh\necho "$@" >> "${miseCalls}"\n${answer}\n`);
+    writeFileSync(
+      fakeMise,
+      [
+        '#!/bin/sh',
+        `echo "$@" >> "${miseCalls}"`,
+        `[ "$1" = "-C" ] && [ "$2" = "${project}" ] || exit 3`,
+        'case "$3" in',
+        `  config) echo '${configList}' ;;`,
+        `  bin-paths) ${binPathsAnswer} ;;`,
+        '  *) exit 3 ;;',
+        'esac',
+        '',
+      ].join('\n'),
+    );
     chmodSync(fakeMise, 0o755);
     process.env.PATH = [staleBin, fakeMiseDirectory, process.env.PATH].join(path.delimiter);
+  }
+
+  /** Whether the runner asked mise for the pinned tool directories. */
+  function askedForBinPaths(): boolean {
+    return existsSync(miseCalls) && readFileSync(miseCalls, 'utf8').includes('bin-paths');
   }
 
   /** Which runtime directory served each `bun` the test-plan lookup started. */
@@ -116,9 +144,11 @@ describe('test runner with a mise-pinned project', () => {
     rmSync(root, { recursive: true, force: true });
   });
 
+  const globalConfig = { file: path.join(homedir(), '.config/mise/config.toml'), tools: ['bun'] };
+
   it('puts the pinned tool directories ahead of a stale PATH entry', () => {
-    writeFileSync(path.join(project, 'mise.toml'), '[tools]\nbun = "1.4.4"\n');
-    installFakeMise('pinned');
+    // A pin only in mise.local.toml still counts: mise, not a file-name list, decides.
+    installFakeMise([{ file: 'mise.local.toml', tools: ['bun'] }, globalConfig], 'ok');
 
     const { pinned, stale } = testCommandPathPositions();
 
@@ -127,20 +157,19 @@ describe('test runner with a mise-pinned project', () => {
     expect(bunRuntimesUsed()).toEqual(new Set(['pinned']));
   });
 
-  it('leaves PATH alone and does not ask mise when the project pins nothing', () => {
-    installFakeMise('pinned');
+  it('leaves PATH alone when only configs outside the project pin tools', () => {
+    installFakeMise([{ file: 'mise.toml', tools: [] }, globalConfig], 'ok');
 
     const { pinned, stale } = testCommandPathPositions();
 
     expect(pinned).toBe(-1);
     expect(stale).toBeGreaterThanOrEqual(0);
     expect(bunRuntimesUsed()).toEqual(new Set(['stale']));
-    expect(existsSync(miseCalls)).toBe(false);
+    expect(askedForBinPaths()).toBe(false);
   });
 
   it('falls back to the inherited PATH and says why when mise cannot resolve the pin', () => {
-    writeFileSync(path.join(project, 'mise.toml'), '[tools]\nbun = "1.4.4"\n');
-    installFakeMise('fails');
+    installFakeMise([{ file: 'mise.toml', tools: ['bun'] }], 'fails');
 
     const { pinned, stale, output } = testCommandPathPositions();
 

@@ -455,7 +455,7 @@
     },
     {
       "path": "runtime/hooks/lib/test-runner.ts",
-      "sha256": "508d8eac06d7c43ce066c8b3eb1068b343a2abf01d4ab76c2dc88ee0f45fb1bc"
+      "sha256": "cc03d137541aea609930418d868ede7dc30b8d59b93112cdddf1b74feb5ffdc1"
     },
     {
       "path": "runtime/hooks/lib/ticket-close.ts",
@@ -1451,7 +1451,7 @@
     },
     {
       "path": "templates/hooks/lib/test-runner.ts",
-      "sha256": "508d8eac06d7c43ce066c8b3eb1068b343a2abf01d4ab76c2dc88ee0f45fb1bc"
+      "sha256": "cc03d137541aea609930418d868ede7dc30b8d59b93112cdddf1b74feb5ffdc1"
     },
     {
       "path": "templates/hooks/lib/ticket-close.ts",
