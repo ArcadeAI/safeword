@@ -18,32 +18,36 @@ import { detectInspirationArtifactWrite, detectLedgerWrite } from './lib/bash-le
 import { retrospectiveGateDenial } from './lib/retrospective-gate.ts';
 import {
   askTrustedSafeword,
-  projectWritablePluginCli,
+  configuredPluginCli,
+  pinnedSafewordVersion,
   trustedEnvironment,
-  trustedSafewordClis,
 } from './lib/safeword-cli.ts';
-import { commandInvokesCloseoutCleanup, rememberCloseoutBinding } from './lib/closeout-binding.ts';
+import { closeoutBindingTarget, rememberCloseoutBinding } from './lib/closeout-binding.ts';
 import { detectBroadProcessKill } from './lib/process-kill-guard.ts';
 import { evaluateBlockedOnGate } from './lib/blocked-on-gate.ts';
 import { isGitOperationInProgress } from './lib/git-operation.ts';
-import { applyUniqueEdit, collectNewTransitions } from './lib/checkbox-transitions.ts';
-import { parseFrontmatter } from './lib/hierarchy.ts';
+import {
+  applyUniqueEdit,
+  type CheckboxTransition,
+  collectNewTransitions,
+} from './lib/checkbox-transitions.ts';
+import { resolveCommitSha } from './lib/ledger-git.ts';
+import {
+  isEmptyFrontmatterValue,
+  parseFrontmatter,
+  REQUIRED_INTAKE_FIELDS,
+} from './lib/hierarchy.ts';
 import { evaluateCriteriaGate, evaluateJtbdGate } from './lib/jtbd.ts';
 import { hasInspirationActivationCandidate } from './lib/inspiration.ts';
 import { classifyAnnotation, isValidSha, isValidSkipReason } from './lib/parse-annotation.ts';
 import { classifyPrReadinessCommand, evaluatePrReadiness } from './lib/pr-readiness-guard.ts';
 import {
-  AUTHOR_MODEL_ENV,
   detectPhaseAdvance,
   gatePhaseAdvance,
   hashArtifact,
-  isCrossModelReviewRequired,
-  isSatisfyingCoordinatorReviewStamp,
   isReviewGateEnabled,
   reviewGateAppliesToPhase,
-  modelsMatch,
   parseReviewStamps,
-  readCrossAgentReviewPolicy,
   type ReviewStamp,
   reviewGateForNextAsset,
   reviewScope,
@@ -60,9 +64,12 @@ import {
   isNamespacePath,
   resolveConfiguredPath,
   resolveNamespaceRoot,
-  canonicalEditTarget,
-  resolveToolProjectDirectory,
 } from './lib/namespace-root.ts';
+import {
+  canonicalEditTarget,
+  resolveLaunchDirectory,
+  resolveToolProjectDirectory,
+} from './lib/project-directory.ts';
 import { reviewKindForPhase } from './lib/review-receipt.ts';
 import { verifiedStamps } from './lib/verify-stamp-claims.ts';
 import { evaluateTicketWrite } from './lib/phase-provenance.ts';
@@ -75,7 +82,7 @@ import {
 import { evaluateParentContract } from './lib/product-plan-contract.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 
-installCrashCapture('pre-tool-quality');
+const crashCapture = installCrashCapture('pre-tool-quality');
 
 const EDIT_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'];
 
@@ -244,20 +251,10 @@ function deny(reason: string, remedy?: string, exposeReasonToUser = false): neve
   process.exit(0);
 }
 
-/**
- * A required frontmatter field counts as missing when it is absent, the literal
- * string `'null'`, or empty — including an empty block sequence (which parses to
- * `[]`) or a list of only blank items.
- */
-function isMissingFrontmatterField(value: string | string[] | undefined): boolean {
-  if (value === undefined || value === 'null') return true;
-  return Array.isArray(value) ? value.every(item => item.trim() === '') : value.trim() === '';
-}
-
 // Keep the host-provided spelling as the session identity: state files are keyed
 // by that exact string. Use the canonical form only for filesystem containment
 // and relative-path comparisons (`/var` and `/private/var` alias on macOS).
-const launchProjectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const launchProjectDirectory = resolveLaunchDirectory();
 
 // Tier 1 (per-asset) is off unless `.safeword/config.json` sets `reviewGate: true`
 // — it is per-asset, so it has no phase to select on and stays all-or-nothing.
@@ -275,22 +272,6 @@ function reviewGateAppliesTo(phase: string): boolean {
   return reviewGateAppliesToPhase(
     existsSync(configFile) ? readFileSync(configFile, 'utf8') : undefined,
     phase,
-  );
-}
-
-// Whether phase-exit reviews must run on a different model than the author
-// (ticket 7A0B2K, reusing MR5M3A's `crossModelReview` knob). Off by default.
-function isCrossModelOn(): boolean {
-  const configFile = nodePath.join(projectDirectory, '.safeword', 'config.json');
-  return isCrossModelReviewRequired(
-    existsSync(configFile) ? readFileSync(configFile, 'utf8') : undefined,
-  );
-}
-
-function crossAgentReviewPolicy() {
-  const configFile = nodePath.join(projectDirectory, '.safeword', 'config.json');
-  return readCrossAgentReviewPolicy(
-    existsSync(configFile) ? readFileSync(configFile, 'utf8') : undefined,
   );
 }
 
@@ -327,11 +308,13 @@ function receiptGateVerdict(
 }
 
 function assertPlanningContractCopy(ticket: string, phase: string): void {
-  const candidates = trustedSafewordClis(projectDirectory);
+  // Skip only when Safeword is not installed at all: no running plugin and no
+  // pinned version. An installation whose every CLI was refused (missing plugin
+  // CLI, project-writable runtime) leaves no trusted candidate, but fails closed.
   if (
     process.env.SAFEWORD_AGENT_RUNTIME !== 'cursor' &&
-    projectWritablePluginCli(projectDirectory) === undefined &&
-    candidates.length === 0
+    configuredPluginCli() === undefined &&
+    pinnedSafewordVersion(projectDirectory) === undefined
   )
     return;
   if (process.env.CODEX_HOME && trustedEnvironment(projectDirectory).CODEX_HOME === undefined) {
@@ -486,13 +469,8 @@ function recordedReviewStamps(): ReviewStamp[] {
   return parseReviewStamps(readFileSync(logFile, 'utf8'));
 }
 
-function readReviewStamps(scope: string, requirePinnedReviewerModel = false): ReviewStamp[] {
-  return verifiedStamps(
-    recordedReviewStamps(),
-    projectDirectory,
-    scope,
-    requirePinnedReviewerModel,
-  );
+function readReviewStamps(scope: string): ReviewStamp[] {
+  return verifiedStamps(recordedReviewStamps(), projectDirectory, scope);
 }
 
 /**
@@ -553,18 +531,21 @@ try {
 
 const tool = input.tool_name ?? '';
 const requestedEditedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? '';
-const editedFile = canonicalEditTarget(requestedEditedFile, input.cwd);
+const editedFile = canonicalEditTarget(launchProjectDirectory, requestedEditedFile, input.cwd);
 
 // Work inside another enrolled git worktree (e.g. `.claude/worktrees/<name>`
 // after the session entered it) is gated against that worktree's tickets,
 // config, and state — not the launch checkout's. Edits resolve from the edited
 // file (#5247); shell commands from the shell's cwd, so the PR-readiness gate
 // reads the receipt post-tool-quality wrote for that same worktree.
+// The resolver gets the host spelling and canonicalizes on its own, so an edit
+// and a shell command in the same aliased worktree name it identically.
 const projectDirectory = resolveToolProjectDirectory(launchProjectDirectory, {
   tool,
-  editedFile,
+  editedFile: requestedEditedFile,
   cwd: input.cwd,
 });
+crashCapture.setProject(projectDirectory);
 const canonicalProjectDirectory = realpathSync(projectDirectory);
 
 // ---------------------------------------------------------------------------
@@ -634,19 +615,21 @@ if (tool === 'Bash') {
   if (GIT_COMMIT_COMMAND.test(command)) {
     enforceRefactorCommitGate(input.session_id);
   }
+  // Closeout reads its binding from the working tree it runs in, so record it
+  // there: the shell's cwd after any leading `cd`. Every host runs this gate,
+  // so an unfollowable `cd` is denied for all of them.
+  const closeoutTarget = closeoutBindingTarget(
+    command,
+    nodePath.resolve(launchProjectDirectory, input.cwd ?? '.'),
+  );
+  if (closeoutTarget?.kind === 'unresolved') deny(closeoutTarget.recovery);
   if (
-    // Closeout runs against the launch checkout (it removes the worktree), so
-    // its session binding stays there regardless of the shell's cwd.
-    commandInvokesCloseoutCleanup(
-      command,
-      process.env.CLAUDE_PLUGIN_ROOT,
-      launchProjectDirectory,
-    ) &&
+    closeoutTarget?.kind === 'tree' &&
     (process.env.SAFEWORD_AGENT_RUNTIME === undefined ||
       process.env.SAFEWORD_AGENT_RUNTIME === 'claude')
   ) {
     rememberCloseoutBinding({
-      projectDirectory: launchProjectDirectory,
+      projectDirectory: closeoutTarget.projectDirectory,
       runtime: 'claude',
       id: input.session_id,
       transcriptPath: input.transcript_path,
@@ -669,7 +652,7 @@ if (!EDIT_TOOLS.includes(tool)) {
 
 if (
   nodePath.basename(editedFile) === 'test-definitions.md' &&
-  isNamespacePath(editedFile, 'tickets/') &&
+  isNamespacePath(editedFile, 'tickets/', projectDirectory) &&
   !existsSync(editedFile) // Only gate creation, not edits to existing files
 ) {
   const ticketDirectory = nodePath.dirname(editedFile);
@@ -693,8 +676,7 @@ if (
   }
 
   const meta = parseFrontmatter(frontmatterMatch![1] ?? '');
-  const required = ['scope', 'out_of_scope', 'done_when'] as const;
-  const missing = required.filter(field => isMissingFrontmatterField(meta[field]));
+  const missing = REQUIRED_INTAKE_FIELDS.filter(field => isEmptyFrontmatterValue(meta[field]));
 
   if (missing.length > 0) {
     deny(
@@ -824,7 +806,7 @@ if (
         hashArtifact(specContent),
       );
       const stamps = readReviewStamps(priorScope);
-      if (!reviewGateForNextAsset(priorScope, stamps, crossAgentReviewPolicy()).ok) {
+      if (!reviewGateForNextAsset(priorScope, stamps).ok) {
         deny(
           'spec.md has not been reviewed at its current content. Review it (or log a skip with a reason) before writing scenarios.',
           'Run `/self-review` (or log a skip), then create test-definitions.md.',
@@ -895,9 +877,11 @@ function frontmatterFromContent(content: string): Record<string, string | string
 // (#673): a suffix check would let decoys like `sub-ticket.md` take the
 // canonical-ticket branches and be judged on their own frontmatter.
 const isCanonicalTicketEdit =
-  nodePath.basename(editedFile) === 'ticket.md' && isNamespacePath(editedFile, 'tickets/');
+  nodePath.basename(editedFile) === 'ticket.md' &&
+  isNamespacePath(editedFile, 'tickets/', projectDirectory);
 const isCanonicalSpecEdit =
-  nodePath.basename(editedFile) === 'spec.md' && isNamespacePath(editedFile, 'tickets/');
+  nodePath.basename(editedFile) === 'spec.md' &&
+  isNamespacePath(editedFile, 'tickets/', projectDirectory);
 
 // Some hosts report a ticket/spec save without exposing either complete content
 // or an applicable edit delta. There is no proposed state to validate in that
@@ -990,11 +974,7 @@ if (isCanonicalTicketEdit) {
       const planContent = existsSync(planPath) ? readFileSync(planPath, 'utf8') : '';
       const ticketScope = nodePath.basename(ticketDirectory);
       const planScope = reviewScope(ticketScope, 'impl-plan', hashArtifact(planContent));
-      const reviewVerdict = reviewGateForNextAsset(
-        planScope,
-        readReviewStamps(planScope),
-        crossAgentReviewPolicy(),
-      );
+      const reviewVerdict = reviewGateForNextAsset(planScope, readReviewStamps(planScope));
       if (!reviewVerdict.ok) {
         const planScopePrefix = `${ticketScope}:impl-plan@`;
         const hasSupersededReview = recordedReviewStamps().some(
@@ -1175,39 +1155,11 @@ if (isCanonicalTicketEdit) {
     const ticketDirectory = nodePath.dirname(editedFile);
     const phaseScope = reviewScope(nodePath.basename(ticketDirectory), 'phase', exitedPhase);
     const stamps = readReviewStamps(phaseScope);
-    if (!gatePhaseAdvance(phaseScope, stamps, crossAgentReviewPolicy()).ok) {
+    if (!gatePhaseAdvance(phaseScope, stamps).ok) {
       deny(
         `Phase "${exitedPhase}" has no independent review stamp — advancing is blocked until a fork review of the phase is logged.`,
         `Run \`safeword review run ${reviewKindForPhase(exitedPhase)} <ticket.md and the work this phase produced>\`, then record its author_agent, actual_reviewer, independence, review id, and reviewer_model with \`bun .safeword/hooks/write-review-stamp.ts --phase ${exitedPhase}\`. To stop gating this exit, narrow \`reviewGate\` in .safeword/config.json to the phases you want (or set it to false).`,
       );
-    }
-    // Ceiling-raiser (7A0B2K): under cross-model, a real-review stamp must record a
-    // model different from the author. Evaluate over ALL real-review stamps at this
-    // scope (the log is append-only, so a corrected re-review can follow a same-model
-    // attempt) — pass if any is cross-model. A logged skip records no real-review
-    // stamp, so it deliberately bypasses this, matching the arch-gate's escape valve.
-    else if (
-      isCrossModelOn() &&
-      !stamps.some(
-        stamp =>
-          stamp.scope === phaseScope &&
-          stamp.skipReason !== undefined &&
-          isValidSkipReason(stamp.skipReason),
-      )
-    ) {
-      const modelVerifiedStamps = readReviewStamps(phaseScope, true);
-      const realReviews = modelVerifiedStamps.filter(stamp =>
-        isSatisfyingCoordinatorReviewStamp(phaseScope, stamp, crossAgentReviewPolicy()),
-      );
-      const hasCrossModelReview = realReviews.some(
-        s => !modelsMatch(s.model, process.env[AUTHOR_MODEL_ENV]),
-      );
-      if (!hasCrossModelReview) {
-        deny(
-          `Phase "${exitedPhase}" review (cross-model): the phase review must be performed by a different model than the author.`,
-          `Re-run the phase's \`safeword review run\` command with a different configured reviewer model, then record the returned provenance and reviewer_model via \`bun .safeword/hooks/write-review-stamp.ts --phase ${exitedPhase}\`.`,
-        );
-      }
     }
   }
 }
@@ -1237,7 +1189,7 @@ if (isCanonicalTicketEdit) {
 
 if (
   nodePath.basename(editedFile) === 'test-definitions.md' &&
-  isNamespacePath(editedFile, 'tickets/')
+  isNamespacePath(editedFile, 'tickets/', projectDirectory)
 ) {
   if (input.tool_name === 'NotebookEdit') {
     deny(
@@ -1283,8 +1235,24 @@ if (
       'Check each scenario separately so its independent receipts and current proof are verified at the edit boundary.',
     );
   }
+  // A checked row citing a SHA that names no commit was never evidence (a typo,
+  // usually). Let it be rewritten in place to a SHA that does name a commit, so
+  // a mistyped annotation cannot permanently block closeout (#6987).
+  const correctsPhantomSha = (transition: CheckboxTransition): boolean => {
+    const prior = classifyAnnotation(transition.priorAnnotation ?? '');
+    const next = classifyAnnotation(transition.annotation);
+    return (
+      prior.kind === 'sha' &&
+      isValidSha(prior.value) &&
+      resolveCommitSha(projectDirectory, prior.value) === undefined &&
+      next.kind === 'sha' &&
+      isValidSha(next.value) &&
+      resolveCommitSha(projectDirectory, next.value) !== undefined
+    );
+  };
   for (const transition of transitions) {
     if (transition.historicalEvidenceRemoved === true) {
+      if (correctsPhantomSha(transition)) continue;
       deny(
         `Cannot move, rewrite, uncheck, or remove a ${transition.step} row that already carries historical evidence.`,
         `Keep the checked ${transition.step} row and its scenario binding intact. If you are renaming a scenario while checking another row, split those changes into separate edits.`,
@@ -1340,6 +1308,12 @@ if (
       deny(
         `Cannot mark "[x] ${transition.step}" with malformed SHA: ${JSON.stringify(kind.value)}.`,
         `Use "${transition.step} <7-40 hexadecimal commit SHA>" or "${transition.step} skip: <non-empty reason>".`,
+      );
+    }
+    if (kind.kind === 'sha' && resolveCommitSha(projectDirectory, kind.value) === undefined) {
+      deny(
+        `Cannot mark "[x] ${transition.step}" with ${kind.value}: no commit with that SHA exists in this repository.`,
+        `Check the SHA with \`git log --oneline\` and use the commit that holds this ${transition.step} work, or "${transition.step} skip: <non-empty reason>".`,
       );
     }
     if (

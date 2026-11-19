@@ -5,9 +5,9 @@ import process from 'node:process';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { EXECUTION_PLAN_CONFORMANCE_CASES } from '../../src/review/execution-plan-conformance.js';
 import { EXECUTION_PLAN_REVIEW_RUBRIC } from '../../src/review/execution-plan-rubric.generated.js';
 import { PLAN_REVIEW_RUBRIC } from '../../src/review/plan-rubric.generated.js';
+import { EXECUTION_PLAN_SAMPLES } from '../fixtures/execution-plan-samples.js';
 import { createConfiguredProject, createTemporaryDirectory, runCli } from '../helpers.js';
 import { writePlanningInventories } from '../planning-fixtures.js';
 import {
@@ -23,9 +23,7 @@ const specPath = `${folder}/spec.md`;
 const target = `${folder}/execution-plan.md`;
 const implementationPath = `${folder}/impl-plan.md`;
 const scenarioPath = `${folder}/behavior.feature`;
-const delivery = EXECUTION_PLAN_CONFORMANCE_CASES.find(
-  candidate => candidate.id === 'one-coherent-change',
-);
+const delivery = EXECUTION_PLAN_SAMPLES.find(candidate => candidate.id === 'one-coherent-change');
 if (delivery === undefined) throw new Error('Missing canonical Execution Plan fixture');
 const executionPlan = delivery.execution_plan;
 const implementation =
@@ -302,6 +300,43 @@ describe('owned Execution review resolves accepted upstream plan', () => {
       expect(status(implementationReviewId)).toBe(implementationStatus);
     },
   );
+  it('preserves Implementation approval when only execution scheduling changes', async () => {
+    const { result, project, reviewer } = await review();
+    const executionId = JSON.parse(result.stdout).data.review_id;
+    const env = { PATH: `${reviewer}:/usr/bin:/bin`, SAFEWORD_AGENT_RUNTIME: 'codex' };
+    const implementationReview = await runCli(
+      [
+        'review',
+        'run',
+        'plan-implementation',
+        implementationPath,
+        '--cwd',
+        project,
+        '--json',
+        '--no-input',
+      ],
+      { cwd: project, env },
+    );
+    expect(implementationReview.exitCode, implementationReview.stdout).toBe(0);
+    const implementationId = JSON.parse(implementationReview.stdout).data.review_id;
+    const status = async (id: string) => {
+      const response = await runCli(
+        ['review', 'status', id, '--cwd', project, '--json', '--no-input'],
+        { cwd: project, env },
+      );
+      return JSON.parse(response.stdout).data.status;
+    };
+    expect(await status(executionId)).toBe('approved');
+    expect(await status(implementationId)).toBe('approved');
+    writeFileSync(
+      nodePath.join(project, target),
+      `${executionPlan}\n## Execution scheduling\n\nRun the independent legacy-result pair before the response pair, retaining RED before GREEN in each.\n`,
+    );
+    expect(await status(executionId)).toBe('stale');
+    expect(await status(implementationId)).toBe('approved');
+    expect(readFileSync(nodePath.join(project, implementationPath), 'utf8')).toBe(implementation);
+  });
+
   it('preserves the explicit upstream plan as a passing control', async () => {
     const { result, capture } = await review(true, true);
     expect(result.exitCode, `${result.stdout}\n${result.stderr}`).toBe(0);

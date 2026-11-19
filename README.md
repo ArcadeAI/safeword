@@ -127,7 +127,7 @@ legacy content is preserved and reported instead.
 
 **Result**: Your project now has:
 
-- `.safeword/SAFEWORD.md` - Global patterns and workflows, injected into each session by a SessionStart hook
+- `.safeword/enrolled` - Marks the project as enrolled; Safeword hooks run only in enrolled projects
 - `.safeword/config.json` - Project configuration and detected language packs
 - `.mcp.json` - context7 and Playwright MCP servers
 - `.safeword/guides/`, `.safeword/templates/`, `.safeword/skills/`, and `.safeword/hooks/` - Cursor's project-local workflow runtime (only with `--agents=cursor`)
@@ -146,7 +146,7 @@ legacy content is preserved and reported instead.
 
 **Stack-agnostic** — Safeword is a process layer, not a framework opinion. It works alongside any stack — Next, Elysia, Astro, Django, Gin, whatever you use. Your application code and runtime dependencies are never touched.
 
-**Your agent config stays yours** — Safeword-owned hooks load `.safeword/SAFEWORD.md` for Claude Code, Cursor, and Codex. Claude plugin installation defaults to project-scoped activation in `.claude/settings.json`, while `--scope user` remains available for profile-wide activation; explicit native-update opt-outs are preserved. Codex install merges only its marked SessionStart bootstrap into `.codex/config.toml` and preserves unrelated configuration. Install does not create or add imports to customer-owned `AGENTS.md` or `CLAUDE.md`; existing project instructions remain yours.
+**Your agent config stays yours** — Safeword-owned hooks point Claude Code, Cursor, and Codex at the Safeword handbook (`SAFEWORD.md`): the copy inside the plugin for native plugins, or `.safeword/SAFEWORD.md` for Cursor and older project-hook installs. Claude plugin installation defaults to project-scoped activation in `.claude/settings.json`, while `--scope user` remains available for profile-wide activation; explicit native-update opt-outs are preserved. Codex install merges only its marked SessionStart bootstrap into `.codex/config.toml` and preserves unrelated configuration. Install does not create or add imports to customer-owned `AGENTS.md` or `CLAUDE.md`; existing project instructions remain yours.
 
 **Dev-only tools** — Safeword installs ESLint, Prettier, supporting plugins, `jiti` for TypeScript config loading, plus the Gherkin acceptance lane (cucumber-js + tsx), as `devDependencies` — in every project. A pure Go/Python/Rust repo gets a minimal `private: true` package.json created to host them (the lane's step definitions are TypeScript and test your app from the outside). These are development tools — they never ship with your application or affect your runtime.
 
@@ -253,7 +253,8 @@ You direct in plain language; safeword keeps the agent honest. Auditing the code
 
 Key directories created in your project:
 
-- `.safeword/SAFEWORD.md` and `.safeword/config.json` - Shared project enrollment and configuration
+- `.safeword/enrolled` and `.safeword/config.json` - Shared project enrollment and configuration
+- `.safeword/SAFEWORD.md` - Project copy of the handbook, only when Cursor or an older project-hook install reads it; native plugins ship their own
 - `<namespace-root>/tickets/` - Tickets for complex/multi-step work (context anchors)
 - `.safeword/guides/`, `.safeword/templates/`, and `.safeword/hooks/` - Cursor's project-local workflow runtime, only when Cursor is selected
 - Safeword Claude, Codex, and OpenCode plugins - Profile-scoped workflow skills, hooks, guides, and templates
@@ -385,7 +386,7 @@ creates project-level SessionStart hooks for enrollment and dependency
 preparation, never an edit or shell-command interception hook. Startup remains
 advisory, while repository-owned composed commands require readiness. The plugin does not
 implicitly enroll repositories: until `safeword install` creates
-`.safeword/SAFEWORD.md`, project gates fail open and hooks do not create
+`.safeword/enrolled` (older installs: `.safeword/SAFEWORD.md`), project gates fail open and hooks do not create
 `.project/` or other project state. Codex visibly skips
 unreviewed or changed plugin hooks and directs the builder to Desktop
 Settings > Hooks or `/hooks` in the terminal TUI. Review changed hooks before
@@ -418,14 +419,21 @@ second independent runtime before same-agent headless review. OpenCode-authored
 work routes to Claude and then Codex, so OpenCode self-review is never counted
 as independent. If those routes cannot complete, a foreground agent makes one
 best-effort fresh-context host review and then one bounded self-review. Those
-last two routes are feedback, not independent evidence: `require` stays
-blocked. For non-planning reviews they read the live worktree, so source
-integrity was not revalidated; the bundled Claude reviewer also supports
-Claude Code Cloud when no external agent CLI is available. Planning fallbacks
-instead use the coordinator's immutable packet. After stronger routes are
-exhausted, `prefer` may admit their completed review with the actual reviewer
-and `reduced independence` recorded on the receipt; other review kinds retain
-their own gates.
+last two routes are feedback, not independent evidence. For non-planning
+reviews they read the live worktree, so source integrity was not revalidated;
+the bundled Claude reviewer also supports Claude Code Cloud when no external
+agent CLI is available. Planning fallbacks instead use the coordinator's
+immutable packet.
+
+Independent review never blocks. Independence means a different agent
+reviewed: Claude reviewing Codex-authored work, or the reverse. Whenever no
+different agent can review, for any reason (not installed, not signed in,
+failed, or out of run budget), Safeword falls
+back to the same agent. The receipt names the actual reviewer and records
+reduced independence, which still satisfies the phase gate. A signed-out
+reviewer is reported with its sign-in command rather than pausing the review.
+Every review uses the latest Opus or Sol first and may retry on Sonnet or
+Terra; reviewers are not qualified per review kind.
 
 Planning reviews check both missing accepted work and proposed work beyond the
 user's scope. Product Plans inventory each accepted persona's consequential
@@ -437,48 +445,27 @@ approval authority.
 
 Review currency binds the exact canonical rules inside the trusted packaged
 contract markers. Changes outside those markers retain currency, but the
-whole authoring copy must still match before use. On the verified Claude-author
-path, an unknown or weaker explicit Claude/Codex selector is refused before
-launch. If every route is refused without an actual independent attempt,
-fallback stays blocked: configure a qualified exact selector and retry.
-Runtime-default and OpenCode routes retain their existing launch-and-confirm
-checks. Each planning approval establishes only its own phase; implementation,
+whole authoring copy must still match before use. Reviewer routes are not
+ranked against the author's model: any configured selector launches in order.
+Each planning approval establishes only its own phase; implementation,
 verification, human approval and merge authority remain separate. Codex Cloud
 and OpenCode Desktop guidance remains advisory.
 
 Cursor-authored planning work tries Claude and Codex as external reviewers;
-Cursor itself has no headless reviewer route. If those routes fail under
-`prefer`, the Cursor host can review the same sealed packet and record a
-reduced-independence receipt. A current receipt is still required at the phase
-gate. Cursor cannot satisfy `require` until trusted exact author-model metadata
-is available. The stock reviewer routes are attempted in configured order, but
-an unselected runtime-default model cannot earn a qualified cross-agent
-comparison. Projects that select `require` must configure exact reviewer model
-selectors in `crossAgentReviewRoutes` and use a currently qualified
-author/reviewer pair; otherwise the review remains blocked.
-
-Currently only Claude Code supplies the verified exact author-model metadata
-used for planning qualification. Codex and OpenCode authors also remain blocked
-under `require`; under `prefer`, their completed reviews record reduced
-independence. Planning fallback requires an attempted independent route: if all
-independent CLIs are absent or unsupported, the review stays blocked. Install a
-supported independent reviewer before retrying.
+Cursor itself has no headless reviewer route. If those routes fail, the Cursor
+host can review the same sealed packet and record a reduced-independence
+receipt. A current receipt is still required at the phase gate. The retired
+`require` policy is read as `prefer`.
 
 The continuation authenticates the saved job, packet, source currency, tier,
 and single-use submission. The fresh-context claim and current agent origin
 are host-reported; the receipt does not attest that an isolated reviewer ran.
 Claude and Codex app-server planning reviewers use the effort settings sealed
-with the packaged capability catalogue. The legacy Codex exec path cannot confirm
-the reviewer model and remains unqualified. A completed rejection whose reviewer
-capability is unknown blocks fallback approval, with its findings retained. A later
-qualified independent verdict may resolve the review; the earlier unqualified
-findings remain visible as non-blocking feedback without replacing that verdict.
+with the packaged capability catalogue.
 
-The opt-in `architectureReviewGate` separately requires verified independent
-design review before implementation finishes. A reduced planning receipt does
-not clear it. Hosts without trusted exact author-model metadata cannot
-automatically satisfy that claim today; the existing reasoned skip remains an
-auditable escape hatch, without relabeling fallback as independent.
+The opt-in `architectureReviewGate` separately requires a cited design review
+before implementation finishes; a reduced planning receipt satisfies it, and
+the reasoned skip remains an auditable escape hatch.
 
 **Codex plugin skills**: Codex gets Safeword workflow skills from the Safeword Codex plugin, with scoped names such as `safeword:bdd`, `safeword:verify`, and `safeword:explain`. Safeword no longer installs Safeword-owned workflow aliases into `.agents/skills/`.
 
@@ -588,8 +575,9 @@ marketplace replacement behavior before users depend on it.
 
 ### How Guide Imports Work
 
-Safeword-owned session hooks load `.safeword/SAFEWORD.md`. SAFEWORD.md then
-routes agents to the relevant guides and templates. Customer `AGENTS.md` and
+Safeword-owned session hooks tell the agent to read the Safeword handbook,
+`SAFEWORD.md` (the plugin's copy for native plugins; `.safeword/SAFEWORD.md` for
+Cursor and older project-hook installs). SAFEWORD.md then routes agents to the relevant guides and templates. Customer `AGENTS.md` and
 `CLAUDE.md` remain independent project context and are never required to import
 Safeword.
 
@@ -747,7 +735,7 @@ Tickets and learnings derive from `paths.projectRoot`. Principles, personas, glo
 
 **How it works**:
 
-1. Safeword-owned host hooks inject `.safeword/SAFEWORD.md` at session boundaries.
+1. Safeword-owned host hooks point the agent at the handbook, `SAFEWORD.md`, at session boundaries (the plugin's copy for native plugins).
 2. SAFEWORD.md routes by work type to focused guides, skills, and templates.
 3. Customer `AGENTS.md` and `CLAUDE.md` add project-specific context without carrying framework bootstrap text.
 4. Learnings remain in `<namespace-root>/learnings/` and are indexed for discovery.
@@ -780,7 +768,7 @@ No. Current releases neither create `CLAUDE.md` nor add Safeword imports to it. 
 For JS/TS projects: ESLint, Prettier, supporting plugins, and `jiti` for TypeScript ESLint config loading — all as `devDependencies` (the `-D` flag). These are code quality tools, not application dependencies. Python, Go, Rust, and SQL/dbt (beta) use their language-native linters (ruff, golangci-lint, clippy, SQLFluff).
 
 **I use Biome, dprint, oxfmt, or deno fmt — is that a problem?**
-No. Safeword detects a non-Prettier formatter (`biome.json`, `dprint.json`, `.oxfmtrc.*`, `deno.json`) and steps aside: it skips Prettier at install **and** its auto-format hook leaves all formatting to your tool — agent edits are never run through Prettier, for any file type (JS/TS, JSON, CSS, YAML). Files your formatter doesn't cover are left untouched rather than Prettier-formatted. ESLint still runs, because those formatters don't cover security scanning (`eslint-plugin-security`), cyclomatic complexity (`sonarjs`), or framework rules (React hooks, Next.js, Astro); safeword's ESLint config disables formatting rules, so it lints without fighting your formatter.
+No. Safeword detects a non-Prettier formatter (`biome.json`, `dprint.json`, `.oxfmtrc.*`, `deno.json`) and skips installing Prettier. Post-edit checks preserve unfinished source across supported languages and formats. Biome and Biome-based Ultracite projects use their project-local JS/TS checker; other JS/TS projects use ESLint. Run formatting and automatic fixes explicitly or through your commit tooling.
 
 **Do teammates need to install safeword separately?**
 No. Commit the Safeword project configuration your team uses, including the Claude declaration and Codex SessionStart hooks. Claude keeps each user's payload cache locally. Codex enrolls every teammate's separate profile automatically and prepares missing dependencies in trusted fresh worktrees; startup warnings remain advisory. The linting devDependencies also install with the normal package-manager workflow.

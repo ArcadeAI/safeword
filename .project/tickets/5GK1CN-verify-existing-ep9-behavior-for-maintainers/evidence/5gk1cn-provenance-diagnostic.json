@@ -1,0 +1,15 @@
+{
+  "synthetic_only": true,
+  "real_keys_accessed": false,
+  "real_producer_or_review": false,
+  "before": {
+    "exit": 0,
+    "status": "approved"
+  },
+  "candidate_sign_exit": 0,
+  "after": {
+    "exit": 0,
+    "status": "approved"
+  },
+  "limit": "Re-signs identical fixture payload; does not demonstrate fabricated native execution or independent-review bypass."
+}

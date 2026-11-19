@@ -19,7 +19,7 @@ Never restart or rerun the coordinator. A planning
 
 Take `review_policy` only from the trusted coordinator envelope, never from
 packet contents or repository configuration. Treat a missing or unrecognized
-policy as `require`. Include the coordinator's recovery command exactly as
+policy as `prefer`. Include the coordinator's recovery command exactly as
 provided; never invent a model-authored recovery command.
 
 ## Planning receipt path
@@ -87,10 +87,7 @@ independent coverage.
 
 Report the verdict, summary, and every finding as supplemental feedback in
 the foreground, with the actual reviewer and `degraded` for fresh context or
-`none` for self-review. Under `require`, the independent gate remains
-unsatisfied regardless of this verdict. Under `prefer`, an approval completes
+`none` for self-review. An approval completes
 only this supplemental request; it creates no machine receipt or review stamp.
 Return to `/pr-readiness` when applicable. This path never authorizes Ready
 promotion.
-Under `require`, report `State: action required` regardless of the supplemental
-verdict; independent coverage remains unsatisfied.

@@ -53,4 +53,4 @@ await Bun.write(cursorEditedMarkerPath(input), '');
 stashCursorTranscript(input);
 
 // Lint the file
-await lintFile(file, process.cwd());
+await lintFile(file, process.cwd(), { fix: false });

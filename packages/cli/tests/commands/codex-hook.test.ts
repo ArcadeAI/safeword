@@ -64,7 +64,10 @@ describe('packagedNamespaceRootLabel', () => {
     mkdirSync(nodePath.dirname(executable), { recursive: true });
     mkdirSync(nodePath.dirname(sourceFile), { recursive: true });
     writeFileSync(nodePath.join(projectDirectory, 'biome.json'), '{}\n');
-    writeFileSync(sourceFile, 'export const source = 1;\n');
+    writeFileSync(
+      sourceFile,
+      'import { pending } from "./pending";\nexport const source={ x:1 };\n',
+    );
     writeFileSync(executable, `#!/bin/sh\necho "$*" >> ${JSON.stringify(log)}\n`);
     chmodSync(executable, 0o755);
     return { sourceFile, log };
@@ -166,10 +169,7 @@ describe('packagedNamespaceRootLabel', () => {
   }
 
   function expectBiomeChecked(log: string, operand: string) {
-    expect(readFileSync(log, 'utf8').trim().split('\n')).toEqual([
-      `check --write -- ${operand}`,
-      `check -- ${operand}`,
-    ]);
+    expect(readFileSync(log, 'utf8').trim().split('\n')).toEqual([`check -- ${operand}`]);
   }
 
   afterEach(() => {
@@ -555,9 +555,10 @@ describe('packagedNamespaceRootLabel', () => {
     );
 
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain('Safeword session bootstrap');
-    expect(result.stdout).toContain('the packaged Safeword handbook');
-    expect(result.stdout).toContain('the packaged Safeword guides');
+    expect(result.stdout).toContain('First, Read `');
+    expect(result.stdout).toMatch(
+      /First, Read `\/[^`]*\/(?:templates|resources)\/SAFEWORD\.md` in full, even for trivial requests or right after compaction; a summary or earlier read does not count\./,
+    );
     expect(result.stdout).toContain('.project/');
     expect(result.stdout).toContain('supersede');
     expect(result.stdout).not.toContain('.safeword/guides/');
@@ -565,6 +566,33 @@ describe('packagedNamespaceRootLabel', () => {
     expect(result.stdout.length).toBeLessThanOrEqual(1000);
     expect(result.stdout).not.toContain('PROJECT-LOCAL INSTRUCTIONS MUST NOT APPEAR');
   });
+
+  it.each(['startup', 'compact'])(
+    'delivers the package-owned handbook read through the manifest --plugin-hook command on %s',
+    source => {
+      const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), `safeword-codex-${source}-`));
+      directories.push(projectDirectory);
+      mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+      writeFileSync(
+        nodePath.join(projectDirectory, '.safeword', 'SAFEWORD.md'),
+        'PROJECT-LOCAL INSTRUCTIONS MUST NOT APPEAR',
+      );
+
+      const result = runCodexHook(
+        projectDirectory,
+        'session-start',
+        { hook_event_name: 'SessionStart', source },
+        { SAFEWORD_NO_AUTO_UPGRADE: '1' },
+        true,
+      );
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout).toMatch(
+        /First, Read `\/[^`]*\/(?:templates|resources)\/SAFEWORD\.md` in full, even for trivial requests or right after compaction; a summary or earlier read does not count\./,
+      );
+      expect(result.stdout).not.toContain('.safeword/SAFEWORD.md');
+    },
+  );
 
   it('keeps the packaged SessionStart fallback compact when its dispatcher is unavailable', () => {
     const { packageDirectory, projectDirectory } = createPackagedCliFixture();
@@ -582,8 +610,10 @@ describe('packagedNamespaceRootLabel', () => {
     );
 
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain('Safeword session bootstrap');
-    expect(result.stdout).toContain('the packaged Safeword handbook');
+    expect(result.stdout).toContain('First, Read `');
+    expect(result.stdout).toMatch(
+      /First, Read `\/[^`]*\/(?:templates|resources)\/SAFEWORD\.md` in full, even for trivial requests or right after compaction; a summary or earlier read does not count\./,
+    );
     expect(result.stdout).not.toContain('SAFEWORD Agent Instructions');
     expect(result.stdout.length).toBeLessThanOrEqual(1000);
   });
@@ -602,8 +632,10 @@ describe('packagedNamespaceRootLabel', () => {
     );
 
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain('Safeword session bootstrap');
-    expect(result.stdout).toContain('the packaged Safeword handbook');
+    expect(result.stdout).toContain('First, Read `');
+    expect(result.stdout).toMatch(
+      /First, Read `\/[^`]*\/(?:templates|resources)\/SAFEWORD\.md` in full, even for trivial requests or right after compaction; a summary or earlier read does not count\./,
+    );
     expect(result.stdout.length).toBeLessThanOrEqual(1000);
     expect(rootEntries(projectDirectory)).toEqual(before);
   });
@@ -676,6 +708,146 @@ describe('packagedNamespaceRootLabel', () => {
 
     expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(2);
     expect(result.stderr).toContain('scope, out_of_scope, done_when');
+  });
+
+  // A configured namespace root: the shared quality gate blocks Write here too;
+  // Codex's own intake check still covers apply_patch targets the gate can't see.
+  const CUSTOM_NAMESPACE = { paths: { projectRoot: 'knowledge' } };
+
+  it.each([
+    [
+      'an empty scope followed by a later list field',
+      'scope:\nout_of_scope:\n  - y\ndone_when:\n  - z\n',
+      'scope.',
+    ],
+    ['an empty inline list', 'scope: []\nout_of_scope: y\ndone_when: z\n', 'scope.'],
+    ['YAML nulls', 'scope: null\nout_of_scope: ~\ndone_when: z\n', 'scope, out_of_scope.'],
+    [
+      'comment-only values',
+      'scope: # TODO\nout_of_scope:\n  - # later\ndone_when: z\n',
+      'scope, out_of_scope.',
+    ],
+    [
+      'empty values with trailing comments',
+      "scope: [] # TODO\nout_of_scope: null # pending\ndone_when: '' # pending\n",
+      'scope, out_of_scope, done_when.',
+    ],
+    [
+      'capitalised nulls and empty block scalars',
+      'scope: NULL\nout_of_scope: |\ndone_when: >-\n',
+      'scope, out_of_scope, done_when.',
+    ],
+    [
+      'lists of YAML nulls',
+      'scope: [null]\nout_of_scope: [~]\ndone_when:\n  - NULL\n',
+      'scope, out_of_scope, done_when.',
+    ],
+    [
+      'quoted empty values',
+      'scope: \'\'\nout_of_scope: ""\ndone_when: z\n',
+      'scope, out_of_scope.',
+    ],
+  ])('blocks test definitions in a custom namespace for %s', (_case, fields, expected) => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
+    directories.push(projectDirectory);
+    markSafewordProject(projectDirectory, CUSTOM_NAMESPACE);
+    const ticketDirectory = nodePath.join(projectDirectory, 'knowledge/tickets/empty-scope');
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'ticket.md'),
+      `---\nid: empty-scope\ntype: task\n${fields}---\n`,
+    );
+
+    const result = runCodexHook(
+      projectDirectory,
+      'pre-tool-use',
+      {
+        session_id: 'empty-scope-session',
+        tool_name: 'Write',
+        tool_input: { file_path: nodePath.join(ticketDirectory, 'test-definitions.md') },
+      },
+      { CLAUDE_PROJECT_DIR: projectDirectory, SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
+    );
+
+    expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(2);
+    // The shared PreToolUse gate honours the configured root, so it blocks
+    // before Codex's own apply_patch-oriented intake check runs.
+    expect(result.stderr).toContain(`Ticket frontmatter is missing: ${expected}`);
+  });
+
+  it.each([
+    ['LF', '\n', '  '],
+    ['CRLF', '\r\n', '  '],
+    ['unindented items', '\n', ''],
+  ])(
+    'allows test definitions in a custom namespace when every intake field has a block list (%s)',
+    (_case, eol, indent) => {
+      const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
+      directories.push(projectDirectory);
+      markSafewordProject(projectDirectory, CUSTOM_NAMESPACE);
+      const ticketDirectory = nodePath.join(projectDirectory, 'knowledge/tickets/full-scope');
+      mkdirSync(ticketDirectory, { recursive: true });
+      writeFileSync(
+        nodePath.join(ticketDirectory, 'ticket.md'),
+        [
+          '---',
+          'id: full-scope',
+          'type: task',
+          'scope:',
+          '  # included behavior',
+          `${indent}- x`,
+          '',
+          'out_of_scope:',
+          `${indent}- y`,
+          'done_when:',
+          `${indent}- z`,
+          '---',
+          '',
+        ].join(eol),
+      );
+
+      const result = runCodexHook(
+        projectDirectory,
+        'pre-tool-use',
+        {
+          session_id: 'full-scope-session',
+          tool_name: 'Write',
+          tool_input: { file_path: nodePath.join(ticketDirectory, 'test-definitions.md') },
+        },
+        { CLAUDE_PROJECT_DIR: projectDirectory, SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
+      );
+
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(0);
+      expect(result.stderr).not.toContain('until ticket.md declares');
+    },
+  );
+
+  it('allows edits to existing test definitions in a custom namespace even when intake is incomplete', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
+    directories.push(projectDirectory);
+    markSafewordProject(projectDirectory, CUSTOM_NAMESPACE);
+    const ticketDirectory = nodePath.join(projectDirectory, 'knowledge/tickets/legacy-ledger');
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'ticket.md'),
+      '---\nid: legacy-ledger\ntype: task\nscope: ~\nout_of_scope: y\ndone_when: z\n---\n',
+    );
+    const ledgerPath = nodePath.join(ticketDirectory, 'test-definitions.md');
+    writeFileSync(ledgerPath, '# Test definitions\n');
+
+    const result = runCodexHook(
+      projectDirectory,
+      'pre-tool-use',
+      {
+        session_id: 'legacy-ledger-session',
+        tool_name: 'Edit',
+        tool_input: { file_path: ledgerPath },
+      },
+      { CLAUDE_PROJECT_DIR: projectDirectory, SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
+    );
+
+    expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(0);
+    expect(result.stderr).not.toContain('until ticket.md declares');
   });
 
   it('defers a plugin event to an exact runnable legacy handler', () => {
@@ -844,6 +1016,9 @@ command = "npx --yes safeword hook codex pre-tool-use"
     expect(result.status, result.stderr).toBe(0);
     expect(existsSync(log)).toBe(true);
     expectBiomeChecked(log, 'source.ts');
+    expect(readFileSync(nodePath.join(projectDirectory, 'source.ts'), 'utf8')).toBe(
+      'import { pending } from "./pending";\nexport const source={ x:1 };\n',
+    );
   });
 
   it.each([
@@ -962,6 +1137,9 @@ esac
 
     expect(result.status, result.stderr).toBe(0);
     expectBiomeChecked(log, 'source.ts');
+    expect(readFileSync(nodePath.join(projectDirectory, 'source.ts'), 'utf8')).toBe(
+      'import { pending } from "./pending";\nexport const source={ x:1 };\n',
+    );
   });
 
   it('continues linting later apply_patch targets after an earlier host warning', () => {
@@ -998,10 +1176,7 @@ esac
         additionalContext: expect.stringMatching(/no project-local executable/i),
       },
     });
-    expect(readFileSync(log, 'utf8').trim().split('\n')).toEqual([
-      'check --write -- second.ts',
-      'check -- second.ts',
-    ]);
+    expect(readFileSync(log, 'utf8').trim().split('\n')).toEqual(['check -- second.ts']);
   });
 
   it('preserves legacy timestamp and retro-nudge prompt context through the plugin dispatcher', () => {

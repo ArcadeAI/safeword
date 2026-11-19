@@ -44,15 +44,20 @@ if [ -z "$model" ]; then
 fi
 printf '%s\n' "$model" >> "$SAFEWORD_REVIEW_MODEL_LOG"
 accepted_model=$(printenv SAFEWORD_REVIEW_ACCEPTED_MODEL || true)
+rejected=''
 if [ -n "$accepted_model" ] && [ "$model" != "$accepted_model" ]; then
   rejected_model_behaviour=$(printenv SAFEWORD_REVIEW_REJECTED_MODEL_BEHAVIOUR || true)
   if [ "$rejected_model_behaviour" = "timeout" ]; then exec /bin/sleep 3600; fi
-  printf 'model unavailable\n' >&2
-  exit 7
+  # A rejected model that still answers, but for another dispatch.
+  if [ "$rejected_model_behaviour" = "mismatched" ]; then rejected=mismatched; else
+    printf 'model unavailable\n' >&2
+    exit 7
+  fi
 fi
 payload=$(cat)
 printf '%s\n' "$payload" > "$SAFEWORD_REVIEW_MODEL_LOG.packet"
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
+if [ "$rejected" = "mismatched" ]; then dispatch_id=mismatched; fi
 printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"approve","summary":"reviewed","findings":[]}\n' "$dispatch_id"
 `,
     { mode: 0o755 },
@@ -172,7 +177,7 @@ describe('alternate-model review route', () => {
         JSON.stringify(payload.data.execution_attestation),
       );
       expect(readFileSync(modelLog, 'utf8').trim().split('\n')).toEqual(
-        reviewer === 'claude' ? ['opus', 'vendor-model-2'] : ['vendor-model-2'],
+        reviewer === 'claude' ? ['opus', 'vendor-model-2'] : ['gpt-6.1-sol', 'vendor-model-2'],
       );
     },
   );
@@ -238,7 +243,7 @@ describe('alternate-model review route', () => {
       });
       // The required cross-agent check is satisfied by the alternate model.
       expect(readFileSync(modelLog, 'utf8').trim().split('\n')).toEqual(
-        reviewer === 'claude' ? ['opus', 'vendor-model-2'] : ['vendor-model-2'],
+        reviewer === 'claude' ? ['opus', 'vendor-model-2'] : ['gpt-6.1-sol', 'vendor-model-2'],
       );
     },
   );
@@ -400,7 +405,7 @@ describe('alternate-model review route', () => {
     expect(readFileSync(modelLog, 'utf8').trim().split('\n')).toEqual(['opus', 'sonnet']);
   });
 
-  it('refuses to let the author reviewing itself satisfy a required check', async () => {
+  it('labels the author reviewing itself as degraded instead of blocking', async () => {
     const directory = createTemporaryDirectory();
     const modelLog = nodePath.join(directory, 'model.log');
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
@@ -435,14 +440,16 @@ describe('alternate-model review route', () => {
       data: Record<string, unknown>;
     };
     expect(payload.data).toMatchObject({
-      status: 'blocked',
+      status: 'approved',
       actual_reviewer: 'claude',
       independence: 'degraded',
     });
-    expect(payload.findings.map(finding => finding.code)).toContain('REVIEW_INDEPENDENCE_REQUIRED');
+    expect(payload.findings.map(finding => finding.code)).not.toContain(
+      'REVIEW_INDEPENDENCE_REQUIRED',
+    );
   });
 
-  it('passes no model at all when none is configured', async () => {
+  it('asks Codex for the latest Sol first when no model is configured', async () => {
     const directory = createTemporaryDirectory();
     const modelLog = nodePath.join(directory, 'model.log');
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
@@ -473,12 +480,136 @@ describe('alternate-model review route', () => {
       },
     );
 
-    // The reviewer refuses without a model, so the exhausted result and absent
-    // model log together prove the real executable ran without `--model`.
+    // With no configured model, the real executable is asked for the latest Sol.
     const payload = JSON.parse(result.stdout) as { data: Record<string, unknown> };
-    expect(payload.data).toMatchObject({ status: 'blocked', independence: 'none' });
-    expect(payload.data.preferred_failure).toBe('process_failed');
-    expect(payload.data).not.toHaveProperty('reviewer_model');
-    expect(() => readFileSync(modelLog, 'utf8')).toThrow();
+    expect(payload.data).toMatchObject({
+      reviewer_model: 'gpt-6.1-sol',
+      independence: 'cross-agent',
+    });
+    expect(readFileSync(modelLog, 'utf8').trim().split('\n', 1)[0]).toBe('gpt-6.1-sol');
+  });
+
+  it('asks the same-agent fallback for the latest Opus when no independent reviewer exists', async () => {
+    const directory = createTemporaryDirectory();
+    const modelLog = nodePath.join(directory, 'model.log');
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    writeConfig(directory, { crossAgentReview: 'prefer' });
+    // Only Claude is installed, so Codex and OpenCode are unavailable and the
+    // ordinary review falls back to the author's own runtime.
+    const bin = installModelDependentReviewer(directory, 'claude');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_MODEL_LOG: modelLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    const payload = JSON.parse(result.stdout) as { data: Record<string, unknown> };
+    expect(payload.data).toMatchObject({ actual_reviewer: 'claude', reviewer_model: 'opus' });
+    expect(readFileSync(modelLog, 'utf8').trim().split('\n')).toEqual(['opus']);
+  });
+
+  it('retries the independent fallback on Terra when Sol fails', async () => {
+    const directory = createTemporaryDirectory();
+    const modelLog = nodePath.join(directory, 'model.log');
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    writeConfig(directory, { crossAgentReview: 'prefer' });
+    // Claude is absent, so Codex is the independent fallback for an OpenCode author.
+    const bin = installModelDependentReviewer(directory, 'codex');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'opencode',
+          SAFEWORD_REVIEW_MODEL_LOG: modelLog,
+          SAFEWORD_REVIEW_ACCEPTED_MODEL: 'gpt-6.1-terra',
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    const payload = JSON.parse(result.stdout) as {
+      data: Record<string, unknown>;
+      effects: { network: { target: string }[] };
+    };
+    // The receipt names the model that actually reviewed.
+    expect(payload.data).toMatchObject({
+      actual_reviewer: 'codex',
+      independence: 'cross-agent',
+      reviewer_model: 'gpt-6.1-terra',
+    });
+    expect(readFileSync(modelLog, 'utf8').trim().split('\n')).toEqual([
+      'gpt-6.1-sol',
+      'gpt-6.1-terra',
+    ]);
+    // Both Codex requests, the failed Sol one and the completed Terra one, are recorded.
+    expect(payload.effects.network.filter(effect => effect.target === 'codex')).toHaveLength(2);
+  });
+
+  it('retries the fallback on Terra when Sol returns output for another dispatch', async () => {
+    const directory = createTemporaryDirectory();
+    const modelLog = nodePath.join(directory, 'model.log');
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    writeConfig(directory, { crossAgentReview: 'prefer' });
+    const bin = installModelDependentReviewer(directory, 'codex');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'opencode',
+          SAFEWORD_REVIEW_MODEL_LOG: modelLog,
+          SAFEWORD_REVIEW_ACCEPTED_MODEL: 'gpt-6.1-terra',
+          SAFEWORD_REVIEW_REJECTED_MODEL_BEHAVIOUR: 'mismatched',
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    const payload = JSON.parse(result.stdout) as { data: Record<string, unknown> };
+    expect(payload.data).toMatchObject({ actual_reviewer: 'codex', independence: 'cross-agent' });
+    expect(readFileSync(modelLog, 'utf8').trim().split('\n')).toEqual([
+      'gpt-6.1-sol',
+      'gpt-6.1-terra',
+    ]);
   });
 });

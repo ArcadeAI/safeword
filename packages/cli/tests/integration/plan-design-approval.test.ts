@@ -39,6 +39,10 @@ import { PLANNING_ROLE_PRODUCT, writeImplementationRoleInputs } from '../plannin
 
 const TICKET_ID = 'PLAN42';
 const TICKET_FOLDER = `${TICKET_ID}-review-the-approach`;
+const WORK_LOG_HOOK = nodePath.resolve(
+  import.meta.dirname,
+  '../../../../.safeword/hooks/post-tool-work-log.ts',
+);
 const EXECUTION_PLAN_TEMPLATE = readFileSync(
   nodePath.resolve(__dirname, '../../templates/doc-templates/execution-plan-template.md'),
   'utf8',
@@ -141,6 +145,7 @@ const PLAN = [
   'Revisit when the approval authority changes.',
   '',
 ].join('\n');
+const PLAN_DIGEST = createHash('sha256').update(PLAN).digest('hex');
 
 const PTY_RUNNER = String.raw`
 import errno, os, pty, select, sys
@@ -165,6 +170,10 @@ while True:
         break
     output.extend(chunk)
     if not answered and b'Approve this reviewed Implementation Plan?' in output:
+        mutated = os.environ.get('PTY_RUNNER_APPEND_BEFORE_ANSWER')
+        if mutated:
+            with open(mutated, 'a') as target:
+                target.write('\nA boundary changed while the prompt was open.\n')
         os.write(fd, response)
         answered = True
 _, status = os.waitpid(pid, 0)
@@ -309,8 +318,8 @@ function fixture(
   writeFileSync(
     ledgerPath,
     `${existingLedger}${[
-      `2026-09-11T00:00:00.000Z fixture review:${scope} author:codex reviewer:claude independence:reduced review-id:${reviewId}`,
-      `2026-09-11T00:00:01.000Z fixture review:${TICKET_FOLDER}:phase@plan-implementation author:codex reviewer:claude independence:reduced review-id:${reviewId}`,
+      `2026-09-11T00:00:00.000Z fixture review:${scope} author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
+      `2026-09-11T00:00:01.000Z fixture review:${TICKET_FOLDER}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
       '',
     ].join('\n')}`,
   );
@@ -379,17 +388,18 @@ function decisionPayloads(path: string): Record<string, unknown>[] {
   ) as Record<string, unknown>[];
 }
 
-function appendCurrentReview(project: Fixture, plan: string): void {
+function appendCurrentReview(project: Fixture, plan: string): string {
   const reviewId = runImplementationReview(project, TICKET_FOLDER);
   const scope = reviewScope(TICKET_FOLDER, 'impl-plan', hashArtifact(plan));
   writeFileSync(
     project.ledgerPath,
     `${readFileSync(project.ledgerPath, 'utf8')}${[
-      `2026-09-11T00:01:00.000Z fixture review:${scope} author:codex reviewer:claude independence:reduced review-id:${reviewId}`,
-      `2026-09-11T00:01:01.000Z fixture review:${TICKET_FOLDER}:phase@plan-implementation author:codex reviewer:claude independence:reduced review-id:${reviewId}`,
+      `2026-09-11T00:01:00.000Z fixture review:${scope} author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
+      `2026-09-11T00:01:01.000Z fixture review:${TICKET_FOLDER}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
       '',
     ].join('\n')}`,
   );
+  return reviewId;
 }
 
 function runApprovalInPty(
@@ -485,8 +495,8 @@ function addReviewedTicket(project: Fixture, ticketId: string, suffix: string): 
   writeFileSync(
     project.ledgerPath,
     `${readFileSync(project.ledgerPath, 'utf8')}${[
-      `2026-09-11T00:02:00.000Z fixture review:${scope} author:codex reviewer:claude independence:reduced review-id:${reviewId}`,
-      `2026-09-11T00:02:01.000Z fixture review:${folder}:phase@plan-implementation author:codex reviewer:claude independence:reduced review-id:${reviewId}`,
+      `2026-09-11T00:02:00.000Z fixture review:${scope} author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
+      `2026-09-11T00:02:01.000Z fixture review:${folder}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
       '',
     ].join('\n')}`,
   );
@@ -599,7 +609,7 @@ describe('installed CLI human design authority follows configuration', () => {
     const payload = JSON.parse(result.stdout) as { data?: Record<string, unknown> };
     expect(payload.data).toMatchObject({
       approval_status: 'not-required',
-      achieved_independence: 'reduced',
+      achieved_independence: 'cross-agent',
     });
     expect(readFileSync(project.ledgerPath, 'utf8')).toContain('human-approval:not-required');
     expect(approvalEvents(project.ledgerPath)).toEqual([]);
@@ -686,9 +696,7 @@ describe('a declined design returns to Implementation Planning', () => {
     );
     const events = approvalEvents(project.ledgerPath);
     expect(events).toHaveLength(1);
-    expect(events[0]).toContain(
-      `"planDigest":"${createHash('sha256').update(PLAN).digest('hex')}"`,
-    );
+    expect(events[0]).toContain(`"planDigest":"${PLAN_DIGEST}"`);
     expect(events[0]).toContain('"decision":"declined"');
   });
 });
@@ -697,7 +705,7 @@ async function approveRepairedImplementation(
   project: Fixture,
   humanGate: boolean,
   changedApproach: boolean,
-): Promise<void> {
+): Promise<string> {
   const originalImplementationPlan = readFileSync(
     nodePath.join(project.ticketDirectory, 'impl-plan.md'),
     'utf8',
@@ -717,7 +725,7 @@ async function approveRepairedImplementation(
   );
   expect(beforeFreshReview.exitCode, beforeFreshReview.stdout).toBe(2);
   expect(phase(project.ticketPath)).toBe('plan-implementation');
-  appendCurrentReview(project, revisedImplementationPlan);
+  const freshReviewId = appendCurrentReview(project, revisedImplementationPlan);
   const implementationApproved = await runCli(
     ['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID],
     { cwd: project.root, env: reviewEnvironment(project) },
@@ -732,6 +740,68 @@ async function approveRepairedImplementation(
     expect(implementationApproved.exitCode, implementationApproved.stdout).toBe(0);
     expect(decisionPayloads(project.ledgerPath)).toHaveLength(humanGate ? 1 : 0);
   }
+  return freshReviewId;
+}
+
+async function reviewStatus(project: Fixture, reviewId: string): Promise<string> {
+  const status = await runCli(['--json', 'review', 'status', reviewId], {
+    cwd: project.root,
+    env: reviewEnvironment(project),
+  });
+  return String(JSON.parse(status.stdout).data.status);
+}
+
+/**
+ * Current-format reviews bind the ticket, so the discovery notice stales them;
+ * legacy reviews do not, and approve-plan's legacy-discovery refusal blocks them.
+ */
+async function expectDiscoveryStalesEarlierApproval(
+  project: Fixture,
+  currentFormat: boolean,
+): Promise<void> {
+  if (!currentFormat) return;
+  expect(
+    await reviewStatus(project, project.reviewId ?? ''),
+    'the discovery notice must stale the earlier Implementation Plan approval',
+  ).toBe('stale');
+}
+
+/** Journal entries written after the discovery notice keep the fresh approval current. */
+async function expectJournalKeepsFreshApproval(project: Fixture, reviewId: string): Promise<void> {
+  recordPhaseChange(project, 'plan-execution', 'implement');
+  writeFileSync(
+    project.ticketPath,
+    `${readFileSync(project.ticketPath, 'utf8')}- Narrative: repair reviewed.\n`,
+  );
+  expect(
+    await reviewStatus(project, reviewId),
+    'journal entries after the discovery notice must keep the fresh approval',
+  ).toBe('approved');
+  recordPhaseChange(project, 'implement', 'plan-execution');
+}
+
+/** Records a phase change the way a host does: the edit, then the real work-log hook. */
+function recordPhaseChange(project: Fixture, from: string, to: string): void {
+  writeFileSync(
+    project.ticketPath,
+    readFileSync(project.ticketPath, 'utf8').replace(`phase: ${from}`, () => `phase: ${to}`),
+  );
+  const hook = spawnSync('bun', [WORK_LOG_HOOK], {
+    cwd: project.root,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: project.root },
+    input: JSON.stringify({
+      hook_event_name: 'PostToolUse',
+      tool_name: 'Edit',
+      tool_input: {
+        file_path: project.ticketPath,
+        old_string: `phase: ${from}`,
+        new_string: `phase: ${to}`,
+      },
+    }),
+    encoding: 'utf8',
+  });
+  expect(hook.status, hook.stderr).toBe(0);
+  expect(readFileSync(project.ticketPath, 'utf8')).toContain(`Phase: ${from} → ${to}`);
 }
 
 describe('implementation-time discoveries return to the affected planning phase', () => {
@@ -892,6 +962,7 @@ describe('implementation-time discoveries return to the affected planning phase'
       expect(result.stdout).toContain(`"planning_destination":"${planningDestination}"`);
 
       if (planningDestination === 'plan-implementation') {
+        await expectDiscoveryStalesEarlierApproval(project, native === true);
         const unrepaired = await runCli(
           ['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID],
           { cwd: project.root, env: reviewEnvironment(project) },
@@ -914,7 +985,10 @@ describe('implementation-time discoveries return to the affected planning phase'
           expect(afterUnrelated.stdout).toContain('Convert its retained plan');
           convertToCurrentPlanning(project);
         }
-        await approveRepairedImplementation(project, humanGate, changedApproach);
+        await expectJournalKeepsFreshApproval(
+          project,
+          await approveRepairedImplementation(project, humanGate, changedApproach),
+        );
       }
 
       expect(phase(project.ticketPath)).toBe('plan-execution');
@@ -973,7 +1047,7 @@ describe('implementation-time discoveries return to the affected planning phase'
 describe('an accepted design enters Execution Planning', () => {
   it('binds the approval to the exact approach bytes before advancing', () => {
     const project = fixture(true);
-    const digest = createHash('sha256').update(PLAN).digest('hex');
+    const digest = PLAN_DIGEST;
 
     const result = runApprovalInPty(project, 'y');
 
@@ -989,6 +1063,58 @@ describe('an accepted design enters Execution Planning', () => {
     expect(events).toHaveLength(1);
     expect(events[0]).toContain(`"planDigest":"${digest}"`);
     expect(events[0]).toContain('"decision":"approved"');
+  });
+});
+
+describe('an approval answers only the approach bytes it presented', () => {
+  it('refuses a yes when the approach changes while the prompt is open', () => {
+    const project = fixture(true);
+    const planPath = nodePath.join(project.ticketDirectory, 'impl-plan.md');
+
+    const result = runApprovalInPty(project, 'y', {
+      PTY_RUNNER_APPEND_BEFORE_ANSWER: planPath,
+    });
+
+    expect(result.status).toBe(2);
+    expect(result.stdout).toContain('Approve this reviewed Implementation Plan?');
+    expect(readFileSync(planPath, 'utf8')).not.toBe(PLAN);
+    expect(result.stdout).toContain('changed while the approval prompt was open');
+    expect(result.stdout).toContain(PLAN_DIGEST);
+    expect(result.stdout).not.toContain('Approved approach:');
+    expect(approvalEvents(project.ledgerPath)).toHaveLength(0);
+    expect(phase(project.ticketPath)).toBe('plan-implementation');
+  });
+
+  it('refuses a yes when a reviewed planning dependency changes while the prompt is open', () => {
+    const project = fixture(true);
+    const planPath = nodePath.join(project.ticketDirectory, 'impl-plan.md');
+
+    const result = runApprovalInPty(project, 'y', {
+      PTY_RUNNER_APPEND_BEFORE_ANSWER: nodePath.join(project.ticketDirectory, 'spec.md'),
+    });
+
+    expect(result.status).toBe(2);
+    expect(result.stdout).toContain('Approve this reviewed Implementation Plan?');
+    expect(readFileSync(planPath, 'utf8')).toBe(PLAN);
+    expect(result.stdout).toContain(
+      'The Implementation Plan review stopped being current while the approval prompt was open',
+    );
+    expect(result.stdout).not.toContain('Approved approach:');
+    expect(approvalEvents(project.ledgerPath)).toHaveLength(0);
+    expect(phase(project.ticketPath)).toBe('plan-implementation');
+  });
+
+  it('approves when the approach is unchanged after the prompt', () => {
+    const project = fixture(true);
+
+    const result = runApprovalInPty(project, 'y');
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Approved approach:');
+    expect(decisionPayloads(project.ledgerPath)).toMatchObject([
+      { decision: 'approved', planDigest: PLAN_DIGEST },
+    ]);
+    expect(phase(project.ticketPath)).toBe('plan-execution');
   });
 });
 
@@ -1018,7 +1144,7 @@ describe('Implementation Plan review admission controls Execution Planning', () 
     expect(result.exitCode, result.stdout).toBe(0);
     expect(phase(project.ticketPath)).toBe('plan-execution');
     expect(JSON.parse(result.stdout)).toMatchObject({
-      data: { approval_status: 'not-required', achieved_independence: 'reduced' },
+      data: { approval_status: 'not-required', achieved_independence: 'cross-agent' },
     });
     expect(result.stdout).not.toContain('Implementation Plan review is blocked');
   });
@@ -1123,8 +1249,8 @@ describe('Implementation Plan review admission controls Execution Planning', () 
     writeFileSync(
       project.ledgerPath,
       `${readFileSync(project.ledgerPath, 'utf8')}${[
-        `2026-09-11T00:01:00.000Z fixture review:${scope} author:codex reviewer:claude independence:reduced review-id:${project.reviewId}`,
-        `2026-09-11T00:01:01.000Z fixture review:${TICKET_FOLDER}:phase@plan-implementation author:codex reviewer:claude independence:reduced review-id:${project.reviewId}`,
+        `2026-09-11T00:01:00.000Z fixture review:${scope} author:codex reviewer:claude independence:cross-agent review-id:${project.reviewId}`,
+        `2026-09-11T00:01:01.000Z fixture review:${TICKET_FOLDER}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${project.reviewId}`,
         '',
       ].join('\n')}`,
     );
@@ -1174,7 +1300,7 @@ describe('Implementation Plan review admission controls Execution Planning', () 
   it('rejects assurance text that disagrees with the authenticated review', async () => {
     const project = fixture(false);
     rewriteReviewStamps(project, line =>
-      line.replace('independence:reduced', 'independence:degraded'),
+      line.replace('independence:cross-agent', 'independence:degraded'),
     );
 
     const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
@@ -1198,9 +1324,7 @@ describe('Implementation Plan review admission controls Execution Planning', () 
       independence: 'cross-agent',
     }));
     rewriteReviewStamps(project, line =>
-      line
-        .replace('author:codex reviewer:claude', 'author:claude reviewer:claude')
-        .replace('independence:reduced', 'independence:cross-agent'),
+      line.replace('author:codex reviewer:claude', 'author:claude reviewer:claude'),
     );
 
     const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
@@ -1219,7 +1343,7 @@ describe('Implementation Plan review admission controls Execution Planning', () 
     const project = fixture(false);
     mutateReview(project, data => ({ ...data, independence: 'degraded' }));
     rewriteReviewStamps(project, line =>
-      line.replace('independence:reduced', 'independence:degraded'),
+      line.replace('independence:cross-agent', 'independence:degraded'),
     );
 
     const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
@@ -1469,7 +1593,7 @@ syncBuiltinESMExports();
 
   it('records a fresh approval after an earlier approval was superseded', () => {
     const project = fixture(true);
-    const digest = createHash('sha256').update(PLAN).digest('hex');
+    const digest = PLAN_DIGEST;
     const identity = (decision: 'approved' | 'declined') => ({
       authorityRef: 'interactive-cli',
       decision,

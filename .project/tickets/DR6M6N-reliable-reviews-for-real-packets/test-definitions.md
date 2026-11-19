@@ -144,7 +144,7 @@ failing with the scenario undefined before its step existed.
 - [x] GREEN aec039245
 - [x] REFACTOR skip: no structural improvement needed
 
-### Scenario: An unusable configured model is treated as none configured
+### Scenario: An unusable configured model is replaced by the built-in fallback
 
 - [x] RED skip: scenario reported undefined by the acceptance lane before its step definition existed
 - [x] GREEN aec039245

@@ -60,6 +60,8 @@ workflow phases with distinct, canonical author-review contracts.
 
 ## Work Log
 
+- 2026-11-09 Completion evidence reconciliation: mapped all 17 existing done_when obligations to the saved main-only CSV trial and earlier bounded proof inventory in [completion-evidence-2026-11-09.md](./completion-evidence-2026-11-09.md). Claude's local feature journey and a behavior-change/replan instance have bounded evidence; selective invalidation, exact receipt checks, migration/dispute coverage, native host boundaries and PR preparation retain explicit gaps. Corrected acceptance counts to 16 converter scenarios plus one starter. No ledger, status, historical RED, failed result or 33-case deferral was changed; no new tests, qualification or implementation performed.
+
 - 2026-09-24T21:44:25.000Z Independent Product Plan review found two blocking lineage gaps. Bound each phase approval to the exact canonical contract digest so changed contract bytes require fresh dependent review, and made ZSHVEB's already accepted writing-guide and decision-conversation work an explicit parent scope, completion, and Rule obligation. The corrected exact packet requires fresh review; no approval is carried forward.
 
 - 2026-09-24T21:44:25.000Z Child accounting: The nine-child scenario set gained ZSHVEB as its tenth feature child and CGRX0H as an eleventh, supporting task. CGRX0H supplies reusable subject advice for existing TBU1.R5–R6 and R10–R14 decision and guide obligations; it does not add a new Product Plan job, phase, or approval.

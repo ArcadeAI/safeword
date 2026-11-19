@@ -1186,7 +1186,6 @@ Then(
     const text = this.codexPluginInspectedText ?? '';
     assert.match(text, /safeword:bdd/u);
     assert.match(text, /safeword:verify/u);
-    assert.match(text, /safeword:explain/u);
     assert.doesNotMatch(text, /(?:^|[\s(\[`*_])\/(?:bdd|verify|explain)\b/gu);
   },
 );

@@ -5,18 +5,21 @@
 // refs (no network); git's own `pull --ff-only` and CI remain the backstops.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
 import {
   type BranchDivergence,
+  changesDirectoryBeforeCheckout,
   decideStaleBranchWarning,
   parseCheckoutTarget,
 } from './lib/branch-staleness.ts';
+import { resolveLaunchDirectory, resolveToolProjectDirectory } from './lib/project-directory.ts';
 
 interface HookInput {
   tool_name?: string;
+  cwd?: string;
   tool_input?: { command?: string };
 }
 
@@ -29,13 +32,26 @@ try {
 
 if ((input.tool_name ?? '') !== 'Bash') process.exit(0);
 
-const target = parseCheckoutTarget(input.tool_input?.command ?? '');
+const command = input.tool_input?.command ?? '';
+const target = parseCheckoutTarget(command);
 if (target === null) process.exit(0);
+// `cd repo; git switch x` checks out in another repository than the shell's.
+if (changesDirectoryBeforeCheckout(command)) process.exit(0);
 
-const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+// The checkout runs in the shell's repository. Warn only when that repository
+// is the Safeword project the shell resolves to: a shell in an unrelated,
+// unenrolled repository must not be warned about the launch checkout's branch.
+const launchDirectory = resolveLaunchDirectory();
+const shellDirectory = nodePath.resolve(launchDirectory, input.cwd ?? '.');
+const projectDir = resolveToolProjectDirectory(launchDirectory, {
+  tool: 'Bash',
+  editedFile: '',
+  cwd: shellDirectory,
+});
 if (!existsSync(nodePath.join(projectDir, '.safeword'))) process.exit(0);
+if (!isWithin(shellDirectory, projectDir)) process.exit(0);
 
-const divergence = readBranchDivergence(projectDir, target);
+const divergence = readBranchDivergence(shellDirectory, target);
 if (divergence === null) process.exit(0);
 
 const warning = decideStaleBranchWarning(divergence);
@@ -50,6 +66,20 @@ console.log(
   }),
 );
 process.exit(0);
+
+/** Whether `directory` is `root` or inside it, comparing real paths. */
+function isWithin(directory: string, root: string): boolean {
+  const relative = nodePath.relative(realPath(root), realPath(directory));
+  return relative === '' || (!relative.startsWith('..') && !nodePath.isAbsolute(relative));
+}
+
+function realPath(path: string): string {
+  try {
+    return realpathSync(path);
+  } catch {
+    return nodePath.resolve(path);
+  }
+}
 
 function git(cwd: string, args: string[]): string | null {
   const result = spawnSync('git', args, {

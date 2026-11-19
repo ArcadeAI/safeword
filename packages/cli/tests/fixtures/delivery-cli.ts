@@ -164,7 +164,7 @@ function admitPlanExecutionFixture(
       review_targets: [target],
       author_agent: 'codex',
       actual_reviewer: 'claude',
-      independence: 'reduced',
+      independence: 'cross-agent',
       reviewer_output: {
         schema_version: 1,
         dispatch_id: 'plan-execution-fixture',
@@ -243,7 +243,8 @@ function admittedReviewId(
   const id = result.data?.review_id;
   if (id === undefined) throw new Error(`${reviewKind} review id missing`);
   if (reviewKind === 'plan-execution' && reviewed.exitCode === 2) {
-    expect(reviewed.stdout).toContain('REVIEW_ROUTES_EXHAUSTED');
+    // No reviewer is admitted for this Execution Plan, so the review continues on the host.
+    expect(reviewed.stdout).toContain('REVIEW_CONTINUATION_REQUIRED');
     admitPlanExecutionFixture(root, id, target, executionPlanRecord);
   } else {
     expect(reviewed.exitCode, reviewed.stdout).toBe(0);
@@ -368,10 +369,9 @@ export async function admitThroughInstalledCli(
       },
     );
     const id = admittedReviewId(root, reviewKind, target, record, reviewed);
-    // This Codex host supplies no verified author model. Preserve the real
-    // coordinator's reduced assurance while testing the downstream gates.
+    // Claude reviews this Codex author's plans, so the coordinator records cross-agent assurance.
     stamps.push(
-      `2026-09-13T00:00:00.000Z fixture review:ABC123-feature:phase@${reviewKind} author:codex reviewer:claude independence:reduced review-id:${id}`,
+      `2026-09-13T00:00:00.000Z fixture review:ABC123-feature:phase@${reviewKind} author:codex reviewer:claude independence:cross-agent review-id:${id}`,
     );
   }
   writeFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), `${stamps.join('\n')}\n`);

@@ -14,6 +14,7 @@
 import { execSync, spawnSync } from 'node:child_process';
 
 import { safewordCli } from './safeword-cli.js';
+import { projectEnvironment } from './project-directory.js';
 
 type TestCommand = {
   /** Label for output/diagnostics (the runner or script name). */
@@ -89,8 +90,6 @@ const MAX_OUTPUT_LINES = 30;
 /** Maximum characters of test output to inject into the block reason. */
 const MAX_OUTPUT_CHARS = 3000;
 
-const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
-
 /**
  * Resolve the safeword CLI invocation. `SAFEWORD_CLI` (a path to cli.js/cli.ts run
  * via bun) overrides for tests/dev; otherwise the shared Safeword CLI lookup.
@@ -121,7 +120,7 @@ function resolvePlanCommands(cwd: string, kind: 'test' | 'bdd'): TestPlanResolut
     {
       encoding: 'utf8',
       timeout: TEST_TIMEOUT_MS,
-      env: { ...process.env, SAFEWORD_NO_UPDATE_CHECK: '1' },
+      env: { ...projectEnvironment(cwd), SAFEWORD_NO_UPDATE_CHECK: '1' },
     },
   );
   if (result.error || !result.stdout) {
@@ -210,13 +209,17 @@ function truncateOutput(output: string): string {
 
 /**
  * Test commands are application processes, not hook children. A Codex Stop
- * handler carries its own runtime identity in these variables; forwarding them
- * makes tests that intentionally exercise another runtime misidentify itself.
+ * handler carries its own runtime identity, project root, and plugin routes;
+ * forwarding them overrides the projects and runtimes tests create for themselves.
  */
 function testSubprocessEnvironment(): NodeJS.ProcessEnv {
   const environment = { ...process.env };
   delete environment.SAFEWORD_AGENT_RUNTIME;
   delete environment.CODEX_THREAD_ID;
+  delete environment.CLAUDE_PROJECT_DIR;
+  delete environment.CLAUDE_PLUGIN_ROOT;
+  delete environment.SAFEWORD_PLUGIN_CLI;
+  delete environment.SAFEWORD_PACKAGED_CONTEXT_PATH;
   return environment;
 }
 
@@ -281,7 +284,7 @@ function runSingleTestCommand(testCommand: TestCommand): {
  * - Uses execSync for synchronous execution with a configured timeout.
  * - Returns skipped=true if no runnable command was found (caller should not block).
  */
-export function runTests(cwd: string = projectDir): TestResult {
+export function runTests(cwd: string): TestResult {
   const resolution = getTestCommands(cwd);
   if (!resolution.ok) {
     return {

@@ -68,11 +68,44 @@ function isInside(projectDirectory: string, path: string): boolean {
   }
 }
 
-/** The plugin's bundled CLI, from the dispatcher's explicit path or the plugin root. */
-function pluginCli(environment: NodeJS.ProcessEnv): string | undefined {
+/**
+ * The CLI of the plugin this module ships in, found from the module's own path
+ * (`<plugin>/runtime/hooks/lib/`). A skill runs bundled helpers such as the
+ * stamp writer from its Bash tool, which inherits neither SAFEWORD_PLUGIN_CLI
+ * nor CLAUDE_PLUGIN_ROOT, yet the helper must still ask its own build (#7501).
+ */
+function bundledPluginCli(moduleDirectory: string): string | undefined {
+  const hooks = nodePath.dirname(moduleDirectory);
+  const runtime = nodePath.dirname(hooks);
+  if (
+    nodePath.basename(moduleDirectory) !== 'lib' ||
+    nodePath.basename(hooks) !== 'hooks' ||
+    nodePath.basename(runtime) !== 'runtime'
+  )
+    return undefined;
+  // The layout alone says a plugin is running; a missing cli.js must fail closed.
+  return nodePath.join(runtime, 'cli.js');
+}
+
+/**
+ * Where the running plugin's CLI should be: the dispatcher's explicit path, the
+ * plugin root, or this module's own plugin. Undefined only when no plugin runs.
+ */
+export function configuredPluginCli(
+  environment: NodeJS.ProcessEnv = process.env,
+): string | undefined {
   const explicit = environment.SAFEWORD_PLUGIN_CLI?.trim();
   const root = environment.CLAUDE_PLUGIN_ROOT?.trim();
-  const path = explicit || (root ? nodePath.join(root, 'runtime', 'cli.js') : undefined);
+  return (
+    explicit ||
+    (root ? nodePath.join(root, 'runtime', 'cli.js') : undefined) ||
+    bundledPluginCli(import.meta.dirname)
+  );
+}
+
+/** The running plugin's CLI, when it exists. */
+function pluginCli(environment: NodeJS.ProcessEnv): string | undefined {
+  const path = configuredPluginCli(environment);
   return path !== undefined && existsSync(path) ? path : undefined;
 }
 
@@ -109,8 +142,31 @@ function currentRuntime(environment: NodeJS.ProcessEnv): TrustedRuntime {
   return { path: process.execPath, isBun: false };
 }
 
+/** A script run by the trusted runtime from its own real directory, unless project code could edit it. */
+function trustedScript(
+  projectDirectory: string,
+  script: string,
+  runtimePath: string,
+  isBun: boolean,
+): SafewordCli | undefined {
+  let real: string;
+  try {
+    real = realpathSync(script);
+  } catch {
+    return undefined;
+  }
+  if (isInside(projectDirectory, real)) return undefined;
+  return {
+    command: runtimePath,
+    args: isBun ? ['--no-env-file', real] : [real],
+    cwd: nodePath.dirname(real),
+  };
+}
+
 /**
- * CLIs a trust check may run. Nothing project files can change gets to answer:
+ * CLIs a trust check may run. When a plugin is running, its own CLI is the only
+ * possible answer; the Codex cache and published package serve hosts without one.
+ * Nothing project files can change gets to answer:
  * - the runtime is the absolute binary already running this hook, outside the
  *   project (a PATH lookup could find a project-owned `bun` or `bunx` shim);
  * - each script is canonicalized and must resolve outside the project, then runs
@@ -132,41 +188,37 @@ export function trustedSafewordClis(
   }
   if (isInside(projectDirectory, runtimePath)) return [];
 
-  const scripts: string[] = [];
-  const plugin = pluginCli(environment);
-  if (plugin !== undefined) scripts.push(plugin);
-  const version = pinnedSafewordVersion(projectDirectory);
-  if (version !== undefined) {
-    const codexHome = environment.CODEX_HOME || nodePath.join(homedir(), '.codex');
-    scripts.push(
-      nodePath.join(
-        codexHome,
-        'plugins',
-        'cache',
-        'safeword',
-        'safeword',
-        version,
-        'runtime',
-        'cli.js',
-      ),
-    );
+  // A running plugin is the build this session answers to. Another build that
+  // merely carries the same version string (a Codex cache, the published package)
+  // can fingerprint differently and call every approved receipt stale, so a
+  // plugin CLI that is missing or project-writable answers nothing (#7501).
+  const plugin = configuredPluginCli(environment);
+  if (plugin !== undefined) {
+    const trustedPlugin = trustedScript(projectDirectory, plugin, runtimePath, runtime.isBun);
+    return trustedPlugin === undefined ? [] : [trustedPlugin];
   }
 
-  const candidates: SafewordCli[] = [];
-  for (const script of scripts) {
-    let real: string;
-    try {
-      real = realpathSync(script);
-    } catch {
-      continue;
-    }
-    if (isInside(projectDirectory, real)) continue;
-    candidates.push({
-      command: runtimePath,
-      args: runtime.isBun ? ['--no-env-file', real] : [real],
-      cwd: nodePath.dirname(real),
-    });
-  }
+  const version = pinnedSafewordVersion(projectDirectory);
+  const codexHome = environment.CODEX_HOME || nodePath.join(homedir(), '.codex');
+  const codexCache =
+    version === undefined
+      ? undefined
+      : trustedScript(
+          projectDirectory,
+          nodePath.join(
+            codexHome,
+            'plugins',
+            'cache',
+            'safeword',
+            'safeword',
+            version,
+            'runtime',
+            'cli.js',
+          ),
+          runtimePath,
+          runtime.isBun,
+        );
+  const candidates: SafewordCli[] = codexCache === undefined ? [] : [codexCache];
   // Bun also reads bunfig.toml from the package runner's working directory, so it
   // must sit outside the project too (a project can be the home directory).
   const runnerDirectory = [homedir(), tmpdir(), nodePath.parse(homedir()).root].find(

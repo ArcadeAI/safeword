@@ -161,6 +161,7 @@ async function runCommand(
 /** Run the selected owner without PATH lookup, shell evaluation, or inherited Biome overrides. */
 export async function runHostToolchain(
   owner: Extract<HostToolchain, { kind: 'ultracite' | 'biome' }>,
+  fix = true,
 ): Promise<HostToolchainResult> {
   const commands =
     owner.kind === 'ultracite'
@@ -172,7 +173,7 @@ export async function runHostToolchain(
           ['check', '--write', '--', owner.relativeFile],
           ['check', '--', owner.relativeFile],
         ];
-  for (const arguments_ of commands) {
+  for (const arguments_ of fix ? commands : [['check', '--', owner.relativeFile]]) {
     const errors = await runCommand(owner.executable, arguments_, owner.cwd);
     if (errors) return { warnings: [], errors };
   }

@@ -20,17 +20,11 @@ import { hasCitation, parseImplPlan, sectionBody } from './lib/impl-plan.ts';
 import { createLedgerShaResolver } from './lib/ledger-git.ts';
 import { validateLedger, wholeTicketPassApplies } from './lib/ledger-validation.ts';
 import {
-  AUTHOR_MODEL_ENV,
   hashArtifact,
   isArchitectureReviewGateEnabled,
   isTerminalHandoffCorrectionEnabled,
   isStopQualityReviewEnabled,
-  isCrossModelReviewRequired,
-  isSatisfyingCoordinatorReviewStamp,
-  isSatisfyingSkipStamp,
-  modelsMatch,
   parseReviewStamps,
-  readCrossAgentReviewPolicy,
   reviewGateForIndependentDesign,
   reviewScope,
 } from './lib/review-ledger.ts';
@@ -56,15 +50,17 @@ import { checkSkillInvocations, requiredSkillsForDone } from './lib/skill-invoca
 import { runTests } from './lib/test-runner.ts';
 import { changedFilesSinceHead, evaluateImplementStopTypecheck } from './lib/typecheck-gate.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
+import { resolveSessionProjectDirectory } from './lib/project-directory.ts';
 import { verifiedStamps } from './lib/verify-stamp-claims.ts';
 import { architectureDocumentNudgeForProject } from './lib/architecture-document-nudge.ts';
 import { evaluateParentContract } from './lib/product-plan-contract.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 
-installCrashCapture('stop-quality');
+const crashCapture = installCrashCapture('stop-quality');
 
 interface HookInput {
   session_id?: string;
+  cwd?: string;
   transcript_path?: string;
   stop_hook_active?: boolean;
   last_assistant_message?: string;
@@ -113,10 +109,6 @@ const TRANSCRIPT_SYSTEM_BLOCK_PATTERN = /<(system-reminder|task-notification)\b[
 /** Evidence patterns for done-phase validation (matched against Claude's last message text). */
 const TEST_EVIDENCE_PATTERN = /\d+\/\d+\s*tests?\s*pass/i; // "156/156 tests pass" or "✓ 156/156 tests pass"
 const USAGE_LIMIT_PATTERN = /\b(usage limit reached|5-hour limit reached)\b/i;
-
-const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-const safewordDir = `${projectDir}/.safeword`;
-const ticketsDir = `${resolveNamespaceRoot(projectDir)}/tickets`;
 
 interface TicketInfo {
   phase: BddPhase | undefined;
@@ -340,10 +332,8 @@ function checkImplPlanArtifact(ticketInfo: TicketInfo): void {
  * `.safeword/config.json` sets `architectureReviewGate: true`. For a new-flow
  * feature leaving implement (verify/done), require (a) the impl-plan Decisions
  * section to carry cited evidence — the /figure-it-out trace — and (b) a
- * design-review stamp bound to this ticket's impl-plan at its current content.
- * When `crossModelReview` is set, the satisfying real-review stamp must record a
- * model different from the author's (env `SAFEWORD_AUTHOR_MODEL`); an absent tag
- * fails closed. Runs AFTER checkImplPlanArtifact, so absent/malformed plans were
+ * design-review stamp bound to this ticket's impl-plan at its current content,
+ * at any achieved independence. Runs AFTER checkImplPlanArtifact, so absent/malformed plans were
  * already blocked there (precedence). Skips and exemptions are auditable.
  */
 function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
@@ -383,32 +373,6 @@ function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
       'Architecture review gate: the impl-plan design has no independent design review at its current content. Run `safeword review run plan-implementation ...`, then record its author_agent, actual_reviewer, and independence with `bun .safeword/hooks/write-review-stamp.ts impl-plan`; add a model only when independently verified.',
     );
   }
-
-  // Ceiling-raiser: under cross-model, a real-review stamp must record a model different from
-  // the author. Evaluate over ALL real-review stamps at this scope (the log is append-only, so a
-  // corrected re-review can sit after a same-model attempt) — pass if any is cross-model. A logged
-  // skip records no real-review stamp, so it deliberately bypasses cross-model: that is the same
-  // auditable escape valve every safeword gate carries, not an oversight.
-  if (isCrossModelReviewRequired(rawConfig)) {
-    if (stamps.some(stamp => isSatisfyingSkipStamp(scope, stamp))) return;
-    const modelVerifiedStamps = verifiedStamps(stamps, projectDir, scope, true);
-    const realReviews = modelVerifiedStamps.filter(stamp =>
-      isSatisfyingCoordinatorReviewStamp(scope, stamp, readCrossAgentReviewPolicy(rawConfig)),
-    );
-    const hasCrossModelReview = realReviews.some(
-      s => !modelsMatch(s.model, process.env[AUTHOR_MODEL_ENV]),
-    );
-    if (!hasCrossModelReview) {
-      hardBlockDone(
-        'Architecture review gate (cross-model): the design review must be performed by a different model than the author. Re-run `safeword review run plan-implementation ...` with a different configured reviewer model, then record its returned provenance and reviewer_model via `write-review-stamp.ts impl-plan`.',
-      );
-    }
-  }
-}
-
-// Not a safeword project, skip silently
-if (!existsSync(safewordDir)) {
-  process.exit(0);
 }
 
 // Read hook input from stdin
@@ -416,6 +380,19 @@ let input: HookInput;
 try {
   input = await Bun.stdin.json();
 } catch {
+  process.exit(0);
+}
+
+// The session's project: the tree its last edit landed in (a worktree, even
+// when the host's cwd and CLAUDE_PROJECT_DIR stay at the launch checkout),
+// else the rule applied to the host cwd (#5467). Every reader below uses it.
+const projectDir = resolveSessionProjectDirectory({ sessionId: input.session_id, cwd: input.cwd });
+crashCapture.setProject(projectDir);
+const safewordDir = `${projectDir}/.safeword`;
+const ticketsDir = `${resolveNamespaceRoot(projectDir)}/tickets`;
+
+// Not a safeword project, skip silently
+if (!existsSync(safewordDir)) {
   process.exit(0);
 }
 

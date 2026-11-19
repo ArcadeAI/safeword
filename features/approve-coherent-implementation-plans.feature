@@ -455,6 +455,18 @@ Feature: Approve coherent Implementation Plans
         | changed | the current approach requires a new human decision |
 
     @surface.safeword-cli
+    Scenario Outline: A human decision binds only the approach it was shown
+      Given human design approval is enabled and <prompt_change> while the approval prompt is open
+      When the approver accepts through the installed Safeword CLI and real internal collaborators
+      Then <decision_result>
+
+      Examples:
+        | prompt_change | decision_result |
+        | the reviewed Implementation Plan bytes change | no design authority is recorded, the ticket remains in Implementation Planning, and the CLI names the changed plan and how to recover |
+        | a reviewed planning dependency changes | no design authority is recorded, the ticket remains in Implementation Planning, and the CLI says the review is no longer current |
+        | nothing changes | the approval is bound to the presented approach bytes and the ticket enters Execution Planning |
+
+    @surface.safeword-cli
     Scenario: Concurrent design decisions do not overwrite each other
       Given two distinct reviewed Implementation Plans have authorized design decisions writing concurrently to the same real project approval ledger
       When both installed Safeword CLI writers settle through real internal collaborators

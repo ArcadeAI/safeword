@@ -8,9 +8,17 @@ import nodePath from 'node:path';
 
 import { safewordCli } from './lib/safeword-cli.ts';
 import { hasVerificationStamp } from './lib/learning-verification-stamps.ts';
-import { resolveNamespaceRoot } from './lib/namespace-root.ts';
+import { canonicalPathForGate, resolveNamespaceRoot } from './lib/namespace-root.ts';
+import {
+  canonicalEditTarget,
+  projectEnvironment,
+  resolveLaunchDirectory,
+  resolveToolProjectDirectory,
+} from './lib/project-directory.ts';
 
 interface HookInput {
+  tool_name?: string;
+  cwd?: string;
   tool_input?: {
     file_path?: string;
     notebook_path?: string;
@@ -28,12 +36,18 @@ try {
 const file = input.tool_input?.file_path ?? input.tool_input?.notebook_path;
 if (!file) process.exit(0);
 
-const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const launchDirectory = resolveLaunchDirectory();
+const projectDir = resolveToolProjectDirectory(launchDirectory, {
+  tool: input.tool_name ?? '',
+  editedFile: file,
+  cwd: input.cwd,
+});
 const learningsDirectory = nodePath.join(resolveNamespaceRoot(projectDir), 'learnings');
 
-// Only fire for files inside the learnings directory.
-const resolvedFile = nodePath.resolve(file);
-if (!resolvedFile.startsWith(`${nodePath.resolve(learningsDirectory)}${nodePath.sep}`)) {
+// Only fire for files inside the learnings directory. Both sides by real path:
+// a relative edit path is relative to the reported cwd, not this process's.
+const resolvedFile = canonicalEditTarget(launchDirectory, file, input.cwd);
+if (!resolvedFile.startsWith(`${canonicalPathForGate(learningsDirectory)}${nodePath.sep}`)) {
   process.exit(0);
 }
 if (!resolvedFile.endsWith('.md')) process.exit(0);
@@ -44,6 +58,7 @@ const cli = safewordCli(projectDir);
 if (cli !== undefined) {
   spawnSync(cli.command, [...cli.args, 'sync-learnings', '--quiet'], {
     cwd: projectDir,
+    env: projectEnvironment(projectDir),
     stdio: 'inherit',
     timeout: 30_000,
   });
@@ -55,7 +70,9 @@ if (cli !== undefined) {
 try {
   const content = readFileSync(resolvedFile, 'utf8');
   if (hasVerificationStamp(content)) {
-    const relativePath = nodePath.relative(projectDir, resolvedFile);
+    // resolvedFile is a real path, so measure from the project's real path too
+    // (macOS `/var` vs `/private/var` would otherwise yield `../../private/...`).
+    const relativePath = nodePath.relative(canonicalPathForGate(projectDir), resolvedFile);
     const output = {
       hookSpecificOutput: {
         hookEventName: 'PostToolUse',

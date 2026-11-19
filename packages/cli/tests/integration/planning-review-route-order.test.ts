@@ -78,20 +78,17 @@ ${review}
 `;
 }
 
-async function assertQualifiedAdmission(
-  flags: { authorKnown: boolean; codexConfirmed: boolean; codexFails: boolean },
+async function assertCrossAgentAdmission(
   project: string,
   reviewer: string,
   reviewId: string,
 ): Promise<void> {
-  if (!flags.authorKnown || !flags.codexConfirmed || flags.codexFails) return;
   const bun = spawnSync('which', ['bun'], { encoding: 'utf8' });
   expect(bun.status).toBe(0);
   const environment = {
     ...process.env,
     SAFEWORD_AGENT_RUNTIME: 'claude',
     CLAUDE_SESSION_ID: 'qualified-route-order',
-    SAFEWORD_AUTHOR_MODEL: 'claude-opus-5',
     SAFEWORD_PLUGIN_CLI: testCliPath,
     SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(reviewer, '.review-keys'),
   };
@@ -126,18 +123,14 @@ async function assertQualifiedAdmission(
 }
 
 it.each([
-  ['claude', 'codex', false, 'absent', false],
-  ['claude', 'codex', false, 'empty', false],
-  ['codex', 'claude', false, 'absent', false],
-  ['claude', 'codex', true, 'absent', false],
-  ['codex', 'claude', true, 'absent', false],
-  ['codex', 'claude', false, 'known', false],
-  ['codex', 'claude', false, 'known', true],
+  ['claude', 'codex', false, false],
+  ['codex', 'claude', false, false],
+  ['claude', 'codex', true, false],
+  ['codex', 'claude', true, false],
+  ['codex', 'claude', false, true],
 ] as const)(
-  'tries the independent reviewer before fallback when %s precedes %s, codex failure is %s, author model is %s, and model is confirmed %s',
-  // eslint-disable-next-line complexity -- The route-order matrix shares one real CLI fixture.
-  async (first, second, codexFails, authorModelState, codexConfirmed) => {
-    const authorKnown = authorModelState === 'known';
+  'tries the independent reviewer before fallback when %s precedes %s, codex failure is %s, and model is pinned %s',
+  async (first, second, codexFails, codexConfirmed) => {
     const project = createTemporaryDirectory();
     projects.push(project);
     await createConfiguredProject(project);
@@ -210,38 +203,20 @@ it.each([
           SAFEWORD_AGENT_RUNTIME: 'claude',
           SAFEWORD_NO_UPDATE_CHECK: '1',
           SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(reviewer, '.review-keys'),
-          ...(authorKnown && { SAFEWORD_AUTHOR_MODEL: 'claude-opus-5' }),
-          ...(authorModelState === 'empty' && { SAFEWORD_AUTHOR_MODEL: '' }),
         },
       },
     );
     const output = JSON.parse(reviewed.stdout);
     expect(output.data).toMatchObject({
       status: 'approved',
-      actual_reviewer: codexFails || (authorKnown && !codexConfirmed) ? 'claude' : 'codex',
-      independence: codexConfirmed ? 'cross-agent' : 'reduced',
+      actual_reviewer: codexFails ? 'claude' : 'codex',
+      independence: codexFails ? 'reduced' : 'cross-agent',
     });
-    await assertQualifiedAdmission(
-      { authorKnown, codexConfirmed, codexFails },
-      project,
-      reviewer,
-      output.data.review_id,
-    );
+    expect(output.data.capability_failure).toBeUndefined();
+    if (!codexFails) await assertCrossAgentAdmission(project, reviewer, output.data.review_id);
     expect(existsSync(independentInvoked)).toBe(true);
-    expect(existsSync(sameAgentInvoked)).toBe(codexFails || (authorKnown && !codexConfirmed));
-    if (authorKnown && !codexConfirmed) {
-      expect(JSON.parse(readFileSync(packets.claude, 'utf8'))).toEqual(
-        JSON.parse(readFileSync(packets.codex, 'utf8')),
-      );
-      expect(output.data.review_routes).toContainEqual(
-        expect.objectContaining({
-          reviewer: 'codex',
-          failure: 'reviewer_capability_unknown',
-          status: 'attempted',
-        }),
-      );
-    }
-    if (codexFails || (authorKnown && !codexConfirmed)) {
+    expect(existsSync(sameAgentInvoked)).toBe(codexFails);
+    if (codexFails) {
       expect(output.findings).toContainEqual(
         expect.objectContaining({ code: 'REVIEW_INDEPENDENCE_REDUCED' }),
       );
@@ -252,14 +227,12 @@ it.each([
             /was not independent/iu.test(finding.message),
         ),
       ).toBe(false);
-    } else if (!codexConfirmed) {
-      expect(output.data.capability_failure).toBe('author_capability_unknown');
     }
   },
 );
 
-it.each(['unqualified-model', 'gpt-6-luna'])(
-  'blocks explicit %s without launching any route when no independent attempt exists',
+it.each(['unrated-model', 'gpt-6-luna'])(
+  'launches explicit %s without a strength rating and records it as cross-agent',
   async model => {
     const project = createTemporaryDirectory();
     projects.push(project);
@@ -280,12 +253,12 @@ it.each(['unqualified-model', 'gpt-6-luna'])(
     mkdirSync(nodePath.join(project, ticket), { recursive: true });
     writeFileSync(
       nodePath.join(project, ticket, 'ticket.md'),
-      '---\nid: PRQ123\ntype: feature\nphase: plan-implementation\nstatus: in_progress\nproduct_plan_contract: v1\nscope: accepted behavior\nout_of_scope: new behavior\ndone_when: qualified review\nphase_anchors:\n  - scenario-gate: features/qualification.feature\n---\n',
+      '---\nid: PRQ123\ntype: feature\nphase: plan-implementation\nstatus: in_progress\nproduct_plan_contract: v1\nscope: accepted behavior\nout_of_scope: new behavior\ndone_when: explicit reviewer runs\nphase_anchors:\n  - scenario-gate: features/qualification.feature\n---\n',
     );
     mkdirSync(nodePath.join(project, 'features'), { recursive: true });
     writeFileSync(
       nodePath.join(project, 'features/qualification.feature'),
-      '@independent-first.BU1.R1\nFeature: Qualification\n  Scenario: Refuse unqualified model\n    Given a configured reviewer\n    When review runs\n    Then the unqualified model is skipped\n',
+      '@independent-first.BU1.R1\nFeature: Qualification\n  Scenario: Run explicit model\n    Given a configured reviewer\n    When review runs\n    Then the explicit model reviews\n',
     );
     writeFileSync(
       nodePath.join(project, ticket, 'impl-plan.md'),
@@ -303,7 +276,7 @@ it.each(['unqualified-model', 'gpt-6-luna'])(
           agent === 'codex' ? marker : fallback,
           nodePath.join(reviewer, `${agent}-packet`),
           false,
-          false,
+          agent === 'codex',
         ),
         { mode: 0o755 },
       );
@@ -325,27 +298,18 @@ it.each(['unqualified-model', 'gpt-6-luna'])(
         env: {
           PATH: `${reviewer}:${process.env.PATH ?? ''}`,
           SAFEWORD_AGENT_RUNTIME: 'claude',
-          SAFEWORD_AUTHOR_MODEL: 'claude-opus-5',
         },
       },
     );
     const output = JSON.parse(result.stdout);
-    expect(result.exitCode, result.stdout + result.stderr).toBe(2);
-    expect(existsSync(marker), 'unqualified exact selector must never launch inference').toBe(
-      false,
-    );
+    expect(result.exitCode, result.stdout + result.stderr).toBe(0);
+    expect(existsSync(marker), result.stdout + result.stderr).toBe(true);
     expect(existsSync(fallback), result.stdout + result.stderr).toBe(false);
     expect(output.data).toMatchObject({
-      status: 'blocked',
-      independence: 'none',
+      status: 'approved',
+      actual_reviewer: 'codex',
+      independence: 'cross-agent',
     });
-    expect(output.data.review_routes).toContainEqual(
-      expect.objectContaining({
-        reviewer: 'codex',
-        model,
-        status: 'skipped',
-        failure: 'reviewer_capability_unknown',
-      }),
-    );
+    expect(output.data.capability_failure).toBeUndefined();
   },
 );

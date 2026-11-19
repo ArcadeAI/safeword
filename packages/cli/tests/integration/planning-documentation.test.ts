@@ -27,12 +27,15 @@ describe('planning fallback documentation', () => {
     expect(readme).toContain('reasoned skip');
   });
 
-  it('distinguishes planning approval from the later independent architecture gate', () => {
+  it('tells planners the architecture gate accepts a design review at any independence', () => {
     const guidance = readFileSync(
       nodePath.join(root, 'packages/cli/templates/skills/bdd/PLAN_IMPLEMENTATION.md'),
       'utf8',
     );
-    expect(guidance).toMatch(/does not clear\s+the later architecture gate/u);
+    expect(guidance).toMatch(
+      /accepts a\s+current design-review stamp at any achieved independence/u,
+    );
+    expect(guidance).not.toMatch(/does not clear\s+the later architecture gate/u);
     expect(guidance).toContain('reasoned skip');
   });
 

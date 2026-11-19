@@ -63,6 +63,15 @@ describe('jsonl-spool — shared per-session JSONL I/O (self-report + retro spoo
     expect(readJsonlRecords(file, parseRec)).toEqual([{ n: 1 }, { n: 2 }]);
   });
 
+  it('starts a new record on its own line after an interrupted append left a torn one', () => {
+    mkdirSync(nodePath.dirname(file), { recursive: true });
+    writeFileSync(file, `${line(1)}\n{"n":`);
+
+    appendJsonlRecords(file, [line(2)], 10);
+
+    expect(readJsonlRecords(file, parseRec)).toEqual([{ n: 1 }, { n: 2 }]);
+  });
+
   it('never throws on an append to an unwritable path (fail-open)', () => {
     expect(() => {
       appendJsonlRecords('/', [line(1)], 20); // '/' dir — write must not throw
