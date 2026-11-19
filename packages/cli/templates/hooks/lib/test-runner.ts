@@ -103,6 +103,9 @@ const MISE_PROJECT_CONFIG_FILES = [
 /** `mise bin-paths` only reads configuration; it never installs. */
 const MISE_TIMEOUT_MS = 10_000;
 
+/** Lines of `mise` diagnostics kept in the pin-fallback note. */
+const MAX_NOTE_LINES = 3;
+
 /** Maximum lines of test output to inject into the block reason. */
 const MAX_OUTPUT_LINES = 30;
 
@@ -138,8 +141,15 @@ function pinnedToolchainEnvironment(projectDirectory: string): ToolchainEnvironm
     return { environment };
   }
   if (result.error || result.status !== 0) {
-    const detail =
-      result.stderr?.trim() || result.error?.message || `mise bin-paths exited ${result.status}`;
+    // Kept short: the note sits outside the output truncation budget.
+    const detail = (
+      result.stderr?.trim() ||
+      result.error?.message ||
+      `mise bin-paths exited ${result.status}`
+    )
+      .split('\n')
+      .slice(0, MAX_NOTE_LINES)
+      .join('\n');
     return {
       environment,
       note: `Pinned toolchain not applied; tests ran with the inherited PATH. ${detail}`,
@@ -352,6 +362,14 @@ function runSingleTestCommand(
 }
 
 /**
+ * A pin that could not be applied explains a failure that would otherwise look like a red test,
+ * so it leads the output outside the tail-only truncation budget, which would drop it.
+ */
+function withToolchainNote(note: string | undefined, output: string): string {
+  return note === undefined ? output : `${note}\n\n${output}`;
+}
+
+/**
  * Run the project's test suite and return the result.
  *
  * - Resolves unit/native and acceptance commands from `safeword project test-plan`.
@@ -365,7 +383,7 @@ export function runTests(cwd: string): TestResult {
   if (!resolution.ok) {
     return {
       passed: false,
-      output: truncateOutput([toolchain.note, resolution.reason].filter(Boolean).join('\n\n')),
+      output: withToolchainNote(toolchain.note, truncateOutput(resolution.reason)),
       skipped: false,
       resolutionFailed: true,
     };
@@ -373,7 +391,7 @@ export function runTests(cwd: string): TestResult {
   const { commands } = resolution;
   if (commands.length === 0) return { passed: true, output: '', skipped: true };
 
-  const outputs: string[] = toolchain.note === undefined ? [] : [toolchain.note];
+  const outputs: string[] = [];
   const failureOutputs: string[] = [];
   const unavailableDiagnostics: string[] = [];
   let passed = true;
@@ -400,7 +418,7 @@ export function runTests(cwd: string): TestResult {
 
   return {
     passed,
-    output,
+    output: withToolchainNote(toolchain.note, output),
     skipped: false,
     ...(toolchainMissing ? { toolchainMissing: true } : {}),
   };
