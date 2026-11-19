@@ -1,4 +1,13 @@
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -17,6 +26,7 @@ describe('test runner with a mise-pinned project', () => {
   let pinnedBin: string;
   let staleBin: string;
   let miseCalls: string;
+  let bunRuntimeCalls: string;
   let originalEnvironment: Record<string, string | undefined>;
 
   /** A fake `mise` that answers `mise -C <project> bin-paths` with the pinned bin directory. */
@@ -31,6 +41,12 @@ describe('test runner with a mise-pinned project', () => {
     writeFileSync(fakeMise, `#!/bin/sh\necho "$@" >> "${miseCalls}"\n${answer}\n`);
     chmodSync(fakeMise, 0o755);
     process.env.PATH = [staleBin, fakeMiseDirectory, process.env.PATH].join(path.delimiter);
+  }
+
+  /** Which runtime directory served each `bun` the test-plan lookup started. */
+  function bunRuntimesUsed(): Set<string> {
+    if (!existsSync(bunRuntimeCalls)) return new Set();
+    return new Set(readFileSync(bunRuntimeCalls, 'utf8').trim().split('\n'));
   }
 
   /**
@@ -52,8 +68,23 @@ describe('test runner with a mise-pinned project', () => {
     pinnedBin = path.join(root, 'pinned', 'bin');
     staleBin = path.join(root, 'stale', 'bin');
     miseCalls = path.join(root, 'mise-calls.log');
+    bunRuntimeCalls = path.join(root, 'bun-runtime-calls.log');
     for (const directory of [project, pinnedBin, staleBin])
       mkdirSync(directory, { recursive: true });
+    // Both runtime directories carry a working `bun` that records which one ran, as the
+    // desktop app's stale Bun and the pinned Bun would both answer to `bun`.
+    const realBun = execFileSync('sh', ['-c', 'command -v bun'], { encoding: 'utf8' }).trim();
+    for (const [label, directory] of [
+      ['pinned', pinnedBin],
+      ['stale', staleBin],
+    ] as const) {
+      const bun = path.join(directory, 'bun');
+      writeFileSync(
+        bun,
+        `#!/bin/sh\necho ${label} >> "${bunRuntimeCalls}"\nexec "${realBun}" "$@"\n`,
+      );
+      chmodSync(bun, 0o755);
+    }
     // A suite's progress output overflows the runner's output budget before its final line.
     const probe = [
       `for (let line = 0; line < 60; line++) console.log('progress '.repeat(10) + line);`,
@@ -93,6 +124,7 @@ describe('test runner with a mise-pinned project', () => {
 
     expect(pinned).toBeGreaterThanOrEqual(0);
     expect(pinned).toBeLessThan(stale);
+    expect(bunRuntimesUsed()).toEqual(new Set(['pinned']));
   });
 
   it('leaves PATH alone and does not ask mise when the project pins nothing', () => {
@@ -102,6 +134,7 @@ describe('test runner with a mise-pinned project', () => {
 
     expect(pinned).toBe(-1);
     expect(stale).toBeGreaterThanOrEqual(0);
+    expect(bunRuntimesUsed()).toEqual(new Set(['stale']));
     expect(existsSync(miseCalls)).toBe(false);
   });
 
@@ -113,6 +146,7 @@ describe('test runner with a mise-pinned project', () => {
 
     expect(pinned).toBe(-1);
     expect(stale).toBeGreaterThanOrEqual(0);
+    expect(bunRuntimesUsed()).toEqual(new Set(['stale']));
     expect(output).toContain('Pinned toolchain not applied');
     expect(output).toContain('are not trusted');
   });
