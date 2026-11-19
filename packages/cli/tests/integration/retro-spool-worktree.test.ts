@@ -407,6 +407,23 @@ describe('retro spool survives a deleted worktree (#5467)', () => {
     expect(lines(working)).toHaveLength(1);
   });
 
+  it('a durable append never runs beside another holder of the shared copy, so the cap holds', () => {
+    git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
+    spoolDrafts(worktree, SESSION, [draft('retro:aaaaaaaaaaaa')]);
+    const durable = durableDraftSpoolPath(worktree, SESSION);
+    mkdirSync(`${durable}.lock`);
+
+    spoolDrafts(worktree, SESSION, [draft('retro:bbbbbbbbbbbb')]);
+    rmSync(`${durable}.lock`, { recursive: true });
+
+    expect(lines(durable)).toHaveLength(1);
+    expect(lines(draftSpoolPath(worktree, SESSION))).toHaveLength(1);
+    expect(readSpooledDrafts(worktree, SESSION).map(spooled => spooled.signature)).toEqual([
+      'retro:bbbbbbbbbbbb',
+      'retro:aaaaaaaaaaaa',
+    ]);
+  });
+
   it('clears a lock abandoned by a killed writer', () => {
     git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
     spoolDrafts(worktree, SESSION, [draft('retro:aaaaaaaaaaaa')]);

@@ -20824,7 +20824,7 @@ function removeDrafts(projectDirectory, sessionId, removedSignatures, routeMatch
     appendRemovals(durableRemovalPath(durable), keys);
   }
   const working = draftSpoolPath(projectDirectory, sessionId);
-  withWorkingCopyLock(working, () => rewriteSpool(working, (draft) => !isRemoved(draft)), () => {
+  withSpoolLock(working, () => rewriteSpool(working, (draft) => !isRemoved(draft)), () => {
     return;
   });
 }
@@ -20873,7 +20873,7 @@ function serializeDrafts(drafts) {
 `)}
 ` : "";
 }
-function withWorkingCopyLock(file, operation, onBusy, waitMs = LOCK_WAIT_MS) {
+function withSpoolLock(file, operation, onBusy, waitMs = LOCK_WAIT_MS) {
   const lock = `${file}.lock`;
   const deadline = Date.now() + waitMs;
   for (;; ) {
@@ -20970,7 +20970,8 @@ function spoolDrafts(projectDirectory, sessionId, drafts) {
   let fallback = drafts;
   if (durable !== undefined) {
     const lines = drafts.map((draft) => draftLine(draft));
-    if (tryAppendJsonlRecords(durable, lines, MAX_DRAFTS_PER_SESSION))
+    const appended = withSpoolLock(durable, () => tryAppendJsonlRecords(durable, lines, MAX_DRAFTS_PER_SESSION), () => false);
+    if (appended)
       return;
     const held = new Set(readJsonlRecords(durable, toDraft).map(draftKey));
     fallback = drafts.filter((draft) => !held.has(draftKey(draft)));
@@ -20978,7 +20979,7 @@ function spoolDrafts(projectDirectory, sessionId, drafts) {
   const working = draftSpoolPath(projectDirectory, sessionId);
   const append = () => appendJsonlRecords(working, fallback.map((draft) => draftLine(draft)), MAX_DRAFTS_PER_SESSION);
   if (fallback.length > 0) {
-    withWorkingCopyLock(working, append, append, Number.POSITIVE_INFINITY);
+    withSpoolLock(working, append, append, Number.POSITIVE_INFINITY);
   }
 }
 var MAX_DRAFTS_PER_SESSION = 20, SPOOL_DIR, SPOOL_EXTENSION = ".jsonl", REMOVED_SUFFIX = ".removed.jsonl", LOCK_WAIT_MS = 2000, LOCK_STALE_MS = 1e4, LOCK_POLL_MS = 20;

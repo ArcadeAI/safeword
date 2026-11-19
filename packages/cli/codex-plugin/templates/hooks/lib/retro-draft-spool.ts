@@ -285,7 +285,7 @@ function removeDrafts(
   }
   const working = draftSpoolPath(projectDirectory, sessionId);
   // Busy: leave the drafts; the ledger already hides them and the next drain retries.
-  withWorkingCopyLock(
+  withSpoolLock(
     working,
     () => rewriteSpool(working, draft => !isRemoved(draft)),
     () => undefined,
@@ -379,14 +379,16 @@ const LOCK_STALE_MS = 10_000;
 const LOCK_POLL_MS = 20;
 
 /**
- * Run `operation` holding the working copy's lock (a sibling directory, since
- * mkdir is atomic). Staging, the drain's rewrite and the fallback append take
- * it, so a rewrite can never replace a file another writer just appended to.
+ * Run `operation` holding a spool file's lock (a sibling directory, since mkdir
+ * is atomic). Every capped append and every rewrite of a spool file takes it:
+ * staging, the drain's rewrite and the fallback append on the working copy, and
+ * the capped append on the durable copy. So a rewrite can never replace a file
+ * another writer just appended to, and two writers cannot both pass the cap.
  * A lock older than LOCK_STALE_MS was abandoned by a killed process and is
  * cleared. When the lock cannot be taken in `waitMs`, or cannot be created at
  * all, `onBusy` decides.
  */
-function withWorkingCopyLock<T>(
+function withSpoolLock<T>(
   file: string,
   operation: () => T,
   onBusy: () => T,
@@ -427,7 +429,7 @@ function lockIsStale(lock: string): boolean {
 /**
  * Merge another checkout's spool-directory file (a spool or a ledger) into
  * `target`, keeping every record either holds: the target's lines stay, and each
- * source line it lacks is appended. Runs under the target's working-copy lock
+ * source line it lacks is appended. Runs under the target's spool lock
  * with no deadline, as the fallback append does, so a staging write cannot
  * replace the merge. Throws on failure, so a caller about to delete the source
  * can stop.
@@ -443,7 +445,7 @@ export function mergeSpoolFile(source: string, target: string): void {
     const separator = existing.length > 0 && !existing.endsWith('\n') ? '\n' : '';
     appendFileSync(target, `${separator}${missing.join('\n')}\n`, { mode: 0o600 });
   };
-  withWorkingCopyLock(target, merge, merge, Number.POSITIVE_INFINITY);
+  withSpoolLock(target, merge, merge, Number.POSITIVE_INFINITY);
 }
 
 function nonEmptyLines(contents: string): string[] {
@@ -468,7 +470,7 @@ export function stageRetroSpool(projectDirectory: string, sessionId: string): st
     mirrorRemovals(projectDirectory, sessionId, durable);
     // The handed-off file holds exactly the pending drafts: every durable
     // addition, and no draft the removal ledger names.
-    return withWorkingCopyLock(
+    return withSpoolLock(
       working,
       () => {
         const drafts = readAllSpooledDrafts(projectDirectory, sessionId);
@@ -678,7 +680,14 @@ export function spoolDrafts(
   let fallback = drafts;
   if (durable !== undefined) {
     const lines = drafts.map(draft => draftLine(draft));
-    if (tryAppendJsonlRecords(durable, lines, MAX_DRAFTS_PER_SESSION)) return;
+    // Under the shared copy's lock, so concurrent writers cannot both pass the cap.
+    // Busy: the working copy takes the drafts, as it does past the cap.
+    const appended = withSpoolLock(
+      durable,
+      () => tryAppendJsonlRecords(durable, lines, MAX_DRAFTS_PER_SESSION),
+      () => false,
+    );
+    if (appended) return;
     const held = new Set(readJsonlRecords(durable, toDraft).map(draftKey));
     fallback = drafts.filter(draft => !held.has(draftKey(draft)));
   }
@@ -694,6 +703,6 @@ export function spoolDrafts(
   // goes stale, so the wait ends. The unlocked append runs only when no lock can
   // be created at all, and then staging and the drain cannot take one to rewrite.
   if (fallback.length > 0) {
-    withWorkingCopyLock(working, append, append, Number.POSITIVE_INFINITY);
+    withSpoolLock(working, append, append, Number.POSITIVE_INFINITY);
   }
 }
