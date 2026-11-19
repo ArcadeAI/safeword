@@ -14,6 +14,50 @@ in place. Their evidence and edits remain in those checkouts.
 | Give a concrete next action at every stop | K3EBHB | The shared lint-failure gate now names the failed check and tells the user to fix the errors in the verification report and rerun verification. The earlier trial logs retain actual stop text and intervention. The recovery feature's undefined walkthroughs and the lack of a nontechnical participant leave comprehension open, including pending scope and dispute outcomes. |
 | Complete verification, checklist and PR preparation | A639WN, 6XW8H7, T3E4NS, YCFFNC | November 9 Codex and November 14 Claude provide real but assisted native trials. The latter recorded 87 app tests and 20 acceptance scenarios passing, five lint errors and two dependency advisories. Its ticket was marked done with ten contributor checklist rows open and no PR. The lint repair below closes one false-success path. The slicing rubric and fixture checks establish mechanics. Independently reviewable multi-PR delivery and a clean native feature journey through completed checklist and review-ready PR evidence remain open. |
 
+## Replayed first plan step
+
+The archived Claude trial's Execution Plan is unchanged from plan commit
+`1a0df6f1` through delivery commit `6601f3e5`. Its first named RED is
+“Fail mode leaves an existing output file unchanged.” I ran the plan's named
+Cucumber scenario from three disposable Git snapshots with the archived
+dependencies. At `7b7619a3` the command exits 1 and names the missing CLI
+entry point exactly as the plan predicts. At walking-skeleton `ef65ad28` it
+exits 1 at the real exit-code assertion, with actual 0 and expected 1. At
+`db16c0da` it exits 0, with all six steps passing. This is an executable
+replay of the first step and a behavioral negative control. It establishes
+neither full cold-start execution nor new historical RED authority.
+
+On current main, the read-only public command
+`safeword ticket delivery-checklist 2KVHME --offline --json` returned
+`review_required` against the saved trial. No current checklist readiness
+or automatic upgrade of the earlier review can be credited from that run.
+
+## In-flight files, small work, and parent authority
+
+- The current CLI's offline reconciliation with no agent activation succeeds
+  on a disposable copy of trial commit `2101e277`. All six 2KVHME ticket
+  files retain matching SHA-256 hashes, including both plans and the ledger
+  after its first recorded passing scenario. This is an install over an
+  earlier 1.2.0 build with different repository bytes. The archived review
+  cannot be carried forward as current authority from this file-preservation
+  result.
+- Three offline public `ticket new` calls create only `ticket.md` for an
+  explicitly typed patch and task, and `ticket.md` plus `spec.md` for a
+  feature. The fresh feature still emits `product_plan_contract: v1`.
+  This supports proportionate artifact creation and confirms the v2 writer is
+  undelivered at this entry point. Automatic classification and promotion
+  require their own proof.
+- The parent reconciliation command refuses G1C9PP, 7CAMAD, YCFFNC, ZSHVEB,
+  3EG00H and K3EBHB with `PARENT_RECONCILIATION_FAILED`. Recomputing their
+  exact recorded digests from `ddaebbdb0` (five children) and `cd7514433`
+  (ZSHVEB) matches all six. Current inherited values have semantic changes,
+  including job Rules and project non-goals for each child. Five also have a
+  changed milestone outcome; G1C9PP, 7CAMAD and ZSHVEB have changed milestone
+  non-goals. The success threshold is the same. That is real authority drift
+  rather than a formatting change or a hash generation error. Review the
+  inherited changes with the owner before accepting a new binding or
+  advancing a child through a review gate.
+
 ## Concrete verification repair
 
 The November 14 archive at
@@ -26,7 +70,9 @@ archive bytes. The repaired check returns `ok: false` and a recovery action.
 A disposable Git project with those bytes rejects PR-readiness receipt
 finalization. Replacing the report with passing lint and scope admits the
 positive control. A fenced example of an earlier failure does not block
-passing lint. The archived project was read only.
+passing lint. The archived project was read only. The verification skill now
+uses the existing checklist and retained-proof commands for adopted features
+and keeps an unfinished checklist out of the ready verdict.
 
 The new check applies to an explicit failure on the canonical lint status line.
 It accepts older reports without that line. Existing verification and delivery
