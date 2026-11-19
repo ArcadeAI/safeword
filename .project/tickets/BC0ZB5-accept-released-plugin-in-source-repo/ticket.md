@@ -34,6 +34,7 @@ last_modified: 2026-11-19T17:13:23.180Z
 **Tests:**
 
 - [x] Source repo accepts the older released plugin without attempting an update, with an info finding.
+- [x] A fresh source checkout installs the released plugin and accepts it (verifyPlugin path).
 - [x] Source repo still re-enables a disabled released plugin (no update).
 - [x] Outside the source repo the version is still required (CLAUDE_PLUGIN_UNVERIFIED, update attempted).
 - [x] A plugin newer than the CLI is not covered by the exception (status wrong-version; install refuses downgrade).
@@ -48,3 +49,4 @@ last_modified: 2026-11-19T17:13:23.180Z
 - 2026-10-29 RED: two source-repo tests failed (install returned failed). GREEN 031e2a7a8 (acceptedPluginVersion in packages/cli/src/claude-plugin/profile.ts; extracted releasedPluginFindings for lint complexity).
 - 2026-10-29 Boundary tests fda8efa40; each killed by its targeted mutation (drop older-than check, skip identity version check, apply exception everywhere, status ignores exception).
 - 2026-11-19 Merged origin/main (71b32c49b); conflicts only in generated plugin surfaces, regenerated. Claude plugin suites 245 passed; dogfood install exits 0 with Claude ready.
+- 2026-11-19 tdd-review: implementation minimal and correct; gap found — no test for a fresh source checkout with no plugin installed. Added it (fixture now models the marketplace's delivered version via marketplaceVersion); killed by making verifyPlugin require VERSION.

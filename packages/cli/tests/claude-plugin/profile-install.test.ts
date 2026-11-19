@@ -57,8 +57,8 @@ interface FixtureState {
   readonly oversizedVersionStderr?: boolean;
   readonly pluginEnabled?: boolean;
   readonly unexpectedPayload?: boolean;
-  /** False when the marketplace has no newer plugin, so `plugin update` changes nothing. */
-  readonly updateAdvances?: boolean;
+  /** Plugin version `plugin install` and `plugin update` deliver (defaults to the CLI version). */
+  readonly marketplaceVersion?: string;
 }
 
 function prepareInstallPath(root: string, state: FixtureState): string {
@@ -164,9 +164,9 @@ function writePluginListOverride(
   writeFileSync(path, `${JSON.stringify(plugins)}\n`);
 }
 
-function pluginUpdateCommand(state: FixtureState, installedState: string): string {
-  if (state.updateAdvances === false) return ':';
-  return String.raw`printf '%s\n' ${JSON.stringify(SAFEWORD_SCHEMA.version)} > ${JSON.stringify(installedState)}`;
+function deliverPluginCommand(state: FixtureState, installedState: string): string {
+  const version = state.marketplaceVersion ?? SAFEWORD_SCHEMA.version;
+  return String.raw`printf '%s\n' ${JSON.stringify(version)} > ${JSON.stringify(installedState)}`;
 }
 
 function versionCommand(state: FixtureState, outputPath: string): string {
@@ -346,10 +346,10 @@ case "$*" in
     fi
     ;;
   'plugin install safeword@safeword --scope project')
-    printf '%s\n' ${JSON.stringify(SAFEWORD_SCHEMA.version)} > ${JSON.stringify(installedState)}
+    ${deliverPluginCommand(state, installedState)}
     touch ${JSON.stringify(enabledState)}
     ;;
-  'plugin update safeword@safeword --scope project') ${pluginUpdateCommand(state, installedState)} ;;
+  'plugin update safeword@safeword --scope project') ${deliverPluginCommand(state, installedState)} ;;
   'plugin enable safeword@safeword --scope project') touch ${JSON.stringify(enabledState)} ;;
   *) exit 97 ;;
 esac
@@ -930,8 +930,24 @@ describe('Claude plugin in the Safeword source repository', () => {
   const released = {
     installedVersion: RELEASED_VERSION,
     payloadVersion: RELEASED_VERSION,
-    updateAdvances: false,
+    marketplaceVersion: RELEASED_VERSION,
   };
+
+  it('installs the released plugin into a fresh source checkout and accepts it', () => {
+    const { log, project } = fixture(true, OFFICIAL_MARKETPLACE_REF, KEEP_MARKETPLACE, {
+      ...released,
+      dogfoodRepo: true,
+      installedVersion: false,
+    });
+
+    const result = installClaudePlugin(project);
+
+    expect(result.state).toBe('action_required');
+    expect(readFileSync(log, 'utf8')).toContain('plugin install safeword@safeword --scope project');
+    expect(result.findings).toEqual([
+      expect.objectContaining({ code: 'CLAUDE_PLUGIN_DOGFOOD_RELEASED' }),
+    ]);
+  });
 
   it('accepts the newest released plugin without attempting an impossible update', () => {
     const { log, project } = fixture(
