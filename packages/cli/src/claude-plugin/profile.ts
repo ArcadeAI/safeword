@@ -16,7 +16,8 @@ import nodePath from 'node:path';
 
 import { applyEdits, modify, parse, type ParseError } from 'jsonc-parser';
 
-import { type CliResult, createResult, type Effect } from '../cli-protocol/result.js';
+import { isDogfoodRepo } from '../../templates/hooks/lib/dogfood.js';
+import { type CliResult, createResult, type Effect, type Finding } from '../cli-protocol/result.js';
 import { writeDurableFile } from '../codex-plugin/durable-write.js';
 import { canonicalDirectory } from '../utils/fs.js';
 import { compareVersions, isSafePackageVersion } from '../utils/version.js';
@@ -866,6 +867,43 @@ function assertConvergeablePluginVersion(plugin: JsonObject, effects: readonly E
   }
 }
 
+/** The released (no prerelease or build tag) Safeword plugin version Claude's marketplace checkout offers. */
+function offeredReleasedPluginVersion(): string | undefined {
+  const cataloguePath = nodePath.join(
+    claudeConfigDirectory(),
+    'plugins/marketplaces',
+    MARKETPLACE_NAME,
+    '.claude-plugin/marketplace.json',
+  );
+  try {
+    const catalogue = JSON.parse(readFileSync(cataloguePath, 'utf8')) as unknown;
+    if (!isJsonObject(catalogue) || !Array.isArray(catalogue.plugins)) return undefined;
+    const entry = catalogue.plugins.find(
+      (plugin): plugin is JsonObject => isJsonObject(plugin) && plugin.name === MARKETPLACE_NAME,
+    );
+    return typeof entry?.version === 'string' &&
+      isSafePackageVersion(entry.version) &&
+      !/[+-]/u.test(entry.version)
+      ? entry.version
+      : undefined;
+  } catch {
+    // An absent or unreadable checkout offers nothing; the caller stays strict.
+    return undefined;
+  }
+}
+
+/**
+ * The plugin version this project accepts. Normally the CLI's own version. The
+ * Safeword source repo runs an unreleased CLI that no promoted plugin can match,
+ * so it accepts the older released version the marketplace offers instead of
+ * failing every install; a stale or prerelease install still updates to it.
+ */
+function acceptedPluginVersion(cwd: string): string {
+  if (!isDogfoodRepo(cwd)) return VERSION;
+  const offered = offeredReleasedPluginVersion();
+  return offered !== undefined && compareVersions(offered, VERSION) < 0 ? offered : VERSION;
+}
+
 function convergePlugin(cwd: string, scope: ClaudePluginScope, effects: Effect[]): void {
   const plugin = safewordPlugin(pluginEntries(cwd, effects), scope, cwd);
   if (plugin === undefined) {
@@ -873,7 +911,7 @@ function convergePlugin(cwd: string, scope: ClaudePluginScope, effects: Effect[]
     effects.push({ kind: 'install', target: CLAUDE_PLUGIN_ID, operation: scope });
   } else {
     assertConvergeablePluginVersion(plugin, effects);
-    if (plugin.version !== VERSION) {
+    if (plugin.version !== acceptedPluginVersion(cwd)) {
       runClaude(cwd, ['plugin', 'update', CLAUDE_PLUGIN_ID, '--scope', scope], effects);
       effects.push({ kind: 'update', target: CLAUDE_PLUGIN_ID, operation: scope });
     }
@@ -916,10 +954,11 @@ function assertInstalledIdentity(
   identity: JsonObject,
   inventory: JsonObject,
   inventoryContent: string,
+  expectedVersion: string,
 ): asserts inventory is JsonObject & { assets: JsonObject[] } {
   if (
     identity.schema_version !== 1 ||
-    identity.plugin_version !== VERSION ||
+    identity.plugin_version !== expectedVersion ||
     identity.inventory_sha256 !== createHash('sha256').update(inventoryContent).digest('hex') ||
     inventory.schema_version !== 1 ||
     !Array.isArray(inventory.assets)
@@ -935,7 +974,7 @@ function assertRequiredNativeAssets(assets: readonly JsonObject[]): void {
   }
 }
 
-function validateNativePayload(plugin: JsonObject): void {
+function validateNativePayload(plugin: JsonObject, expectedVersion: string): void {
   if (typeof plugin.installPath !== 'string' || !lstatSync(plugin.installPath).isDirectory()) {
     throw new TypeError('installed plugin path is missing');
   }
@@ -944,7 +983,7 @@ function validateNativePayload(plugin: JsonObject): void {
   const identity = JSON.parse(readFileSync(identityPath, 'utf8')) as JsonObject;
   const inventoryContent = readFileSync(inventoryPath, 'utf8');
   const inventory = JSON.parse(inventoryContent) as JsonObject;
-  assertInstalledIdentity(identity, inventory, inventoryContent);
+  assertInstalledIdentity(identity, inventory, inventoryContent, expectedVersion);
   assertRequiredNativeAssets(inventory.assets);
   for (const asset of inventory.assets) assertInstalledAsset(plugin.installPath, asset);
   const expectedPaths = new Set([
@@ -1012,18 +1051,22 @@ export function observeApplicableClaudePlugins(cwd: string): ClaudeApplicablePlu
     installations: plugins.map(plugin => ({
       scope: pluginScope(plugin) ?? 'user',
       plugin,
-      ...observeInstalledPlugin(plugin),
+      ...observeInstalledPlugin(plugin, projectRoot),
     })),
   };
 }
 
 /** Backward-compatible single-installation view used by the legacy status flow. */
-function observeInstalledPlugin(plugin: JsonObject | undefined): ClaudeProfileObservation {
+function observeInstalledPlugin(
+  plugin: JsonObject | undefined,
+  projectRoot: string,
+): ClaudeProfileObservation {
   if (plugin === undefined) return { health: 'missing' };
-  if (plugin.version !== VERSION) return { health: 'wrong-version', plugin };
+  const expectedVersion = acceptedPluginVersion(projectRoot);
+  if (plugin.version !== expectedVersion) return { health: 'wrong-version', plugin };
   if (plugin.enabled !== true) return { health: 'disabled', plugin };
   try {
-    validateNativePayload(plugin);
+    validateNativePayload(plugin, expectedVersion);
   } catch (error) {
     return {
       health: 'errored',
@@ -1049,9 +1092,13 @@ function isUnsupportedHostError(error: unknown): boolean {
   );
 }
 
-function assertNativePayload(plugin: JsonObject, effects: readonly Effect[]): void {
+function assertNativePayload(
+  plugin: JsonObject,
+  expectedVersion: string,
+  effects: readonly Effect[],
+): void {
   try {
-    validateNativePayload(plugin);
+    validateNativePayload(plugin, expectedVersion);
   } catch (error) {
     throw new ClaudeProfileError(
       'CLAUDE_PLUGIN_PAYLOAD_UNVERIFIED',
@@ -1077,8 +1124,13 @@ function verifyPlugin(
     );
   }
   const plugin = safewordPlugin(entries, scope, cwd);
-  if (plugin?.version === VERSION && plugin.enabled === true && pluginScope(plugin) === scope) {
-    assertNativePayload(plugin, effects);
+  const expectedVersion = acceptedPluginVersion(cwd);
+  if (
+    plugin?.version === expectedVersion &&
+    plugin.enabled === true &&
+    pluginScope(plugin) === scope
+  ) {
+    assertNativePayload(plugin, expectedVersion, effects);
     return entries;
   }
   throw new ClaudeProfileError(
@@ -1132,6 +1184,18 @@ export function claudeInstallRequiresMutation(cwd: string, scope: ClaudePluginSc
   }
 }
 
+/** Explains a verified plugin older than this CLI, which only the source repo accepts. */
+function releasedPluginFindings(plugin: JsonObject | undefined): Finding[] {
+  if (plugin === undefined || plugin.version === VERSION) return [];
+  return [
+    {
+      code: 'CLAUDE_PLUGIN_DOGFOOD_RELEASED',
+      severity: 'info',
+      message: `Safeword source repo: Claude uses released plugin ${String(plugin.version)} because this CLI (${VERSION}) is not released yet.`,
+    },
+  ];
+}
+
 export function installClaudePlugin(cwd: string, scope: ClaudePluginScope = 'project'): CliResult {
   const effects: Effect[] = [];
   let marketplaceReplacement: MarketplaceReplacement | undefined;
@@ -1147,6 +1211,7 @@ export function installClaudePlugin(cwd: string, scope: ClaudePluginScope = 'pro
     return createResult({
       state: effects.length === 0 ? 'healthy' : 'action_required',
       changed: effects.length > 0,
+      findings: releasedPluginFindings(safewordPlugin(plugins, scope, projectRoot)),
       effects: {
         configuration: effects,
         network: effects
