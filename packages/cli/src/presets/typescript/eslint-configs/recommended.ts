@@ -42,7 +42,7 @@ export const recommended: any[] = [
   // for typescript-eslint's versions.
   {
     name: 'safeword/typescript-files',
-    files: ['**/*.{ts,mts,cts}'],
+    files: ['**/*.{ts,tsx,mts,cts}'],
     languageOptions: { parser: typescriptParser },
     plugins: { '@typescript-eslint': tseslintPlugin },
     rules: {

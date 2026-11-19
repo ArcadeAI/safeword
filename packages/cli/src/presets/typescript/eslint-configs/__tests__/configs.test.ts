@@ -95,6 +95,17 @@ Given('a counter', function (this: Counter) {
     expect(parseErrors).toEqual([]);
   });
 
+  it('parses TSX files in a JavaScript project (6SNC09)', () => {
+    const linter = new Linter({ configType: 'flat', cwd: import.meta.dirname });
+    const parseErrors = linter
+      .verify('export const view = (label: string) => <span>{label}</span>;\n', recommended, {
+        filename: `${import.meta.dirname}/src/view.tsx`,
+      })
+      .filter(message => message.fatal);
+
+    expect(parseErrors).toEqual([]);
+  });
+
   it('returns no errors for valid code', () => {
     const linter = new Linter({ configType: 'flat' });
 
