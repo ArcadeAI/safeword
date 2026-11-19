@@ -9,7 +9,7 @@ import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { ESLint, Linter } from 'eslint';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import { recommended } from '../src/presets/typescript/eslint-configs/recommended.js';
 import { recommendedTypeScript } from '../src/presets/typescript/eslint-configs/recommended-typescript.js';
@@ -126,4 +126,49 @@ describe('cucumber step definitions register at import time', () => {
   it('still flags the same pattern in application code', () => {
     expect(sideEffectFindings('src/world.mjs')).not.toEqual([]);
   });
+
+  it.each([
+    ['the project root', '', 'acceptance/definitions'],
+    ['a project subfolder', 'acceptance', 'acceptance/definitions'],
+    // ESLint normalizes a leading ./ and a trailing / in files patterns.
+    ['the project root with a ./ prefix', '', './acceptance/definitions/'],
+  ])(
+    'allows them in a lane relocated with paths.steps, run from %s (D16BY4)',
+    async (_where, subfolder, configuredSteps) => {
+      const project = mkdtempSync(nodePath.join(import.meta.dirname, 'relocated-lane-'));
+      try {
+        mkdirSync(nodePath.join(project, '.safeword'));
+        writeFileSync(
+          nodePath.join(project, '.safeword', 'config.json'),
+          JSON.stringify({ paths: { steps: configuredSteps } }),
+        );
+        // The preset reads the lane location when ESLint loads it in the project.
+        vi.resetModules();
+        mkdirSync(nodePath.join(project, 'acceptance'), { recursive: true });
+        const cwd = vi.spyOn(process, 'cwd').mockReturnValue(nodePath.join(project, subfolder));
+        const { recommended: projectPreset } =
+          await import('../src/presets/typescript/eslint-configs/recommended.js');
+        cwd.mockRestore();
+
+        const projectLinterForLane = new Linter({ configType: 'flat', cwd: project });
+        const lint = (relativeFilename: string) =>
+          projectLinterForLane.verify(worldModule, projectPreset as Linter.Config[], {
+            filename: nodePath.join(project, relativeFilename),
+          });
+        const sideEffects = (messages: Linter.LintMessage[]) =>
+          messages.filter(message => message.ruleId === 'unicorn/no-top-level-side-effects');
+
+        const stepMessages = lint('acceptance/definitions/world.mjs');
+        // Configured and parsed, not skipped as unmatched.
+        expect(stepMessages.filter(message => message.fatal || message.ruleId === null)).toEqual(
+          [],
+        );
+        expect(sideEffects(stepMessages)).toEqual([]);
+        // The exemption stays scoped: application code is still flagged.
+        expect(sideEffects(lint('src/world.mjs'))).not.toEqual([]);
+      } finally {
+        rmSync(project, { recursive: true, force: true });
+      }
+    },
+  );
 });

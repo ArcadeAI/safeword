@@ -122,6 +122,8 @@ const LEGITIMATE: Record<string, string> = {
   'src/commands/project-pr-ready.ts':
     'PR Ready acts on the git worktree it is invoked in (or --cwd), by design',
   'src/go-lint/config.ts': "mirrors golangci-lint's own gitroot relative-path-mode",
+  'src/presets/typescript/eslint-configs/base.ts':
+    "the self-contained ESLint preset runs inside the user's project and reads its .safeword/config.json for a relocated BDD lane",
   'src/utils/project-detector.ts':
     'stops the installed-compiler lookup at the repository root of an already-chosen project',
   'templates/hooks/lib/re-entry.ts':

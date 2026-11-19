@@ -263,6 +263,18 @@ describe('E2E: Fresh TypeScript install passes its own checks', () => {
     expect(result.status).toBe(0);
   });
 
+  it('keeps vendored .safeword files out of the type-check (D16BY4)', () => {
+    const result = spawnSync('bunx', ['tsc', '--listFilesOnly', '-p', '.'], {
+      cwd: projectDirectory,
+      encoding: 'utf8',
+    });
+    expect(result.status, result.stderr).toBe(0);
+    const projectFiles = result.stdout.split('\n').filter(file => !file.includes('/node_modules/'));
+    expect(projectFiles.some(file => file.includes('/steps/'))).toBe(true);
+
+    expect(projectFiles.filter(file => file.includes('/.safeword/'))).toEqual([]);
+  });
+
   it('runs the scaffolded BDD lane green', () => {
     const result = spawnSync('bun', ['run', 'test:bdd'], {
       cwd: projectDirectory,
