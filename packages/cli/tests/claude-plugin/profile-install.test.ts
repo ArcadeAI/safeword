@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import {
   chmodSync,
   cpSync,
@@ -19,6 +20,7 @@ import {
   observeApplicableClaudePlugins,
 } from '../../src/claude-plugin/profile.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
+import { compareVersions } from '../../src/utils/version.js';
 import { createTemporaryDirectory } from '../helpers.js';
 import { normalizeClaudeSkillHeader } from '../helpers/claude-skill-header.js';
 
@@ -52,6 +54,8 @@ interface FixtureState {
   readonly omittedUserScope?: boolean;
   /** Plugin version the installed payload's identity declares (a released build). */
   readonly payloadVersion?: string;
+  /** Install the real plugin payload shipped at this release tag. */
+  readonly releasedPayloadTag?: string;
   readonly oversizedPluginInventory?: boolean;
   readonly oversizedVersionOutput?: boolean;
   readonly oversizedVersionStderr?: boolean;
@@ -61,8 +65,36 @@ interface FixtureState {
   readonly marketplaceVersion?: string;
 }
 
+/** The newest release tag older than the CLI, or undefined when tags are not fetched. */
+function newestOlderReleaseTag(): string | undefined {
+  try {
+    return execFileSync('git', ['tag', '--list', 'v*'], { cwd: REPO_ROOT, encoding: 'utf8' })
+      .split('\n')
+      .map(tag => tag.trim().slice(1))
+      .filter(version => /^\d+\.\d+\.\d+$/u.test(version))
+      .filter(version => compareVersions(version, SAFEWORD_SCHEMA.version) < 0)
+      .toSorted(compareVersions)
+      .at(-1);
+  } catch {
+    return undefined;
+  }
+}
+
+function extractReleasedPayload(root: string, version: string): string {
+  const archive = nodePath.join(root, 'released-plugin.tar');
+  execFileSync('git', ['archive', '--output', archive, `v${version}`, 'plugin'], {
+    cwd: REPO_ROOT,
+  });
+  execFileSync('tar', ['-xf', archive, '-C', root]);
+  rmSync(archive);
+  return nodePath.join(root, 'plugin');
+}
+
 function prepareInstallPath(root: string, state: FixtureState): string {
   if (state.healthyPayload === false) return nodePath.join(root, 'broken-plugin');
+  if (state.releasedPayloadTag !== undefined) {
+    return extractReleasedPayload(root, state.releasedPayloadTag);
+  }
   if (
     state.cacheMetadata !== true &&
     state.unexpectedPayload !== true &&
@@ -1055,6 +1087,31 @@ describe('Claude plugin in the Safeword source repository', () => {
     expect(readFileSync(log, 'utf8')).toContain('plugin update safeword@safeword --scope project');
     expect(result.findings).toEqual([]);
   });
+
+  // Proves compatibility with an actual shipped payload, not the current one relabeled.
+  // CI checks out full history; a local clone without tags skips.
+  const releasedTag = newestOlderReleaseTag();
+  it.skipIf(releasedTag === undefined && process.env.CI !== 'true')(
+    'installs and reports the newest real released payload as current',
+    () => {
+      expect(releasedTag).toBeDefined();
+      const version = releasedTag ?? '';
+      const { log, project } = fixture(true, OFFICIAL_MARKETPLACE_REF, KEEP_MARKETPLACE, {
+        dogfoodRepo: true,
+        installedVersion: false,
+        marketplaceVersion: version,
+        releasedPayloadTag: version,
+      });
+
+      const result = installClaudePlugin(project);
+
+      expect(result.errors).toEqual([]);
+      expect(readFileSync(log, 'utf8')).toContain(
+        'plugin install safeword@safeword --scope project',
+      );
+      expect(observeApplicableClaudePlugins(project).installations[0]?.health).toBe('current');
+    },
+  );
 
   it('does not extend the released-plugin exception to a plugin newer than the CLI', () => {
     const { log, project } = fixture(true, OFFICIAL_MARKETPLACE_REF, KEEP_MARKETPLACE, {
