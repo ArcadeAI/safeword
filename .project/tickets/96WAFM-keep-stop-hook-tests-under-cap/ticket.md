@@ -36,8 +36,23 @@ last_modified: 2026-11-19T14:18:48.138Z
 - Wall time is bound both by the 57s critical-path file and by total work / 3 workers (~63s), so only a leaner
   selection fixes it; a cap change would ship slower feedback to customers and a skipped rebuild saves ~5s.
 
+## TDD Ledger
+
+- [x] RED: f835d1c7d — lane-selection test fails while `test:done` still runs the heavy suites
+- [x] GREEN: aeaecb428 — `vitest.done.config.ts` leaves five heavy suites to the default lane
+- [x] REFACTOR: skip: two-file change with no duplication or structure to improve
+
+## Decisions
+
+- `test:smoke` and `test:smoke:fast` keep the full `tests/hooks/` directory on purpose: they are
+  broader pre-merge lanes with no 60s cap.
+- The 60s cap also counts time spent waiting for the machine-wide package test lock held by another
+  checkout (observed 1 run: 46.8s wall vs 24.4s vitest). Not addressed here.
+
 ## Work Log
 
 <!-- Progress history, not part of the accepted contract: record scope and decisions above. -->
 
 - 2026-11-19T14:18:48.138Z Started: Created ticket 96WAFM
+- 2026-11-19T14:26:00Z GREEN: `test:done` 105 files / 2063 tests pass in 31.7s and 30.8s wall (vitest 28.0s, 25.6s) at load 5.3-5.8; was 74.5s.
+- 2026-11-19T14:34:00Z Independent review (Sonnet subagent): config correct, 105 files listed by vitest; applied ARCHITECTURE.md row fix.
