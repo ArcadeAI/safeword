@@ -2,8 +2,8 @@
 id: 6SNC09
 slug: keep-javascript-lint-rules-for-javascript-apps
 type: patch
-phase: verify
-status: in_progress
+phase: done
+status: done
 parent: 4ZRS4P
 external_prs:
   - https://github.com/ArcadeAI/safeword/pull/7662
@@ -37,3 +37,5 @@ last_modified: 2026-11-18T06:41:35.887Z
 - 2026-11-18T06:42:24.506Z Phase: intake → implement
 - 2026-11-19T05:25:06.335Z Phase: implement → verify
 - 2026-11-19T05:25:06.410Z Phase: implement → verify
+- 2026-11-19T08:20:30.327Z Phase: verify → done
+- 2026-11-19T08:20:30.388Z Phase: verify → done

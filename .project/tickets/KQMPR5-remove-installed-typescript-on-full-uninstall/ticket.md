@@ -2,8 +2,8 @@
 id: KQMPR5
 slug: remove-installed-typescript-on-full-uninstall
 type: patch
-phase: verify
-status: in_progress
+phase: done
+status: done
 parent: 4ZRS4P
 external_prs:
   - https://github.com/ArcadeAI/safeword/pull/7662
@@ -35,3 +35,5 @@ last_modified: 2026-11-17T15:46:13.697Z
 - 2026-11-17T15:46:13.697Z Started: Created ticket KQMPR5
 - 2026-11-17T16:59:33.892Z Phase: intake → implement
 - 2026-11-17T17:00:25.324Z Phase: implement → verify
+- 2026-11-19T08:20:31.496Z Phase: verify → done
+- 2026-11-19T08:20:31.561Z Phase: verify → done

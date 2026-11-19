@@ -383,3 +383,42 @@ describe('E2E: JavaScript-Only Project', () => {
     expect(remaining).not.toHaveProperty('typescript');
   });
 });
+
+// =============================================================================
+// Suite 4: A JavaScript project that takes over the typescript Safeword added
+// =============================================================================
+
+describe('E2E: JavaScript project that changes the typescript range', () => {
+  let projectDirectory: string;
+
+  beforeAll(async () => {
+    projectDirectory = createTemporaryDirectory();
+    createPackageJson(projectDirectory);
+    writeTestFile(projectDirectory, 'src/index.js', 'module.exports = { hello: "world" };\n');
+    initGitRepo(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup'], {
+      env: INSTALL_DEPENDENCIES_ENV,
+      timeout: TIMEOUT_SETUP,
+    });
+    execSync('bun install', { cwd: projectDirectory, stdio: 'pipe' });
+  });
+
+  afterAll(() => {
+    if (projectDirectory) {
+      removeTemporaryDirectory(projectDirectory);
+    }
+  });
+
+  it('keeps a typescript whose range the project changed on full uninstall (KQMPR5)', async () => {
+    const manifest = JSON.parse(readTestFile(projectDirectory, 'package.json')) as {
+      devDependencies: Record<string, string>;
+    };
+    expect(manifest.devDependencies.typescript).toBe('~6.0.0');
+    manifest.devDependencies.typescript = '^6.0.0';
+    writeTestFile(projectDirectory, 'package.json', `${JSON.stringify(manifest, undefined, 2)}\n`);
+
+    const remaining = await developmentDependenciesAfterFullUninstall(projectDirectory);
+
+    expect(remaining.typescript).toBe('^6.0.0');
+  });
+});

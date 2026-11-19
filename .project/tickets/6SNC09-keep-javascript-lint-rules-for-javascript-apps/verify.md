@@ -16,7 +16,7 @@ Full run at `7f4016f96` under `scripts/dev` (Bun 1.4.4). The one product failure
 **Parent Epic:** 4ZRS4P (task, done)
 **Reconcile:** ✅ No pattern deviation
 **Experience:** ✅ No new friction — a JavaScript app upgraded with the TypeScript BDD lane keeps its JavaScript lint rules and JSDoc checks, and its `.ts` step files lint clean. Changing the `typescript` range hands the package to the project with no prompt
-**Surface Evidence:** ✅ 1/1 affected surfaces have recorded proof (installed-project lint: `tests/integration/typescript-validation.test.ts`, real installs, 20/20)
+**Surface Evidence:** ✅ 1/1 affected surfaces have recorded proof (installed-project lint: `tests/integration/typescript-validation.test.ts`, real installs, 21/21 after KQMPR5's re-ranged-uninstall test was added)
 **Evidence limits:** ⚠️ Local Go toolchain mismatch and the OpenCode download timeout (above); neither touches this change. One earlier full-file run failed the new JavaScript-rules integration test once, its log was lost, and the test has passed in every run since.
 
 ## done_when → proof
@@ -24,7 +24,7 @@ Full run at `7f4016f96` under `scripts/dev` (Bun 1.4.4). The one product failure
 | done_when | Proof |
 | --- | --- |
 | A JavaScript app whose only typescript is Safeword-owned is detected as javascript | `detect.test.ts` "keeps a JavaScript app JavaScript when its only typescript is the one Safeword added", plus the range handoff case |
-| The JavaScript preset lints a TypeScript step file without a parse error | `configs.test.ts` "lints valid TypeScript BDD step files clean", "parses TypeScript files outside the step folders", "parses TSX files" (real ESLint `Linter`) |
+| The JavaScript preset lints a TypeScript step file without a parse error | `configs.test.ts` (real ESLint `Linter`): "lints valid TypeScript BDD step files clean", "parses TypeScript files outside the step folders" and "parses TSX files" assert no messages at all, so an unmatched-file warning fails them; "lints .ts/.tsx/.mts/.cts files … with the TypeScript rules" requires `@typescript-eslint/no-unused-vars` to fire, proving each extension is configured and parsed. Dropping `.tsx` from the override fails both TSX tests (mutation check) |
 | A fresh JS-only install keeps JSDoc rules on its own source files | `typescript-validation.test.ts` "keeps JavaScript lint rules on the project files after adding typescript (6SNC09)" (real installs); shown failing before the fix |
 
 ## Review

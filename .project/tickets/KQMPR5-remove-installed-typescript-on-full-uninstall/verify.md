@@ -24,7 +24,7 @@ Full run at `7f4016f96` under `scripts/dev` (Bun 1.4.4). That commit includes 6S
 | done_when | Proof |
 | --- | --- |
 | `uninstall --full` after an install that added typescript removes it | `typescript-validation.test.ts` "removes the typescript it installed on full uninstall" (real installs) |
-| `uninstall --full` after an install into a project that already declared typescript keeps it | `typescript-validation.test.ts` "keeps a typescript the project declared on full uninstall"; `owned-packages.test.ts` range handoff |
+| `uninstall --full` after an install into a project that already declared typescript keeps it | `typescript-validation.test.ts` "keeps a typescript the project declared on full uninstall" and "keeps a typescript whose range the project changed on full uninstall" (real install, range edit, real uninstall; fails when ownership ignores the current range, checked by mutation); `owned-packages.test.ts` range handoff |
 | A second identical install still reports no change | `typescript-validation.test.ts` "reports no change on a second identical install"; `cli-protocol/install-plan-completeness.test.ts` (no unplanned effects) |
 | Under the Bun runtime, a project with no typescript in its node_modules is detected as lacking typescript | `project-detector.test.ts` "ignores the Bun global install cache when the CLI runs under Bun"; repository-root bound tests |
 
