@@ -7,8 +7,8 @@ status: in_progress
 external_prs:
   - https://github.com/ArcadeAI/safeword/pull/6258
 scope:
-  - In the Safeword source repo (isDogfoodRepo), accept an installed, enabled Claude plugin older than the CLI version as current, verifying its payload against its own identity.plugin_version.
-  - Skip the plugin update that cannot reach an unreleased CLI version; still install a missing plugin and re-enable a disabled one.
+  - In the Safeword source repo (isDogfoodRepo), accept the plugin version Claude's local marketplace checkout offers when it is older than the CLI version, verifying the payload against that version's identity.
+  - Skip the plugin update once the offered version is installed; still update a stale or prerelease install, install a missing plugin, and re-enable a disabled one.
   - Report the accepted older plugin as an info finding, and apply the same rule to the status observation.
 out_of_scope:
   - Any change for projects other than the Safeword source repo (they still require plugin version = CLI version).
@@ -35,6 +35,9 @@ last_modified: 2026-11-19T17:13:23.180Z
 
 - [x] Source repo accepts the older released plugin without attempting an update, with an info finding.
 - [x] A fresh source checkout installs the released plugin and accepts it (verifyPlugin path).
+- [x] A stale older plugin updates to the marketplace-offered version.
+- [x] An older prerelease the marketplace no longer offers is wrong-version.
+- [x] A marketplace offering a plugin newer than the CLI keeps the CLI requirement.
 - [x] Source repo still re-enables a disabled released plugin (no update).
 - [x] Outside the source repo the version is still required (CLAUDE_PLUGIN_UNVERIFIED, update attempted).
 - [x] A plugin newer than the CLI is not covered by the exception (status wrong-version; install refuses downgrade).
@@ -50,3 +53,4 @@ last_modified: 2026-11-19T17:13:23.180Z
 - 2026-10-29 Boundary tests fda8efa40; each killed by its targeted mutation (drop older-than check, skip identity version check, apply exception everywhere, status ignores exception).
 - 2026-11-19 Merged origin/main (71b32c49b); conflicts only in generated plugin surfaces, regenerated. Claude plugin suites 245 passed; dogfood install exits 0 with Claude ready.
 - 2026-11-19 tdd-review: implementation minimal and correct; gap found — no test for a fresh source checkout with no plugin installed. Added it (fixture now models the marketplace's delivered version via marketplaceVersion); killed by making verifyPlugin require VERSION.
+- 2026-11-19 quality-review (cross-agent, Codex, review 889fb164): request_changes, 2 errors. (1) Accepted any older installed version incl. prereleases; root cause broader — a stale 1.0.0 would never update to promoted 1.1.0. Fixed: accept exactly the version Claude's marketplace checkout offers (plugins/marketplaces/safeword/.claude-plugin/marketplace.json), only when older than the CLI; stale/prerelease installs still update. (2) Finding message claimed the repo's .claude hooks stay authoritative — unverified (dispatch only skips legacy migration in the dogfood repo); message reworded. Representative-payload part answered: an incompatible released payload fails closed with CLAUDE_PLUGIN_PAYLOAD_UNVERIFIED; the real 1.1.0 payload on this machine passes. New tests: stale older plugin updates; older prerelease is wrong-version; marketplace offering a newer plugin keeps the CLI requirement. Six code mutations each killed.

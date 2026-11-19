@@ -69464,8 +69464,23 @@ function assertConvergeablePluginVersion(plugin, effects) {
     throw new ClaudeProfileError("CLAUDE_PLUGIN_DOWNGRADE_REFUSED", `Claude reported ${CLAUDE_PLUGIN_ID} ${plugin.version}, which is newer than ${VERSION}; refusing an implicit downgrade.`, effects);
   }
 }
-function acceptedPluginVersion(cwd, plugin) {
-  return typeof plugin.version === "string" && isSafePackageVersion(plugin.version) && compareVersions(plugin.version, VERSION) < 0 && isDogfoodRepo(cwd) ? plugin.version : VERSION;
+function offeredPluginVersion() {
+  const cataloguePath = nodePath93.join(claudeConfigDirectory(), "plugins/marketplaces", MARKETPLACE_NAME, ".claude-plugin/marketplace.json");
+  try {
+    const catalogue = JSON.parse(readFileSync64(cataloguePath, "utf8"));
+    if (!isJsonObject(catalogue) || !Array.isArray(catalogue.plugins))
+      return;
+    const entry = catalogue.plugins.find((plugin) => isJsonObject(plugin) && plugin.name === MARKETPLACE_NAME);
+    return typeof entry?.version === "string" && isSafePackageVersion(entry.version) ? entry.version : undefined;
+  } catch {
+    return;
+  }
+}
+function acceptedPluginVersion(cwd) {
+  if (!isDogfoodRepo(cwd))
+    return VERSION;
+  const offered = offeredPluginVersion();
+  return offered !== undefined && compareVersions(offered, VERSION) < 0 ? offered : VERSION;
 }
 function convergePlugin(cwd, scope, effects) {
   const plugin = safewordPlugin(pluginEntries(cwd, effects), scope, cwd);
@@ -69474,7 +69489,7 @@ function convergePlugin(cwd, scope, effects) {
     effects.push({ kind: "install", target: CLAUDE_PLUGIN_ID, operation: scope });
   } else {
     assertConvergeablePluginVersion(plugin, effects);
-    if (plugin.version !== acceptedPluginVersion(cwd, plugin)) {
+    if (plugin.version !== acceptedPluginVersion(cwd)) {
       runClaude(cwd, ["plugin", "update", CLAUDE_PLUGIN_ID, "--scope", scope], effects);
       effects.push({ kind: "update", target: CLAUDE_PLUGIN_ID, operation: scope });
     }
@@ -69588,7 +69603,7 @@ function observeApplicableClaudePlugins(cwd) {
 function observeInstalledPlugin(plugin, projectRoot) {
   if (plugin === undefined)
     return { health: "missing" };
-  const expectedVersion = acceptedPluginVersion(projectRoot, plugin);
+  const expectedVersion = acceptedPluginVersion(projectRoot);
   if (plugin.version !== expectedVersion)
     return { health: "wrong-version", plugin };
   if (plugin.enabled !== true)
@@ -69629,7 +69644,7 @@ function verifyPlugin(cwd, scope, effects) {
     throw new ClaudeProfileError("CLAUDE_PLUGIN_POSTCONDITION_UNVERIFIED", `Claude completed the selected-scope mutations, but the final plugin state could not be observed: ${error instanceof Error ? error.message : String(error)}`, effects);
   }
   const plugin = safewordPlugin(entries, scope, cwd);
-  const expectedVersion = plugin === undefined ? VERSION : acceptedPluginVersion(cwd, plugin);
+  const expectedVersion = acceptedPluginVersion(cwd);
   if (plugin?.version === expectedVersion && plugin.enabled === true && pluginScope(plugin) === scope) {
     assertNativePayload(plugin, expectedVersion, effects);
     return entries;
@@ -69676,7 +69691,7 @@ function releasedPluginFindings(plugin) {
     {
       code: "CLAUDE_PLUGIN_DOGFOOD_RELEASED",
       severity: "info",
-      message: `Safeword source repo: Claude uses released plugin ${String(plugin.version)} while this CLI is unreleased ${VERSION}; the repo's own .claude hooks stay authoritative.`
+      message: `Safeword source repo: Claude uses released plugin ${String(plugin.version)} because this CLI (${VERSION}) is not released yet.`
     }
   ];
 }

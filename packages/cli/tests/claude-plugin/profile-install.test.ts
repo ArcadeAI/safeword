@@ -215,6 +215,17 @@ function marketplaceRemovalCommand(state: FixtureState, paths: readonly string[]
   return `rm -f ${paths.map(path => JSON.stringify(path)).join(' ')}`;
 }
 
+/** Claude's local marketplace checkout, which names the plugin version it offers. */
+function writeOfferedPluginCatalogue(configDirectory: string, state: FixtureState): void {
+  if (state.marketplaceVersion === undefined) return;
+  const catalogue = nodePath.join(configDirectory, 'plugins/marketplaces/safeword/.claude-plugin');
+  mkdirSync(catalogue, { recursive: true });
+  writeFileSync(
+    nodePath.join(catalogue, 'marketplace.json'),
+    `${JSON.stringify({ name: 'safeword', plugins: [{ name: 'safeword', version: state.marketplaceVersion }] })}\n`,
+  );
+}
+
 function fixture(
   autoUpdate: boolean | undefined,
   ref = OFFICIAL_MARKETPLACE_REF,
@@ -251,6 +262,7 @@ function fixture(
     marketplaceListedReference,
     state.marketplaceListedSource,
   );
+  writeOfferedPluginCatalogue(configDirectory, state);
   const installedPluginsPath = nodePath.join(configDirectory, 'plugins/installed_plugins.json');
   writeFileSync(installedPluginsPath, '{"version":2,"plugins":{"safeword@safeword":[]}}\n');
   const declaration: Record<string, unknown> = {
@@ -950,12 +962,10 @@ describe('Claude plugin in the Safeword source repository', () => {
   });
 
   it('accepts the newest released plugin without attempting an impossible update', () => {
-    const { log, project } = fixture(
-      true,
-      OFFICIAL_MARKETPLACE_REF,
-      { CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '1' },
-      { dogfoodRepo: true, installedVersion: RELEASED_VERSION, payloadVersion: RELEASED_VERSION },
-    );
+    const { log, project } = fixture(true, OFFICIAL_MARKETPLACE_REF, KEEP_MARKETPLACE, {
+      ...released,
+      dogfoodRepo: true,
+    });
 
     const result = installClaudePlugin(project);
 
@@ -970,18 +980,50 @@ describe('Claude plugin in the Safeword source repository', () => {
     ]);
   });
 
+  it('updates a stale older plugin to the version the marketplace offers', () => {
+    const { log, project } = fixture(true, OFFICIAL_MARKETPLACE_REF, KEEP_MARKETPLACE, {
+      ...released,
+      dogfoodRepo: true,
+      installedVersion: '1.0.0',
+    });
+
+    const result = installClaudePlugin(project);
+
+    expect(readFileSync(log, 'utf8')).toContain('plugin update safeword@safeword --scope project');
+    expect(result.state).toBe('action_required');
+    expect(result.findings).toEqual([
+      expect.objectContaining({ message: expect.stringContaining(RELEASED_VERSION) }),
+    ]);
+  });
+
+  it('does not accept an older prerelease the marketplace no longer offers', () => {
+    const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, KEEP_MARKETPLACE, {
+      ...released,
+      dogfoodRepo: true,
+      installedVersion: `${RELEASED_VERSION}-rc.1`,
+      payloadVersion: `${RELEASED_VERSION}-rc.1`,
+    });
+
+    expect(observeApplicableClaudePlugins(project).installations[0]?.health).toBe('wrong-version');
+  });
+
+  it('keeps requiring the CLI version when the marketplace offers a newer plugin', () => {
+    const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, KEEP_MARKETPLACE, {
+      dogfoodRepo: true,
+      installedVersion: '99.0.0',
+      payloadVersion: '99.0.0',
+      marketplaceVersion: '99.0.0',
+    });
+
+    expect(observeApplicableClaudePlugins(project).installations[0]?.health).toBe('wrong-version');
+  });
+
   it('still re-enables a disabled released plugin', () => {
-    const { log, project } = fixture(
-      true,
-      OFFICIAL_MARKETPLACE_REF,
-      { CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '1' },
-      {
-        dogfoodRepo: true,
-        installedVersion: RELEASED_VERSION,
-        payloadVersion: RELEASED_VERSION,
-        pluginEnabled: false,
-      },
-    );
+    const { log, project } = fixture(true, OFFICIAL_MARKETPLACE_REF, KEEP_MARKETPLACE, {
+      ...released,
+      dogfoodRepo: true,
+      pluginEnabled: false,
+    });
 
     const result = installClaudePlugin(project);
     const commands = readFileSync(log, 'utf8');

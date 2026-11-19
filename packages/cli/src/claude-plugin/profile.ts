@@ -867,19 +867,39 @@ function assertConvergeablePluginVersion(plugin: JsonObject, effects: readonly E
   }
 }
 
+/** The Safeword plugin version Claude's local marketplace checkout currently offers. */
+function offeredPluginVersion(): string | undefined {
+  const cataloguePath = nodePath.join(
+    claudeConfigDirectory(),
+    'plugins/marketplaces',
+    MARKETPLACE_NAME,
+    '.claude-plugin/marketplace.json',
+  );
+  try {
+    const catalogue = JSON.parse(readFileSync(cataloguePath, 'utf8')) as unknown;
+    if (!isJsonObject(catalogue) || !Array.isArray(catalogue.plugins)) return undefined;
+    const entry = catalogue.plugins.find(
+      (plugin): plugin is JsonObject => isJsonObject(plugin) && plugin.name === MARKETPLACE_NAME,
+    );
+    return typeof entry?.version === 'string' && isSafePackageVersion(entry.version)
+      ? entry.version
+      : undefined;
+  } catch {
+    // An absent or unreadable checkout offers nothing; the caller stays strict.
+    return undefined;
+  }
+}
+
 /**
  * The plugin version this project accepts. Normally the CLI's own version. The
- * Safeword source repo runs an unreleased CLI that no promoted plugin can match
- * (and the published plugin stands its hooks down there), so it accepts the
- * older released plugin it already has instead of failing every install.
+ * Safeword source repo runs an unreleased CLI that no promoted plugin can match,
+ * so it accepts the older version the marketplace offers instead of failing
+ * every install; a stale or prerelease install still updates to that version.
  */
-function acceptedPluginVersion(cwd: string, plugin: JsonObject): string {
-  return typeof plugin.version === 'string' &&
-    isSafePackageVersion(plugin.version) &&
-    compareVersions(plugin.version, VERSION) < 0 &&
-    isDogfoodRepo(cwd)
-    ? plugin.version
-    : VERSION;
+function acceptedPluginVersion(cwd: string): string {
+  if (!isDogfoodRepo(cwd)) return VERSION;
+  const offered = offeredPluginVersion();
+  return offered !== undefined && compareVersions(offered, VERSION) < 0 ? offered : VERSION;
 }
 
 function convergePlugin(cwd: string, scope: ClaudePluginScope, effects: Effect[]): void {
@@ -889,7 +909,7 @@ function convergePlugin(cwd: string, scope: ClaudePluginScope, effects: Effect[]
     effects.push({ kind: 'install', target: CLAUDE_PLUGIN_ID, operation: scope });
   } else {
     assertConvergeablePluginVersion(plugin, effects);
-    if (plugin.version !== acceptedPluginVersion(cwd, plugin)) {
+    if (plugin.version !== acceptedPluginVersion(cwd)) {
       runClaude(cwd, ['plugin', 'update', CLAUDE_PLUGIN_ID, '--scope', scope], effects);
       effects.push({ kind: 'update', target: CLAUDE_PLUGIN_ID, operation: scope });
     }
@@ -1040,7 +1060,7 @@ function observeInstalledPlugin(
   projectRoot: string,
 ): ClaudeProfileObservation {
   if (plugin === undefined) return { health: 'missing' };
-  const expectedVersion = acceptedPluginVersion(projectRoot, plugin);
+  const expectedVersion = acceptedPluginVersion(projectRoot);
   if (plugin.version !== expectedVersion) return { health: 'wrong-version', plugin };
   if (plugin.enabled !== true) return { health: 'disabled', plugin };
   try {
@@ -1102,7 +1122,7 @@ function verifyPlugin(
     );
   }
   const plugin = safewordPlugin(entries, scope, cwd);
-  const expectedVersion = plugin === undefined ? VERSION : acceptedPluginVersion(cwd, plugin);
+  const expectedVersion = acceptedPluginVersion(cwd);
   if (
     plugin?.version === expectedVersion &&
     plugin.enabled === true &&
@@ -1169,7 +1189,7 @@ function releasedPluginFindings(plugin: JsonObject | undefined): Finding[] {
     {
       code: 'CLAUDE_PLUGIN_DOGFOOD_RELEASED',
       severity: 'info',
-      message: `Safeword source repo: Claude uses released plugin ${String(plugin.version)} while this CLI is unreleased ${VERSION}; the repo's own .claude hooks stay authoritative.`,
+      message: `Safeword source repo: Claude uses released plugin ${String(plugin.version)} because this CLI (${VERSION}) is not released yet.`,
     },
   ];
 }
