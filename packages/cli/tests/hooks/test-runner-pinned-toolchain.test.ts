@@ -54,7 +54,9 @@ describe('test runner with a mise-pinned project', () => {
     miseCalls = path.join(root, 'mise-calls.log');
     for (const directory of [project, pinnedBin, staleBin])
       mkdirSync(directory, { recursive: true });
+    // A suite's progress output overflows the runner's output budget before its final line.
     const probe = [
+      `for (let line = 0; line < 60; line++) console.log('progress '.repeat(10) + line);`,
       `const entries = process.env.PATH.split(${JSON.stringify(path.delimiter)});`,
       `const pinned = entries.indexOf(${JSON.stringify(pinnedBin)});`,
       `const stale = entries.indexOf(${JSON.stringify(staleBin)});`,
