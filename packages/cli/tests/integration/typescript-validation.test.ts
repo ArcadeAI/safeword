@@ -2,14 +2,16 @@
  * E2E Tests: TypeScript Tooling Validation
  *
  * Verifies that TypeScript tooling actually works:
- * - tsconfig.json is created for TypeScript projects
+ * - tsconfig.json is created for TypeScript projects and the TypeScript BDD lane
  * - Type-checked ESLint rules catch real errors
  * - JavaScript-only projects don't get TypeScript tooling
  *
  * These tests validate that configuration leads to working enforcement.
  */
 
-import { execSync } from 'node:child_process';
+import { execSync, spawnSync } from 'node:child_process';
+import { realpathSync } from 'node:fs';
+import nodePath from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -19,13 +21,57 @@ import {
   createTypeScriptPackageJson,
   fileExists,
   initGitRepo,
+  INSTALL_DEPENDENCIES_ENV,
   readTestFile,
   removeTemporaryDirectory,
+  runCli,
   runEslint,
   setupOrThrow,
   TIMEOUT_SETUP,
   writeTestFile,
 } from '../helpers';
+
+/**
+ * Run a real `uninstall --full` and return the project's devDependencies after it.
+ * @param projectDirectory - Installed fixture project.
+ * @returns devDependencies left in package.json.
+ */
+async function developmentDependenciesAfterFullUninstall(
+  projectDirectory: string,
+): Promise<Record<string, string>> {
+  const options = { cwd: projectDirectory, env: INSTALL_DEPENDENCIES_ENV, timeout: TIMEOUT_SETUP };
+  const preview = await runCli(
+    ['uninstall', '--agents=none', '--full', '--json', '--no-input'],
+    options,
+  );
+  const planId = (JSON.parse(preview.stdout) as { data: { plan: { id: string } } }).data.plan.id;
+  const result = await runCli(
+    ['uninstall', '--agents=none', '--full', '--yes', '--plan', planId, '--json', '--no-input'],
+    options,
+  );
+  expect(result.exitCode, `${result.stdout}\n${result.stderr}`).toBe(0);
+  const manifest = JSON.parse(readTestFile(projectDirectory, 'package.json')) as {
+    devDependencies?: Record<string, string>;
+  };
+  return manifest.devDependencies ?? {};
+}
+
+/**
+ * Lint one file and return the rule IDs it reported. Fails the test when ESLint
+ * could not run (exit 2) or reported a parse error, so only real findings count.
+ * @param projectDirectory - Installed fixture project.
+ * @param file - Project-relative file to lint.
+ * @returns Rule IDs of the reported findings.
+ */
+function lintRuleIds(projectDirectory: string, file: string): string[] {
+  const result = runEslint(projectDirectory, file, ['--format', 'json']);
+  expect(result.status, result.stderr).toBe(1);
+  const [report] = JSON.parse(result.stdout) as { messages: { ruleId: string | null }[] }[];
+  // A parse error has no ruleId.
+  const ruleIds = (report?.messages ?? []).map(message => message.ruleId ?? 'parse error');
+  expect(ruleIds).not.toContain('parse error');
+  return ruleIds;
+}
 
 // =============================================================================
 // Suite 1: TypeScript Project Setup
@@ -128,11 +174,9 @@ export function main() {
 `,
     );
 
-    const result = runEslint(projectDirectory, 'src/floating-promise.ts');
-
-    // Should fail due to no-floating-promises
-    expect(result.status).not.toBe(0);
-    expect(result.stdout + result.stderr).toMatch(/floating|promise|await/i);
+    expect(lintRuleIds(projectDirectory, 'src/floating-promise.ts')).toContain(
+      '@typescript-eslint/no-floating-promises',
+    );
   });
 
   it('catches misused promises (promise in conditional)', () => {
@@ -152,11 +196,9 @@ export function main() {
 `,
     );
 
-    const result = runEslint(projectDirectory, 'src/misused-promise.ts');
-
-    // Should fail due to no-misused-promises
-    expect(result.status).not.toBe(0);
-    expect(result.stdout + result.stderr).toMatch(/promise|conditional|misused/i);
+    expect(lintRuleIds(projectDirectory, 'src/misused-promise.ts')).toContain(
+      '@typescript-eslint/no-misused-promises',
+    );
   });
 
   it('catches awaiting non-promises', () => {
@@ -171,11 +213,99 @@ export function main() {
 `,
     );
 
-    const result = runEslint(projectDirectory, 'src/await-non-promise.ts');
+    expect(lintRuleIds(projectDirectory, 'src/await-non-promise.ts')).toContain(
+      '@typescript-eslint/await-thenable',
+    );
+  });
+});
 
-    // Should fail due to await-thenable
-    expect(result.status).not.toBe(0);
-    expect(result.stdout + result.stderr).toMatch(/await|thenable|promise/i);
+// =============================================================================
+// Suite 2b: A fresh TypeScript install passes its own checks (#6966)
+// =============================================================================
+
+describe('E2E: Fresh TypeScript install passes its own checks', () => {
+  let projectDirectory: string;
+
+  beforeAll(async () => {
+    projectDirectory = createTemporaryDirectory();
+    createTypeScriptPackageJson(projectDirectory);
+    writeTestFile(projectDirectory, 'src/index.ts', 'export const placeholder = 1;\n');
+    initGitRepo(projectDirectory);
+    // Real installs: every check below must see exactly what install adds (the
+    // lane's @cucumber/cucumber, @types/node, tsx) and nothing the fixture adds.
+    await setupOrThrow(projectDirectory, ['setup'], {
+      env: INSTALL_DEPENDENCIES_ENV,
+      timeout: TIMEOUT_SETUP,
+    });
+    execSync('bun install', { cwd: projectDirectory, stdio: 'pipe' });
+  });
+
+  afterAll(() => {
+    if (projectDirectory) {
+      removeTemporaryDirectory(projectDirectory);
+    }
+  });
+
+  it('passes its own lint across the whole fresh install', () => {
+    const result = runEslint(projectDirectory, '.');
+
+    expect(result.stdout).toBe('');
+    expect(result.status).toBe(0);
+  });
+
+  it('type-checks the fresh install, including the scaffolded BDD steps', () => {
+    const result = spawnSync('bunx', ['tsc', '--noEmit', '-p', '.'], {
+      cwd: projectDirectory,
+      encoding: 'utf8',
+    });
+
+    expect(result.stdout).toBe('');
+    expect(result.status).toBe(0);
+  });
+
+  it('keeps vendored .safeword files out of the type-check (D16BY4)', () => {
+    const result = spawnSync('bunx', ['tsc', '--listFilesOnly', '-p', '.'], {
+      cwd: projectDirectory,
+      encoding: 'utf8',
+    });
+    expect(result.status, result.stderr).toBe(0);
+    const projectFiles = result.stdout.split('\n').filter(file => !file.includes('/node_modules/'));
+    expect(projectFiles.some(file => file.includes('/steps/'))).toBe(true);
+
+    expect(projectFiles.filter(file => file.includes('/.safeword/'))).toEqual([]);
+  });
+
+  it('runs the scaffolded BDD lane green', () => {
+    const result = spawnSync('bun', ['run', 'test:bdd'], {
+      cwd: projectDirectory,
+      encoding: 'utf8',
+    });
+
+    expect(result.stdout).toContain('passed');
+    expect(result.stdout).not.toContain('failed');
+    expect(result.status).toBe(0);
+  });
+
+  it('reports no change on a second identical install', async () => {
+    const second = await setupOrThrow(projectDirectory, ['setup', '--json'], {
+      env: INSTALL_DEPENDENCIES_ENV,
+      timeout: TIMEOUT_SETUP,
+    });
+
+    expect(JSON.parse(second.stdout)).toMatchObject({ changed: false });
+  });
+
+  // Last: removes Safeword from the shared fixture.
+  it('keeps a typescript the project declared on full uninstall', async () => {
+    const declared = (
+      JSON.parse(readTestFile(projectDirectory, 'package.json')) as {
+        devDependencies: Record<string, string>;
+      }
+    ).devDependencies.typescript;
+
+    const remaining = await developmentDependenciesAfterFullUninstall(projectDirectory);
+
+    expect(remaining.typescript).toBe(declared);
   });
 });
 
@@ -192,7 +322,12 @@ describe('E2E: JavaScript-Only Project', () => {
     createPackageJson(projectDirectory);
     writeTestFile(projectDirectory, 'src/index.js', 'module.exports = { hello: "world" };\n');
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory, ['setup'], { timeout: TIMEOUT_SETUP });
+    // Real installs: the claims below are about what install adds to package.json.
+    await setupOrThrow(projectDirectory, ['setup'], {
+      env: INSTALL_DEPENDENCIES_ENV,
+      timeout: TIMEOUT_SETUP,
+    });
+    execSync('bun install', { cwd: projectDirectory, stdio: 'pipe' });
   });
 
   afterAll(() => {
@@ -201,8 +336,9 @@ describe('E2E: JavaScript-Only Project', () => {
     }
   });
 
-  it('does NOT create tsconfig.json for JS-only projects', () => {
-    expect(fileExists(projectDirectory, 'tsconfig.json')).toBe(false);
+  it('creates tsconfig.json for the BDD lane steps even in JS-only projects (#6966)', () => {
+    // The scaffolded steps/*.ts need a compiler and project for type-aware lint.
+    expect(fileExists(projectDirectory, 'tsconfig.json')).toBe(true);
   });
 
   it('still creates eslint.config.mjs', () => {
@@ -210,12 +346,91 @@ describe('E2E: JavaScript-Only Project', () => {
   });
 
   it('ESLint works on JavaScript files', () => {
-    // Install deps and run ESLint
-    execSync('bun install', { cwd: projectDirectory, stdio: 'pipe' });
-
     const result = runEslint(projectDirectory, 'src/index.js');
 
     // Should run without crashing: 0=success, 1=lint errors, 2=fatal, null=spawn failed
     expect(result.status === 0 || result.status === 1).toBe(true);
+  });
+
+  it('installs a compiler for the TypeScript BDD steps (#6966)', () => {
+    const manifest = JSON.parse(readTestFile(projectDirectory, 'package.json')) as {
+      devDependencies: Record<string, string>;
+    };
+    expect(manifest.devDependencies.typescript).toBe('~6.0.0');
+  });
+
+  it('reports no lint findings in any file safeword scaffolded (#6966)', () => {
+    const result = runEslint(projectDirectory, '.', ['--format', 'json']);
+    const root = realpathSync(projectDirectory);
+    const findings = (
+      JSON.parse(result.stdout) as { filePath: string; messages: { ruleId: string | null }[] }[]
+    )
+      .map(report => ({
+        file: nodePath.relative(root, report.filePath),
+        rules: report.messages.map(message => message.ruleId ?? 'parse'),
+      }))
+      // src/ is the fixture's own code; everything else came from safeword.
+      .filter(report => !report.file.startsWith('src/') && report.rules.length > 0);
+
+    expect(findings).toEqual([]);
+  });
+
+  it('keeps JavaScript lint rules on the project files after adding typescript (6SNC09)', () => {
+    const result = runEslint(projectDirectory, '--print-config', ['src/index.js']);
+    // --print-config resolves each rule to [severity, ...options]; 0 is off.
+    const enabledRules = Object.entries(
+      (JSON.parse(result.stdout) as { rules: Record<string, [number, ...unknown[]]> }).rules,
+    )
+      .filter(([, [severity]]) => severity !== 0)
+      .map(([rule]) => rule);
+
+    expect(enabledRules).toContain('jsdoc/require-jsdoc');
+    expect(enabledRules.filter(rule => rule.startsWith('@typescript-eslint/'))).toEqual([]);
+  });
+
+  // Last: removes Safeword from the shared fixture.
+  it('removes the typescript it installed on full uninstall', async () => {
+    const remaining = await developmentDependenciesAfterFullUninstall(projectDirectory);
+
+    expect(remaining).not.toHaveProperty('typescript');
+  });
+});
+
+// =============================================================================
+// Suite 4: A JavaScript project that takes over the typescript Safeword added
+// =============================================================================
+
+describe('E2E: JavaScript project that changes the typescript range', () => {
+  let projectDirectory: string;
+
+  beforeAll(async () => {
+    projectDirectory = createTemporaryDirectory();
+    createPackageJson(projectDirectory);
+    writeTestFile(projectDirectory, 'src/index.js', 'module.exports = { hello: "world" };\n');
+    initGitRepo(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup'], {
+      env: INSTALL_DEPENDENCIES_ENV,
+      timeout: TIMEOUT_SETUP,
+    });
+    execSync('bun install', { cwd: projectDirectory, stdio: 'pipe' });
+  });
+
+  afterAll(() => {
+    if (projectDirectory) {
+      removeTemporaryDirectory(projectDirectory);
+    }
+  });
+
+  it('keeps a typescript whose range the project changed on full uninstall (KQMPR5)', async () => {
+    const manifest = JSON.parse(readTestFile(projectDirectory, 'package.json')) as {
+      devDependencies: Record<string, string>;
+    };
+    expect(manifest.devDependencies.typescript).toBe('~6.0.0');
+    manifest.devDependencies.typescript = '^6.0.0';
+    writeTestFile(projectDirectory, 'package.json', `${JSON.stringify(manifest, undefined, 2)}\n`);
+
+    const remaining = await developmentDependenciesAfterFullUninstall(projectDirectory);
+
+    expect(remaining.typescript).toBe('^6.0.0');
   });
 });

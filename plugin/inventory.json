@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "33965d1b6b540be6e1617913cf93802c99d763d1dcc7a395038ab9ec4105df46"
+      "sha256": "4ec005d53e651e7cdf04088ec84830f47e110381970fa9eb9777010e9090e85f"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "36ba5fd2e0e764a4b06f1ad319197770ac52e41781756809ea5e535a8aab3362"
+      "sha256": "b2c8bb1614ca40371dcf6948709f20841b78300ae45b7d4bfc61d9a16c0be6f5"
     },
     {
       "path": "runtime/event-groups.json",
@@ -643,8 +643,8 @@
     },
     {
       "path": "skills/audit/SKILL.md",
-      "sha256": "5150538ef9cf5932420de5ab413980a23bf82f087461296a74c4f29f8bf9087b",
-      "skill_sha256": "46a084564ceec516b7afa7f88fe6fef87e0eb39f64042d468eff032e88476ccb"
+      "sha256": "4623ff213820f3a9b75784bc67f33bdfdffb22bbefbde215f267c8a6772010b1",
+      "skill_sha256": "5fe900c3dd664dda0d993cbe15253611fb6c7e76eede40e20b4b96e6b2219980"
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
@@ -891,7 +891,7 @@
     },
     {
       "path": "templates/cucumber/cucumber.mjs",
-      "sha256": "04e4cc6276da5bbd40a8352bf8c2d3e4c3e3840a4ff74119cf86460fe7dd75f0"
+      "sha256": "7fdd68d604ed382ca3758e85bc78eae99e5d04cd511d68335403cdd0a7efad02"
     },
     {
       "path": "templates/cucumber/safeword-lane.feature",
@@ -1671,7 +1671,7 @@
     },
     {
       "path": "templates/skills/audit/SKILL.md",
-      "sha256": "02c6353beb320c6370788c7845ec193ec08532f05ed6f6174585aa8a68456470"
+      "sha256": "379473dba1ec5a9322adcc4f46a827811b1caa90991cd7b6a14c32234515332c"
     },
     {
       "path": "templates/skills/bdd/DISCOVERY.md",
