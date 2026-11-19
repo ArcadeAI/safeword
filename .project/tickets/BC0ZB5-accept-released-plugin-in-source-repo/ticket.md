@@ -1,0 +1,50 @@
+---
+id: BC0ZB5
+slug: accept-released-plugin-in-source-repo
+type: task
+phase: implement
+status: in_progress
+external_prs:
+  - https://github.com/ArcadeAI/safeword/pull/6258
+scope:
+  - In the Safeword source repo (isDogfoodRepo), accept an installed, enabled Claude plugin older than the CLI version as current, verifying its payload against its own identity.plugin_version.
+  - Skip the plugin update that cannot reach an unreleased CLI version; still install a missing plugin and re-enable a disabled one.
+  - Report the accepted older plugin as an info finding, and apply the same rule to the status observation.
+out_of_scope:
+  - Any change for projects other than the Safeword source repo (they still require plugin version = CLI version).
+  - Accepting a plugin newer than the CLI (the existing downgrade refusal stays).
+  - The marketplace ref policy and the main-branch dependency audit failure.
+done_when:
+  - bun run safeword install in the source repo on an unreleased CLI exits 0 with Claude ready and the info finding.
+  - Outside the source repo the same state still fails with CLAUDE_PLUGIN_UNVERIFIED after an attempted update.
+  - A newer plugin is still refused and a payload whose identity names another version still fails verification.
+  - Claude plugin suites and the full package suite pass; generated surfaces are current.
+created: 2026-11-19T17:13:23.180Z
+last_modified: 2026-11-19T17:13:23.180Z
+---
+
+# Let maintainers install Safeword from the source repo while the CLI is ahead of the released Claude plugin
+
+**Goal:** bun run safeword install in the safeword repo reports Claude: ready and exits 0 when the local CLI version is newer than every promoted plugin.
+
+**Why:** verifyPlugin required the installed plugin to equal the CLI VERSION, which no release can satisfy between releases, so every dogfood install exited 1 and retried an update that cannot advance.
+
+**Type:** Bug
+
+**Tests:**
+
+- [x] Source repo accepts the older released plugin without attempting an update, with an info finding.
+- [x] Source repo still re-enables a disabled released plugin (no update).
+- [x] Outside the source repo the version is still required (CLAUDE_PLUGIN_UNVERIFIED, update attempted).
+- [x] A plugin newer than the CLI is not covered by the exception (status wrong-version; install refuses downgrade).
+- [x] A released plugin whose payload identity names another version fails CLAUDE_PLUGIN_PAYLOAD_UNVERIFIED.
+- [x] Status reports the released plugin as current only inside the source repo.
+
+## Work Log
+
+<!-- Progress history, not part of the accepted contract: record scope and decisions above. -->
+
+- 2026-11-19T17:13:23.180Z Started: Created ticket BC0ZB5 retroactively for work already on PR #6258.
+- 2026-10-29 RED: two source-repo tests failed (install returned failed). GREEN 031e2a7a8 (acceptedPluginVersion in packages/cli/src/claude-plugin/profile.ts; extracted releasedPluginFindings for lint complexity).
+- 2026-10-29 Boundary tests fda8efa40; each killed by its targeted mutation (drop older-than check, skip identity version check, apply exception everywhere, status ignores exception).
+- 2026-11-19 Merged origin/main (71b32c49b); conflicts only in generated plugin surfaces, regenerated. Claude plugin suites 245 passed; dogfood install exits 0 with Claude ready.
