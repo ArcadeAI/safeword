@@ -22,7 +22,7 @@ const defaultLane = filesFor(
   defaultVitestExclude('packages/cli'),
 );
 
-// Measured at load ~6 (ticket 96WAFM): these five hook suites alone took ~115 s of the lane's
+// Measured at load ~6 (ticket 96WAFM): these five hook suites alone took ~120 s of the lane's
 // ~190 s of work and pushed `test:done` past the Stop hook's 60 s cap.
 const MEASURED_HEAVY_SUITES = [
   'tests/hooks/pre-tool-architecture-stage.test.ts',
