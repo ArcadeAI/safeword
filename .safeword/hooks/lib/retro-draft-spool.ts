@@ -383,11 +383,17 @@ const LOCK_POLL_MS = 20;
  * mkdir is atomic). Staging, the drain's rewrite and the fallback append take
  * it, so a rewrite can never replace a file another writer just appended to.
  * A lock older than LOCK_STALE_MS was abandoned by a killed process and is
- * cleared. When the lock cannot be taken in time, `onBusy` decides.
+ * cleared. When the lock cannot be taken in `waitMs`, or cannot be created at
+ * all, `onBusy` decides.
  */
-function withWorkingCopyLock<T>(file: string, operation: () => T, onBusy: () => T): T {
+function withWorkingCopyLock<T>(
+  file: string,
+  operation: () => T,
+  onBusy: () => T,
+  waitMs = LOCK_WAIT_MS,
+): T {
   const lock = `${file}.lock`;
-  const deadline = Date.now() + LOCK_WAIT_MS;
+  const deadline = Date.now() + waitMs;
   for (;;) {
     try {
       mkdirSync(nodePath.dirname(file), { recursive: true });
@@ -657,6 +663,9 @@ export function spoolDrafts(
       fallback.map(draft => draftLine(draft)),
       MAX_DRAFTS_PER_SESSION,
     );
-  // Busy: append anyway, because a dropped draft is worse than a rare race.
-  if (fallback.length > 0) withWorkingCopyLock(working, append, append);
+  // Wait past LOCK_STALE_MS, so the append always ends up holding the lock (a
+  // held lock is released or goes stale first) and staging cannot replace it.
+  // onBusy runs only when no lock can be created, so staging cannot take one either.
+  if (fallback.length > 0)
+    withWorkingCopyLock(working, append, append, LOCK_STALE_MS + LOCK_WAIT_MS);
 }

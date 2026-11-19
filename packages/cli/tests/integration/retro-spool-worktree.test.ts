@@ -374,6 +374,23 @@ describe('retro spool survives a deleted worktree (#5467)', () => {
     ).toEqual(['retro:bbbbbbbbbbbb', 'retro:aaaaaaaaaaaa']);
   });
 
+  it('a fallback writer waits for a held lock instead of appending under it', () => {
+    git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
+    const durable = blockWrites(durableDraftSpoolPath(worktree, SESSION));
+    const working = draftSpoolPath(worktree, SESSION);
+    mkdirSync(`${working}.lock`, { recursive: true });
+    // Held past the old 2-second wait, but not yet abandoned.
+    const held = new Date(Date.now() - 5000);
+    utimesSync(`${working}.lock`, held, held);
+
+    spoolDrafts(worktree, SESSION, [draft('retro:aaaaaaaaaaaa')]);
+    rmSync(durable, { recursive: true });
+
+    // It took the lock (once abandoned) and released it, rather than appending beside its holder.
+    expect(existsSync(`${working}.lock`)).toBe(false);
+    expect(lines(working)).toHaveLength(1);
+  });
+
   it('clears a lock abandoned by a killed writer', () => {
     git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
     spoolDrafts(worktree, SESSION, [draft('retro:aaaaaaaaaaaa')]);

@@ -20862,9 +20862,9 @@ function serializeDrafts(drafts) {
 `)}
 ` : "";
 }
-function withWorkingCopyLock(file, operation, onBusy) {
+function withWorkingCopyLock(file, operation, onBusy, waitMs = LOCK_WAIT_MS) {
   const lock = `${file}.lock`;
-  const deadline = Date.now() + LOCK_WAIT_MS;
+  const deadline = Date.now() + waitMs;
   for (;; ) {
     try {
       mkdirSync9(nodePath38.dirname(file), { recursive: true });
@@ -20967,7 +20967,7 @@ function spoolDrafts(projectDirectory, sessionId, drafts) {
   const working = draftSpoolPath(projectDirectory, sessionId);
   const append = () => appendJsonlRecords(working, fallback.map((draft) => draftLine(draft)), MAX_DRAFTS_PER_SESSION);
   if (fallback.length > 0)
-    withWorkingCopyLock(working, append, append);
+    withWorkingCopyLock(working, append, append, LOCK_STALE_MS + LOCK_WAIT_MS);
 }
 var MAX_DRAFTS_PER_SESSION = 20, SPOOL_DIR, SPOOL_EXTENSION = ".jsonl", REMOVED_SUFFIX = ".removed.jsonl", LOCK_WAIT_MS = 2000, LOCK_STALE_MS = 1e4, LOCK_POLL_MS = 20;
 var init_retro_draft_spool = __esm(() => {
