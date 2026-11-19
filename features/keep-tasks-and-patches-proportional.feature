@@ -14,9 +14,9 @@ Feature: Keep tasks and patches proportional
         | work_type | planning_contract |
         | patch | no Implementation Plan, Execution Plan, or independent planning review is created |
         | task | no Implementation Plan, Execution Plan, or independent planning review is created |
-        | feature | an Implementation Plan, Execution Plan, and independent review for each plan are required |
+        | feature | an Implementation Plan and Execution Plan are required, with a semantic review of each plan |
 
-    @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
+    @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed hosts apply feature ceremony by work type
       Given <host> receives work already classified as <work_type>
       When <installed_entry> begins its workflow with real configuration and collaborators
@@ -26,25 +26,22 @@ Feature: Keep tasks and patches proportional
         | host | installed_entry | work_type | planning_contract |
         | Safeword CLI | actual installed CLI dispatch | task | no feature planning artifact or planning review is created |
         | Safeword CLI | actual installed CLI dispatch | patch | no feature planning artifact or planning review is created |
-        | Safeword CLI | actual installed CLI dispatch | feature | both feature plans and their independent reviews are required |
-        | Claude Code | actual lifecycle dispatch from installed project hooks | feature | both feature plans and their independent reviews are required |
+        | Safeword CLI | actual installed CLI dispatch | feature | both feature plans and their semantic reviews are required |
+        | Claude Code | actual lifecycle dispatch from installed project hooks | feature | both feature plans and their semantic reviews are required |
         | Claude Code | actual lifecycle dispatch from installed project hooks | task | no feature planning artifact or planning review is created |
         | Claude Code | actual lifecycle dispatch from installed project hooks | patch | no feature planning artifact or planning review is created |
         | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM | task | no feature planning artifact or planning review is created |
         | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM | patch | no feature planning artifact or planning review is created |
-        | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM | feature | both feature plans and their independent reviews are required |
-        | OpenAI Codex | actual lifecycle dispatch from installed project hooks | feature | both feature plans and their independent reviews are required |
+        | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM | feature | both feature plans and their semantic reviews are required |
+        | OpenAI Codex | actual lifecycle dispatch from installed project hooks | feature | both feature plans and their semantic reviews are required |
         | OpenAI Codex | actual lifecycle dispatch from installed project hooks | task | no feature planning artifact or planning review is created |
         | OpenAI Codex | actual lifecycle dispatch from installed project hooks | patch | no feature planning artifact or planning review is created |
-        | OpenCode | actual lifecycle dispatch from the installed profile plugin | task | no feature planning artifact or planning review is created |
-        | OpenCode | actual lifecycle dispatch from the installed profile plugin | patch | no feature planning artifact or planning review is created |
-        | OpenCode | actual lifecycle dispatch from the installed profile plugin | feature | both feature plans and their independent reviews are required |
-        | Cursor | actual lifecycle dispatch from installed project hooks | feature | both feature plans and their independent reviews are required |
+        | Cursor | actual lifecycle dispatch from installed project hooks | feature | both feature plans and their semantic reviews are required |
         | Cursor | actual lifecycle dispatch from installed project hooks | task | no feature planning artifact or planning review is created |
         | Cursor | actual lifecycle dispatch from installed project hooks | patch | no feature planning artifact or planning review is created |
         | Cursor Cloud Agents | actual lifecycle dispatch from project hooks in a fresh runner | task | no feature planning artifact or planning review is created |
         | Cursor Cloud Agents | actual lifecycle dispatch from project hooks in a fresh runner | patch | no feature planning artifact or planning review is created |
-        | Cursor Cloud Agents | actual lifecycle dispatch from project hooks in a fresh runner | feature | both feature plans and their independent reviews are required |
+        | Cursor Cloud Agents | actual lifecycle dispatch from project hooks in a fresh runner | feature | both feature plans and their semantic reviews are required |
 
   @plan-implementability.TBU3.3EG00H.R2
   Rule: plan-implementability.TBU3.3EG00H.R2 — Work classification has explicit precedence
@@ -60,7 +57,7 @@ Feature: Keep tasks and patches proportional
         | changes a shared public response contract despite also correcting a typo | feature |
         | performs a mechanical multi-file update that also introduces new persistent state | feature |
 
-    @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
+    @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed hosts route unclassified work through the shared classifier
       Given <installed_entry> receives unclassified work that <observable_shape>
       When the host's real dispatch classifies the work with real configuration and collaborators
@@ -80,9 +77,6 @@ Feature: Keep tasks and patches proportional
         | actual OpenAI Codex lifecycle dispatch from installed project hooks | is a one-line non-behavioral correction with targeted proof | patch |
         | actual OpenAI Codex lifecycle dispatch from installed project hooks | changes a shared public response contract | feature |
         | actual OpenAI Codex lifecycle dispatch from installed project hooks | is bounded residual work requiring new regression proof | task |
-        | actual OpenCode lifecycle dispatch from the installed profile plugin | is a one-line non-behavioral correction with targeted proof | patch |
-        | actual OpenCode lifecycle dispatch from the installed profile plugin | changes a shared public response contract | feature |
-        | actual OpenCode lifecycle dispatch from the installed profile plugin | is bounded residual work requiring new regression proof | task |
         | actual Cursor lifecycle dispatch from installed project hooks | is a one-line non-behavioral correction with targeted proof | patch |
         | actual Cursor lifecycle dispatch from installed project hooks | changes a shared public response contract | feature |
         | actual Cursor lifecycle dispatch from installed project hooks | is bounded residual work requiring new regression proof | task |
@@ -164,7 +158,7 @@ Feature: Keep tasks and patches proportional
         | seven installed host surfaces | only mechanical parity with settled behavior | task |
         | two public surfaces | a newly divergent user flow | feature |
 
-    @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
+    @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed hosts enforce reevaluation only after a configured signal is crossed
       Given <installed_entry> is running task work whose size and affected surfaces <signal_state>
       When the installed workflow observes the growth with real configuration and collaborators
@@ -180,8 +174,6 @@ Feature: Keep tasks and patches proportional
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM | cross the configured surface signal | production pauses until semantic reevaluation is recorded |
         | actual OpenAI Codex lifecycle dispatch from installed project hooks | remain within configured signals | production continues without a classification reevaluation |
         | actual OpenAI Codex lifecycle dispatch from installed project hooks | cross the configured surface signal | production pauses until semantic reevaluation is recorded |
-        | actual OpenCode lifecycle dispatch from the installed profile plugin | remain within configured signals | production continues without a classification reevaluation |
-        | actual OpenCode lifecycle dispatch from the installed profile plugin | cross the configured surface signal | production pauses until semantic reevaluation is recorded |
         | actual Cursor lifecycle dispatch from installed project hooks | remain within configured signals | production continues without a classification reevaluation |
         | actual Cursor lifecycle dispatch from installed project hooks | cross the configured surface signal | production pauses until semantic reevaluation is recorded |
         | actual Cursor Cloud Agents lifecycle dispatch from project hooks in a fresh runner | remain within configured signals | production continues without a classification reevaluation |
@@ -190,7 +182,7 @@ Feature: Keep tasks and patches proportional
   @plan-implementability.TBU3.3EG00H.R7
   Rule: plan-implementability.TBU3.3EG00H.R7 — Tasks use inline test specifications
 
-    @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
+    @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed task planning writes inline test specifications
       Given a bounded task has settled behavior and proof boundaries
       When <installed_entry> plans its work with real configuration and collaborators
@@ -202,7 +194,6 @@ Feature: Keep tasks and patches proportional
         | actual Claude Code lifecycle dispatch from installed project hooks |
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM |
         | actual OpenAI Codex lifecycle dispatch from installed project hooks |
-        | actual OpenCode lifecycle dispatch from the installed profile plugin |
         | actual Cursor lifecycle dispatch from installed project hooks |
         | actual Cursor Cloud Agents lifecycle dispatch from project hooks in a fresh runner |
 
@@ -237,7 +228,7 @@ Feature: Keep tasks and patches proportional
         | fails only through a newly invented boundary |
         | fails for a reason unrelated to the settled expected behavior |
 
-    @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
+    @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed lifecycle dispatch enforces meaningful RED
       Given a technical builder has a behavior-changing task with settled expected behavior and <red_state>
       When <installed_entry> attempts a production modification with real configuration and collaborators
@@ -253,8 +244,6 @@ Feature: Keep tasks and patches proportional
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM | an observed meaningful failing test through an existing boundary with linked evidence | the modification is permitted to proceed to GREEN with the linked evidence preserved |
         | actual OpenAI Codex lifecycle dispatch from installed project hooks | no observed failing test | the modification is blocked because meaningful RED is missing |
         | actual OpenAI Codex lifecycle dispatch from installed project hooks | an observed meaningful failing test through an existing boundary with linked evidence | the modification is permitted to proceed to GREEN with the linked evidence preserved |
-        | actual OpenCode lifecycle dispatch from the installed profile plugin | no observed failing test | the modification is blocked because meaningful RED is missing |
-        | actual OpenCode lifecycle dispatch from the installed profile plugin | an observed meaningful failing test through an existing boundary with linked evidence | the modification is permitted to proceed to GREEN with the linked evidence preserved |
         | actual Cursor lifecycle dispatch from installed project hooks | no observed failing test | the modification is blocked because meaningful RED is missing |
         | actual Cursor lifecycle dispatch from installed project hooks | an observed meaningful failing test through an existing boundary with linked evidence | the modification is permitted to proceed to GREEN with the linked evidence preserved |
         | actual Cursor Cloud Agents lifecycle dispatch from project hooks in a fresh runner | no observed failing test | the modification is blocked because meaningful RED is missing |
@@ -316,7 +305,7 @@ Feature: Keep tasks and patches proportional
       When implementation would otherwise begin
       Then production work stops, the recorded investigation findings survive the promotion, no test evidence is claimed, and the task is promoted without inventing the decision
 
-    @rejection @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
+    @rejection @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed hosts promote a task when TDD exposes a feature decision
       Given task TDD has produced linked test evidence and then exposes an unresolved in-scope public-contract design decision
       When <installed_entry> reaches the decision through real dispatch with real configuration and collaborators
@@ -328,7 +317,6 @@ Feature: Keep tasks and patches proportional
         | actual Claude Code lifecycle dispatch from installed project hooks |
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM |
         | actual OpenAI Codex lifecycle dispatch from installed project hooks |
-        | actual OpenCode lifecycle dispatch from the installed profile plugin |
         | actual Cursor lifecycle dispatch from installed project hooks |
         | actual Cursor Cloud Agents lifecycle dispatch from project hooks in a fresh runner |
 
@@ -351,7 +339,7 @@ Feature: Keep tasks and patches proportional
       When the promoted feature discovers a sequencing-only change
       Then Execution Planning resumes with existing evidence preserved
 
-    @rejection @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
+    @rejection @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed hosts return a promoted product decision to behavior definition
       Given task investigation has recorded evidence and exposes an unresolved in-scope product-behavior decision
       When <installed_entry> promotes the work through real dispatch with real configuration and collaborators
@@ -363,7 +351,6 @@ Feature: Keep tasks and patches proportional
         | actual Claude Code lifecycle dispatch from installed project hooks |
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM |
         | actual OpenAI Codex lifecycle dispatch from installed project hooks |
-        | actual OpenCode lifecycle dispatch from the installed profile plugin |
         | actual Cursor lifecycle dispatch from installed project hooks |
         | actual Cursor Cloud Agents lifecycle dispatch from project hooks in a fresh runner |
 

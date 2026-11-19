@@ -11,7 +11,7 @@ in place. Their evidence and edits remain in those checkouts.
 | Selective review and human approval | 5F5ZZA | #7077 carries the public-CLI Work Log and contract-reference controls. The enabled-human cases in `plan-design-approval.test.ts` cover reuse and fresh approval after changed approach bytes. `execution-upstream-planning-context.test.ts` covers dependent Execution currency. Keep the actual host observation and exact fixture partitions distinct. |
 | Preserve accepted work through upgrades | YCFFNC, ZSHVEB, CGRX0H | The existing markerless transition and Product Plan parity tests cover their named fixtures. The migration feature's written examples require carrying accepted legacy decisions and tests across resume and returning to the current contract on replan. The selected migration, proportionality and recovery features collectively reported 256 undefined scenarios in the explicit-path Cucumber binding check. No in-flight upgrade or Product Plan version transition is credited from those examples. |
 | Keep small work proportional | 3EG00H | The small-work feature records routing and preservation of completed proof on promotion. The binding check leaves these scenarios undefined. Existing lean task observations support the task path only. A real promotion through the phase that owns the newly discovered decision remains open. |
-| Give a concrete next action at every stop | K3EBHB | The shared lint-failure gate now names the failed check and tells the user to fix the errors in the verification report and rerun verification. The earlier trial logs retain actual stop text and intervention. The recovery feature's undefined walkthroughs and the lack of a nontechnical participant leave comprehension open, including pending scope and dispute outcomes. |
+| Give a concrete next action at every stop | K3EBHB | The shared verification gate now names the failed check and tells the user to fix the errors in the verification report and rerun verification. The earlier trial logs retain actual stop text and intervention. The recovery feature's undefined walkthroughs and the lack of a nontechnical participant leave comprehension open, including pending scope and dispute outcomes. |
 | Complete verification, checklist and PR preparation | A639WN, 6XW8H7, T3E4NS, YCFFNC | November 9 Codex and November 14 Claude provide real but assisted native trials. The latter recorded 87 app tests and 20 acceptance scenarios passing, five lint errors and two dependency advisories. Its ticket was marked done with ten contributor checklist rows open and no PR. The lint repair below closes one false-success path. The slicing rubric and fixture checks establish mechanics. Independently reviewable multi-PR delivery and a clean native feature journey through completed checklist and review-ready PR evidence remain open. |
 
 ## Replayed first plan step
@@ -51,12 +51,21 @@ or automatic upgrade of the earlier review can be credited from that run.
   3EG00H and K3EBHB with `PARENT_RECONCILIATION_FAILED`. Recomputing their
   exact recorded digests from `ddaebbdb0` (five children) and `cd7514433`
   (ZSHVEB) matches all six. Current inherited values have semantic changes,
-  including job Rules and project non-goals for each child. Five also have a
+  including job text and project non-goals for each child. Five also have a
   changed milestone outcome; G1C9PP, 7CAMAD and ZSHVEB have changed milestone
   non-goals. The success threshold is the same. That is real authority drift
   rather than a formatting change or a hash generation error. Review the
   inherited changes with the owner before accepting a new binding or
   advancing a child through a review gate.
+
+3EG00H was reconciled after comparing its exact inherited changes. The M3
+outcome, non-goals and success threshold are unchanged. The changed TBU3
+comment locates feature TDD sequencing, and the inherited project non-goals
+clarify headless waits and accurately labelled fallback. The parent and child
+now record the user's #6786 and November 14 boundaries. The public reconcile
+check returns healthy for the new binding; 3EG00H returned to scenario review
+for its revised packet. The earlier approval remains historical. The other
+five bindings are still stale.
 
 ## Concrete verification repair
 
@@ -74,9 +83,32 @@ passing lint. The archived project was read only. The verification skill now
 uses the existing checklist and retained-proof commands for adopted features
 and keeps an unfinished checklist out of the ready verdict.
 
-The new check applies to an explicit failure on the canonical lint status line.
-It accepts older reports without that line. Existing verification and delivery
+The new check recognizes an explicit failure on each canonical Test Suite,
+Gherkin, Build, Lint, Typecheck or Scenarios status line. It accepts older
+reports without those lines and preserves clean and skipped statuses. Existing verification and delivery
 obligations still determine whether such a report is sufficient for the ticket.
+
+Independent Claude quality review `bbdfabef-943c-4802-8a30-ec1ad72f4d86`
+approved the generalized checker, verification guidance and both regression
+files. The earlier lint-only review `6521e643-9daa-446c-b5a8-439cd6cf1058`
+identified nonblocking warnings in existing PR-scope and feature-ledger
+parsing. Both receipts are bounded to their respective reviewed files.
+
+## Large-contribution slicing evidence
+
+7CAMAD's Execution Plan separates the public authorization command, later
+enforcement, and the final cold-start/replan proof. It names independent
+completion signals and states that each slice can merge before its successor.
+The actual [first merge group #5881](https://github.com/ArcadeAI/safeword/pull/5881)
+landed at `ca452a9cc`. The X47AWV record preserves its verified backport
+prerequisites and the first Ready-triggered run that rejected inherited
+incomplete child verification. The bounded
+[continuation #6031](https://github.com/ArcadeAI/safeword/pull/6031) landed later
+at `bac142eac`. T3E4NS preserves where its evidence and missing historical RED
+stop. These are real examples of bounded deliveries, along with the historical
+7CAMAD semantic review of one- and multi-PR shapes. They do not establish that
+every planned slice was independently delivered, or that either converter
+trial completed the feature checklist and review-ready PR.
 
 ## Current authority and host boundaries
 
