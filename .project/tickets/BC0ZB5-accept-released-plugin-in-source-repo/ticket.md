@@ -37,6 +37,7 @@ last_modified: 2026-11-19T17:13:23.180Z
 - [x] A fresh source checkout installs the released plugin and accepts it (verifyPlugin path).
 - [x] A stale older plugin updates to the marketplace-offered version.
 - [x] An older prerelease the marketplace no longer offers is wrong-version.
+- [x] An older prerelease is not accepted even when the marketplace offers it.
 - [x] A marketplace offering a plugin newer than the CLI keeps the CLI requirement.
 - [x] Source repo still re-enables a disabled released plugin (no update).
 - [x] Outside the source repo the version is still required (CLAUDE_PLUGIN_UNVERIFIED, update attempted).
@@ -54,3 +55,4 @@ last_modified: 2026-11-19T17:13:23.180Z
 - 2026-11-19 Merged origin/main (71b32c49b); conflicts only in generated plugin surfaces, regenerated. Claude plugin suites 245 passed; dogfood install exits 0 with Claude ready.
 - 2026-11-19 tdd-review: implementation minimal and correct; gap found — no test for a fresh source checkout with no plugin installed. Added it (fixture now models the marketplace's delivered version via marketplaceVersion); killed by making verifyPlugin require VERSION.
 - 2026-11-19 quality-review (cross-agent, Codex, review 889fb164): request_changes, 2 errors. (1) Accepted any older installed version incl. prereleases; root cause broader — a stale 1.0.0 would never update to promoted 1.1.0. Fixed: accept exactly the version Claude's marketplace checkout offers (plugins/marketplaces/safeword/.claude-plugin/marketplace.json), only when older than the CLI; stale/prerelease installs still update. (2) Finding message claimed the repo's .claude hooks stay authoritative — unverified (dispatch only skips legacy migration in the dogfood repo); message reworded. Representative-payload part answered: an incompatible released payload fails closed with CLAUDE_PLUGIN_PAYLOAD_UNVERIFIED; the real 1.1.0 payload on this machine passes. New tests: stale older plugin updates; older prerelease is wrong-version; marketplace offering a newer plugin keeps the CLI requirement. Six code mutations each killed.
+- 2026-11-19 quality-review pass 2 (Codex, review 0a5a7858): request_changes, 1 error — an older prerelease the marketplace itself offers was still accepted and called "released". Fixed: only a release-qualified offered version (no prerelease or build tag) qualifies; RED then GREEN, and removing the check fails the new test.

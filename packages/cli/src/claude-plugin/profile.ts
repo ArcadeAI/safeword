@@ -867,8 +867,8 @@ function assertConvergeablePluginVersion(plugin: JsonObject, effects: readonly E
   }
 }
 
-/** The Safeword plugin version Claude's local marketplace checkout currently offers. */
-function offeredPluginVersion(): string | undefined {
+/** The released (no prerelease or build tag) Safeword plugin version Claude's marketplace checkout offers. */
+function offeredReleasedPluginVersion(): string | undefined {
   const cataloguePath = nodePath.join(
     claudeConfigDirectory(),
     'plugins/marketplaces',
@@ -881,7 +881,9 @@ function offeredPluginVersion(): string | undefined {
     const entry = catalogue.plugins.find(
       (plugin): plugin is JsonObject => isJsonObject(plugin) && plugin.name === MARKETPLACE_NAME,
     );
-    return typeof entry?.version === 'string' && isSafePackageVersion(entry.version)
+    return typeof entry?.version === 'string' &&
+      isSafePackageVersion(entry.version) &&
+      !/[+-]/u.test(entry.version)
       ? entry.version
       : undefined;
   } catch {
@@ -893,12 +895,12 @@ function offeredPluginVersion(): string | undefined {
 /**
  * The plugin version this project accepts. Normally the CLI's own version. The
  * Safeword source repo runs an unreleased CLI that no promoted plugin can match,
- * so it accepts the older version the marketplace offers instead of failing
- * every install; a stale or prerelease install still updates to that version.
+ * so it accepts the older released version the marketplace offers instead of
+ * failing every install; a stale or prerelease install still updates to it.
  */
 function acceptedPluginVersion(cwd: string): string {
   if (!isDogfoodRepo(cwd)) return VERSION;
-  const offered = offeredPluginVersion();
+  const offered = offeredReleasedPluginVersion();
   return offered !== undefined && compareVersions(offered, VERSION) < 0 ? offered : VERSION;
 }
 

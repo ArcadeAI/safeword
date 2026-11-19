@@ -69464,14 +69464,14 @@ function assertConvergeablePluginVersion(plugin, effects) {
     throw new ClaudeProfileError("CLAUDE_PLUGIN_DOWNGRADE_REFUSED", `Claude reported ${CLAUDE_PLUGIN_ID} ${plugin.version}, which is newer than ${VERSION}; refusing an implicit downgrade.`, effects);
   }
 }
-function offeredPluginVersion() {
+function offeredReleasedPluginVersion() {
   const cataloguePath = nodePath93.join(claudeConfigDirectory(), "plugins/marketplaces", MARKETPLACE_NAME, ".claude-plugin/marketplace.json");
   try {
     const catalogue = JSON.parse(readFileSync64(cataloguePath, "utf8"));
     if (!isJsonObject(catalogue) || !Array.isArray(catalogue.plugins))
       return;
     const entry = catalogue.plugins.find((plugin) => isJsonObject(plugin) && plugin.name === MARKETPLACE_NAME);
-    return typeof entry?.version === "string" && isSafePackageVersion(entry.version) ? entry.version : undefined;
+    return typeof entry?.version === "string" && isSafePackageVersion(entry.version) && !/[+-]/u.test(entry.version) ? entry.version : undefined;
   } catch {
     return;
   }
@@ -69479,7 +69479,7 @@ function offeredPluginVersion() {
 function acceptedPluginVersion(cwd) {
   if (!isDogfoodRepo(cwd))
     return VERSION;
-  const offered = offeredPluginVersion();
+  const offered = offeredReleasedPluginVersion();
   return offered !== undefined && compareVersions(offered, VERSION) < 0 ? offered : VERSION;
 }
 function convergePlugin(cwd, scope, effects) {

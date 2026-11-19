@@ -1007,6 +1007,18 @@ describe('Claude plugin in the Safeword source repository', () => {
     expect(observeApplicableClaudePlugins(project).installations[0]?.health).toBe('wrong-version');
   });
 
+  it('does not accept an older prerelease even when the marketplace offers it', () => {
+    const prerelease = `${RELEASED_VERSION}-rc.1`;
+    const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, KEEP_MARKETPLACE, {
+      dogfoodRepo: true,
+      installedVersion: prerelease,
+      payloadVersion: prerelease,
+      marketplaceVersion: prerelease,
+    });
+
+    expect(observeApplicableClaudePlugins(project).installations[0]?.health).toBe('wrong-version');
+  });
+
   it('keeps requiring the CLI version when the marketplace offers a newer plugin', () => {
     const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, KEEP_MARKETPLACE, {
       dogfoodRepo: true,
