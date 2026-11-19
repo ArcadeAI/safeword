@@ -75,7 +75,7 @@
     },
     {
       "path": "resources/guides/self-report-filing.md",
-      "sha256": "4f7c22d5012a894c5ea3a72f3ca3c87308c2a9762fcf50fea71cedbf25120cc0"
+      "sha256": "98fa59e86a7a1ef4f959571434d04852994ff7272d1e780de44f5e7d16291877"
     },
     {
       "path": "resources/guides/skill-eval-optimization-guide.md",
@@ -1099,7 +1099,7 @@
     },
     {
       "path": "templates/guides/self-report-filing.md",
-      "sha256": "8c89ef1014ddefeeb6188098549c21674e840ebf46c0f34a6f48c3eb6f826759"
+      "sha256": "b11d9ee7e360e321c5154f0f9ade34203eada0db1f6bc4569ee906250b4faa5d"
     },
     {
       "path": "templates/guides/skill-eval-optimization-guide.md",
