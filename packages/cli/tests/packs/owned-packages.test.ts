@@ -47,4 +47,13 @@ describe('recordOwnedPackages', () => {
 
     expect(getOwnedPackages(cwd)).toEqual(['typescript']);
   });
+
+  it('hands a package to the project once package.json changes the range Safeword wrote', () => {
+    writeTestFile(cwd, 'package.json', '{"devDependencies":{"typescript":"~6.0.0"}}\n');
+    recordOwnedPackages(cwd, ['typescript']);
+
+    writeTestFile(cwd, 'package.json', '{"devDependencies":{"typescript":"^6.1.0"}}\n');
+
+    expect(getOwnedPackages(cwd)).toEqual([]);
+  });
 });

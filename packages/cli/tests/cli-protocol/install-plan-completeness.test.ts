@@ -993,7 +993,7 @@ fs.writeFileSync("package.json", JSON.stringify(manifest, null, 2) + "\n");
     );
     expect(installed.exitCode, installed.stdout).toBe(0);
     expect(readJson(directory, '.safeword/config.json')).toMatchObject({
-      ownedPackages: ['typescript'],
+      ownedPackages: { typescript: '~6.0.0' },
     });
 
     const installEnvelope = JSON.parse(installed.stdout) as LifecycleEnvelope;

@@ -254,12 +254,24 @@ describe('collectAllDeps', () => {
     mkdirSync(path.join(temporaryDirectory, '.safeword'));
     writeFileSync(
       path.join(temporaryDirectory, '.safeword', 'config.json'),
-      JSON.stringify({ ownedPackages: ['typescript'] }),
+      JSON.stringify({ ownedPackages: { typescript: '~6.0.0' } }),
     );
 
     const framework = detect.detectFramework(detect.collectAllDeps(temporaryDirectory));
 
     expect(framework).toBe('javascript');
+  });
+
+  it('treats the app as TypeScript once the project changed the typescript range', () => {
+    mkdirSync(path.join(temporaryDirectory, '.safeword'));
+    writeFileSync(
+      path.join(temporaryDirectory, '.safeword', 'config.json'),
+      JSON.stringify({ ownedPackages: { typescript: '~5.9.0' } }),
+    );
+
+    const framework = detect.detectFramework(detect.collectAllDeps(temporaryDirectory));
+
+    expect(framework).toBe('typescript');
   });
 
   it('treats a typescript the project declared itself as a TypeScript app', () => {

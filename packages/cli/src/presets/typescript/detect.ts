@@ -150,19 +150,26 @@ function scanWorkspaceDirectory(rootDirectory: string, pattern: string): Depende
 }
 
 /**
- * Packages `.safeword/config.json` records as added by Safeword (`ownedPackages`).
+ * Packages that are still Safeword's (`ownedPackages` in .safeword/config.json):
+ * recorded with the range Safeword added, and still declared with that range.
  * Read inline to keep the presets package self-contained.
  */
-function readSafewordOwnedPackages(rootDirectory: string): string[] {
+function readSafewordOwnedPackages(
+  rootDirectory: string,
+  declared: DependenciesRecord,
+): Set<string> {
   try {
-    const config = JSON.parse(
+    const { ownedPackages } = JSON.parse(
       readFileSync(path.join(rootDirectory, '.safeword', 'config.json'), 'utf8'),
     ) as { ownedPackages?: unknown };
-    return Array.isArray(config.ownedPackages)
-      ? config.ownedPackages.filter((name): name is string => typeof name === 'string')
-      : [];
+    if (typeof ownedPackages !== 'object' || ownedPackages === null) return new Set();
+    return new Set(
+      Object.entries(ownedPackages)
+        .filter(([name, range]) => typeof range === 'string' && declared[name] === range)
+        .map(([name]) => name),
+    );
   } catch {
-    return [];
+    return new Set();
   }
 }
 
@@ -174,11 +181,10 @@ function collectAllDependencies(rootDirectory: string): DependenciesRecord {
   const rootPackagePath = path.join(rootDirectory, 'package.json');
   // A package Safeword added for its own tooling (typescript for the BDD steps)
   // says nothing about the app, so a JavaScript app stays JavaScript.
-  const ownedPackages = new Set(readSafewordOwnedPackages(rootDirectory));
+  const rootDependencies = readPackageDependencies(rootPackagePath);
+  const ownedPackages = readSafewordOwnedPackages(rootDirectory, rootDependencies);
   const allDependencies: DependenciesRecord = Object.fromEntries(
-    Object.entries(readPackageDependencies(rootPackagePath)).filter(
-      ([name]) => !ownedPackages.has(name),
-    ),
+    Object.entries(rootDependencies).filter(([name]) => !ownedPackages.has(name)),
   );
 
   // Scan each workspace pattern

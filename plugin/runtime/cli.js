@@ -65909,21 +65909,34 @@ function addInstalledPack(cwd, packId) {
     writeConfig(cwd, config);
   }
 }
-function getOwnedPackages(cwd) {
-  const owned = readConfig2(cwd)?.ownedPackages;
-  return Array.isArray(owned) ? owned.filter((name) => typeof name === "string") : [];
-}
-function recordOwnedPackages(cwd, names) {
+function readDeclaredDependencies(cwd) {
   const manifest = readFileSafe(nodePath83.join(cwd, "package.json"));
   if (!manifest)
-    return;
+    return {};
   const { dependencies = {}, devDependencies = {} } = JSON.parse(manifest);
-  const owned = getOwnedPackages(cwd);
-  const added = names.filter((name) => !owned.includes(name) && (Object.hasOwn(devDependencies, name) || Object.hasOwn(dependencies, name)));
+  return { ...dependencies, ...devDependencies };
+}
+function readOwnershipRecord(cwd) {
+  const owned = readConfig2(cwd)?.ownedPackages;
+  if (typeof owned !== "object" || owned === null || Array.isArray(owned))
+    return {};
+  return Object.fromEntries(Object.entries(owned).filter(([, range]) => typeof range === "string"));
+}
+function getOwnedPackages(cwd) {
+  const declared = readDeclaredDependencies(cwd);
+  return Object.entries(readOwnershipRecord(cwd)).filter(([name, range]) => declared[name] === range).map(([name]) => name);
+}
+function recordOwnedPackages(cwd, names) {
+  const declared = readDeclaredDependencies(cwd);
+  const record = readOwnershipRecord(cwd);
+  const added = names.flatMap((name) => {
+    const range = declared[name];
+    return range === undefined || Object.hasOwn(record, name) ? [] : [[name, range]];
+  });
   if (added.length === 0)
     return;
   const config = readConfig2(cwd) ?? { installedPacks: [] };
-  config.ownedPackages = [...owned, ...added];
+  config.ownedPackages = { ...record, ...Object.fromEntries(added) };
   writeConfig(cwd, config);
 }
 var CONFIG_PATH = ".safeword/config.json";
@@ -67530,18 +67543,21 @@ function scanWorkspaceDirectory(rootDirectory, pattern) {
   } catch {}
   return allDependencies;
 }
-function readSafewordOwnedPackages(rootDirectory) {
+function readSafewordOwnedPackages(rootDirectory, declared) {
   try {
-    const config = JSON.parse(readFileSync61(path7.join(rootDirectory, ".safeword", "config.json"), "utf8"));
-    return Array.isArray(config.ownedPackages) ? config.ownedPackages.filter((name) => typeof name === "string") : [];
+    const { ownedPackages } = JSON.parse(readFileSync61(path7.join(rootDirectory, ".safeword", "config.json"), "utf8"));
+    if (typeof ownedPackages !== "object" || ownedPackages === null)
+      return new Set;
+    return new Set(Object.entries(ownedPackages).filter(([name, range]) => typeof range === "string" && declared[name] === range).map(([name]) => name));
   } catch {
-    return [];
+    return new Set;
   }
 }
 function collectAllDependencies(rootDirectory) {
   const rootPackagePath = path7.join(rootDirectory, "package.json");
-  const ownedPackages = new Set(readSafewordOwnedPackages(rootDirectory));
-  const allDependencies = Object.fromEntries(Object.entries(readPackageDependencies(rootPackagePath)).filter(([name]) => !ownedPackages.has(name)));
+  const rootDependencies = readPackageDependencies(rootPackagePath);
+  const ownedPackages = readSafewordOwnedPackages(rootDirectory, rootDependencies);
+  const allDependencies = Object.fromEntries(Object.entries(rootDependencies).filter(([name]) => !ownedPackages.has(name)));
   for (const pattern of getMonorepoPatterns(rootDirectory)) {
     Object.assign(allDependencies, scanWorkspaceDirectory(rootDirectory, pattern));
   }
@@ -67979,19 +67995,23 @@ function detectCucumberLane(cwd) {
     scaffoldBddLane: ownLanePresent || evidence === undefined
   };
 }
+function projectModuleFolders(cwd) {
+  const folders = [];
+  let directory = nodePath90.resolve(cwd);
+  for (;; ) {
+    folders.push(directory);
+    if (existsSync43(nodePath90.join(directory, ".git")))
+      return folders;
+    const parent = nodePath90.dirname(directory);
+    if (parent === directory)
+      return [nodePath90.resolve(cwd)];
+    directory = parent;
+  }
+}
 function resolvesTypescript(cwd) {
   if (cwd === undefined)
     return false;
-  let directory = nodePath90.resolve(cwd);
-  for (;; ) {
-    if (existsSync43(nodePath90.join(directory, "node_modules", "typescript", "package.json"))) {
-      return true;
-    }
-    const parent = nodePath90.dirname(directory);
-    if (parent === directory)
-      return false;
-    directory = parent;
-  }
+  return projectModuleFolders(cwd).some((folder) => existsSync43(nodePath90.join(folder, "node_modules", "typescript", "package.json")));
 }
 function detectProjectType(packageJson, cwd) {
   const dependencies = packageJson.dependencies ?? {};

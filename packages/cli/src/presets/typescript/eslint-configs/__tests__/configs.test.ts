@@ -59,19 +59,37 @@ describe('recommended config', () => {
     }).not.toThrow();
   });
 
-  it('parses TypeScript BDD step files in a JavaScript project (6SNC09)', () => {
+  it('lints valid TypeScript BDD step files clean in a JavaScript project (6SNC09)', () => {
     const projectRoot = import.meta.dirname;
     const linter = new Linter({ configType: 'flat', cwd: projectRoot });
     const stepFile = `${projectRoot}/steps/inline.ts`;
+    // Type-only names (an interface, the Record global) are not runtime values.
     const stepCode = `import { Given } from '@cucumber/cucumber';
 
-Given('a counter', function (this: { count: number }) {
-  this.count = 1;
+interface Counter {
+  counts: Record<string, number>;
+}
+
+Given('a counter', function (this: Counter) {
+  this.counts = { total: 1 };
 });
 `;
 
-    const parseErrors = linter
+    const errors = linter
       .verify(stepCode, recommended, { filename: stepFile })
+      .filter(message => message.severity === 2)
+      .map(message => message.ruleId ?? message.message);
+
+    expect(errors).toEqual([]);
+  });
+
+  it('parses TypeScript files outside the step folders in a JavaScript project (6SNC09)', () => {
+    // A relocated BDD lane (paths.steps) or an app adopting TypeScript.
+    const linter = new Linter({ configType: 'flat', cwd: import.meta.dirname });
+    const parseErrors = linter
+      .verify('export const total: number = 1;\n', recommended, {
+        filename: `${import.meta.dirname}/acceptance/steps/inline.ts`,
+      })
       .filter(message => message.fatal);
 
     expect(parseErrors).toEqual([]);

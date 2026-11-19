@@ -12,9 +12,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- ESLint config types are incompatible across plugin packages */
 
 import pluginJsdoc from 'eslint-plugin-jsdoc';
-import { parser as typescriptParser } from 'typescript-eslint';
+import {
+  configs as tseslintConfigs,
+  parser as typescriptParser,
+  plugin as tseslintPlugin,
+} from 'typescript-eslint';
 
-import { basePlugins, CUCUMBER_TYPESCRIPT_STEP_GLOBS, prettierConfig } from './base.js';
+import { basePlugins, prettierConfig } from './base.js';
 
 /**
  * JavaScript recommended config - core plugins without TypeScript
@@ -31,12 +35,24 @@ export const recommended: any[] = [
   // Using error config - LLMs ignore warnings
   pluginJsdoc.configs['flat/recommended-error'],
 
-  // Safeword's BDD steps are TypeScript even in a JavaScript project: parse them
-  // with the TypeScript parser (syntax only, no type-checked rules).
+  // Safeword's BDD steps are TypeScript even in a JavaScript project, wherever the
+  // lane lives (paths.steps can relocate it), and an app may add TypeScript
+  // later. Parse every TypeScript file with the TypeScript parser (syntax only,
+  // no type-checked rules), and swap the core rules that misread type-only names
+  // for typescript-eslint's versions.
   {
-    name: 'safeword/typescript-step-files',
-    files: CUCUMBER_TYPESCRIPT_STEP_GLOBS,
+    name: 'safeword/typescript-files',
+    files: ['**/*.{ts,mts,cts}'],
     languageOptions: { parser: typescriptParser },
+    plugins: { '@typescript-eslint': tseslintPlugin },
+    rules: {
+      ...tseslintConfigs.eslintRecommended.rules,
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+      ],
+    },
   },
 
   // Prettier must be last to disable conflicting rules

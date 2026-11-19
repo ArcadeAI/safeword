@@ -366,11 +366,27 @@ describe('detectProjectType', () => {
       expect(detectProjectType({}, cwd).typescriptAvailable).toBe(true);
     });
 
-    it('counts typescript that Node resolves from a parent folder as available', () => {
+    it('counts typescript hoisted to the repository root as available', () => {
+      writeTestFile(cwd, '.git/HEAD', 'ref: refs/heads/main\n');
       writeTestFile(cwd, 'node_modules/typescript/package.json', '{"version":"5.9.3"}\n');
       writeTestFile(cwd, 'apps/web/package.json', '{"name":"web"}\n');
       const workspaceMember = nodePath.join(cwd, 'apps/web');
       expect(detectProjectType({}, workspaceMember).typescriptAvailable).toBe(true);
+    });
+
+    it('ignores a typescript installed above the repository root', () => {
+      // e.g. ~/node_modules: local tools could load it, but CI and teammates would not.
+      writeTestFile(cwd, 'node_modules/typescript/package.json', '{"version":"5.9.3"}\n');
+      writeTestFile(cwd, 'project/.git/HEAD', 'ref: refs/heads/main\n');
+      const project = nodePath.join(cwd, 'project');
+      expect(detectProjectType({}, project).typescriptAvailable).toBe(false);
+    });
+
+    it('looks only in the project folder when it is not in a repository', () => {
+      writeTestFile(cwd, 'node_modules/typescript/package.json', '{"version":"5.9.3"}\n');
+      writeTestFile(cwd, 'project/package.json', '{"name":"project"}\n');
+      const project = nodePath.join(cwd, 'project');
+      expect(detectProjectType({}, project).typescriptAvailable).toBe(false);
     });
 
     it('ignores the Bun global install cache when the CLI runs under Bun', () => {

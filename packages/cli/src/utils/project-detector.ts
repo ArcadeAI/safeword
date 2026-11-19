@@ -585,23 +585,34 @@ export function detectCucumberLane(cwd: string | undefined): CucumberLaneDetecti
 }
 
 /**
- * True if `typescript` is installed in the project's node_modules or any
- * ancestor's (hoisted workspaces), the folders the project's own tools load it
- * from. Walks the folders directly rather than asking the runtime's resolver:
- * Bun's resolver falls back to its global install cache, which would report a
+ * The folders whose node_modules belong to the project: the project folder and,
+ * inside a repository, each ancestor up to the repository root (hoisted
+ * workspaces). Never above it, where a compiler (e.g. ~/node_modules) would be
+ * missing on CI and other machines.
+ */
+function projectModuleFolders(cwd: string): string[] {
+  const folders: string[] = [];
+  let directory = nodePath.resolve(cwd);
+  for (;;) {
+    folders.push(directory);
+    if (existsSync(nodePath.join(directory, '.git'))) return folders;
+    const parent = nodePath.dirname(directory);
+    if (parent === directory) return [nodePath.resolve(cwd)];
+    directory = parent;
+  }
+}
+
+/**
+ * True if `typescript` is installed where the project's own tools load it from.
+ * Checks the folders directly rather than asking the runtime's resolver: Bun's
+ * resolver falls back to its global install cache, which would report a
  * compiler the project does not have.
  */
 function resolvesTypescript(cwd: string | undefined): boolean {
   if (cwd === undefined) return false;
-  let directory = nodePath.resolve(cwd);
-  for (;;) {
-    if (existsSync(nodePath.join(directory, 'node_modules', 'typescript', 'package.json'))) {
-      return true;
-    }
-    const parent = nodePath.dirname(directory);
-    if (parent === directory) return false;
-    directory = parent;
-  }
+  return projectModuleFolders(cwd).some(folder =>
+    existsSync(nodePath.join(folder, 'node_modules', 'typescript', 'package.json')),
+  );
 }
 
 export function detectProjectType(packageJson: PackageJsonWithScripts, cwd?: string): ProjectType {

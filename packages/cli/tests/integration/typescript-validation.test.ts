@@ -56,6 +56,23 @@ async function developmentDependenciesAfterFullUninstall(
   return manifest.devDependencies ?? {};
 }
 
+/**
+ * Lint one file and return the rule IDs it reported. Fails the test when ESLint
+ * could not run (exit 2) or reported a parse error, so only real findings count.
+ * @param projectDirectory - Installed fixture project.
+ * @param file - Project-relative file to lint.
+ * @returns Rule IDs of the reported findings.
+ */
+function lintRuleIds(projectDirectory: string, file: string): string[] {
+  const result = runEslint(projectDirectory, file, ['--format', 'json']);
+  expect(result.status, result.stderr).toBe(1);
+  const [report] = JSON.parse(result.stdout) as { messages: { ruleId: string | null }[] }[];
+  // A parse error has no ruleId.
+  const ruleIds = (report?.messages ?? []).map(message => message.ruleId ?? 'parse error');
+  expect(ruleIds).not.toContain('parse error');
+  return ruleIds;
+}
+
 // =============================================================================
 // Suite 1: TypeScript Project Setup
 // =============================================================================
@@ -157,11 +174,9 @@ export function main() {
 `,
     );
 
-    const result = runEslint(projectDirectory, 'src/floating-promise.ts');
-
-    // Should fail due to no-floating-promises
-    expect(result.status).not.toBe(0);
-    expect(result.stdout + result.stderr).toMatch(/floating|promise|await/i);
+    expect(lintRuleIds(projectDirectory, 'src/floating-promise.ts')).toContain(
+      '@typescript-eslint/no-floating-promises',
+    );
   });
 
   it('catches misused promises (promise in conditional)', () => {
@@ -181,11 +196,9 @@ export function main() {
 `,
     );
 
-    const result = runEslint(projectDirectory, 'src/misused-promise.ts');
-
-    // Should fail due to no-misused-promises
-    expect(result.status).not.toBe(0);
-    expect(result.stdout + result.stderr).toMatch(/promise|conditional|misused/i);
+    expect(lintRuleIds(projectDirectory, 'src/misused-promise.ts')).toContain(
+      '@typescript-eslint/no-misused-promises',
+    );
   });
 
   it('catches awaiting non-promises', () => {
@@ -200,11 +213,9 @@ export function main() {
 `,
     );
 
-    const result = runEslint(projectDirectory, 'src/await-non-promise.ts');
-
-    // Should fail due to await-thenable
-    expect(result.status).not.toBe(0);
-    expect(result.stdout + result.stderr).toMatch(/await|thenable|promise/i);
+    expect(lintRuleIds(projectDirectory, 'src/await-non-promise.ts')).toContain(
+      '@typescript-eslint/await-thenable',
+    );
   });
 });
 
