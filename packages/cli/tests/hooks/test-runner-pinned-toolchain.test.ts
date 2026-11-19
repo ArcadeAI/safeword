@@ -130,9 +130,12 @@ describe('test runner with a mise-pinned project', () => {
     originalEnvironment = {
       PATH: process.env.PATH,
       SAFEWORD_CLI: process.env.SAFEWORD_CLI,
+      SAFEWORD_PLUGIN_CLI: process.env.SAFEWORD_PLUGIN_CLI,
       SAFEWORD_FAKE_TOOLS: process.env.SAFEWORD_FAKE_TOOLS,
     };
-    process.env.SAFEWORD_CLI = path.resolve(import.meta.dirname, '../../src/cli.ts');
+    // The production lookup (a plugin host's CLI run by `bun`), not the SAFEWORD_CLI test override.
+    Reflect.deleteProperty(process.env, 'SAFEWORD_CLI');
+    process.env.SAFEWORD_PLUGIN_CLI = path.resolve(import.meta.dirname, '../../src/cli.ts');
     process.env.SAFEWORD_FAKE_TOOLS = 'all';
   });
 
