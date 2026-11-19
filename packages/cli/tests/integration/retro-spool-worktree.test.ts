@@ -225,6 +225,21 @@ describe('retro spool survives a deleted worktree (#5467)', () => {
     expect(decideRetroFilingNudge(worktree, SESSION)).toContain(draftSpoolPath(worktree, SESSION));
   });
 
+  it('keeps a draft spooled after an interrupted write tore the shared copy', () => {
+    git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
+    spoolDrafts(worktree, SESSION, [draft('retro:aaaaaaaaaaaa')]);
+    const durable = durableDraftSpoolPath(worktree, SESSION);
+    writeFileSync(durable, `${readFileSync(durable, 'utf8')}{"signature":"retro:`);
+
+    spoolDrafts(worktree, SESSION, [draft('retro:bbbbbbbbbbbb')]);
+    git(primary, 'worktree', 'remove', '--force', worktree);
+
+    expect(readSpooledDrafts(primary, SESSION).map(spooled => spooled.signature)).toEqual([
+      'retro:aaaaaaaaaaaa',
+      'retro:bbbbbbbbbbbb',
+    ]);
+  });
+
   it('falls back to the working copy when the shared directory cannot be written', () => {
     git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
     const durable = blockWrites(durableDraftSpoolPath(worktree, SESSION));

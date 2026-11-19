@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "c962256b8e06b7076fda6d64dc8a1f0b19641279c237bde729a4074df4782748"
+      "sha256": "60ff0f1e268d8c47bcd1a24df8b3f2dcca086da6f59978f51cfc74db6723c6a1"
     },
     {
       "path": "runtime/dispatch.js",
@@ -271,7 +271,7 @@
     },
     {
       "path": "runtime/hooks/lib/jsonl-spool.ts",
-      "sha256": "8188ea61781b0117cea71b033aeee821cfd720ba2fa601f1101a785af73d9a89"
+      "sha256": "491b371386824c2c46ba992f35c5016406630db58ec8a5e58ba66201c26abafe"
     },
     {
       "path": "runtime/hooks/lib/jtbd.ts",
@@ -1271,7 +1271,7 @@
     },
     {
       "path": "templates/hooks/lib/jsonl-spool.ts",
-      "sha256": "8188ea61781b0117cea71b033aeee821cfd720ba2fa601f1101a785af73d9a89"
+      "sha256": "491b371386824c2c46ba992f35c5016406630db58ec8a5e58ba66201c26abafe"
     },
     {
       "path": "templates/hooks/lib/jtbd.ts",

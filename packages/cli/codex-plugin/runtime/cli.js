@@ -140,10 +140,21 @@ function tryAppendJsonlRecords(filePath, lines, cap) {
       return false;
     const toWrite = lines.slice(0, room);
     mkdirSync(nodePath.dirname(filePath), { recursive: true });
-    appendFileSync(filePath, `${toWrite.join(`
+    const separator = endsMidLine(filePath) ? `
+` : "";
+    appendFileSync(filePath, `${separator}${toWrite.join(`
 `)}
 `);
     return toWrite.length === lines.length;
+  } catch {
+    return false;
+  }
+}
+function endsMidLine(filePath) {
+  try {
+    const contents = readFileSync(filePath, "utf8");
+    return contents.length > 0 && !contents.endsWith(`
+`);
   } catch {
     return false;
   }
