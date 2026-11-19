@@ -22,6 +22,26 @@
 - Before: `bun run test:done` 74.5s wall at load ~6 (110 files, 2,251 tests); vitest 68.9s.
 - After: 105 files, 2,063 tests pass. Repo root (Stop-hook plan command): 36.5s wall at load 7.0. Package-local: 31.7s and 30.8s wall at load 5.3–5.8.
 
+## TDD review
+
+- RED: dropping the five excludes fails only `leaves the measured heavy suites to the full lane`, on
+  `pre-tool-architecture-stage.test.ts`, which is the missing behavior rather than a setup error.
+- GREEN: minimal two-file change. The test's `globSync` selection matches `vitest list --config
+  vitest.done.config.ts` file for file (105 files).
+- Known gap: nothing stops a future heavy hook suite from pushing the lane back over 60 s. A
+  wall-clock assertion would be flaky under load, so none was added.
+
 ## Independent review
 
-Sonnet subagent. Config correct; `vitest list` shows 105 files. Applied: ARCHITECTURE.md row. Answered: CI runs `bun run test` on every PR; smoke lanes keep the full hook directory on purpose (no cap); the glob-based test passes on Node 22 and 24 in CI.
+- Safeword `/quality-review` route: Codex (gpt-6.1-sol), cross-agent, review-id
+  ea21f084-0290-413b-8243-740081e9b2c6. Verdict approve, no findings. Targets: the done config,
+  `package.json` and the lane-selection test. `ARCHITECTURE.md` (one doc row) was left out because it
+  is over the 256 KiB packet limit.
+- Earlier Sonnet subagent pass: applied the ARCHITECTURE.md row fix. Answered: CI runs
+  `bun run test` on every PR, and the smoke lanes keep the full hook directory on purpose (no cap).
+
+## Audit
+
+Audit passed, diff scope against origin/main (merge base 8974a7ad6). Errors: 0. Warnings: 0. Config
+drift: none. depcruise found no violations (543 modules). No learnings, domain docs or
+`impl-plan.md` are in scope. The only doc describing the lane, the `ARCHITECTURE.md` row, matches.
