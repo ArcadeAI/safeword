@@ -2,7 +2,7 @@
 id: 3EG00H
 slug: keep-tasks-and-patches-proportional
 type: feature
-phase: plan-implementation
+phase: scenario-gate
 status: in_progress
 phase_skips:
   - "intake: inherited the user's 2026-09-09 acceptance of the refreshed 82T411 Product Plan and its current parent contract"
@@ -30,7 +30,7 @@ parent: 82T411
 parent_job: plan-implementability.TBU3
 milestone: M3
 created: 2026-09-08T17:36:35.884Z
-last_modified: 2026-11-19T20:20:51Z
+last_modified: 2026-11-20T01:43:47Z
 parent_contract_digest: 52fdd2a185cea51953494482470a0e9912f7a23d5fdb3c58dbee1efac8707b0b
 ---
 
@@ -41,6 +41,8 @@ parent_contract_digest: 52fdd2a185cea51953494482470a0e9912f7a23d5fdb3c58dbee1efa
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-11-20T01:43:47Z Returned to scenario-gate for fresh review of the user's design-only promotion decision. Current applicable behavior approval allows immediate Implementation Planning. Otherwise the same ticket retains its evidence, uses task notes for only the behavior still owed to the existing gate, and carries the pending Implementation Planning destination across restart. Ask only for missing decisions. Earlier receipts remain historical evidence, and the existing Implementation Plan remains a draft.
 
 - 2026-11-19T20:20:51Z Advanced from scenario-gate to plan-implementation after confirming and recording independent scenario approval `7960fbfc-a3be-4837-b1ad-0798130f4188`.
 

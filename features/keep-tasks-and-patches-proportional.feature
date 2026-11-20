@@ -297,19 +297,22 @@ Feature: Keep tasks and patches proportional
 
     @rejection
     Scenario: Promotion preserves completed proof instead of guessing a contract
-      Given a technical builder's task TDD has exposed an unresolved in-scope public-contract decision after producing test evidence
+      Given a technical builder's task TDD has exposed an unresolved in-scope public-contract design decision after producing test evidence
+      And the applicable feature behavior has current approval
       When implementation reaches that decision
       Then production work stops, the completed test evidence is preserved, and the promoted work resumes at Implementation Planning
 
     @rejection
     Scenario: Promotion before RED stops without inventing evidence
       Given a technical builder's task investigation records findings and exposes an unresolved in-scope public-contract design decision before any failing test exists
+      And the applicable feature behavior has current approval
       When implementation would otherwise begin
       Then production work stops, the recorded investigation findings survive the promotion, and the promoted work resumes at Implementation Planning with the decision open and no test evidence claimed
 
     @rejection @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed hosts promote a task when TDD exposes a feature decision
       Given task TDD has produced linked test evidence and then exposes an unresolved in-scope public-contract design decision
+      And the applicable feature behavior has current approval
       When <installed_entry> reaches the decision through real dispatch with real configuration and collaborators
       Then production modification stops, the linked evidence is preserved, and the promoted work resumes at Implementation Planning
 
@@ -333,8 +336,54 @@ Feature: Keep tasks and patches proportional
       Examples:
         | new_choice | return_path |
         | an in-scope product-behavior decision | behavior definition resumes with existing evidence preserved |
-        | an in-scope public-contract design decision | Implementation Planning resumes with existing evidence preserved |
-        | an in-scope implementation-design decision | Implementation Planning resumes with existing evidence preserved |
+        | an in-scope public-contract design decision with current approval for the applicable feature behavior | the same ticket enters Implementation Planning immediately with existing evidence preserved and without reopening behavior review |
+        | an in-scope implementation-design decision with current approval for the applicable feature behavior | the same ticket enters Implementation Planning immediately with existing evidence preserved and without reopening behavior review |
+
+    @rejection @surface.safeword-cli @surface.claude-code @surface.openai-codex @surface.cursor
+    Scenario Outline: Design-only promotion defers Implementation Planning when behavior approval is missing
+      Given an in-scope design decision triggers promotion of a task with inline behavior notes and linked proof
+      And applicable feature behavior still needs current approval
+      And the notes <behavior_notes>
+      When <installed_entry> promotes the task through real dispatch
+      Then the same ticket retains its notes and evidence links and records Implementation Planning as its pending destination
+      And the ticket enters behavior definition and <next_action>
+      And Implementation Planning stays closed until the applicable behavior passes the existing scenario gate
+
+      Examples:
+        | installed_entry | behavior_notes | next_action |
+        | actual installed CLI dispatch | settle the remaining behavior | uses the notes to prepare that behavior for review without asking the user to reconfirm settled decisions |
+        | actual installed CLI dispatch | leave one specific behavior decision unsettled | asks the user only about that decision and holds scenario review until the user answers |
+        | actual Claude Code lifecycle dispatch from installed project hooks | settle the remaining behavior | uses the notes to prepare that behavior for review without asking the user to reconfirm settled decisions |
+        | actual Claude Code lifecycle dispatch from installed project hooks | leave one specific behavior decision unsettled | asks the user only about that decision and holds scenario review until the user answers |
+        | actual OpenAI Codex lifecycle dispatch from the installed plugin | settle the remaining behavior | uses the notes to prepare that behavior for review without asking the user to reconfirm settled decisions |
+        | actual OpenAI Codex lifecycle dispatch from the installed plugin | leave one specific behavior decision unsettled | asks the user only about that decision and holds scenario review until the user answers |
+        | actual Cursor lifecycle dispatch from installed project hooks | settle the remaining behavior | uses the notes to prepare that behavior for review without asking the user to reconfirm settled decisions |
+        | actual Cursor lifecycle dispatch from installed project hooks | leave one specific behavior decision unsettled | asks the user only about that decision and holds scenario review until the user answers |
+
+    @surface.claude-code-cloud @surface.cursor-cloud-agents
+    Scenario Outline: Cloud promotion records the missing decision and returns without waiting
+      Given a task with linked evidence exposes an in-scope design decision and its notes leave one specific behavior decision unsettled
+      When <cloud_entry> promotes the task without an interactive user
+      Then the invocation returns without waiting for input
+      And the same ticket retains its evidence, the pending user decision, and Implementation Planning as the pending destination
+      And scenario review and Implementation Planning stay closed until the user resolves the decision and the behavior passes the existing gate
+
+      Examples:
+        | cloud_entry |
+        | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM |
+        | actual Cursor Cloud Agents lifecycle dispatch from project hooks in a fresh runner |
+
+    @surface.safeword-cli
+    Scenario Outline: Restart follows the saved design destination only after behavior approval
+      Given a promoted ticket is at the existing scenario gate with Implementation Planning saved as its destination and its original evidence linked
+      And the gate has <approval> for the applicable feature behavior
+      When a fresh installed CLI invocation resumes the ticket from disk
+      Then the same ticket retains its original evidence links and <resume_outcome>
+
+      Examples:
+        | approval | resume_outcome |
+        | no current approval | stays at the scenario gate with Implementation Planning still pending |
+        | current approval | enters Implementation Planning from the saved destination |
 
     Scenario: Work already promoted to a feature routes a sequencing-only change to Execution Planning
       Given a task was already promoted to a feature for a feature-triggering decision and has an accepted Implementation Plan
