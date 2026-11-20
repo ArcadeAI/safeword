@@ -2,7 +2,7 @@
 id: 3EG00H
 slug: keep-tasks-and-patches-proportional
 type: feature
-phase: scenario-gate
+phase: plan-implementation
 status: in_progress
 phase_skips:
   - "intake: inherited the user's 2026-09-09 acceptance of the refreshed 82T411 Product Plan and its current parent contract"
@@ -30,7 +30,7 @@ parent: 82T411
 parent_job: plan-implementability.TBU3
 milestone: M3
 created: 2026-09-08T17:36:35.884Z
-last_modified: 2026-11-20T01:43:47Z
+last_modified: 2026-11-20T02:02:26Z
 parent_contract_digest: 52fdd2a185cea51953494482470a0e9912f7a23d5fdb3c58dbee1efac8707b0b
 ---
 
@@ -41,6 +41,8 @@ parent_contract_digest: 52fdd2a185cea51953494482470a0e9912f7a23d5fdb3c58dbee1efa
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-11-20T02:02:26Z Advanced from scenario-gate to plan-implementation after installed Safeword 1.2.0 verified current approved receipt `76bd72db-8ea2-4c9a-8048-828def5da5bc` for 3EG00H and successfully stamped its exact provenance: author `codex`, reviewer `claude`, model `opus`, independence `cross-agent`. Six warnings remain non-blocking; no review errors. Gherkin and Markdown checks already passed. No build-only kill-risk identified requiring a spike. Existing Implementation Plan remains unchanged and unapproved.
 
 - 2026-11-20T01:43:47Z Returned to scenario-gate for fresh review of the user's design-only promotion decision. Current applicable behavior approval allows immediate Implementation Planning. Otherwise the same ticket retains its evidence, uses task notes for only the behavior still owed to the existing gate, and carries the pending Implementation Planning destination across restart. Ask only for missing decisions. Earlier receipts remain historical evidence, and the existing Implementation Plan remains a draft.
 
