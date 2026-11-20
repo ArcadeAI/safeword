@@ -8,7 +8,7 @@
 **Lint:** ✅ Clean (eslint on changed files; CI `lint` green)
 **Typecheck:** ✅ Clean (`tsc --noEmit` across the workspace)
 **Scenarios:** ⏭️ Skipped — task ticket, no test-definitions.md; TDD ledger in ticket.md (RED f835d1c7d, GREEN aeaecb428)
-**Refactor:** ✅ No change warranted — two-file change, no duplication or structure to improve
+**Refactor:** ✅ No change warranted — `/refactor` run 2026-11-20 on both changed files; the one candidate (the five-suite list repeated in config and test) is deliberate, see Refactor below
 **PR Scope:** ✅ Diff matches ticket scope (lane config, `test:done` script, lane-selection test, ARCHITECTURE.md row, ticket records)
 **Dep Drift:** ✅ Clean (no dependencies added)
 **Parent Epic:** N/A
@@ -65,3 +65,18 @@ plugin-generation failures came from the wrong Bun version.
 Audit passed, diff scope against origin/main (merge base 8974a7ad6). Errors: 0. Warnings: 0. Config
 drift: none. depcruise found no violations (543 modules). No learnings, domain docs or
 `impl-plan.md` are in scope. The only doc describing the lane, the `ARCHITECTURE.md` row, matches.
+
+## Refactor
+
+`/refactor` was run on 2026-11-20 against `vitest.done.config.ts` and `done-lane-selection.test.ts`. The scout
+ledger had one entry:
+
+- The five heavy suites are listed in both the config (`FULL_LANE_ONLY`) and the test
+  (`MEASURED_HEAVY_SUITES`). Struck, no change. If the test imported the config's list, deleting an
+  exclude would also delete its assertion, and the test would pass while the lane slid back over 60 s.
+  The repeated list is what makes the test an independent check.
+
+Nothing else was flagged: the config spreads the default lane in 34 lines, there is no dead code,
+and the test helper has a single use. The code is unchanged, so `/audit` was not re-run; its earlier
+pass (0 errors, 0 warnings) still applies.
+
