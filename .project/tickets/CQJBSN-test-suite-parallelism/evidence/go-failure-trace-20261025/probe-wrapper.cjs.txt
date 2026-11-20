@@ -1,0 +1,26 @@
+#!/Users/alex/.local/share/mise/installs/node/24.18.1/bin/node
+const cp = require('node:child_process');
+const fs = require('node:fs');
+const os = require('node:os');
+const sampleTree = require('../sample.cjs');
+const start = Date.now();
+const trace = process.env.GO_DEBUG_TRACE;
+const record = (event, extra = {}) => {
+  if (trace) fs.appendFileSync(trace, JSON.stringify({ event, time: Date.now(), pid: process.pid, args: process.argv.slice(2), load: os.loadavg(), ...extra }) + '\n');
+};
+record('tool-start');
+const child = cp.spawn('/Users/alex/.local/share/mise/shims/golangci-lint', process.argv.slice(2), { stdio: 'inherit', env: { ...process.env, PATH: process.env.GO_DEBUG_ORIGINAL_PATH } });
+const handlers = {};
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  handlers[signal] = () => { record('tool-signal', { signal }); child.kill(signal); };
+  process.on(signal, handlers[signal]);
+}
+child.on('error', error => { record('tool-error', { message: error.message, code: error.code }); process.exitCode = 1; });
+const sampler = setInterval(() => record('tool-processes', { elapsed: Date.now() - start, ...sampleTree(child.pid) }), 5000);
+child.on('close', (code, signal) => {
+  clearInterval(sampler);
+  record('tool-close', { elapsed: Date.now() - start, code, signal });
+  for (const [name, handler] of Object.entries(handlers)) process.removeListener(name, handler);
+  if (signal) process.kill(process.pid, signal);
+  else process.exitCode = code ?? 1;
+});
