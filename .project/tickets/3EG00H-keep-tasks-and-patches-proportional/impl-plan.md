@@ -71,7 +71,7 @@ The installed creation path already accepts explicit ticket types. The [November
   Derive author runtime through the existing run-identity boundary and carry that provenance into the sealed task proof. For Cursor desktop and Cloud Agents, use the installed Cursor adapter's run identity and extend the existing Cursor-to-Claude pairing from planning to executable RED, retaining eligible cross-agent alternatives and the same RED admission rule. This is a required extension to current Cursor routing. Claude authors pair with Codex, and Codex authors with Claude. Standalone CLI is the entry point and preserves the originating author runtime from the installed workflow context. A plain invocation without attributable origin blocks receipt acquisition and directs resumption from the originating supported host. Caller labels cannot establish independence. Installed proof must obtain the receipt and assert the actual author, actual distinct reviewer and successful admission through each claimed path, including CLI under an attributed workflow and both Cursor runner types. Pair with an unattributed CLI refusal.
 
   For design-only promotion, carry forward current authoritative Rules and scenarios by reference only where the existing feature gate confirms applicable provenance. Otherwise publish the feature type, current behavior-prerequisite phase, pending Implementation Planning destination, reason and original evidence links in the same conditional ticket replacement. On restart, read the pending destination from the inline promotion record. Once applicable Rules, scenarios and provenance pass the existing gate, advance the same ticket and clear the pending destination in the same write. Inline facts can seed drafts. A copied receipt or phase label confers no authority.
-  **Alternative considered:** Create a replacement feature ticket and copy passing proof, or use the task's checkboxes as admission.
+  **Alternative considered:** Create a replacement feature ticket and copy passing proof, use the task's checkboxes as admission, or let reduced-independence review satisfy executable RED.
   **Rejected because:** Replacement breaks retry identity and trails. A checkbox can mask absent RED or a changed proposition.
   **Evidence reference:** [2] [Ticket writer](../../../packages/cli/src/utils/ticket-writer.ts), [phase provenance](../../../packages/cli/templates/hooks/lib/phase-provenance.ts), and [continuous quality gates](../../../ARCHITECTURE.md#continuous-quality-gates-loc--phase--tdd). The linked boundaries establish where to enforce and retain history.
   **Retrieval date:** 2026-11-19.
@@ -175,14 +175,24 @@ Default on for new work on matched supported builds after coordinated activation
 | 1. Structure enforces; instructions suggest | Semantic judgment supplies facts while installed admission checks actual evidence and artifacts. | features/keep-tasks-and-patches-proportional.feature | |
 | 2. Fire at boundaries, not every turn | Evaluate at entry, changed decisions and threshold crossings. | features/keep-tasks-and-patches-proportional.feature | |
 | 3. Add, never replace | Promotion retains ticket identity and prior proof references. | features/keep-tasks-and-patches-proportional.feature | |
-| 4. Discover decisions before prescribing work | Discover within accepted scope. Route consequential in-scope choices to their owning phase, drop irrelevant ideas and surface material expansion to the user. | R10–R12, including out-of-scope discoveries routing by consequence. | |
-| 6. Correct and safe; then clear; then simple | Reuse executable RED and checklist semantics at task boundaries. | R8 invented-boundary comparison and R14 inline handoff without feature artifacts. | |
+| 4. Discover decisions before prescribing work | Discover within accepted scope. Route consequential in-scope choices to their owning phase, drop irrelevant ideas and surface material expansion to the user. | features/keep-tasks-and-patches-proportional.feature | |
+| 6. Correct and safe; then clear; then simple | Reuse executable RED and checklist semantics at task boundaries. | features/keep-tasks-and-patches-proportional.feature | |
 
 Architecture applicability: The proposed [semantic small-work admission and in-place promotion decision](../../../ARCHITECTURE.md#semantic-small-work-admission-and-in-place-promotion) records the significant classifier, proof and transition contracts. Reuse the existing [review attestation](../../../ARCHITECTURE.md#authenticated-reduced-independence-planning-review-fallback) and [typed CLI boundary](../../../ARCHITECTURE.md#typed-cli-execution-and-discovery).
 
 ## Known deviations
 
 The current handbook uses file-count sizing defaults. Replace their routing effect with the accepted semantic precedence for the affected surfaces during delivery. Preserve file and surface counts as reevaluation signals.
+
+The existing executable-RED admission contract requires a cross-agent receipt.
+The Principle 1 best-available review tier can provide useful feedback, but
+under that existing contract it cannot authorize production edits. Keep the
+actual failed run and its evidence, allow investigation and test work, and
+return a pending-reviewer handoff that names the eligible route needed to
+resume. This intentionally accepts a pause for otherwise eligible work.
+An unattributed shell invocation must resume from an attributable supported
+host; no author is inferred. The #6786 fallback still applies to planning
+reviews. Changing the RED admission policy would require a separate decision.
 
 ## Doc impact
 
