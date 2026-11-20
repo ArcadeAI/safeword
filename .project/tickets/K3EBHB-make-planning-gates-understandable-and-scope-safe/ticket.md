@@ -2,7 +2,7 @@
 id: K3EBHB
 slug: make-planning-gates-understandable-and-scope-safe
 type: feature
-phase: plan-implementation
+phase: plan-execution
 status: in_progress
 phase_skips:
   - "intake: originally inherited the 2026-09-08 approval of 82T411; after material parent changes, 82T411 was freshly approved and this child was reconciled before scenario review resumed"
