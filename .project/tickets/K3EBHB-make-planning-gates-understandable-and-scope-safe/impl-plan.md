@@ -31,6 +31,12 @@ At the installed checks, pair an edited or mismatched installed contract copy, w
 
 The [November 19 inventory](../82T411-plan-implementation-implementability/evidence/owned-completion-2026-11-19.md) records actual verification-gate recovery, earlier trial intervention, undefined recovery scenarios, and the missing nontechnical walkthrough. It records the two rejected scenario reviews for stale proof and inconsistent cloud action, and approval 983229fa-cd01-456e-b9e5-0c9c7f6ed917 from the corrected packet, with a mismatching installed status and subsequent matching-profile stamp. Those receipts establish scenario decisions. The design below is proposed. Verification requires installed promotion from 3EG00H, the real pending scope and declined-disposition path from 5F5ZZA, the real pending user-owned dispute result from 26FK42, and the actual Non-Technical Builder walkthrough. Until each is available and proven, verification remains incomplete. Enabled approval and user dispositions remain with their actual owners.
 
+R8 delivery also depends on G1C9PP supplying current approval consequences
+and 5F5ZZA supplying authenticated cause and execution-order comparisons.
+These are verification dependencies on their existing owners, not new
+storage or authority in this ticket. Fixtures can support development but
+cannot complete those proofs.
+
 ## Decisions
 
 ### Recorded Decisions
@@ -52,9 +58,24 @@ The [November 19 inventory](../82T411-plan-implementation-implementability/evide
 
   When causes overlap, resolve installed integrity first. Once the installed contract is usable, revision for changed behavior takes precedence over any review-only action, including review under changed canonical rules. Then prioritize approach review ahead of execution review. Display one immediate action and name the other verified invalidations as consequences.
 
-  Compare the prior authenticated job's role-labeled semantic digests with the current planning identity. Use decision-bearing Rules and scenario dependencies for behavior, the exact Implementation Plan target digest for approach, and the Implementation Planning job's canonical contract digest for review rules. The normalized Execution Plan target digest establishes overall execution-definition change. To identify ordering, the review owner retains a separate projection of ordered stable work-item IDs and dependency edges from the reviewed definition in the existing authenticated job, and compares it with the current definition. Changes to required proof alone report a changed Execution Plan without an ordering claim. Prove that pair through the installed gate against an order-only case. A combined mismatch or legacy job without the relevant inputs supports only the most specific fact actually established.
+  The 5F5ZZA review-provenance owner supplies authenticated comparisons for
+  decision-bearing Rules and scenarios, exact approach bytes, execution ordering
+  and canonical contract identity. Ordering evidence must distinguish work-item
+  order and dependency changes from ordinary edits to execution proof. Projection
+  does not store a new job field or change review identity. If the owner cannot
+  produce that distinction, keep the known stale verdict and use the compatible
+  recovery; the current-version R8 proof stays open.
 
-  G1C9PP's approval writer owns binding to the exact plan and the authenticated approach-review identity. Use its existing authorized, serialized ledger append and retain the versioned plan and review-identity digests with the authenticated job reference. Approval becomes stale on a material behavior, approach or canonical contract change. A new review cannot renew the human decision. Execution-only identity is outside the approval subject. Use a distinct ledger event version or kind that legacy consumers skip by their existing unknown-event contract, with no legacy approval mirror. Preserve earlier events. If binding cannot be verified, capable readers report pending. Verify through the approval owner that an old reader cannot accept the new event by plan digest alone even with identical plan bytes and changed upstream context.
+  G1C9PP owns human approval, including binding to reviewed upstream context
+  and handling legacy digest-only decisions. K3EBHB uses the owner’s verified
+  current, stale or pending result without adding ledger events, changing
+  authority, or treating historical approval as current. The approval owner
+  must show that changed behavior, approach or canonical approach rules stale
+  an applicable enabled approval, while execution ordering alone preserves it.
+  Owner implementation and its legacy disposition are required before final R8
+  verification. Until then, report the strongest known outcome and leave that
+  proof open. Never infer renewal from a compatibility gap.
+
   **Alternative considered:** Guess cause from timestamps, file names or review ID mismatches, or make every change trigger both reviews in presentation.
   **Rejected because:** These can ask the user to repair the wrong layer or imply loss of valid upstream authority.
   **Evidence reference:** [2] [Planning context identity](../../../packages/cli/src/review/planning-context-identity.ts), [review job](../../../packages/cli/src/review/job.ts), [plan approval](../../../packages/cli/src/commands/plan-approval.ts), and [semantically projected provenance](../../../ARCHITECTURE.md#semantically-projected-planning-review-provenance).
