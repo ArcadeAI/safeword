@@ -3519,7 +3519,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/tdd-review/SKILL.md": "ae59212a4d368359c3144bde65bb18caaa02fb15590ca72398f15ad507679c70",
         ".claude/skills/testing/SKILL.md": "fe43d03ffe4e39393def44e60a2b88a5f3c70faa878e5e3323f2a22f18470686",
         ".claude/skills/ticket-system/SKILL.md": "5a8ce171c60dc7ab07d641dc66d43ae3730d1a2401df86a02250ce82cf53a800",
-        ".claude/skills/verify/SKILL.md": "d6b1f8cfa6ad1ccc5fd84a8b7f96cf3a13e13561088eb1de9a5b0ee5045759c5"
+        ".claude/skills/verify/SKILL.md": "440496033f496153e5514028643123b5603bde3ba540750f91aaf8849e8b2675"
       },
       hook_files: {
         ".safeword/hooks/post-tool-bypass-warn.ts": "33b1be799f57901e247c9b5478b56e42a727178ad99eebba09ce18a637f69956",
@@ -83788,6 +83788,20 @@ var init_test_runner = __esm(() => {
 
 // templates/hooks/lib/done-gate.ts
 function checkVerifyArtifact(content) {
+  const lines = content.split(`
+`);
+  const fenced = balancedFenceBodyLines(lines);
+  for (const [index, line] of lines.entries()) {
+    if (fenced.has(index))
+      continue;
+    const check = FAILED_VERIFY_CHECK_PATTERN.exec(line)?.groups?.check;
+    if (!check)
+      continue;
+    return {
+      ok: false,
+      reason: `${check} failed. Fix the failures listed in verify.md, then run /verify again.`
+    };
+  }
   const prScopeMatch = PR_SCOPE_LINE_PATTERN.exec(content);
   if (!prScopeMatch?.groups?.status) {
     return {
@@ -83805,7 +83819,7 @@ function checkVerifyArtifact(content) {
   }
   return { ok: true };
 }
-var PR_SCOPE_LINE_PATTERN;
+var PR_SCOPE_LINE_PATTERN, FAILED_VERIFY_CHECK_PATTERN;
 var init_done_gate = __esm(() => {
   init_checkbox_transitions();
   init_dependency_readiness();
@@ -83813,6 +83827,7 @@ var init_done_gate = __esm(() => {
   init_retrospective_gate2();
   init_test_runner();
   PR_SCOPE_LINE_PATTERN = /^\*\*PR Scope:\*\*\s*(?<status>.+)$/im;
+  FAILED_VERIFY_CHECK_PATTERN = /^\*\*(?<check>Test Suite|Gherkin|Build|Lint|Typecheck|Scenarios):\*\*[ \t]*\u274C/iu;
 });
 
 // templates/hooks/lib/quality-state.ts

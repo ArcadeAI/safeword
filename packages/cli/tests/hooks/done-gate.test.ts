@@ -24,6 +24,24 @@ describe('checkVerifyArtifact', () => {
     expect(checkVerifyArtifact(VALID_VERIFY)).toEqual({ ok: true });
   });
 
+  it.each(['Test Suite', 'Gherkin', 'Build', 'Lint', 'Typecheck', 'Scenarios'])(
+    'blocks closure when %s failed even though the diff is in scope',
+    check => {
+      const verdict = checkVerifyArtifact(`${VALID_VERIFY}**${check}:** ❌ Failed\n`);
+      expect(verdict.ok).toBe(false);
+      expect(verdict.reason).toBe(
+        `${check} failed. Fix the failures listed in verify.md, then run /verify again.`,
+      );
+    },
+  );
+
+  it('allows passing lint with a fenced example of an earlier failure', () => {
+    const verdict = checkVerifyArtifact(
+      `${VALID_VERIFY}**Lint:** ✅ Clean\n\n\`\`\`markdown\n**Lint:** ❌ 5 errors\n\`\`\`\n`,
+    );
+    expect(verdict).toEqual({ ok: true });
+  });
+
   it('fails when the PR-scope line is missing', () => {
     const verdict = checkVerifyArtifact('# Verify\n\nlooks fine\n');
     expect(verdict.ok).toBe(false);

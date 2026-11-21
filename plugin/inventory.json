@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "4ec005d53e651e7cdf04088ec84830f47e110381970fa9eb9777010e9090e85f"
+      "sha256": "861bb0049cfcdf5a00c939d360e2bbc2e9b6defa43c6c8d739fb9c4e6d81c932"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "b2c8bb1614ca40371dcf6948709f20841b78300ae45b7d4bfc61d9a16c0be6f5"
+      "sha256": "33097347d876dff01c31523d4e2338d49c7d4a1b07650a36bbed6d9a36cd9a9e"
     },
     {
       "path": "runtime/event-groups.json",
@@ -239,7 +239,7 @@
     },
     {
       "path": "runtime/hooks/lib/done-gate.ts",
-      "sha256": "7ae0babe0c1435a4f64eb36f600b614ed4776520b30a0cd352a7e09f1362702e"
+      "sha256": "d4d7dcbeb57bc4b65a768ac6bb97819644c8bc3f80dcefe4369c101a40164e91"
     },
     {
       "path": "runtime/hooks/lib/drain-retro-spool.ts",
@@ -794,8 +794,8 @@
     },
     {
       "path": "skills/verify/SKILL.md",
-      "sha256": "0601f5f8399a04199c87442a47ec111d486ed1b3426b5425e6a256fc4efbabc8",
-      "skill_sha256": "74e1fadb06cd1dbe4eb887fc7839bd90bdbf762779167c8c0492711747a255a1"
+      "sha256": "66c518f856c3f07aaaedda93cdd70540de562fe70a463e26a1d5ee2d9c4f2d78",
+      "skill_sha256": "ea56a94ee007a241bd93a8a77bb9e68ed57c7056fbca5afc9b53caee752ab6d1"
     },
     {
       "path": "templates/.jscpd.json",
@@ -1239,7 +1239,7 @@
     },
     {
       "path": "templates/hooks/lib/done-gate.ts",
-      "sha256": "7ae0babe0c1435a4f64eb36f600b614ed4776520b30a0cd352a7e09f1362702e"
+      "sha256": "d4d7dcbeb57bc4b65a768ac6bb97819644c8bc3f80dcefe4369c101a40164e91"
     },
     {
       "path": "templates/hooks/lib/drain-retro-spool.ts",
@@ -1799,7 +1799,7 @@
     },
     {
       "path": "templates/skills/verify/SKILL.md",
-      "sha256": "d6b1f8cfa6ad1ccc5fd84a8b7f96cf3a13e13561088eb1de9a5b0ee5045759c5"
+      "sha256": "440496033f496153e5514028643123b5603bde3ba540750f91aaf8849e8b2675"
     },
     {
       "path": "templates/spec-template.md",
