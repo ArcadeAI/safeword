@@ -39,7 +39,8 @@ const { data } = JSON.parse(
     'Rename the status response field',
   ),
 ) as { data: { file: string; ticket_id: string } };
-git('add', 'src', data.file);
+// Capture the installed fixture so setup files do not count as task changes.
+git('add', '--all');
 git(
   '-c',
   'user.name=Fixture',
