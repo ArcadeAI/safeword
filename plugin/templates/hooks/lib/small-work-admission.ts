@@ -8,6 +8,10 @@ import { smallWorkFootprintDenial, smallWorkThresholds } from './small-work-foot
 import { classifySmallWork, type SmallWorkFacts } from './small-work-classification.js';
 
 const FACTS_HEADING = '## Safeword small-work facts';
+export function hasSmallWorkFacts(ticket: string): boolean {
+  return ticket.split(/\r?\n/u).includes(FACTS_HEADING);
+}
+
 const PENDING_PLAN = 'small_work_pending_phase: plan-implementation';
 
 function readFacts(ticket: string): unknown {
@@ -124,7 +128,7 @@ export function smallWorkRoutingDenial(
   } catch {
     return 'Safeword could not read the active small-work ticket. Reopen the ticket and retry.';
   }
-  if (!ticket.split(/\r?\n/u).includes(FACTS_HEADING)) return undefined;
+  if (!hasSmallWorkFacts(ticket)) return undefined;
   try {
     const relative = nodePath.relative(realpathSync(projectRoot), realpathSync(ticketPath));
     if (

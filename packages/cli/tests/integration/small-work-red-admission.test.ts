@@ -8,8 +8,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { consequentialDecisions } from '../../templates/hooks/lib/small-work-classification.js';
 import {
   createTemporaryDirectory,
+  expectHookAllow,
+  expectHookDeny,
   removeTemporaryDirectory,
   runCli,
+  spawnHookScript,
   ticketFolderBySlug,
   ticketIdBySlug,
 } from '../helpers.js';
@@ -148,6 +151,31 @@ test('unrelated', () => { throw new Error('${expectedFailure}'); });\n`,
     };
     writeFacts();
     expect(editDecision().permission).toBe('deny');
+    writeFileSync(
+      nodePath.join(project, '.project', `quality-state-${session}.json`),
+      JSON.stringify({ activeTicket: id }),
+    );
+    const claudeDecision = (tool_name: string, tool_input: Record<string, string>) =>
+      spawnHookScript(
+        nodePath.resolve(import.meta.dirname, '../../templates/hooks/pre-tool-quality.ts'),
+        project,
+        { cwd: project, session_id: session, tool_name, tool_input },
+      );
+    const shellDecision = (command: string) => claudeDecision('Bash', { command });
+    expectHookDeny(
+      shellDecision(`printf '%s' replacement > ${entryPoint}`),
+      'Use the native file edit tool',
+    );
+    expectHookAllow(shellDecision(`bun test ${realTest}`));
+    expectHookAllow(shellDecision(`cat ${entryPoint}`));
+    expectHookAllow(shellDecision(`printf '%s' test > ${realTest}`));
+    expectHookDeny(
+      claudeDecision('Write', {
+        file_path: nodePath.join(project, entryPoint),
+        content: 'export const attempts = () => 2;\n',
+      }),
+      'failing',
+    );
 
     const request = {
       ticket: id,

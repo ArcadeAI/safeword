@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "dcb2e86fe6b1b43325b01bb999ecca6d62a5810e0cfaded4e70185bb05b14d43"
+      "sha256": "0082c614fb0282f15fc5c4b098313dbad6f27cff8b3513c9cb7c07787466c652"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "d48cdc061cb193a222c5d731bc3a3e49e7a0141ba245b93feaebe27662b6cc11"
+      "sha256": "3d354cb3103b809a491596d485926155cd013baed9e234be73ccc2d3dea96ba2"
     },
     {
       "path": "runtime/event-groups.json",
@@ -199,7 +199,7 @@
     },
     {
       "path": "runtime/hooks/lib/bash-ledger-writes.ts",
-      "sha256": "1d31c735a8902f02d73f77f92d1b1eac36a468fec30be09aa5c23e4b71628bbc"
+      "sha256": "a4c7fe35be80e578de6d62a4386661c146584383f617c75d0a09b379956b1d58"
     },
     {
       "path": "runtime/hooks/lib/blocked-on-gate.ts",
@@ -455,7 +455,7 @@
     },
     {
       "path": "runtime/hooks/lib/small-work-admission.ts",
-      "sha256": "b41326dc6ecf1b6d904f49096900c9c153e166505485048b56410b894e5c73b0"
+      "sha256": "ae3580011abe1fc9569287cfec68d531da7ad7753d3b8188efff2a87d52e24bd"
     },
     {
       "path": "runtime/hooks/lib/small-work-classification.ts",
@@ -539,7 +539,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "7d6ca7b1fff904ddd405a7a5326791a41a1dbf909401f26c4029312683dc4ac0"
+      "sha256": "205d44bd6038049126171149505711d38bc7864d36dfebef1f2e263ee5cb2bce"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -1211,7 +1211,7 @@
     },
     {
       "path": "templates/hooks/lib/bash-ledger-writes.ts",
-      "sha256": "1d31c735a8902f02d73f77f92d1b1eac36a468fec30be09aa5c23e4b71628bbc"
+      "sha256": "a4c7fe35be80e578de6d62a4386661c146584383f617c75d0a09b379956b1d58"
     },
     {
       "path": "templates/hooks/lib/blocked-on-gate.ts",
@@ -1463,7 +1463,7 @@
     },
     {
       "path": "templates/hooks/lib/small-work-admission.ts",
-      "sha256": "b41326dc6ecf1b6d904f49096900c9c153e166505485048b56410b894e5c73b0"
+      "sha256": "ae3580011abe1fc9569287cfec68d531da7ad7753d3b8188efff2a87d52e24bd"
     },
     {
       "path": "templates/hooks/lib/small-work-classification.ts",
@@ -1547,7 +1547,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "4355e112ff2cb99011f43b973c80b690f0d796659a7819bec075943738b6855d"
+      "sha256": "110644774c967962dac5b6a64ffc2b2df6707b830239a6bf80c47409f4409b06"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",

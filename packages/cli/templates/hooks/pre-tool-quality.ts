@@ -14,7 +14,11 @@ import {
   getTicketInfo,
   parseTddStep,
 } from './lib/active-ticket.ts';
-import { detectInspirationArtifactWrite, detectLedgerWrite } from './lib/bash-ledger-writes.ts';
+import {
+  detectInspirationArtifactWrite,
+  detectLedgerWrite,
+  detectProjectFileWrite,
+} from './lib/bash-ledger-writes.ts';
 import { retrospectiveGateDenial } from './lib/retrospective-gate.ts';
 import {
   askTrustedSafeword,
@@ -81,7 +85,7 @@ import {
 } from './lib/plan-gate.ts';
 import { evaluateParentContract } from './lib/product-plan-contract.ts';
 import { installCrashCapture } from './lib/self-report.ts';
-import { smallWorkRoutingDenial } from './lib/small-work-admission.ts';
+import { hasSmallWorkFacts, smallWorkRoutingDenial } from './lib/small-work-admission.ts';
 
 const crashCapture = installCrashCapture('pre-tool-quality');
 
@@ -605,6 +609,36 @@ if (tool === 'Bash') {
       `Shell commands can't change ${inspirationWrite.path} (${inspirationWrite.shape}), because Safeword can't check what a shell command writes to a ticket file.`,
       `Make the change with the Edit or Write tool (apply_patch in Codex). To only read the file, use cat, grep, or the Read tool.`,
     );
+  }
+  const activeTicket = readSessionState(projectDirectory, input.session_id)?.activeTicket;
+  if (activeTicket) {
+    const { folder } = getTicketInfo(projectDirectory, activeTicket);
+    if (folder !== undefined) {
+      const ticketPath = nodePath.join(
+        resolveNamespaceRoot(projectDirectory),
+        'tickets',
+        folder,
+        'ticket.md',
+      );
+      const write = hasSmallWorkFacts(readFileSync(ticketPath, 'utf8'))
+        ? detectProjectFileWrite(command, target => {
+            if (target === '' || /[$*?{}\x60]/u.test(target)) return false;
+            const file = canonicalEditTarget(launchProjectDirectory, target, input.cwd);
+            return (
+              !isMetaPath(file, canonicalProjectDirectory) &&
+              !isTestFile(file) &&
+              nodePath.extname(file) !== '.feature'
+            );
+          })
+        : undefined;
+      if (write !== undefined) {
+        deny(
+          `Use the native file edit tool for ${write.path}. Safeword checks whether this work can proceed before changing production files.`,
+          undefined,
+          true,
+        );
+      }
+    }
   }
   const processKill = detectBroadProcessKill(command);
   if (processKill) {
