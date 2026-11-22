@@ -515,7 +515,11 @@ function validProofHeader(lines: readonly string[], start: number): boolean {
   );
 }
 
-function parseItems(lines: readonly string[], start: number): DeliveryChecklistResult {
+function parseItems(
+  lines: readonly string[],
+  start: number,
+  requireAllCategories: boolean,
+): DeliveryChecklistResult {
   const items: DeliveryChecklistItem[] = [];
   const identifiers = new Set<string>();
   const candidates = lines.slice(start + 2);
@@ -542,6 +546,12 @@ function parseItems(lines: readonly string[], start: number): DeliveryChecklistR
   if (items.length === 0) {
     return invalid('invalid_delivery_checklist', 'The Delivery Checklist has no items.');
   }
+  return requireAllCategories ? requireChecklistCategories(items) : { ok: true, items };
+}
+
+function requireChecklistCategories(
+  items: readonly DeliveryChecklistItem[],
+): DeliveryChecklistResult {
   const present = new Set(items.map(item => item.category));
   const missingCategories = DELIVERY_CHECKLIST_CATEGORIES.filter(
     category => !present.has(category),
@@ -557,7 +567,10 @@ function parseItems(lines: readonly string[], start: number): DeliveryChecklistR
   return { ok: true, items };
 }
 
-export function parseDeliveryChecklist(content: string): DeliveryChecklistResult {
+export function parseDeliveryChecklist(
+  content: string,
+  options: { readonly requireAllCategories?: boolean } = {},
+): DeliveryChecklistResult {
   const lines = content.split(/\r?\n/u);
   const markerIndex = lines.findIndex(line => line.trim() === MARKER);
   if (markerIndex === -1) {
@@ -570,7 +583,23 @@ export function parseDeliveryChecklist(content: string): DeliveryChecklistResult
   if (start === -1 || !validHeader(lines, start)) {
     return invalid('invalid_delivery_checklist', 'The Delivery Checklist table header is invalid.');
   }
-  return parseItems(lines, start);
+  return parseItems(lines, start, options.requireAllCategories ?? true);
+}
+
+export function renderInitialSmallWorkChecklist(): string {
+  const header = HEADERS.join(' | ');
+  const separator = HEADERS.map(() => '---').join(' | ');
+  return [
+    '',
+    '## Delivery Checklist',
+    '',
+    MARKER,
+    '',
+    `| ${header} |`,
+    `| ${separator} |`,
+    '| verification | testing | Verify the agreed outcome at its existing boundary | contributor | targeted-verification | open | missing | | |',
+    '',
+  ].join('\n');
 }
 
 function parseProofRows(
@@ -631,10 +660,13 @@ export function parseProofSpecifications(content: string): DeliveryProofSpecific
   return parseProofRows(lines, start);
 }
 
-export function parseDeliveryPlanContract(content: string): DeliveryPlanContractResult {
+export function parseDeliveryPlanContract(
+  content: string,
+  options: { readonly requireAllCategories?: boolean } = {},
+): DeliveryPlanContractResult {
   const proofs = parseProofSpecifications(content);
   if (!proofs.ok) return proofs;
-  const checklist = parseDeliveryChecklist(content);
+  const checklist = parseDeliveryChecklist(content, options);
   if (!checklist.ok) return checklist;
   const lines = content.split(/\r?\n/u);
   const proofHeading = lines.findIndex(line => line.trim() === '## Proof specifications');
@@ -821,8 +853,11 @@ interface DeliveryChecklistUpdateInput {
 
 function validateChecklistUpdate(
   input: DeliveryChecklistUpdateInput,
+  inline: boolean,
 ): DeliveryChecklistUpdateResult {
-  const contract = parseDeliveryPlanContract(input.expectedContent);
+  const contract = parseDeliveryPlanContract(input.expectedContent, {
+    requireAllCategories: !inline,
+  });
   if (!contract.ok) return updateFailure(contract.code, contract.message);
   const item = contract.items.find(candidate => candidate.id === input.itemId);
   if (item === undefined) {
@@ -926,8 +961,9 @@ function replaceExactPlanSnapshot(
 /** Replace only one checklist row's mutable progress cells from an exact plan snapshot. */
 export function updateDeliveryChecklistFile(
   input: DeliveryChecklistUpdateInput,
+  options: { readonly inline?: boolean } = {},
 ): DeliveryChecklistUpdateResult {
-  const validation = validateChecklistUpdate(input);
+  const validation = validateChecklistUpdate(input, options.inline === true);
   if (!validation.ok) return validation;
   const updated = updatedChecklistContent(input);
   if (!updated.ok) return updated;

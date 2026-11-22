@@ -267,6 +267,7 @@ function ticketNewReplayCommand(invocation: CommandInvocation): string {
     operands: [slug],
     options: [
       ['--type', type],
+      ['--small-work-facts', stringOption(invocation.options, 'smallWorkFacts')],
       ['--title', stringOption(invocation.options, 'title')],
       ['--goal', stringOption(invocation.options, 'goal')],
       ['--why', stringOption(invocation.options, 'why')],

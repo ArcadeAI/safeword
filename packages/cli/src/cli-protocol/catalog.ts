@@ -549,6 +549,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
         description: 'patch, task, feature, or epic',
         defaultValue: 'task',
       },
+      {
+        flags: '--small-work-facts <json>',
+        description: 'Classify current work from versioned facts',
+      },
       { flags: '--title <title>', description: 'Ticket title' },
       { flags: '--goal <goal>', description: 'One-line goal' },
       { flags: '--why <why>', description: 'One-line rationale' },
@@ -635,6 +639,33 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       syntax: 'coding-authorization <ticketId>',
       fixture: {
         argv: ['ticket', 'coding-authorization', 'fixture'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
+  command('ticket classify-small-work', 'Classify versioned small-work facts', 'observe', {
+    syntax: 'classify-small-work <factsJson>',
+    fixture: {
+      argv: ['ticket', 'classify-small-work', '{}'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command('ticket observe-small-work-proof', 'Observe a declared small-work test', 'mutate', {
+    syntax: 'observe-small-work-proof <proofJson>',
+    networkPolicy: 'declared',
+    fixture: {
+      argv: ['ticket', 'observe-small-work-proof', '{}'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command(
+    'ticket verify-small-work-proof',
+    'Verify a current small-work test observation',
+    'observe',
+    {
+      syntax: 'verify-small-work-proof <proofJson> <observationJson> [previousAdmission]',
+      fixture: {
+        argv: ['ticket', 'verify-small-work-proof', '{}', '{}'],
         environment: MACHINE_ENVIRONMENT,
       },
     },

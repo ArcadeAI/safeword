@@ -17,6 +17,8 @@
 import nodePath from 'node:path';
 import process from 'node:process';
 
+import { classifySmallWork } from '../../templates/hooks/lib/small-work-classification.js';
+import { smallWorkThresholds } from '../../templates/hooks/lib/small-work-footprint.js';
 import { effectsFromMutationJournal } from '../cli-protocol/mutation-effects.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { createTicketRouted, RoutedTicketCreationError } from '../ticket-create/index.js';
@@ -39,8 +41,56 @@ export interface TicketNewOptions {
   parent?: string;
   milestone?: string;
   parentJob?: string;
+  smallWorkFacts?: string;
   /** Adopt an existing tracker issue key as identity (issue-first providers only). */
   issue?: string;
+}
+
+function classifyTicketEntry(
+  options: TicketNewOptions,
+  cwd: string,
+):
+  | { readonly ok: true; readonly type: ParsedTicketType; readonly facts?: unknown }
+  | { readonly ok: false; readonly result: CliResult } {
+  const declaredType = resolveType(options.type);
+  if (options.smallWorkFacts === undefined) return { ok: true, type: declaredType };
+  if (declaredType === 'epic') throw new Error('Small-work classification does not create epics.');
+  smallWorkThresholds(cwd);
+  const facts = JSON.parse(options.smallWorkFacts) as unknown;
+  const classified = classifySmallWork(facts);
+  if (classified.status === 'classified') {
+    return {
+      ok: true,
+      type: classified.route,
+      facts: classified.route === 'feature' ? undefined : facts,
+    };
+  }
+
+  const message = classified.reasons.join(', ');
+  return {
+    ok: false,
+    result: createResult({
+      state: classified.status,
+      ...(classified.status === 'failed' && {
+        errors: [{ code: 'SMALL_WORK_CLASSIFICATION_FAILED', message, retryable: false }],
+      }),
+      findings: [{ code: 'SMALL_WORK_CLASSIFICATION', message, severity: 'warning' }],
+    }),
+  };
+}
+
+function epicLinkFindings(cwd: string, id: string, parent: string | undefined) {
+  if (parent === undefined) return [];
+  const linked = linkChildToEpic(cwd, id, parent);
+  return linked.ok
+    ? []
+    : [
+        {
+          code: 'EPIC_REVERSE_LINK_FAILED',
+          message: linked.reason,
+          severity: 'warning' as const,
+        },
+      ];
 }
 
 export async function createTicketResult(
@@ -50,8 +100,12 @@ export async function createTicketResult(
 ): Promise<CliResult> {
   let type: TicketType | undefined;
   let normalizedSlug: string;
+  let smallWorkFacts: unknown;
   try {
-    type = validateOptions(options, resolveType(options.type), cwd);
+    const classified = classifyTicketEntry(options, cwd);
+    if (!classified.ok) return classified.result;
+    type = validateOptions(options, classified.type, cwd);
+    smallWorkFacts = classified.facts;
     normalizedSlug = normalizeSlug(slug);
   } catch (validationError) {
     return createResult({
@@ -79,6 +133,7 @@ export async function createTicketResult(
         parent: options.parent,
         milestone: options.milestone,
         parentJob: options.parentJob,
+        smallWorkFacts,
         issue: options.issue,
       },
       {
@@ -87,17 +142,7 @@ export async function createTicketResult(
         minter: resolveMinter(),
       },
     );
-    const findings = [];
-    if (options.parent !== undefined) {
-      const linked = linkChildToEpic(cwd, result.id, options.parent);
-      if (!linked.ok) {
-        findings.push({
-          code: 'EPIC_REVERSE_LINK_FAILED',
-          message: linked.reason,
-          severity: 'warning' as const,
-        });
-      }
-    }
+    const findings = epicLinkFindings(cwd, result.id, options.parent);
     const effects =
       result.mutations.length === 0
         ? {

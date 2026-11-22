@@ -2,7 +2,7 @@
 id: 3EG00H
 slug: keep-tasks-and-patches-proportional
 type: feature
-phase: plan-implementation
+phase: implement
 status: in_progress
 phase_skips:
   - "intake: inherited the user's 2026-09-09 acceptance of the refreshed 82T411 Product Plan and its current parent contract"
@@ -41,6 +41,18 @@ parent_contract_digest: 52fdd2a185cea51953494482470a0e9912f7a23d5fdb3c58dbee1efa
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-11-21: Plain-prompt Codex CLI probe requested a response-field rename. A legacy ticket without small-work facts stayed a task and both files changed. A fresh session on the matched ticket with initially settled facts found the caller, recorded the public contract change, and moved the same ticket to feature behavior definition before any source edits. This is one matched Codex interpretation observation. The full native matrix and both cloud runs remain open.
+
+- 2026-11-21: After the user approved the five hooks in the isolated Codex profile, Codex CLI 0.171.0 denied the native apply_patch probe for unresolved compatibility. The fixture retained the same ticket ID, moved to feature behavior definition, and left the production file unchanged. This proves native dispatch with supplied facts. The 77 focused tests passed and all five generated surfaces were verified after the package test lock cleared. Live interpretation and hosted proof remain open.
+
+- 2026-11-21: Claude Code 2.1.326 also denied the native fixture write and promoted the same ticket after the disposable fixture allowed ordinary Edit calls. Fresh Codex CLI 0.171.0 had the candidate plugin installed, but its native edit still went through on the same probe, including after project trust. The Codex and hosted boundaries remain unproven. The latest footprint changes require an evaluation and resolve the proposed path against recorded affected surfaces. Checks on those exact changes and lifecycle fixture regeneration did not start because the dispute worktree held the repository-wide package test lock, including a five-minute retry. The broader small-work delivery and review gates remain open.
+
+- 2026-11-21: A real Cursor CLI session (2026.11.13-eacade1) in a disposable enrolled repository with a baseline commit recorded the ticket edit, denied the native write to the pending public response, and left the same ticket at feature behavior definition. Tracing earlier setup attempts isolated the fixture issue: PostToolUse skips state persistence before the first Git commit. Evidence is a local R13 dispatch probe using supplied facts, not live interpretation or cloud proof.
+
+- 2026-11-21: Local implementation exercises common classification at ticket creation, in-place routing of a recorded public-contract discovery at the installed Cursor write gate, cumulative file thresholds across commits, and a solo task's bound failing observation. The gate can continue after an admitted edit and rejects stale or mismatched test input. A preserving-task control supplies a passing test. The inline patch handoff records current verification and leaves the release owner pending. Local integrations supply interpreted facts and do not establish live semantic interpretation. The next proof still needs native local and fresh cloud sessions, complete reevaluation and promotion coverage, and checklist coverage for the task demo.
+
+- 2026-11-21: Coding authorization passed. The first R13 integration test reached the installed Cursor write hook and failed because the edit was allowed despite the recorded public-contract discovery.
 
 - 2026-11-20T02:02:26Z Advanced from scenario-gate to plan-implementation after installed Safeword 1.2.0 verified current approved receipt `76bd72db-8ea2-4c9a-8048-828def5da5bc` for 3EG00H and successfully stamped its exact provenance: author `codex`, reviewer `claude`, model `opus`, independence `cross-agent`. Six warnings remain non-blocking; no review errors. Gherkin and Markdown checks already passed. No build-only kill-risk identified requiring a spike. Existing Implementation Plan remains unchanged and unapproved.
 

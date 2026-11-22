@@ -81,6 +81,7 @@ import {
 } from './lib/plan-gate.ts';
 import { evaluateParentContract } from './lib/product-plan-contract.ts';
 import { installCrashCapture } from './lib/self-report.ts';
+import { smallWorkRoutingDenial } from './lib/small-work-admission.ts';
 
 const crashCapture = installCrashCapture('pre-tool-quality');
 
@@ -1388,6 +1389,19 @@ if (state.activeTicket) {
     ticketInfo.folder === undefined
       ? undefined
       : nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets', ticketInfo.folder);
+  if (
+    ticketDirectory !== undefined &&
+    !isTestFile(editedFile) &&
+    nodePath.extname(editedFile) !== '.feature'
+  ) {
+    const routingDenial = smallWorkRoutingDenial(
+      projectDirectory,
+      nodePath.join(ticketDirectory, 'ticket.md'),
+      state.activeTicket,
+      editedFile,
+    );
+    if (routingDenial !== undefined) deny(routingDenial, undefined, true);
+  }
   const isBehaviorDefinitionEdit =
     (ticketInfo.phase === 'define-behavior' || ticketInfo.phase === 'scenario-gate') &&
     nodePath.extname(editedFile) === '.feature';

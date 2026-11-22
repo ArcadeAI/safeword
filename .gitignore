@@ -75,6 +75,7 @@ node_modules/
 .safeword/boundary-audit.jsonl
 .safeword/claude-plugin/
 .safeword/state/reviews/
+.safeword/state/small-work/
 .project/quality-state*.json
 .project/cursor-run-identity.json
 .project/codex-run-identity.json

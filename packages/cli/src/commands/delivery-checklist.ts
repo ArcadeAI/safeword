@@ -28,6 +28,11 @@ import {
 } from '../review/approval-ledger.js';
 import type { ExecutionPlanDeliveryDefinition, ExecutionPlanRecord } from '../review/contract.js';
 import { startReviewJob } from '../review/job.js';
+import {
+  observeInlineDelivery,
+  readInlineTicket,
+  recordInlineDelivery,
+} from '../small-work/delivery.js';
 import { resolveNamespaceRoot } from '../utils/configured-paths.js';
 import { readFrontmatterScalar } from '../utils/frontmatter.js';
 import { resolveTicketDirectory } from '../utils/product-plan-contract.js';
@@ -484,6 +489,8 @@ function evidenceGapSummary(
 }
 
 export function observeDeliveryChecklist(cwd: string, ticketId: string): CliResult {
+  const inline = readInlineTicket(cwd, ticketId);
+  if (inline !== undefined) return observeInlineDelivery(inline);
   const command = 'ticket delivery-checklist';
   const loaded = loadDeliveryContext(cwd, ticketId, command);
   if (!loaded.ok) return loaded.result;
@@ -761,6 +768,18 @@ function recordedEvidenceClass(
 }
 
 export async function recordDeliveryProof(
+  cwd: string,
+  ticketId: string,
+  itemId: string,
+  proofId: string,
+): Promise<CliResult> {
+  const inline = readInlineTicket(cwd, ticketId);
+  return inline === undefined
+    ? recordFeatureDeliveryProof(cwd, ticketId, itemId, proofId)
+    : recordInlineDelivery(inline, itemId, proofId);
+}
+
+async function recordFeatureDeliveryProof(
   cwd: string,
   ticketId: string,
   itemId: string,

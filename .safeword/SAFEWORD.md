@@ -94,6 +94,35 @@ If the user is exploring without intent to build, follow their lead — not ever
 
 ### 2. Classify (Sizing)
 
+For projects participating in matched small-work verification, use
+`safeword ticket classify-small-work <factsJson>` to check the route and
+`safeword ticket new <slug> --small-work-facts <factsJson>` to create the
+classified ticket. Supply the accepted scope, outcome, verification method,
+and settled or unresolved decisions from the task, callers and shared
+contracts. File and surface thresholds prompt reevaluation. An unresolved
+shared contract can require feature planning for a one-file change. Small
+tasks keep their test specification and observed proof in the ticket.
+
+Before the first production edit, record `evaluation.base` as the full
+commit at task entry. Record the effective file and surface limits, whether
+the current footprint exceeds each one, and the declared affected surfaces.
+For each planned path, record its affected surfaces in `evaluation.surfacePaths`
+as `{ "path": "src/example.ts", "surfaces": ["CLI"] }`. Use project surface
+descriptions, callers and installed entry points as evidence. Keep the task
+base across commits and restarts. When the gate reports a new path or a
+threshold crossing, inspect the changed scope and save the current evaluation
+before retrying.
+
+For a behavior correction, identify the existing entry point, pre-test
+revision, exact test command and expected failing assertion. Run the
+declared test through `safeword ticket observe-small-work-proof <proofJson>`.
+Link its observation to the inline task and explain how the assertion
+demonstrates the agreed behavior gap. The gate checks the observation
+against the current proof inputs. Run the same targeted test again after
+the fix. If reevaluation finds a consequential in-scope decision, stop
+production edits and continue on the same ticket in the phase that owns
+the decision.
+
 Pick the work level internally. Don't announce it as a label ("Feature detected!"); state your scope read as part of your proposal.
 
 Three questions:

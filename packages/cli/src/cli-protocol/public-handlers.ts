@@ -425,6 +425,118 @@ async function codingAuthorizationHandler(invocation: CommandInvocation): Promis
   return evaluateCodingAuthorization(invocation.cwd, ticket);
 }
 
+async function classifySmallWorkHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const operand = invocation.operands[0];
+  let facts: unknown;
+  if (typeof operand === 'string') {
+    try {
+      facts = JSON.parse(operand) as unknown;
+    } catch {
+      return invalidOperand('ticket classify-small-work', 'Expected a valid JSON object.');
+    }
+  }
+  const { smallWorkThresholds } = await import('../../templates/hooks/lib/small-work-footprint.js');
+  try {
+    smallWorkThresholds(invocation.cwd);
+  } catch (error) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'INVALID_SMALL_WORK_THRESHOLDS',
+          message: error instanceof Error ? error.message : String(error),
+          retryable: false,
+        },
+      ],
+    });
+  }
+  const { classifySmallWork } =
+    await import('../../templates/hooks/lib/small-work-classification.js');
+  const result = classifySmallWork(facts);
+  const state = result.status === 'classified' ? 'healthy' : result.status;
+  return createResult({
+    state,
+    ...(state === 'failed' && {
+      errors: [
+        { code: 'INVALID_SMALL_WORK_FACTS', message: result.reasons.join(', '), retryable: false },
+      ],
+    }),
+    findings: result.reasons.map(message => ({
+      code: 'SMALL_WORK_CLASSIFICATION',
+      message,
+      severity: state === 'healthy' ? 'info' : 'warning',
+    })),
+    data: { command: 'ticket classify-small-work', ...result },
+  });
+}
+
+async function observeSmallWorkProofHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const command = 'ticket observe-small-work-proof';
+  const operand = invocation.operands[0];
+  let request: unknown;
+  try {
+    if (typeof operand === 'string') request = JSON.parse(operand) as unknown;
+  } catch {
+    return invalidOperand(command, 'Expected a valid JSON object.');
+  }
+  const { isSmallWorkProofRequest, observeSmallWorkProof } =
+    await import('../small-work/proof-observation.js');
+  if (!isSmallWorkProofRequest(request)) {
+    return invalidOperand(
+      command,
+      'Expected ticket, contractDigest, argv, cwd, target, entryPoint, inputs and expectedFailure.',
+    );
+  }
+  try {
+    const observed = await observeSmallWorkProof(invocation.cwd, request);
+    return createResult({
+      state: 'healthy',
+      data: { command, ...observed },
+    });
+  } catch (error) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'SMALL_WORK_PROOF_FAILED',
+          message: error instanceof Error ? error.message : String(error),
+          retryable: false,
+        },
+      ],
+    });
+  }
+}
+
+async function verifySmallWorkProofHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const command = 'ticket verify-small-work-proof';
+  const [proofJson, observationJson, previousAdmission] = invocation.operands;
+  let request: unknown;
+  let observation: unknown;
+  try {
+    if (typeof proofJson === 'string') request = JSON.parse(proofJson) as unknown;
+    if (typeof observationJson === 'string') observation = JSON.parse(observationJson) as unknown;
+  } catch {
+    return invalidOperand(command, 'Expected valid proof and observation JSON.');
+  }
+  const { isSmallWorkProofRequest, verifySmallWorkProof, smallWorkAdmissionToken } =
+    await import('../small-work/proof-observation.js');
+  if (!isSmallWorkProofRequest(request)) return invalidOperand(command, 'Invalid proof request.');
+  const current = verifySmallWorkProof(
+    invocation.cwd,
+    request,
+    observation,
+    typeof previousAdmission === 'string' ? previousAdmission : undefined,
+  );
+  return createResult({
+    state: current ? 'healthy' : 'action_required',
+    data: {
+      command,
+      current,
+      ...(current && { admissionToken: smallWorkAdmissionToken(invocation.cwd, observation) }),
+    },
+  });
+}
+
 async function recordDeliveryProofHandler(invocation: CommandInvocation): Promise<CliResult> {
   const [ticket, item, proof] = invocation.operands;
   if ([ticket, item, proof].some(value => typeof value !== 'string' || value === '')) {
@@ -610,6 +722,9 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'ticket delivery-checklist': deliveryChecklistHandler,
   'ticket execution-prerequisite': executionPrerequisiteHandler,
   'ticket coding-authorization': codingAuthorizationHandler,
+  'ticket classify-small-work': classifySmallWorkHandler,
+  'ticket observe-small-work-proof': observeSmallWorkProofHandler,
+  'ticket verify-small-work-proof': verifySmallWorkProofHandler,
   'ticket record-delivery-proof': recordDeliveryProofHandler,
   'review run': reviewRunHandler,
   'review gate executable-red': executableRedGateHandler,

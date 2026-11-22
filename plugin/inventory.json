@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "07eeabc1929e6b7821a34a379a53607d76ea758aafe243cf1aacdde1784506d5"
+      "sha256": "066d937ff95a2b4ebf5ff3571976dae2988fa9e0be62c742a3028811b9315de4"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "861bb0049cfcdf5a00c939d360e2bbc2e9b6defa43c6c8d739fb9c4e6d81c932"
+      "sha256": "dcb2e86fe6b1b43325b01bb999ecca6d62a5810e0cfaded4e70185bb05b14d43"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "33097347d876dff01c31523d4e2338d49c7d4a1b07650a36bbed6d9a36cd9a9e"
+      "sha256": "d48cdc061cb193a222c5d731bc3a3e49e7a0141ba245b93feaebe27662b6cc11"
     },
     {
       "path": "runtime/event-groups.json",
@@ -454,6 +454,18 @@
       "sha256": "c76abdaec17cb18a3ea6893849db5e87cf3616fd259bd787e3f7d7eccaf34ad8"
     },
     {
+      "path": "runtime/hooks/lib/small-work-admission.ts",
+      "sha256": "b41326dc6ecf1b6d904f49096900c9c153e166505485048b56410b894e5c73b0"
+    },
+    {
+      "path": "runtime/hooks/lib/small-work-classification.ts",
+      "sha256": "a0806c8cc17cb15fafc174edd210740d532a600d27ace44198dc5d2a4269005e"
+    },
+    {
+      "path": "runtime/hooks/lib/small-work-footprint.ts",
+      "sha256": "0cc51eebbb91af28ca742dd0324b05ae332d340e330c81544aff44ff7a6f4950"
+    },
+    {
       "path": "runtime/hooks/lib/test-runner.ts",
       "sha256": "aaf606806b205434529f757b39ff031646a585c6720eee00e0006c75347dcf54"
     },
@@ -527,7 +539,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "bd4f55da91700574d8f5c647fb6879a5cc60df32b70a2485165917e163ed979a"
+      "sha256": "7d6ca7b1fff904ddd405a7a5326791a41a1dbf909401f26c4029312683dc4ac0"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -1450,6 +1462,18 @@
       "sha256": "b2d0d95cde0d3441586f305d0f623b67ff7169b5b797903787870f128143a13f"
     },
     {
+      "path": "templates/hooks/lib/small-work-admission.ts",
+      "sha256": "b41326dc6ecf1b6d904f49096900c9c153e166505485048b56410b894e5c73b0"
+    },
+    {
+      "path": "templates/hooks/lib/small-work-classification.ts",
+      "sha256": "a0806c8cc17cb15fafc174edd210740d532a600d27ace44198dc5d2a4269005e"
+    },
+    {
+      "path": "templates/hooks/lib/small-work-footprint.ts",
+      "sha256": "0cc51eebbb91af28ca742dd0324b05ae332d340e330c81544aff44ff7a6f4950"
+    },
+    {
       "path": "templates/hooks/lib/test-runner.ts",
       "sha256": "aaf606806b205434529f757b39ff031646a585c6720eee00e0006c75347dcf54"
     },
@@ -1523,7 +1547,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "aa1c7f33bf24f75deaba6c8a60f6659a884ba18314c55da6d277fab9b063ec25"
+      "sha256": "4355e112ff2cb99011f43b973c80b690f0d796659a7819bec075943738b6855d"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",
@@ -1651,7 +1675,7 @@
     },
     {
       "path": "templates/SAFEWORD.md",
-      "sha256": "5dae1e973d253518209009015044ba4774d4a591dfa7eb1476754cea9e106753"
+      "sha256": "dc4b0f4a1d6e326e6558034ffc20cb1e588fddded178e29067d063ef67ff0957"
     },
     {
       "path": "templates/scripts/bisect-test-pollution.sh",

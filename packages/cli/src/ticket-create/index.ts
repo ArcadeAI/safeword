@@ -37,6 +37,7 @@ export interface RoutedTicketOptions {
   parent?: string;
   milestone?: string;
   parentJob?: string;
+  smallWorkFacts?: unknown;
   /** Adopt an existing tracker issue instead of creating one. */
   issue?: string;
 }
@@ -88,6 +89,7 @@ export async function createTicketRouted(
     parent: options.parent,
     milestone: options.milestone,
     parentJob: options.parentJob,
+    smallWorkFacts: options.smallWorkFacts,
   };
 
   if (mode.mode === 'local') {
