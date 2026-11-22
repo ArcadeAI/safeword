@@ -8,7 +8,10 @@ scripts/dev bun packages/cli/tests/fixtures/small-work-hosts/response-contract.t
 ```
 
 The output identifies the fixture root, separate fixture baseline commit,
-original ticket ID and plain prompt. Start a fresh native host session rooted
+original ticket ID, candidate CLI bin directory and plain prompt. Prepend the
+reported `bin` directory to the native session’s `PATH` with the pinned
+Node toolchain available. Check that `command -v safeword` resolves there.
+Start a fresh native host session rooted
 in that fixture. Install or load the matching candidate hooks and confirm
 that the host recognizes them before sending the prompt.
 

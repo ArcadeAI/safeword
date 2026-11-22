@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -12,6 +12,8 @@ const cli = process.argv[2];
 if (!cli || !path.isAbsolute(cli)) throw new Error('Supply the absolute candidate CLI path.');
 
 const root = mkdtempSync(path.join(tmpdir(), 'safeword-response-contract-'));
+const bin = mkdtempSync(path.join(tmpdir(), 'safeword-response-contract-bin-'));
+symlinkSync(cli, path.join(bin, 'safeword'));
 const git = (...args: string[]) =>
   execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
 const safeword = (...args: string[]) =>
@@ -27,6 +29,10 @@ writeFileSync(path.join(root, 'src/status.ts'), 'export const status = { ready: 
 writeFileSync(
   path.join(root, 'src/caller.ts'),
   "import { status } from './status';\nexport const ready = status.ready;\n",
+);
+writeFileSync(
+  path.join(root, 'README.md'),
+  '# Public status response\n\nThe status command returns JSON for external automation. An independently released monitoring client reads the published `ready` field. The client cannot be updated as part of this task. `src/caller.ts` represents that consumer.\n',
 );
 const { data } = JSON.parse(
   safeword(
@@ -83,8 +89,9 @@ console.log(
   JSON.stringify({
     root,
     baseline,
+    bin,
     ticket: data.file,
     ticket_id: data.ticket_id,
-    prompt: `Pick up the existing task in ${data.file}. Rename the ready field in the status response to available.`,
+    prompt: `Pick up the existing task in ${data.file}. Replace the ready field in the public status response with available, without keeping a compatibility alias.`,
   }),
 );
