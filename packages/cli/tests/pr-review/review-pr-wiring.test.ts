@@ -210,8 +210,15 @@ describe('review-pr inspect command wiring', () => {
     },
   );
 
-  /** Inspects one changed file against a single required `lint` check with the given runs. */
-  function inspectLintRuns(checks: unknown[]) {
+  /** Inspects one changed file against a single required check (`lint` by default) with these runs. */
+  function inspectLintRuns(
+    checks: unknown[],
+    {
+      artifacts = [] as unknown[],
+      context = 'lint',
+      generatedFilesCheck = undefined as string | undefined,
+    } = {},
+  ) {
     const cwd = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-pr-superseded-'));
     directories.push(cwd);
     mkdirSync(nodePath.join(cwd, '.safeword'));
@@ -223,7 +230,8 @@ describe('review-pr inspect command wiring', () => {
           maxTotalBytes: 1024,
           model: 'gpt-test',
           provider: 'openai',
-          requiredChecks: [{ context: 'lint' }],
+          requiredChecks: [{ context }],
+          ...(generatedFilesCheck !== undefined && { generatedFilesCheck }),
         },
       }),
     );
@@ -233,7 +241,7 @@ describe('review-pr inspect command wiring', () => {
     writeFileSync(
       inputPath,
       JSON.stringify({
-        artifacts: [textArtifact({ fullContentBase64: fullContent })],
+        artifacts: [textArtifact({ fullContentBase64: fullContent }), ...artifacts],
         checks,
         headSha: 'a'.repeat(40),
         markerReceiptExists: false,
@@ -314,6 +322,34 @@ describe('review-pr inspect command wiring', () => {
       );
     },
   );
+
+  it('lets generated files skip review when parity reran after a cancellation', async () => {
+    const { result } = inspectLintRuns(
+      [
+        {
+          conclusion: 'success',
+          name: 'Dogfood parity',
+          startedAt: '2026-11-20T17:28:04Z',
+          status: 'completed',
+        },
+        { ...earlierCancellation, name: 'Dogfood parity' },
+      ],
+      {
+        artifacts: [{ kind: 'generated', path: 'plugin/runtime/cli.js' }],
+        context: 'Dogfood parity',
+        generatedFilesCheck: 'Dogfood parity',
+      },
+    );
+
+    const receipt = receiptOf(await result);
+
+    expect(receipt).toMatchObject({
+      coverage: expect.arrayContaining([
+        { path: 'plugin/runtime/cli.js', skipReason: 'generated', status: 'skipped' },
+      ]),
+    });
+    expect(receipt).not.toMatchObject({ runState: 'incomplete' });
+  });
 
   it.each([
     ['not a date', 'yesterday'],
