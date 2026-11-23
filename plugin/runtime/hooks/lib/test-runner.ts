@@ -399,7 +399,9 @@ export function runTests(cwd: string): TestResult {
     };
   }
   const { commands } = resolution;
-  if (commands.length === 0) return { passed: true, output: '', skipped: true };
+  if (commands.length === 0) {
+    return { passed: true, output: withToolchainNote(toolchain.note, ''), skipped: true };
+  }
 
   const outputs: string[] = [];
   const failureOutputs: string[] = [];
