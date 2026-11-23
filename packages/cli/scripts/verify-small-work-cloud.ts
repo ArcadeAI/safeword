@@ -27,29 +27,30 @@ function requiredText(value: unknown, name: string): string {
 
 type HostedCase = 'response-contract-promotion' | 'response-contract-ticket-edit-promotion';
 
+function verifyTicketEditPromotion(evidence: Record<string, unknown>): void {
+  requireValue(evidence.dispatch_event === 'PostToolUse', 'Expected a native post-edit event.');
+  requireValue(
+    evidence.tool_name === 'Edit' || evidence.tool_name === 'Write',
+    'Expected a native ticket edit tool.',
+  );
+  requireValue(evidence.exit_status === 0, 'The post-edit hook must complete successfully.');
+  requireValue(evidence.observed_outcome === 'promoted', 'Expected promotion on the ticket edit.');
+  requireValue(
+    evidence.original_type === 'task' && evidence.original_phase === 'intake',
+    'The ticket must start as a task in intake.',
+  );
+  requireValue(
+    evidence.production_write_attempted === false,
+    'The ticket must advance before a production write is attempted.',
+  );
+  requiredText(evidence.native_event_ref, 'native ticket-edit event reference');
+}
+
 function verifyCase(value: unknown, scenario: HostedCase): void {
   const evidence = record(value);
   requireValue(evidence.scenario === scenario, `Expected case ${scenario}.`);
   if (scenario === 'response-contract-ticket-edit-promotion') {
-    requireValue(evidence.dispatch_event === 'PostToolUse', 'Expected a native post-edit event.');
-    requireValue(
-      evidence.tool_name === 'Edit' || evidence.tool_name === 'Write',
-      'Expected a native ticket edit tool.',
-    );
-    requireValue(evidence.exit_status === 0, 'The post-edit hook must complete successfully.');
-    requireValue(
-      evidence.observed_outcome === 'promoted',
-      'Expected promotion on the ticket edit.',
-    );
-    requireValue(
-      evidence.original_type === 'task' && evidence.original_phase === 'intake',
-      'The ticket must start as a task in intake.',
-    );
-    requireValue(
-      evidence.production_write_attempted === false,
-      'The ticket must advance before a production write is attempted.',
-    );
-    requiredText(evidence.native_event_ref, 'native ticket-edit event reference');
+    verifyTicketEditPromotion(evidence);
   } else {
     requireValue(
       evidence.dispatch_event === 'preToolUse' || evidence.dispatch_event === 'PreToolUse',
