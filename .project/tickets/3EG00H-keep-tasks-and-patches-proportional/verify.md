@@ -220,3 +220,11 @@ Six planning-only sessions started with no tickets or classification facts, insp
 The original Claude task session exhausted its turn limit after guessing unsupported argument values. The command help now describes the schema version, fields, and allowed values. A fresh task session read that help and classified successfully. The first Codex batch resolved a different Safeword installation. The recorded batch used the candidate's absolute path and its new help. The original Claude patch and feature runs used the prior help.
 
 The help regression failed before the change and passed after it. All 51 classifier, CLI help, and contract tests passed. These live runs evidence the six local Rule 2 rows. The prompts explicitly requested a planning-only classification, so the runs leave automatic first-edit enforcement and Cucumber bindings open.
+
+### First source edit before classification
+
+Two fresh sessions on candidate `4056c04f1` started in installed disposable projects with no tickets. Each received an immediate one-line source-edit request and was instructed to stop after its first native tool attempt. Both checkouts changed `src/retry.ts` from one attempt to two. Neither had a ticket or a classifier invocation.
+
+Claude Code session `0e26dc97-535f-447f-9914-321697e80cf6` reported native Edit success. Codex CLI session `01a20acd-8c9a-7641-803e-d8b38ae9e25b` reported a `bunx` dependency-resolution error and treated the patch as unconfirmed. Its Git diff independently confirms the edit landed. A direct invocation of the bundled Codex PreToolUse adapter against the no-ticket fixture also returned no denial.
+
+The attachment gate checks for an in-progress ticket carrying small-work facts. It cannot require first classification when no such ticket exists. The earlier planning-only classification sessions establish that both hosts can classify the requests. This source-edit check establishes that the current cold-start path does not enforce classification.
