@@ -1,7 +1,16 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { getTicketInfo } from './active-ticket.js';
+import { evaluateBlockedOnGate } from './blocked-on-gate.js';
 import { atomicWriteFile } from './jsonl-spool.js';
+import { resolveNamespaceRoot } from './namespace-root.js';
+import { evaluateParentContract } from './product-plan-contract.js';
+import {
+  isSatisfyingCoordinatorReviewStamp,
+  parseReviewStamps,
+  reviewScope,
+} from './review-ledger.js';
 import { askTrustedSafeword } from './safeword-cli.js';
 import { smallWorkFootprintDenial, smallWorkThresholds } from './small-work-footprint.js';
 import {
@@ -12,8 +21,71 @@ import {
   smallWorkContractDigest,
   type SmallWorkFacts,
 } from './small-work-classification.js';
+import { verifiedStamps } from './verify-stamp-claims.js';
 
 const PENDING_PLAN = 'small_work_pending_phase: plan-implementation';
+const pendingPlanLine = /^small_work_pending_phase:[^\r\n]*\r?\n?/m;
+
+export function hasCurrentSmallWorkScenarioApproval(
+  projectRoot: string,
+  ticketPath: string,
+): boolean {
+  const scope = reviewScope(
+    nodePath.basename(nodePath.dirname(ticketPath)),
+    'phase',
+    'scenario-gate',
+  );
+  let ledger: string;
+  try {
+    ledger = readFileSync(
+      nodePath.join(resolveNamespaceRoot(projectRoot), 'skill-invocations.log'),
+      'utf8',
+    );
+  } catch {
+    return false;
+  }
+  const claims = parseReviewStamps(ledger).filter(stamp =>
+    isSatisfyingCoordinatorReviewStamp(scope, stamp),
+  );
+  return verifiedStamps(claims, projectRoot, scope, { requireDeclaredScenario: true }).length > 0;
+}
+
+function publishPhase(
+  projectRoot: string,
+  ticketPath: string,
+  ticket: string,
+  opening: string,
+  frontmatter: string,
+  phase: 'define-behavior' | 'plan-implementation',
+  pending: boolean,
+): string | undefined {
+  const publication = frontmatter
+    .replace(/^type:[ \t]*(?:task|patch)[ \t]*$/m, 'type: feature')
+    .replace(/^phase:[^\r\n]*\r?\n?/m, '')
+    .replace(pendingPlanLine, '')
+    .trimEnd();
+  const newline = ticket.startsWith('---\r\n') ? '\r\n' : '\n';
+  const destination = pending ? `${newline}${PENDING_PLAN}` : '';
+  const updated = `---${newline}${publication}${newline}phase: ${phase}${destination}${newline}---${ticket.slice(opening.length)}`;
+  if (phase === 'plan-implementation') {
+    const parent = evaluateParentContract(projectRoot, updated, ticket);
+    if (!parent.ok) return `Parent Product Plan reconciliation required: ${parent.reason}.`;
+    const blocker = evaluateBlockedOnGate(ticket, updated, id => {
+      const info = getTicketInfo(projectRoot, id);
+      return { found: info.folder !== undefined, status: info.status };
+    });
+    if (blocker !== undefined) return blocker.reason;
+  }
+  try {
+    if (readFileSync(ticketPath, 'utf8') !== ticket) {
+      return 'The active ticket changed during classification. Reevaluate the current ticket before editing production code.';
+    }
+    atomicWriteFile(ticketPath, updated);
+  } catch {
+    return 'Safeword could not record the new feature route. Reevaluate the ticket before editing production code.';
+  }
+  return undefined;
+}
 
 function taskProofDenial(
   projectRoot: string,
@@ -143,7 +215,7 @@ function reconcileSmallWork(
 
   const beginning = /^---\r?\n([\s\S]*?)\r?\n---(?=\r?\n|$)/.exec(ticket);
   const frontmatter = beginning?.[1];
-  if (frontmatter === undefined)
+  if (beginning === null || frontmatter === undefined)
     return 'Safeword could not read the small-work ticket frontmatter.';
   if (
     proposed !== undefined &&
@@ -151,6 +223,26 @@ function reconcileSmallWork(
     /^phase:[ \t]*(?:define-behavior|scenario-gate)[ \t]*$/m.test(frontmatter)
   ) {
     return 'Complete behavior definition and its scenario review before editing production code.';
+  }
+  if (
+    proposed === undefined &&
+    /^type:[ \t]*feature[ \t]*$/m.test(frontmatter) &&
+    /^phase:[ \t]*scenario-gate[ \t]*$/m.test(frontmatter) &&
+    /^small_work_pending_phase:[ \t]*plan-implementation[ \t]*$/m.test(frontmatter)
+  ) {
+    if (!hasCurrentSmallWorkScenarioApproval(projectRoot, ticketPath)) return undefined;
+    return (
+      publishPhase(
+        projectRoot,
+        ticketPath,
+        ticket,
+        beginning[0],
+        frontmatter,
+        'plan-implementation',
+        false,
+      ) ??
+      'Current scenario approval was verified. Continue on the same ticket from Implementation Planning. Reread the ticket before editing it again.'
+    );
   }
   const smallWork = /^type:[ \t]*(?:task|patch)[ \t]*$/m.test(frontmatter);
   const featureAtIntake =
@@ -194,21 +286,19 @@ function reconcileSmallWork(
     evaluated.introducesUserFlow ||
     evaluated.multipleUserFlows ||
     evaluated.decisions.behavior === 'unresolved';
-  const publication = frontmatter
-    .replace(/^type:[ \t]*(?:task|patch)[ \t]*$/m, 'type: feature')
-    .replace(/^phase:[^\r\n]*\r?\n?/m, '')
-    .trimEnd();
-  const newline = ticket.startsWith('---\r\n') ? '\r\n' : '\n';
-  const pending = behaviorDecision ? '' : `${newline}${PENDING_PLAN}`;
-  const updated = `---${newline}${publication}${newline}phase: define-behavior${pending}${newline}---${ticket.slice(beginning[0].length)}`;
-  try {
-    if (readFileSync(ticketPath, 'utf8') !== ticket) {
-      return 'The active ticket changed during classification. Reevaluate the current ticket before editing production code.';
-    }
-    atomicWriteFile(ticketPath, updated);
-  } catch {
-    return 'Safeword could not record the new feature route. Reevaluate the ticket before editing production code.';
-  }
-  const message = `The active ticket now needs feature planning: ${decision.reasons.join(', ')}. Continue on the same ticket from behavior definition.`;
+  const approved =
+    !behaviorDecision && hasCurrentSmallWorkScenarioApproval(projectRoot, ticketPath);
+  const failure = publishPhase(
+    projectRoot,
+    ticketPath,
+    ticket,
+    beginning[0],
+    frontmatter,
+    approved ? 'plan-implementation' : 'define-behavior',
+    !behaviorDecision && !approved,
+  );
+  if (failure !== undefined) return failure;
+  const nextStep = approved ? 'Implementation Planning' : 'behavior definition';
+  const message = `The active ticket now needs feature planning: ${decision.reasons.join(', ')}. Continue on the same ticket from ${nextStep}.`;
   return proposed === undefined ? `${message} Reread the ticket before editing it again.` : message;
 }

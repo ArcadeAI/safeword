@@ -144,3 +144,31 @@ task `VE6W94` as `d11f646`. Independent checks at that revision found
 `ready_for_human_review`, no open contributor items, release-owner approval
 pending, and no merge authority. This receipt covers the Claude Code Cloud row
 only. The Cursor row is deferred and the Cucumber outline remains unbound.
+
+### Claude and Codex acceptance coverage review
+
+The feature contains 45 example rows that explicitly name Claude Code, Claude Code Cloud, or OpenAI Codex. The table covers those rows and distinguishes host observations from reusable shared assertions. The 54 targeted classifier, footprint, routing, admission, handoff, and planning-gate tests passed during this review.
+
+| Rule | Host rows | Reuse | Still needs proof or implementation |
+| --- | ---: | --- | --- |
+| R1, planning by work type | 9 | The native retry runs on all three hosts show that enrolled tasks stay inline. The coding-authorization and phase-review tests can supply the shared feature gate assertions. | Run the native classified patch paths. Verify that each installed feature path actually requires both plans and both semantic reviews. The retry runs do not cover those paths. |
+| R2, classification from unclassified work | 9 | The built classifier, ticket-creation tests, and public/private routing fixture establish the shared decisions. | Run the three shapes from an unclassified starting state on the named hosts. A pre-enrolled retry task or a ticket already undergoing promotion does not establish first classification. |
+| R6, threshold reevaluation | 6 | The footprint tests cover counting and crossing thresholds, and the installed routing test covers blocking and reevaluation through a real hook. | Exercise native within-threshold and surface-crossing edits on the named hosts. A missing footprint or changed configuration is a different denial from an observed surface crossing. |
+| R7, inline task test specification | 3 | The three native retry traces include an inline behavior, existing entry point, and declared test command. Reuse those observations and the built proof-request assertions. | Bind the exact rows and keep the shared missing-boundary rejection as a separate executable case. |
+| R8, meaningful RED admission | 6 | The positive native retry traces cover all three hosts. The Cloud setup trace also shows an attached task with footprint recorded being denied specifically for missing RED. The installed admission test covers missing, stale, and unrelated RED. | Local Claude and Codex need exact negative runs with the ticket already attached and its footprint saved. Their fresh-session denials establish missing binding. |
+| R11, approved promotion during TDD | 3 | The installed routing regression verifies immediate planning with a current scenario approval and preserved investigation evidence. | Verify all three native paths with current approval and linked RED evidence. |
+| R12, phase ownership after promotion | 8 | Reuse the three native same-ticket transition receipts for the public-contract discovery and the installed hook test that retains the pending destination. | Verify the exact product-behavior trigger where it differs from public-contract discovery. The four local design rows still need settle-vs-ask behavior, and the Claude Cloud design row needs a noninteractive pending-decision receipt. The restart regression verifies the saved destination with missing, stale, unrelated, and current approval through the installed hook. |
+| R14, Cloud handoff | 1 | The uncoached Cloud receipt is linked to the exact example. It confirms committed current proof, readiness, and pending rollout without merge authority. | Wire the matching example to an executable acceptance check without implying the deferred Cursor Cloud row passed. |
+
+All 34 targeted routing, proof admission, phase review, and coding authorization tests passed. The approval-aware routing tests run the installed ticket-edit hook in fresh processes and use a fixture for the review coordinator response. This proves how the hook consumes approval and preserves ticket evidence. Live Claude Code and Codex sessions and the standalone CLI restart example still need direct verification. Generic shared examples and deferred hosts are outside the 45-row count.
+
+### Live ticket-edit routing with fixture approval
+
+Claude Code 2.1.330 ran native Edit through installed project hooks. Codex CLI 0.171.0 ran native apply_patch through the candidate's Codex hook adapter registered in disposable project hook settings. Each session edited one checkpoint line. Both hosts promoted the ticket immediately with applicable approval, kept Implementation Planning pending with a stale receipt, and picked up the saved destination in a fresh session after the fixture advanced to the scenario gate and supplied current approval. The ticket IDs and investigation notes survived, and the pending marker cleared on entry to Implementation Planning.
+
+| Host | Immediate approval | Deferred approval | Resumed with approval |
+| --- | --- | --- | --- |
+| Claude Code | `374b59cd-c932-4c57-b2f5-f1241fe0331b` | `830b54cd-5a6e-401e-93d6-01662d704414` | `d6083959-c9b0-4ea1-b994-a0f65945034b` |
+| Codex CLI | `01a20a3f-622e-77e3-adbc-36fd909ad0ed` | `01a20a40-2552-7de1-b804-c81e200434db` | `01a20a41-b355-78a2-aaf1-645a86010429` |
+
+The disposable fixture supplied the coordinator's status response and set up the scenario-gate phase between sessions. These runs establish native edit routing and preservation. Live cross-agent review, fresh plugin enrollment, and standalone CLI restart remain unverified here.

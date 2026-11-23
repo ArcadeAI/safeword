@@ -202,6 +202,7 @@ export function verifiedStamps(
   stamps: readonly ReviewStamp[],
   projectDirectory: string,
   scope: string,
+  { requireDeclaredScenario = false }: { requireDeclaredScenario?: boolean } = {},
 ): ReviewStamp[] {
   const readReceipt = createReviewReceiptReader(projectDirectory);
   let claimContext: ReturnType<typeof reviewClaimContext> | undefined;
@@ -227,6 +228,15 @@ export function verifiedStamps(
       });
       if (claim === undefined) return false;
 
-      return receiptGateVerdict(claim, readReceipt(stamp.reviewId)).ok;
+      const receipt = readReceipt(stamp.reviewId);
+      if (
+        requireDeclaredScenario &&
+        claim.scenarioArtifact !== undefined &&
+        !receipt?.targets?.some(
+          target => nodePath.resolve(projectDirectory, target) === claim.scenarioArtifact,
+        )
+      )
+        return false;
+      return receiptGateVerdict(claim, receipt).ok;
     });
 }

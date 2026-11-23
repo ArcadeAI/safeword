@@ -86,7 +86,10 @@ import {
 } from './lib/plan-gate.ts';
 import { evaluateParentContract } from './lib/product-plan-contract.ts';
 import { installCrashCapture } from './lib/self-report.ts';
-import { smallWorkRoutingDenial } from './lib/small-work-admission.ts';
+import {
+  hasCurrentSmallWorkScenarioApproval,
+  smallWorkRoutingDenial,
+} from './lib/small-work-admission.ts';
 import { hasSmallWorkFacts } from './lib/small-work-classification.ts';
 
 const crashCapture = installCrashCapture('pre-tool-quality');
@@ -1202,6 +1205,18 @@ if (isCanonicalTicketEdit) {
 if (isCanonicalTicketEdit) {
   const context = canonicalTicketEditContext();
   const exitedPhase = detectPhaseAdvance(context.priorContent, context.proposedContent);
+  if (
+    exitedPhase !== undefined &&
+    frontmatterScalar(context.priorMeta, 'small_work_pending_phase') === 'plan-implementation' &&
+    frontmatterScalar(context.proposedMeta, 'phase') === 'plan-implementation' &&
+    (exitedPhase !== 'scenario-gate' ||
+      !hasCurrentSmallWorkScenarioApproval(projectDirectory, editedFile))
+  ) {
+    deny(
+      'Implementation Planning is waiting for current approval of the applicable feature behavior.',
+      'Complete the existing scenario gate and record its current approved review before advancing.',
+    );
+  }
   // Phase first, then the flag: selective enforcement needs to know WHICH exit this
   // is before it can decide whether the gate applies to it.
   if (exitedPhase !== undefined && reviewGateAppliesTo(exitedPhase)) {
