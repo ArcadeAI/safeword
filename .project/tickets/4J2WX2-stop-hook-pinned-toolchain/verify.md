@@ -1,23 +1,23 @@
 # Verify: stop-hook-pinned-toolchain (4J2WX2)
 
-Run at 8727f8d7e with every lane under the project's mise-pinned PATH (`mise bin-paths`), the PATH the Stop hook now builds.
+Run on 2026-11-23 at c73c2a34b (after merging main, which includes #7963) through `scripts/dev`, which pins Bun 1.4.4 and Node 24.18.1. Go lanes rerun with every mise-pinned tool first on PATH, the PATH the Stop hook now builds.
 
 ## Verify Checklist
 
-**Test Suite:** ⚠️ Local environment limitation: load average ~5.5 from other sessions' suites. The full suite ran twice in the verify lane. Run 1: 11971 passed, 3 failed. Run 2: 8 files failed. Each run failed a different set, nearly all at the 60 s test timeout, in reset, setup, upgrade and review-wiring tests this change does not touch. All 11 failing files then passed together in isolation (✓ 250/250 tests pass). The ticket's own tests: ✓ 24/24 tests pass (test-runner-pinned-toolchain, test-runner, test-runner-environment, done-gate-toolchain-missing, done-gate-failing-suite).
-**Gherkin:** ✅ Acceptance lane passes (599/599 scenarios, 11786 steps, under pinned Bun 1.4.4; these 4 scenarios in `migrate-codex-to-plugin.feature` failed under host Bun 1.3.14 before the change)
+**Test Suite:** ✓ 12035/12035 tests pass (14 skipped). The verify lane ran 12049 tests with 2 failures, both in `tests/hooks/lint-go-context.test.ts`, plus the Go checker build. All three came from this shell's Go mismatch (`GOROOT` Go 1.25.14, PATH `go` 1.27.1, since `scripts/dev` pins only Bun and Node). Under the pinned PATH (Go 1.25.14): lint-go-context and tooling-validation ✓ 29/29 tests pass, and the Go checker builds. The lane's automatic rerun also hit an npm registry 404 in tooling-validation, which passed on its first run and again in isolation.
+**Gherkin:** ✅ Acceptance lane passes (599/599 scenarios, 11786 steps)
 **Build:** ✅ Success
-**Lint:** ✅ Clean
-**Typecheck:** ✅ Clean (tsc --noEmit in all three packages, astro check 0 errors)
+**Lint:** ✅ Clean (pre-commit eslint and prettier on every commit; shadowing fixed in c73c2a34b)
+**Typecheck:** ✅ Clean (0 errors)
 **Scenarios:** ⏭️ Skipped — task ticket, no test-definitions.md
 **Refactor:** ✅ Completed — 92324d5da removed the redundant empty bin-paths branch
-**PR Scope:** ✅ Diff matches ticket scope (test runner template, its installed and generated copies, lifecycle fixture digests, one README sentence, ticket and test)
-**Dep Drift:** ✅ Clean (no dependencies added)
+**PR Scope:** ✅ Diff matches ticket scope (test runner template, its installed and generated copies, lifecycle fixture digests, one README sentence, ticket, evidence and test)
+**Dep Drift:** ✅ Clean (no dependencies added; `bun audit`, `uv`/`pip` and `govulncheck` report no known vulnerabilities)
 **Parent Epic:** N/A
 **Reconcile:** ✅ No pattern deviation
 **Experience:** ⏭️ N/A — not persona-facing (end-of-turn test plumbing)
 **Surface Evidence:** ⏭️ N/A — no affected surfaces in a spec
-**Evidence limits:** ⚠️ Shared machine under load; full-suite timeouts are not product evidence. CI on the PR is the clean full-suite run.
+**Evidence limits:** ⚠️ This shell's Go toolchain mismatch (GOROOT vs PATH `go`) and one npm registry 404; both reproduce as passes under the pinned PATH, so neither is product evidence. CI on the PR is the clean full-suite run.
 
 ## Real-host proof
 
@@ -28,7 +28,7 @@ Run at 8727f8d7e with every lane under the project's mise-pinned PATH (`mise bin
 
 ## Audit
 
-Audit passed — 0 errors, 0 warnings (diff scope; README updated in d356a9bca for the documentation-impact finding).
+Audit passed — 0 errors, 0 warnings (2026-11-23, diff scope against origin/main 4614807724; depcruise: no violations; sync-config healthy; test file reviewed against the testing iron laws; README covers the behavior, website docs make no affected claim).
 
 ## Independent review
 
@@ -40,3 +40,10 @@ Five Codex (gpt-6.1-sol) cross-agent quality-review passes. Fixed:
 4. Proof bypassed the production CLI lookup (8727f8d7e).
 
 The final pass asked only for this real-host proof.
+
+2026-11-23 implement-phase reviews (Codex gpt-6.1-sol, cross-agent) fixed:
+
+5. Fallback note dropped when the test plan is empty (8a8612e91 RED, d072bb5f1 GREEN).
+6. Fallback tests did not prove PATH is unchanged; they now assert exact equality with the inherited PATH, and a PATH-appending mutant fails both (c73c2a34b).
+
+Review 3dc5d34c-9cc7-4606-9e11-1100e7769b25 approved every file in the diff and is stamped for the implement phase.
