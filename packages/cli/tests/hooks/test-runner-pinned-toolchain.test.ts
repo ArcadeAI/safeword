@@ -71,10 +71,26 @@ describe('test runner with a mise-pinned project', () => {
     return existsSync(miseCalls) && readFileSync(miseCalls, 'utf8').includes('bin-paths');
   }
 
-  /** Which runtime directory served each `bun` the test-plan lookup started. */
+  /** Each `bun` the runner started (test-plan lookup and test command), with the PATH it got. */
+  function bunCalls(): { runtime: string; path: string }[] {
+    if (!existsSync(bunRuntimeCalls)) return [];
+    return readFileSync(bunRuntimeCalls, 'utf8')
+      .trim()
+      .split('\n')
+      .map(line => {
+        const [runtime = '', pathValue = ''] = line.split('\t', 2);
+        return { runtime, path: pathValue };
+      });
+  }
+
+  /** Which runtime directory served each `bun` the runner started. */
   function bunRuntimesUsed(): Set<string> {
-    if (!existsSync(bunRuntimeCalls)) return new Set();
-    return new Set(readFileSync(bunRuntimeCalls, 'utf8').trim().split('\n'));
+    return new Set(bunCalls().map(call => call.runtime));
+  }
+
+  /** The distinct PATHs the runner handed to every `bun` it started. */
+  function bunPathsSeen(): Set<string> {
+    return new Set(bunCalls().map(call => call.path));
   }
 
   /**
@@ -109,7 +125,7 @@ describe('test runner with a mise-pinned project', () => {
       const bun = path.join(directory, 'bun');
       writeFileSync(
         bun,
-        `#!/bin/sh\necho ${label} >> "${bunRuntimeCalls}"\nexec "${realBun}" "$@"\n`,
+        `#!/bin/sh\nprintf '%s\\t%s\\n' ${label} "$PATH" >> "${bunRuntimeCalls}"\nexec "${realBun}" "$@"\n`,
       );
       chmodSync(bun, 0o755);
     }
@@ -163,22 +179,28 @@ describe('test runner with a mise-pinned project', () => {
   it('leaves PATH alone when only configs outside the project pin tools', () => {
     installFakeMise([{ file: 'mise.toml', tools: [] }, globalConfig], 'ok');
 
+    const inheritedPath = process.env.PATH;
+
     const { pinned, stale } = testCommandPathPositions();
 
     expect(pinned).toBe(-1);
     expect(stale).toBeGreaterThanOrEqual(0);
     expect(bunRuntimesUsed()).toEqual(new Set(['stale']));
+    expect(bunPathsSeen()).toEqual(new Set([inheritedPath]));
     expect(askedForBinPaths()).toBe(false);
   });
 
   it('falls back to the inherited PATH and says why when mise cannot resolve the pin', () => {
     installFakeMise([{ file: 'mise.toml', tools: ['bun'] }], 'fails');
 
+    const inheritedPath = process.env.PATH;
+
     const { pinned, stale, output } = testCommandPathPositions();
 
     expect(pinned).toBe(-1);
     expect(stale).toBeGreaterThanOrEqual(0);
     expect(bunRuntimesUsed()).toEqual(new Set(['stale']));
+    expect(bunPathsSeen()).toEqual(new Set([inheritedPath]));
     expect(output).toContain('Pinned toolchain not applied');
     expect(output).toContain('are not trusted');
   });

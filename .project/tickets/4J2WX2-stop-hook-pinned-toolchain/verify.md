@@ -23,6 +23,7 @@ Run at 8727f8d7e with every lane under the project's mise-pinned PATH (`mise bin
 
 - Host PATH `bun` is 1.3.14; `PATH="$(mise -C . bin-paths):$PATH" bun --version` prints 1.4.4.
 - The installed `.safeword/hooks/lib/test-runner.ts` `runTests(repo)` run under host Bun 1.3.14 reached the acceptance lane without the lockfile error. Its fast lane `bun run test:done` then hit the hook's 60 s cap. Run alone, that lane takes 56–60 s on this machine. The cap and lane length predate this change.
+- 2026-11-23, after merging main (which includes #7963's faster fast lane): the installed `.safeword/hooks/lib/test-runner.ts` `runTests(repo)`, the function the Stop hook calls, run on host Bun 1.3.14 with the inherited PATH, returned `passed: true` in 532 s. That run covers both the test plan (`bun run test:done`, retro packages, Go checker) and the acceptance (bdd) plan, where the 4 `migrate-codex-to-plugin.feature` lockfile failures used to come from. Real `mise config ls --json` / `bin-paths` output for this repo is in `real-mise-evidence.txt`.
 - `tests/hooks/lint-go-context.test.ts` fails in a shell where `GOROOT` (mise, Go 1.25.14) and the PATH `go` (1.27.1) differ. It passes 18/18 under the hook's pinned PATH, which puts Go 1.25.14 first.
 
 ## Audit
