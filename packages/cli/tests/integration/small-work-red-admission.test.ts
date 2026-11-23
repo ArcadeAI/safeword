@@ -1,10 +1,11 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { renderInitialSmallWorkChecklist } from '../../src/execution-plan/delivery-checklist.js';
 import {
   consequentialDecisions,
   readSmallWorkFacts,
@@ -310,6 +311,59 @@ test('unrelated', () => { throw new Error('${expectedFailure}'); });\n`,
     const checkGreen = () => run([...greenCommand, '--check']);
     const current = await checkGreen();
     expect(JSON.parse(current.stdout).data).toMatchObject({ current: true });
+    const testInvocation = JSON.stringify({
+      type: 'command',
+      cwd: effectiveRequest.cwd,
+      argv: effectiveRequest.argv,
+    });
+    const delivery = [
+      '## Proof specifications',
+      '',
+      '| Proof ID | Method | Scope | Boundary exercised | Qualifies as | Currency | Invocation |',
+      '| --- | --- | --- | --- | --- | --- | --- |',
+      `| targeted-verification | command | integration | Retry helper through the saved RED and GREEN test | real_boundary | current_required | ${testInvocation} |`,
+      renderInitialSmallWorkChecklist().trimEnd(),
+      '| docs | documentation | Update public documentation | contributor | | not_applicable | missing | | No public contract changed. |',
+      '| rollout | rollout and rollback | Approve distribution | human | | pending_human | missing | | Release owner approves distribution. |',
+    ].join('\n');
+    writeFileSync(ticket, `${readFileSync(ticket, 'utf8')}\n${delivery}\n`);
+    git('add', '.');
+    git(
+      '-c',
+      'user.name=Fixture',
+      '-c',
+      'user.email=fixture@example.test',
+      '-c',
+      'commit.gpgsign=false',
+      'commit',
+      '-qm',
+      'candidate for contributor handoff',
+    );
+    const checklist = ['ticket', 'delivery-checklist', id];
+    const beforeHandoff = await run(checklist);
+    expect(JSON.parse(beforeHandoff.stdout).data).toMatchObject({
+      open_contributor_items: ['verification'],
+    });
+    const attached = await run([
+      'ticket',
+      'record-delivery-proof',
+      id,
+      'verification',
+      'targeted-verification',
+    ]);
+    expect(attached.exitCode, attached.stderr || attached.stdout).toBe(0);
+    const handoff = await run(checklist);
+    expect(handoff.exitCode, handoff.stderr || handoff.stdout).toBe(0);
+    expect(JSON.parse(handoff.stdout).data).toMatchObject({
+      readiness_state: 'ready_for_human_review',
+      open_contributor_items: [],
+      pending_human_items: ['rollout'],
+      grants_merge_authority: false,
+    });
+    expect(readdirSync(nodePath.dirname(ticket))).toEqual(['ticket.md']);
+    const afterHandoff = readSmallWorkFacts(readFileSync(ticket, 'utf8'));
+    expect(afterHandoff).toMatchObject({ proof: { observation: intended, green: receipt } });
+
     writeFileSync(nodePath.join(project, entryPoint), 'export const attempts = () => 3;\n');
     const stale = await checkGreen();
     expect(stale.exitCode).not.toBe(0);

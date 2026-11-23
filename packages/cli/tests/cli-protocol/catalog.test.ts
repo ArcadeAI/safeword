@@ -154,6 +154,7 @@ describe('CLI command catalog', () => {
       'ticket classify-small-work',
       'ticket observe-small-work-proof',
       'ticket verify-small-work-proof',
+      'ticket observe-small-work-green',
       'ticket record-delivery-proof',
       'review run',
       'review status',
