@@ -12,7 +12,7 @@ Feature: Install Safeword from its own source repo between releases
 
   Scenario: A maintainer installs from the source repo with the released plugin
     Given the Safeword source repo with released Claude plugin "1.1.0" installed
-    When the maintainer installs Safeword for Claude
+    When Safeword is installed for Claude
     Then the install succeeds without an error
     And Safeword explains that Claude uses released plugin "1.1.0"
     And Safeword does not ask Claude to update the plugin
@@ -21,13 +21,14 @@ Feature: Install Safeword from its own source repo between releases
   @rejection
   Scenario: A consumer project still requires the plugin to match the CLI
     Given a consumer project with released Claude plugin "1.1.0" installed
-    When the maintainer installs Safeword for Claude
+    When Safeword is installed for Claude
     Then the install fails with "CLAUDE_PLUGIN_UNVERIFIED"
+    And Safeword asks Claude to update the plugin
     And Claude status reports the plugin as the wrong version
 
   @rejection
   Scenario: The source repo still refuses a plugin newer than the CLI
     Given the Safeword source repo with Claude plugin "99.0.0" installed
-    When the maintainer installs Safeword for Claude
+    When Safeword is installed for Claude
     Then the install fails with "CLAUDE_PLUGIN_DOWNGRADE_REFUSED"
     And Safeword does not ask Claude to update the plugin

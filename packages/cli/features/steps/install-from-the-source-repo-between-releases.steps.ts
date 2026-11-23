@@ -213,7 +213,7 @@ Given(
   },
 );
 
-When('the maintainer installs Safeword for Claude', function (this: SourceRepoWorld) {
+When('Safeword is installed for Claude', function (this: SourceRepoWorld) {
   runCli(this, ['install', '--agents=claude']);
 });
 
@@ -239,6 +239,11 @@ Then(
 
 Then('Safeword does not ask Claude to update the plugin', function (this: SourceRepoWorld) {
   assert.doesNotMatch(claudeCommands(this), /plugin update/u);
+});
+
+// Positive sibling: without it, "does not ask" would survive an install that never updates.
+Then('Safeword asks Claude to update the plugin', function (this: SourceRepoWorld) {
+  assert.match(claudeCommands(this), /^plugin update safeword@safeword --scope project$/mu);
 });
 
 Then('the install fails with {string}', function (this: SourceRepoWorld, code: string) {
