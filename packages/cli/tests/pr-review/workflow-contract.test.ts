@@ -762,19 +762,30 @@ describe('advisory PR review workflow contract', () => {
 
 describe('check-run evidence projection', () => {
   // review-pr can only tell a superseded cancellation from a live failure when the worker
-  // forwards each check run's start time (#7952).
+  // forwards each check run's start time (#7952) and the workflow that produced it, so a
+  // same-named check from another workflow is never mistaken for a rerun.
+  function extract(source: string, pattern: RegExp): string {
+    const match = pattern.exec(source)?.[1];
+    expect(match).toBeDefined();
+    return match ?? '';
+  }
+
   it.each([
     ['installed', workerPath],
     ['dogfood', dogfoodWorkerPath],
   ])(
-    'forwards started_at from the %s worker and omits it when GitHub sends null',
+    'forwards started_at and the workflow from the %s worker, omitting either when unknown',
     (_name, path) => {
-      const projection = /checks: \[\$checks\[0\]\[\] \| (.+)\],\n/u.exec(
-        readFileSync(path, 'utf8'),
-      )?.[1];
-      expect(projection).toBeDefined();
+      const source = readFileSync(path, 'utf8');
+      const workflowMap = extract(
+        source,
+        /\n\s*(\(\$runs\[0\] \| .+\)) as \$workflowBySuite \|\n/u,
+      );
+      const projection = extract(source, /checks: \[\$checks\[0\]\[\] \| (.+)\],\n/u);
+      const workflowRuns = [{ check_suite_id: 10, path: '.github/workflows/ci.yml' }];
       const checkRuns = [
         {
+          check_suite: { id: 10 },
           conclusion: 'cancelled',
           id: 1,
           name: 'lint',
@@ -782,13 +793,27 @@ describe('check-run evidence projection', () => {
           status: 'completed',
         },
         // eslint-disable-next-line unicorn/no-null -- GitHub sends JSON null before a run starts.
-        { conclusion: null, id: 2, name: 'lint', started_at: null, status: 'queued' },
+        {
+          check_suite: { id: 11 },
+          conclusion: null,
+          id: 2,
+          name: 'lint',
+          started_at: null,
+          status: 'queued',
+        },
       ];
 
-      const result = spawnSync('jq', ['-c', `[.[] | ${projection}]`], {
-        encoding: 'utf8',
-        input: JSON.stringify(checkRuns),
-      });
+      const result = spawnSync(
+        'jq',
+        [
+          '-c',
+          '--argjson',
+          'runs',
+          JSON.stringify([workflowRuns]),
+          `${workflowMap} as $workflowBySuite | [.[] | ${projection}]`,
+        ],
+        { encoding: 'utf8', input: JSON.stringify(checkRuns) },
+      );
 
       expect(result.status).toBe(0);
       expect(JSON.parse(result.stdout)).toEqual([
@@ -797,10 +822,21 @@ describe('check-run evidence projection', () => {
           name: 'lint',
           startedAt: '2026-11-20T17:22:11Z',
           status: 'completed',
+          workflow: '.github/workflows/ci.yml',
         },
         // eslint-disable-next-line unicorn/no-null -- the projection preserves GitHub's null.
         { conclusion: null, name: 'lint', status: 'queued' },
       ]);
     },
   );
+
+  it.each([
+    ['installed', workerPath],
+    ['dogfood', dogfoodWorkerPath],
+  ])('lets the %s worker read workflow runs for the head', (_name, path) => {
+    const source = readFileSync(path, 'utf8');
+
+    expect(source).toContain('actions/runs?head_sha=$head_sha');
+    expect(source).toMatch(/permissions:\n\s+actions: read\n\s+contents: read\n\s+issues: read\n/u);
+  });
 });
