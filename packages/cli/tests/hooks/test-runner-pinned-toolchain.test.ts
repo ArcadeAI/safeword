@@ -182,4 +182,15 @@ describe('test runner with a mise-pinned project', () => {
     expect(output).toContain('Pinned toolchain not applied');
     expect(output).toContain('are not trusted');
   });
+
+  it('still says why the pin was not applied when the project has no tests to run', () => {
+    installFakeMise([{ file: 'mise.toml', tools: ['bun'] }], 'fails');
+    writeFileSync(path.join(project, 'package.json'), JSON.stringify({ scripts: {} }));
+
+    const result = runTests(project);
+
+    expect(result.skipped, result.output).toBe(true);
+    expect(result.output).toContain('Pinned toolchain not applied');
+    expect(result.output).toContain('are not trusted');
+  });
 });
