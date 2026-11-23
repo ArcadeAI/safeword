@@ -180,7 +180,9 @@ function reconcileSmallWork(
   const facts = readFacts(ticket);
   const decision = classifySmallWork(facts);
   if (decision.status !== 'classified') {
-    return `Small-work classification ${decision.status}: ${decision.reasons.join(', ')}.`;
+    return proposed === undefined
+      ? undefined
+      : `Small-work classification ${decision.status}: ${decision.reasons.join(', ')}.`;
   }
   const evaluated = facts as SmallWorkFacts & { evaluation?: unknown };
   if (decision.route !== 'feature' && (proposed === undefined || !smallWork)) {
@@ -215,8 +217,9 @@ function reconcileSmallWork(
     .replace(/^type:[ \t]*(?:task|patch)[ \t]*$/m, 'type: feature')
     .replace(/^phase:[^\r\n]*\r?\n?/m, '')
     .trimEnd();
-  const pending = behaviorDecision ? '' : `\n${PENDING_PLAN}`;
-  const updated = `---\n${publication}\nphase: define-behavior${pending}\n---${ticket.slice(beginning[0].length)}`;
+  const newline = ticket.startsWith('---\r\n') ? '\r\n' : '\n';
+  const pending = behaviorDecision ? '' : `${newline}${PENDING_PLAN}`;
+  const updated = `---${newline}${publication}${newline}phase: define-behavior${pending}${newline}---${ticket.slice(beginning[0].length)}`;
   try {
     if (readFileSync(ticketPath, 'utf8') !== ticket) {
       return 'The active ticket changed during classification. Reevaluate the current ticket before editing production code.';
@@ -225,5 +228,6 @@ function reconcileSmallWork(
   } catch {
     return 'Safeword could not record the new feature route. Reevaluate the ticket before editing production code.';
   }
-  return `The active ticket now needs feature planning: ${decision.reasons.join(', ')}. Continue on the same ticket from behavior definition.`;
+  const message = `The active ticket now needs feature planning: ${decision.reasons.join(', ')}. Continue on the same ticket from behavior definition.`;
+  return proposed === undefined ? `${message} Reread the ticket before editing it again.` : message;
 }

@@ -1,6 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -184,14 +184,33 @@ test('public status stays ready', () => {
         verification: 'new-regression',
       };
       const original = readFileSync(ticket, 'utf8').replace('type: task', () => `type: ${type}`);
-      const edited = `${original}\n## Safeword small-work facts\n\n\`\`\`json\n${JSON.stringify(facts)}\n\`\`\`\n`;
-      writeFileSync(ticket, edited);
-      const notify = () =>
+      const ticketWithFacts = `${original}\n## Safeword small-work facts\n\n\`\`\`json\n${JSON.stringify(facts)}\n\`\`\`\n`;
+      const edited =
+        type === 'feature' ? ticketWithFacts.replaceAll('\n', '\r\n') : ticketWithFacts;
+      const notify = (content = edited) =>
         spawnHookScript(nodePath.join(project, '.safeword/hooks/post-tool-quality.ts'), project, {
           session_id: sessionId,
           tool_name: 'Write',
-          tool_input: { file_path: ticket, content: edited },
+          tool_input: { file_path: ticket, content },
         });
+      if (type === 'task' && changesSharedContract) {
+        const incomplete = edited.replace(JSON.stringify(facts), '{}');
+        writeFileSync(ticket, incomplete);
+        const draftEdit = notify(incomplete);
+        expect(draftEdit.status, draftEdit.stderr).toBe(0);
+        expect(draftEdit.stdout).not.toContain('Small-work classification');
+        expect(readFileSync(ticket, 'utf8')).toBe(incomplete);
+
+        const mergeHead = nodePath.join(project, '.git', 'MERGE_HEAD');
+        writeFileSync(mergeHead, `${git('rev-parse', 'HEAD')}\n`);
+        writeFileSync(ticket, edited);
+        const mergeEdit = notify();
+        expect(mergeEdit.status, mergeEdit.stderr).toBe(0);
+        expect(mergeEdit.stdout).not.toContain('now needs feature planning');
+        expect(readFileSync(ticket, 'utf8')).toBe(edited);
+        unlinkSync(mergeHead);
+      }
+      writeFileSync(ticket, edited);
       const first = notify();
       expect(first.status, first.stderr).toBe(0);
       const promoted = readFileSync(ticket, 'utf8');
@@ -202,6 +221,8 @@ test('public status stays ready', () => {
       }
       expect(promoted, first.stderr || first.stdout).toMatch(/^type: feature$/m);
       expect(first.stdout).toContain('shared public contract changes');
+      expect(first.stdout).toContain('Reread the ticket before editing it again.');
+      if (type === 'feature') expect(promoted.replaceAll('\r\n', '')).not.toContain('\n');
       expect(promoted).toMatch(/^phase: define-behavior$/m);
       expect(promoted).toMatch(/^small_work_pending_phase: plan-implementation$/m);
       expect(promoted).toContain(`id: ${ticketId}`);

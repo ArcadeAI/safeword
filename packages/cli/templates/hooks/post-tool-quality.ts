@@ -343,7 +343,8 @@ if (
       ticketId !== undefined &&
       ticketPath.split(nodePath.sep).length === 2 &&
       !ticketPath.startsWith(`..${nodePath.sep}`) &&
-      isEditTool(input.tool_name ?? '')
+      isEditTool(input.tool_name ?? '') &&
+      !isGitOperationInProgress(projectDirectory)
     ) {
       reviewMessage = promoteSmallWorkAfterTicketEdit(projectDirectory, fullPath, ticketId) ?? null;
       if (reviewMessage !== null) content = readFileSync(fullPath, 'utf8');
