@@ -363,20 +363,25 @@ function evaluateCheckRun(
 
 /**
  * Each workflow run makes a new check suite, so a check GitHub cancelled and then re-ran (as when a
- * PR is marked Ready) has several runs on one head. Only the most recently started runs count.
- * Without a start time on every run there is no trustworthy order, so all runs count.
+ * PR is marked Ready) keeps its cancelled run on the head beside the rerun. A cancelled run that a
+ * later-started run of the same check superseded no longer counts. Every other run still counts,
+ * since a same-named check can come from another workflow, and a run without a start time cannot
+ * be ordered.
  */
-function currentCheckRuns(checks: InspectionInput['checks']): InspectionInput['checks'] {
-  const startTimes = checks.map(check =>
-    check.startedAt === undefined ? NaN : Date.parse(check.startedAt),
+function isSupersededCancellation(
+  check: InspectionInput['checks'][number],
+  sameNamedChecks: InspectionInput['checks'],
+): boolean {
+  if (check.conclusion !== 'cancelled' || check.startedAt === undefined) return false;
+  const startedAt = Date.parse(check.startedAt);
+  return sameNamedChecks.some(
+    other => other.startedAt !== undefined && Date.parse(other.startedAt) > startedAt,
   );
-  if (startTimes.some(time => Number.isNaN(time))) return checks;
-  const latest = Math.max(...startTimes);
-  return checks.filter((_check, index) => startTimes[index] === latest);
 }
 
 function evaluatePrerequisite(context: string, input: InspectionInput): PrerequisiteState {
-  const checks = currentCheckRuns(input.checks.filter(candidate => candidate.name === context));
+  const sameNamedChecks = input.checks.filter(candidate => candidate.name === context);
+  const checks = sameNamedChecks.filter(check => !isSupersededCancellation(check, sameNamedChecks));
   if (checks.length > 0) {
     const states = checks.map(check => evaluateCheckRun(check));
     if (states.includes('failed')) return 'failed';

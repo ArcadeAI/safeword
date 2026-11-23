@@ -63143,15 +63143,15 @@ function evaluateCheckRun(check) {
     return "failed";
   return PASSING_CHECK_CONCLUSIONS.has(check.conclusion) ? "passed" : "pending";
 }
-function currentCheckRuns(checks) {
-  const startTimes = checks.map((check) => check.startedAt === undefined ? NaN : Date.parse(check.startedAt));
-  if (startTimes.some((time) => Number.isNaN(time)))
-    return checks;
-  const latest = Math.max(...startTimes);
-  return checks.filter((_check, index) => startTimes[index] === latest);
+function isSupersededCancellation(check, sameNamedChecks) {
+  if (check.conclusion !== "cancelled" || check.startedAt === undefined)
+    return false;
+  const startedAt = Date.parse(check.startedAt);
+  return sameNamedChecks.some((other) => other.startedAt !== undefined && Date.parse(other.startedAt) > startedAt);
 }
 function evaluatePrerequisite(context, input) {
-  const checks = currentCheckRuns(input.checks.filter((candidate) => candidate.name === context));
+  const sameNamedChecks = input.checks.filter((candidate) => candidate.name === context);
+  const checks = sameNamedChecks.filter((check) => !isSupersededCancellation(check, sameNamedChecks));
   if (checks.length > 0) {
     const states = checks.map((check) => evaluateCheckRun(check));
     if (states.includes("failed"))

@@ -135,7 +135,7 @@ jobs:
                   {kind: "unreadable_text", path: .filename}
                 end
               ],
-              checks: [$checks[0][] | {name, status, conclusion}],
+              checks: [$checks[0][] | {name, status, conclusion} + (if .started_at then {startedAt: .started_at} else {} end)],
               statuses: [$statuses[0][] | {context, state}]
             }
           ' > inspection-input.json

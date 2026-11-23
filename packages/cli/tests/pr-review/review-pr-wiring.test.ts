@@ -214,13 +214,33 @@ describe('review-pr inspect command wiring', () => {
   // so a required check can carry a cancelled run alongside its later rerun (#7952). The API does
   // not order runs, so the later run is listed first here.
   it.each([
-    ['a later successful rerun', 'completed', 'success', true, undefined],
-    ['a later failed rerun', 'completed', 'failure', false, 'prerequisites_failed'],
-    // eslint-disable-next-line unicorn/no-null -- GitHub uses JSON null until completion.
-    ['a later rerun still in progress', 'in_progress', null, false, 'prerequisites_pending'],
+    ['a cancelled run then a successful rerun', 'cancelled', 'completed', 'success', undefined],
+    [
+      'a cancelled run then a failed rerun',
+      'cancelled',
+      'completed',
+      'failure',
+      'prerequisites_failed',
+    ],
+    [
+      'a cancelled run then a rerun in progress',
+      'cancelled',
+      'in_progress',
+      // eslint-disable-next-line unicorn/no-null -- GitHub uses JSON null until completion.
+      null,
+      'prerequisites_pending',
+    ],
+    // A same-named check from another workflow is not a rerun; its failure still counts.
+    [
+      'an earlier failure then a later success',
+      'failure',
+      'completed',
+      'success',
+      'prerequisites_failed',
+    ],
   ] as const)(
-    'judges a cancelled required check by %s',
-    async (_case, status, conclusion, reviewRuns, expectedStatus) => {
+    'judges a required check with %s',
+    async (_case, earlierConclusion, status, conclusion, expectedStatus) => {
       const cwd = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-pr-superseded-'));
       directories.push(cwd);
       mkdirSync(nodePath.join(cwd, '.safeword'));
@@ -246,7 +266,7 @@ describe('review-pr inspect command wiring', () => {
           checks: [
             { conclusion, name: 'lint', startedAt: '2026-11-20T17:28:04Z', status },
             {
-              conclusion: 'cancelled',
+              conclusion: earlierConclusion,
               name: 'lint',
               startedAt: '2026-11-20T17:22:11Z',
               status: 'completed',
@@ -263,7 +283,7 @@ describe('review-pr inspect command wiring', () => {
 
       const result = await inspectPullRequestCommand({ cwd, inputPath, outputPath, provider });
 
-      expect(provider).toHaveBeenCalledTimes(reviewRuns ? 1 : 0);
+      expect(provider).toHaveBeenCalledTimes(expectedStatus ? 0 : 1);
       if (expectedStatus) expect(receiptOf(result)).toMatchObject({ status: expectedStatus });
       else expect(receiptOf(result).checks).toEqual([{ name: 'lint', status: 'success' }]);
     },
