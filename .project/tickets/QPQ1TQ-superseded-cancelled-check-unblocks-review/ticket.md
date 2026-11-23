@@ -2,7 +2,7 @@
 id: QPQ1TQ
 slug: superseded-cancelled-check-unblocks-review
 type: task
-phase: done
+phase: implement
 subtype: bug-investigated
 scope: |
   Ignore a cancelled check run when a later-started run of the same check exists
@@ -20,7 +20,9 @@ done_when: |
   - A superseded parity cancellation no longer blocks generated files from skipping review.
   - Runs without started_at are never treated as superseded.
   - Both worker workflows emit started_at for each check run, and generated surfaces are regenerated.
-status: done
+  - A cancelled run is superseded only by a later run of the same workflow; a cancellation from another workflow with the same check name still counts (advisory review finding on PR #8231).
+  - Both workers forward each check run's workflow (via actions/runs, with actions: read on the inspect job); a run without a workflow is never superseded.
+status: in_progress
 created: 2026-11-23T19:54:37.573Z
 last_modified: 2026-11-23T19:54:37.573Z
 ---
@@ -52,3 +54,4 @@ failure. Grouping by check suite cannot work, because each new workflow run is a
 - 2026-11-23T19:54:37.573Z Started: Created ticket QPQ1TQ
 - 2026-11-23T20:45:00Z Done: RED 1fefd45d3, GREEN 43767ffb5, narrowed after review 3dad6a6e6, typecheck fix 1bb672cd6. Refactor: no change warranted.
 - 2026-11-23T21:55:00Z Codex quality review found generatedCheckPassed bypassed the rule; fixed in 281baade4 (shared currentCheckRuns), re-review approved.
+- 2026-11-23: Reopened. Advisory PR review found a same-named cancellation from another workflow could be hidden by a later success. Maintainer approved adding `actions: read` to forward workflow identity.

@@ -255,11 +255,13 @@ describe('review-pr inspect command wiring', () => {
     return { provider, result };
   }
 
+  const ciWorkflow = '.github/workflows/ci.yml';
   const earlierCancellation = {
     conclusion: 'cancelled',
     name: 'lint',
     startedAt: '2026-11-20T17:22:11Z',
     status: 'completed',
+    workflow: ciWorkflow,
   };
 
   // Marking a PR Ready cancels the in-flight CI run and starts a new check suite on the same head,
@@ -296,10 +298,31 @@ describe('review-pr inspect command wiring', () => {
       'success',
       'prerequisites_failed',
     ],
+    // A cancellation from another workflow was never rerun, so it still counts.
+    [
+      'a cancelled run from another workflow then a later success',
+      { ...earlierCancellation, workflow: '.github/workflows/release.yml' },
+      'completed',
+      'success',
+      'prerequisites_failed',
+    ],
     // Without a start time nothing proves the cancellation came first, so it still counts.
     [
       'a cancelled run with no start time then a success',
-      { conclusion: 'cancelled', name: 'lint', status: 'completed' },
+      { conclusion: 'cancelled', name: 'lint', status: 'completed', workflow: ciWorkflow },
+      'completed',
+      'success',
+      'prerequisites_failed',
+    ],
+    // Without a workflow nothing proves the later run is a rerun, so it still counts.
+    [
+      'a cancelled run with no workflow then a success',
+      {
+        conclusion: 'cancelled',
+        name: 'lint',
+        startedAt: '2026-11-20T17:22:11Z',
+        status: 'completed',
+      },
       'completed',
       'success',
       'prerequisites_failed',
@@ -308,7 +331,13 @@ describe('review-pr inspect command wiring', () => {
     'judges a required check with %s',
     async (_case, earlierRun, status, conclusion, expectedStatus) => {
       const { provider, result } = inspectLintRuns([
-        { conclusion, name: 'lint', startedAt: '2026-11-20T17:28:04Z', status },
+        {
+          conclusion,
+          name: 'lint',
+          startedAt: '2026-11-20T17:28:04Z',
+          status,
+          workflow: ciWorkflow,
+        },
         earlierRun,
       ]);
 
@@ -331,6 +360,7 @@ describe('review-pr inspect command wiring', () => {
           name: 'Dogfood parity',
           startedAt: '2026-11-20T17:28:04Z',
           status: 'completed',
+          workflow: ciWorkflow,
         },
         { ...earlierCancellation, name: 'Dogfood parity' },
       ],
@@ -357,6 +387,15 @@ describe('review-pr inspect command wiring', () => {
   ])('rejects a check run whose start time is %s', async (_case, startedAt) => {
     const { provider, result } = inspectLintRuns([
       { conclusion: 'success', name: 'lint', startedAt, status: 'completed' },
+    ]);
+
+    await expect(result).rejects.toThrow('review-pr: invalid check-run sample');
+    expect(provider).not.toHaveBeenCalled();
+  });
+
+  it('rejects a check run whose workflow is not a string', async () => {
+    const { provider, result } = inspectLintRuns([
+      { conclusion: 'success', name: 'lint', status: 'completed', workflow: 42 },
     ]);
 
     await expect(result).rejects.toThrow('review-pr: invalid check-run sample');
