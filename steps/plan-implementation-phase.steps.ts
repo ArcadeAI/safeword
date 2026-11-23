@@ -2996,31 +2996,43 @@ Then(
   },
 );
 
+function resolveDecisionLink(
+  markdown: string | undefined,
+  pattern: RegExp,
+  directory: string,
+  missingLinkMessage: string,
+): string {
+  const target = markdown?.match(pattern)?.[1];
+  assert.ok(target, missingLinkMessage);
+  return nodePath.resolve(directory, target);
+}
+
 Then('an accepted ADR records the plan-implementation phase', function (this: PlanWorld) {
-  const link = this.architectureRecord?.match(
+  this.planningDecisionPath = resolveDecisionLink(
+    this.architectureRecord,
     /\[plan-implementation: a gated planning phase[^\]]*\]\(([^)]+)\)/u,
+    PROJECT_ROOT,
+    'The overview must link to the planning-phase decision',
   );
-  assert.ok(link?.[1], 'The overview must link to the planning-phase decision');
-  this.planningDecisionPath = nodePath.resolve(PROJECT_ROOT, link[1]);
   const decision = readFileSync(this.planningDecisionPath, 'utf8');
   assert.match(decision, /^# plan-implementation: a gated planning phase/mu);
   assert.match(decision, /^\*\*Status:\*\* Accepted\b/mu);
 });
 
 Then('the decomposition-retirement ADR is marked superseded by it', function (this: PlanWorld) {
-  const link = this.architectureRecord?.match(
+  const olderPath = resolveDecisionLink(
+    this.architectureRecord,
     /\[[^\]]*retire `decomposition` phase[^\]]*\]\(([^)]+)\)/u,
+    PROJECT_ROOT,
+    'The overview must link to the decomposition-retirement decision',
   );
-  assert.ok(link?.[1], 'The overview must link to the decomposition-retirement decision');
-  const olderPath = nodePath.resolve(PROJECT_ROOT, link[1]);
   const olderDecision = readFileSync(olderPath, 'utf8');
   assert.match(olderDecision, /^# .*retire `decomposition` phase/mu);
-  const replacement = olderDecision.match(
+  const replacementPath = resolveDecisionLink(
+    olderDecision,
     /^\*\*Status:\*\* .*superseded by \[[^\]]+\]\(([^)]+)\)/mu,
+    nodePath.dirname(olderPath),
+    'The status must link to the superseding decision',
   );
-  assert.ok(replacement?.[1], 'The status must link to the superseding decision');
-  assert.equal(
-    nodePath.resolve(nodePath.dirname(olderPath), replacement[1]),
-    this.planningDecisionPath,
-  );
+  assert.equal(replacementPath, this.planningDecisionPath);
 });
