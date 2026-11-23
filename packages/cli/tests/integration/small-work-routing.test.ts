@@ -7,10 +7,13 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   consequentialDecisions,
+  renderSmallWorkFacts,
   type SmallWorkFacts,
 } from '../../templates/hooks/lib/small-work-classification.js';
 import {
   createTemporaryDirectory,
+  expectHookAllow,
+  expectHookDeny,
   removeTemporaryDirectory,
   runCli,
   sourceHookEnvironment,
@@ -81,7 +84,7 @@ describe('installed small-work routing', () => {
     return JSON.parse(decision.stdout) as { permission: string; agent_message: string };
   }
 
-  async function passingProof(ticketId: string, facts: object) {
+  async function passingProof(ticketId: string, facts: object, cli?: string) {
     git('init', '-q');
     git('add', '.');
     git(
@@ -117,11 +120,20 @@ test('public status stays ready', () => {
       expectation: 'pass',
       expectedFailure: '',
     };
-    const result = await runCli(
-      ['ticket', 'observe-small-work-proof', JSON.stringify(request), '--json'],
-      { cwd: project, env: environment() },
-    );
-    expect(result.exitCode, result.stderr || result.stdout).toBe(0);
+    const args = ['ticket', 'observe-small-work-proof', JSON.stringify(request), '--json'];
+    const result =
+      cli === undefined
+        ? await runCli(args, { cwd: project, env: environment() })
+        : spawnSync('bun', [cli, ...args], {
+            cwd: project,
+            encoding: 'utf8',
+            env: sourceHookEnvironment(project, environment()),
+            timeout: 15_000,
+          });
+    expect(
+      'exitCode' in result ? result.exitCode : result.status,
+      result.stderr || result.stdout,
+    ).toBe(0);
     const { observation } = JSON.parse(result.stdout).data;
     expect(observation.passingRunObserved).toBe(true);
     return {
@@ -361,6 +373,122 @@ test('public status stays ready', () => {
     const planned = await verifyDesignPromotion(false);
     expect(planned).toMatch(/^phase: plan-implementation$/m);
   });
+
+  it.each(['claude', 'codex'] as const)(
+    'admits bounded %s edits and blocks file-only and surface-only crossings',
+    async host => {
+      const installation = await runCli(
+        ['install', '--agents=cursor', '--no-modify', '--offline'],
+        {
+          cwd: project,
+        },
+      );
+      expect(installation.exitCode, installation.stderr).toBe(0);
+      const creation = await runCli(['ticket', 'new', slug, '--type', 'task'], { cwd: project });
+      expect(creation.exitCode, creation.stderr).toBe(0);
+      const id = ticketIdBySlug(project, slug);
+      const ticket = nodePath.join(ticketFolderBySlug(project, slug), 'ticket.md');
+      mkdirSync(nodePath.join(project, 'src'));
+      const source = 'export const status = { ready: true };\n';
+      const caller = "import { status } from './status';\nexport const ready = status.ready;\n";
+      const files = {
+        'src/status.ts': source,
+        'src/caller.ts': caller,
+        'src/a.ts': 'export const a = true;\n',
+        'src/ui.ts': 'export const ui = true;\n',
+      };
+      for (const [path, bytes] of Object.entries(files)) {
+        writeFileSync(nodePath.join(project, path), bytes);
+      }
+      const facts = {
+        schemaVersion: 1,
+        scope: 'Simplify the existing status helper',
+        outcome: 'Keep the public status readable',
+        decisions: Object.fromEntries(
+          consequentialDecisions.map(decision => [decision, 'settled']),
+        ),
+        introducesUserFlow: false,
+        multipleUserFlows: false,
+        newPersistentState: false,
+        changesSharedContract: false,
+        changesBehavior: false,
+        verification: 'new-regression',
+      };
+      const codexCli = nodePath.resolve(import.meta.dirname, '../../codex-plugin/runtime/cli.js');
+      const { evaluation, ...proof } = await passingProof(
+        id,
+        facts,
+        host === 'codex' ? codexCli : undefined,
+      );
+      const content =
+        readFileSync(ticket, 'utf8') + renderSmallWorkFacts({ ...facts, evaluation, proof });
+      const attachedTicket = `${content}\nFootprint probe attached.\n`;
+      writeFileSync(ticket, attachedTicket);
+      const dispatch = (
+        event: 'pre' | 'post',
+        relative: string,
+        oldText: string,
+        newText: string,
+      ) => {
+        const lifecycle = event === 'pre' ? 'PreToolUse' : 'PostToolUse';
+        const tool =
+          host === 'claude'
+            ? {
+                tool_name: 'Edit',
+                tool_input: {
+                  file_path: nodePath.join(project, relative),
+                  old_string: oldText,
+                  new_string: newText,
+                },
+              }
+            : {
+                tool_name: 'apply_patch',
+                tool_input: {
+                  command: `*** Begin Patch\n*** Update File: ${relative}\n@@\n-${oldText}\n+${newText}\n*** End Patch`,
+                },
+              };
+        const args =
+          host === 'claude'
+            ? [nodePath.join(project, `.safeword/hooks/${event}-tool-quality.ts`)]
+            : [codexCli, 'hook', 'codex', `${event}-tool-use`, '--plugin-hook'];
+        return spawnSync('bun', args, {
+          cwd: project,
+          encoding: 'utf8',
+          env: sourceHookEnvironment(project, environment()),
+          input: JSON.stringify({
+            session_id: sessionId,
+            cwd: project,
+            hook_event_name: lifecycle,
+            ...tool,
+          }),
+          timeout: 15_000,
+        });
+      };
+      expectHookAllow(
+        dispatch(
+          'post',
+          nodePath.relative(project, ticket),
+          'Footprint probe ready.',
+          'Footprint probe attached.',
+        ),
+      );
+      const crossingReason = 'crossed a configured file or surface threshold';
+      expectHookDeny(
+        dispatch('pre', 'src/ui.ts', 'export const ui = true;', 'export const ui = Boolean(true);'),
+        crossingReason,
+      );
+      const updated = 'export const status = { ready: Boolean(true) };';
+      const bounded = dispatch('pre', 'src/status.ts', source.trimEnd(), updated);
+      expect(bounded.stdout, bounded.stderr).not.toContain('permissionDecision":"deny');
+      expectHookAllow(bounded);
+      writeFileSync(nodePath.join(project, 'src/status.ts'), `${updated}\n`);
+      expectHookDeny(
+        dispatch('pre', 'src/a.ts', 'export const a = true;', 'export const a = Boolean(true);'),
+        crossingReason,
+      );
+      expect(readFileSync(ticket, 'utf8')).toBe(attachedTicket);
+    },
+  );
 
   it.each(['public contract', 'private helper'] as const)(
     'checks a valid task at the installed edit boundary for a %s change',

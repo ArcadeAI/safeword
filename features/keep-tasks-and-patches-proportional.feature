@@ -159,6 +159,13 @@ Feature: Keep tasks and patches proportional
         | every configured installed host surface | only mechanical parity with settled behavior | task |
         | two public surfaces | a newly divergent user flow | feature |
 
+    @proof.vitest @surface.claude-code @surface.openai-codex
+    Scenario: Claude Code and Codex check file and surface growth before editing
+      Given a bound task has current test evidence and its file and affected surface limits are recorded
+      When the installed Claude Code and Codex edit gates check the proposed changes
+      Then both permit a change within the limits without reclassifying the task
+      And both require reevaluation when a change crosses either limit alone
+
     @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed hosts enforce reevaluation only after a configured signal is crossed
       Given <installed_entry> is running task work whose size and affected surfaces <signal_state>
@@ -170,12 +177,8 @@ Feature: Keep tasks and patches proportional
         | actual installed CLI dispatch | remain within configured signals | production continues without a classification reevaluation |
         | actual installed CLI dispatch | cross the configured surface signal | production pauses until semantic reevaluation is recorded |
         | actual installed CLI dispatch | cross only the configured size signal | production pauses until semantic reevaluation is recorded |
-        | actual Claude Code lifecycle dispatch from installed project hooks | remain within configured signals | production continues without a classification reevaluation |
-        | actual Claude Code lifecycle dispatch from installed project hooks | cross the configured surface signal | production pauses until semantic reevaluation is recorded |
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM | remain within configured signals | production continues without a classification reevaluation |
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM | cross the configured surface signal | production pauses until semantic reevaluation is recorded |
-        | actual OpenAI Codex lifecycle dispatch from installed project hooks | remain within configured signals | production continues without a classification reevaluation |
-        | actual OpenAI Codex lifecycle dispatch from installed project hooks | cross the configured surface signal | production pauses until semantic reevaluation is recorded |
         | actual Cursor lifecycle dispatch from installed project hooks | remain within configured signals | production continues without a classification reevaluation |
         | actual Cursor lifecycle dispatch from installed project hooks | cross the configured surface signal | production pauses until semantic reevaluation is recorded |
         | actual Cursor Cloud Agents lifecycle dispatch from project hooks in a fresh runner | remain within configured signals | production continues without a classification reevaluation |

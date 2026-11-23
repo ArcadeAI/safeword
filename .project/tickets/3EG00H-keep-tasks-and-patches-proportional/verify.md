@@ -199,3 +199,11 @@ Two local host rows from Rule 8 now share one executable scenario. Its test disp
 On candidate `addfa9866`, native Claude Code session `02918ae1-ec8a-4022-929e-35779e3a2f5b` and Codex CLI session `01a20a6b-9363-7cb2-b8d8-f79cf8e2f643` each edited their ticket, then attempted one production edit without running a test. The source stayed at one attempt in both fixtures. Claude's Edit result and Codex's PreToolUse router both reported “Record the observed failing test for this task before editing production code.” Codex used the isolated test profile's invocation-only hook trust override. An initial fixture had uncommitted setup files and triggered the footprint limit. The successful rerun committed those files to the fixture baseline.
 
 All 55 focused proof-registration and RED-admission tests passed. Six of 145 expanded examples now have executable proof links. The acceptance dry run reports the remaining 139 as undefined.
+
+### File and surface growth on Claude Code and Codex
+
+Four local Rule 6 rows now share one executable scenario. Both installed edit adapters exercised a bound task with passing evidence and limits of two files and one surface. The test file counted as the first CLI file. The adapter refused a second file on the UI surface, permitted a second CLI file, and then refused a third CLI file. The denied probes isolate surface growth and file growth respectively. The task ticket stayed byte-identical after attachment.
+
+Native Claude Code session `909d2641-5836-44fb-bde5-f2a9e234bb4e` and Codex CLI session `01a20a92-1c15-7763-be01-48fd2b4cb3d9` reproduced all three outcomes on candidate `681ab8c30`. The only source edit on each host kept the attempt count at one. The Claude Edit result and Codex PreToolUse router reported the footprint threshold for both rejected edits. Each fixture obtained its passing observation through the CLI build used by its hook. The first Claude fixture used a different verifier and failed the proof check, so that run does not count.
+
+All 64 focused proof-registration, routing, and RED-admission tests passed. Seven of 142 expanded examples now have executable proof links. The acceptance dry run reports 135 undefined examples.

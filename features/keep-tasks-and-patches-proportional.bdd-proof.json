@@ -24,6 +24,10 @@
     "Claude Code and Codex block a bound task edit when RED is missing": [
       "packages/cli/tests/integration/small-work-red-admission.test.ts",
       "denies native Claude and Codex production edits after ticket binding when RED is missing"
+    ],
+    "Claude Code and Codex check file and surface growth before editing": [
+      "packages/cli/tests/integration/small-work-routing.test.ts",
+      "admits bounded %s edits and blocks file-only and surface-only crossings"
     ]
   }
 }
