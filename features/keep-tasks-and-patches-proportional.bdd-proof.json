@@ -8,6 +8,14 @@
     "Meaningful RED permits the production change": [
       "packages/cli/tests/integration/small-work-red-admission.test.ts",
       "requires the current observed failure and matching relevance before the first edit"
+    ],
+    "Current behavior approval sends public-contract design straight to Implementation Planning": [
+      "packages/cli/tests/integration/small-work-routing.test.ts",
+      "promotes public-contract design immediately with current behavior approval"
+    ],
+    "A resumed ticket edit follows the saved design destination after current approval": [
+      "packages/cli/tests/integration/small-work-routing.test.ts",
+      "resumes the saved design destination only after current behavior approval"
     ]
   }
 }

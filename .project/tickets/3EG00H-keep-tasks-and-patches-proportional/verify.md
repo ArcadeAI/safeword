@@ -172,3 +172,16 @@ Claude Code 2.1.330 ran native Edit through installed project hooks. Codex CLI 0
 | Codex CLI | `01a20a3f-622e-77e3-adbc-36fd909ad0ed` | `01a20a40-2552-7de1-b804-c81e200434db` | `01a20a41-b355-78a2-aaf1-645a86010429` |
 
 The disposable fixture supplied the coordinator's status response and set up the scenario-gate phase between sessions. These runs establish native edit routing and preservation. Live cross-agent review, fresh plugin enrollment, and standalone CLI restart remain unverified here.
+
+### Executable routing scenarios and genuine review receipts
+
+Two Rule 12 scenarios now point to separate named tests of the installed ticket-edit hook. One proves immediate routing for public-contract design with current behavior approval. The other proves restart behavior, including preservation of the pending destination with stale or unrelated approval. The feature now has four executable proof links across 147 expanded examples. The acceptance lane dry run reports the other 143 as undefined.
+
+In disposable projects, the real coordinator accepted both synthetic readiness scenarios from a Codex-authored packet reviewed by Claude. The normal stamp command accepted those receipts, and the installed hook consumed them from disk with the reviewed ticket bytes intact:
+
+| Route | Approved review | Hook result |
+| --- | --- | --- |
+| Immediate from task intake | `50d8f14a-c217-4367-abca-40999f6bbe8d` | Same ticket entered Implementation Planning and kept its notes. |
+| Deferred, resumed from the scenario gate | `daf4e548-9367-4903-b466-7bf5014f7564` | Same ticket entered Implementation Planning, cleared its pending destination, and kept its notes. |
+
+A separate trial changed a checkpoint line inside reviewed `ticket.md`. The coordinator correctly reported its full-context receipt stale under the current fingerprinting rules. The successful receipt runs used hook events with the reviewed bytes intact. The native sessions above exercised actual edits with fixture approval. Standalone CLI restart and whether to treat bookkeeping-only changes as semantically neutral remain open.

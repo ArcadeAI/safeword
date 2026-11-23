@@ -337,8 +337,21 @@ Feature: Keep tasks and patches proportional
       Examples:
         | new_choice | return_path |
         | an in-scope product-behavior decision | behavior definition resumes with existing evidence preserved |
-        | an in-scope public-contract design decision with current approval for the applicable feature behavior | the same ticket enters Implementation Planning immediately with existing evidence preserved and without reopening behavior review |
         | an in-scope implementation-design decision with current approval for the applicable feature behavior | the same ticket enters Implementation Planning immediately with existing evidence preserved and without reopening behavior review |
+
+    @proof.vitest
+    Scenario: Current behavior approval sends public-contract design straight to Implementation Planning
+      Given a task records an in-scope public-contract design change and has current approval for the applicable behavior
+      When the installed ticket-edit hook promotes the task
+      Then the same ticket enters Implementation Planning and retains its investigation notes
+
+    @proof.vitest
+    Scenario: A resumed ticket edit follows the saved design destination after current approval
+      Given design-only promotion saved Implementation Planning as the destination on the same ticket
+      And the ticket is at the scenario gate with its investigation notes intact
+      When the installed ticket-edit hook sees the ticket in a fresh session
+      Then missing, stale, or unrelated approval leaves the destination pending
+      And current approval lets the same ticket enter Implementation Planning with its investigation notes intact
 
     @rejection @surface.safeword-cli @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario Outline: Design-only promotion defers Implementation Planning when behavior approval is missing

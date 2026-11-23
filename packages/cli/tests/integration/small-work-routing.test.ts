@@ -237,121 +237,130 @@ test('public status stays ready', () => {
     },
   );
 
-  it.each(['already approved', 'approval after restart'])(
-    'resumes design promotion at Implementation Planning when %s',
-    async timing => {
-      initializeRepo();
-      const install = await runCli(['install', '--agents=cursor', '--no-modify', '--offline'], {
-        cwd: project,
-      });
-      expect(install.exitCode, install.stderr).toBe(0);
-      const creation = await runCli(['ticket', 'new', slug, '--type', 'task'], { cwd: project });
-      expect(creation.exitCode, creation.stderr).toBe(0);
-      const directory = ticketFolderBySlug(project, slug);
-      const ticket = nodePath.join(directory, 'ticket.md');
-      const scenario = nodePath.join(directory, 'approved.feature');
+  async function verifyDesignPromotion(alreadyApproved: boolean) {
+    initializeRepo();
+    const install = await runCli(['install', '--agents=cursor', '--no-modify', '--offline'], {
+      cwd: project,
+    });
+    expect(install.exitCode, install.stderr).toBe(0);
+    const creation = await runCli(['ticket', 'new', slug, '--type', 'task'], { cwd: project });
+    expect(creation.exitCode, creation.stderr).toBe(0);
+    const ticketId = ticketIdBySlug(project, slug);
+    const directory = ticketFolderBySlug(project, slug);
+    const ticket = nodePath.join(directory, 'ticket.md');
+    const scenario = nodePath.join(directory, 'approved.feature');
+    writeFileSync(
+      scenario,
+      'Feature: Response behavior\n  Scenario: Existing consumer\n    Then the existing response stays readable\n',
+    );
+    writeFileSync(
+      nodePath.join(directory, 'test-definitions.md'),
+      `Feature source: \`${nodePath.relative(project, scenario)}\`\n`,
+    );
+    const linkedProof = '\n## Investigation\n\nRED: existing caller reads the ready field.\n';
+    const facts = {
+      schemaVersion: 1,
+      scope: 'Resolve response contract design',
+      outcome: 'Preserve approved consumer behavior',
+      decisions: Object.fromEntries(consequentialDecisions.map(name => [name, 'settled'])),
+      introducesUserFlow: false,
+      multipleUserFlows: false,
+      newPersistentState: false,
+      changesSharedContract: true,
+      changesBehavior: true,
+      verification: 'new-regression',
+    };
+    writeFileSync(
+      ticket,
+      `${readFileSync(ticket, 'utf8')}${linkedProof}\n## Safeword small-work facts\n\n\`\`\`json\n${JSON.stringify(facts)}\n\`\`\`\n`,
+    );
+    const coordinator = nodePath.join(fixture, 'coordinator.js');
+    const statusFile = nodePath.join(fixture, 'receipt.json');
+    writeFileSync(
+      coordinator,
+      `console.log(await Bun.file(${JSON.stringify(statusFile)}).text());`,
+    );
+    const reviewId = 'fixture-scenario-review';
+    const publishStatus = (status: string, target = scenario) => {
       writeFileSync(
-        scenario,
-        'Feature: Response behavior\n  Scenario: Existing consumer\n    Then the existing response stays readable\n',
-      );
-      writeFileSync(
-        nodePath.join(directory, 'test-definitions.md'),
-        `Feature source: \`${nodePath.relative(project, scenario)}\`\n`,
-      );
-      const linkedProof = '\n## Investigation\n\nRED: existing caller reads the ready field.\n';
-      const facts = {
-        schemaVersion: 1,
-        scope: 'Resolve response contract design',
-        outcome: 'Preserve approved consumer behavior',
-        decisions: Object.fromEntries(consequentialDecisions.map(name => [name, 'settled'])),
-        introducesUserFlow: false,
-        multipleUserFlows: false,
-        newPersistentState: false,
-        changesSharedContract: true,
-        changesBehavior: true,
-        verification: 'new-regression',
-      };
-      writeFileSync(
-        ticket,
-        `${readFileSync(ticket, 'utf8')}${linkedProof}\n## Safeword small-work facts\n\n\`\`\`json\n${JSON.stringify(facts)}\n\`\`\`\n`,
-      );
-      const coordinator = nodePath.join(fixture, 'coordinator.js');
-      const statusFile = nodePath.join(fixture, 'receipt.json');
-      writeFileSync(
-        coordinator,
-        `console.log(await Bun.file(${JSON.stringify(statusFile)}).text());`,
-      );
-      const reviewId = 'fixture-scenario-review';
-      const publishStatus = (status: string, target = scenario) => {
-        writeFileSync(
-          statusFile,
-          JSON.stringify({
-            data: {
-              review_id: reviewId,
-              status,
-              review_kind: 'scenario-gate',
-              review_targets: [target],
-              author_agent: 'claude',
-              actual_reviewer: 'codex',
-              independence: 'cross-agent',
-            },
-          }),
-        );
-        writeFileSync(
-          nodePath.join(project, '.project', 'skill-invocations.log'),
-          `2026-11-23T00:00:00Z fixture review:${nodePath.basename(directory)}:phase@scenario-gate author:claude reviewer:codex independence:cross-agent review-id:${reviewId}\n`,
-        );
-      };
-      const resume = (session: string) => {
-        const result = spawnSync(
-          'bun',
-          [nodePath.join(project, '.safeword/hooks/post-tool-quality.ts')],
-          {
-            cwd: project,
-            encoding: 'utf8',
-            env: sourceHookEnvironment(project, { SAFEWORD_PLUGIN_CLI: coordinator }),
-            input: JSON.stringify({
-              session_id: session,
-              tool_name: 'Write',
-              tool_input: { file_path: ticket, content: readFileSync(ticket, 'utf8') },
-            }),
+        statusFile,
+        JSON.stringify({
+          data: {
+            review_id: reviewId,
+            status,
+            review_kind: 'scenario-gate',
+            review_targets: [target],
+            author_agent: 'claude',
+            actual_reviewer: 'codex',
+            independence: 'cross-agent',
           },
-        );
-        expect(result.status, result.stderr).toBe(0);
-        return readFileSync(ticket, 'utf8');
-      };
-      if (timing === 'already approved') {
-        publishStatus('approved');
-      } else {
-        const promoted = resume('promotion');
-        expect(promoted).toMatch(/^phase: define-behavior$/m);
-        expect(promoted).toMatch(/^small_work_pending_phase: plan-implementation$/m);
-        writeFileSync(ticket, promoted.replace('phase: define-behavior', 'phase: scenario-gate'));
-        publishStatus('stale');
-        const waiting = resume('restart-with-stale-approval');
-        expect(waiting).toMatch(/^phase: scenario-gate$/m);
-        expect(waiting).toMatch(/^small_work_pending_phase: plan-implementation$/m);
-        writeFileSync(nodePath.join(project, '.safeword', 'config.json'), '{"reviewGate":false}');
-        const manualAdvance = editDecision(
-          nodePath.relative(project, ticket),
-          waiting.replace('phase: scenario-gate', 'phase: plan-implementation'),
-        );
-        expect(manualAdvance.permission).toBe('deny');
-        expect(manualAdvance.agent_message).toContain('waiting for current approval');
-        const unrelated = nodePath.join(directory, 'unrelated.feature');
-        writeFileSync(unrelated, 'Feature: Unrelated behavior\n');
-        publishStatus('approved', unrelated);
-        expect(resume('restart-with-unrelated-approval')).toBe(waiting);
-        publishStatus('approved');
-      }
-      const planned = resume('restart-with-current-approval');
-      expect(planned).toMatch(/^type: feature$/m);
-      expect(planned).toMatch(/^phase: plan-implementation$/m);
-      expect(planned).not.toContain('small_work_pending_phase:');
-      expect(planned).toContain(linkedProof);
-      expect(resume('another-restart')).toBe(planned);
-    },
-  );
+        }),
+      );
+      writeFileSync(
+        nodePath.join(project, '.project', 'skill-invocations.log'),
+        `2026-11-23T00:00:00Z fixture review:${nodePath.basename(directory)}:phase@scenario-gate author:claude reviewer:codex independence:cross-agent review-id:${reviewId}\n`,
+      );
+    };
+    const resume = (session: string) => {
+      const result = spawnSync(
+        'bun',
+        [nodePath.join(project, '.safeword/hooks/post-tool-quality.ts')],
+        {
+          cwd: project,
+          encoding: 'utf8',
+          env: sourceHookEnvironment(project, { SAFEWORD_PLUGIN_CLI: coordinator }),
+          input: JSON.stringify({
+            session_id: session,
+            tool_name: 'Write',
+            tool_input: { file_path: ticket, content: readFileSync(ticket, 'utf8') },
+          }),
+        },
+      );
+      expect(result.status, result.stderr).toBe(0);
+      return readFileSync(ticket, 'utf8');
+    };
+    if (alreadyApproved) {
+      publishStatus('approved');
+    } else {
+      const promoted = resume('promotion');
+      expect(promoted).toMatch(/^phase: define-behavior$/m);
+      expect(promoted).toMatch(/^small_work_pending_phase: plan-implementation$/m);
+      writeFileSync(ticket, promoted.replace('phase: define-behavior', 'phase: scenario-gate'));
+      publishStatus('stale');
+      const waiting = resume('restart-with-stale-approval');
+      expect(waiting).toMatch(/^phase: scenario-gate$/m);
+      expect(waiting).toMatch(/^small_work_pending_phase: plan-implementation$/m);
+      writeFileSync(nodePath.join(project, '.safeword', 'config.json'), '{"reviewGate":false}');
+      const manualAdvance = editDecision(
+        nodePath.relative(project, ticket),
+        waiting.replace('phase: scenario-gate', 'phase: plan-implementation'),
+      );
+      expect(manualAdvance.permission).toBe('deny');
+      expect(manualAdvance.agent_message).toContain('waiting for current approval');
+      const unrelated = nodePath.join(directory, 'unrelated.feature');
+      writeFileSync(unrelated, 'Feature: Unrelated behavior\n');
+      publishStatus('approved', unrelated);
+      expect(resume('restart-with-unrelated-approval')).toBe(waiting);
+      publishStatus('approved');
+    }
+    const planned = resume('restart-with-current-approval');
+    expect(planned).toContain(`id: ${ticketId}\n`);
+    expect(planned).toMatch(/^type: feature$/m);
+    expect(planned).not.toContain('small_work_pending_phase:');
+    expect(planned).toContain(linkedProof);
+    expect(resume('another-restart')).toBe(planned);
+    return planned;
+  }
+
+  it('promotes public-contract design immediately with current behavior approval', async () => {
+    const planned = await verifyDesignPromotion(true);
+    expect(planned).toMatch(/^phase: plan-implementation$/m);
+  });
+
+  it('resumes the saved design destination only after current behavior approval', async () => {
+    const planned = await verifyDesignPromotion(false);
+    expect(planned).toMatch(/^phase: plan-implementation$/m);
+  });
 
   it.each(['public contract', 'private helper'] as const)(
     'checks a valid task at the installed edit boundary for a %s change',
