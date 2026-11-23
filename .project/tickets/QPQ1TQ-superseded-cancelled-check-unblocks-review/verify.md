@@ -17,8 +17,12 @@
 **Surface Evidence:** ⏭️ N/A — no affected surfaces in spec; live GitHub workflow behavior unproven until a PR is marked Ready after merge
 **Evidence limits:** ⚠️ Full-suite review-process tests are timing-sensitive under local load (pass alone and in CI). Local Go toolchain mismatch fails `lint-go-context`; CI is the authority for that file. Whether queued check runs carry a null `started_at` is unverified (fails closed if so).
 
-Audit passed — depcruise clean, config sync healthy, no agent-config/learning/doc drift (README prReview text stays accurate), test quality reviewed (parameterized, behavior-level assertions, failure and pending paths covered).
+Audit passed (re-run on final diff at b42a23fd8) — depcruise clean, config sync healthy, no agent-config/learning/doc drift (README prReview text stays accurate), test quality reviewed (parameterized, behavior-level assertions, failure and pending paths covered).
 
-Cross-agent quality review (Sonnet subagent): one medium finding (newest-run rule could hide another workflow's failure) — fixed in 3dad6a6e6 with a regression case.
+Cross-agent quality review:
+
+- Sonnet subagent (early pass): newest-run rule could hide another workflow's failure — fixed in 3dad6a6e6 with a regression case.
+- /quality-review via Codex (gpt-6.1-sol, independence: cross-agent) on the final diff: one error — `generatedCheckPassed` still treated a superseded parity cancellation as failure, forcing generated files to a human. RED 033494611 then fixed in 281baade4 by sharing `currentCheckRuns` between the prerequisite gate and generated-file authorization. Re-review: approve, no findings.
+- GitHub REST docs (fetched this session): `started_at` is nullable, so the no-start-time fallback is required; `filter=latest` dedupe scope is undocumented.
 
 TDD review (f5d3537a7): RED confirmed before fix; added proofs for missing start time, malformed start time, and both workers' jq projection (mutation-checked: fails on the old template; the narrowed-rule case fails under 43767ffb5).

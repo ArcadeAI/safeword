@@ -17,6 +17,7 @@ done_when: |
   - A cancelled run followed by a later successful run of the same check evaluates as passed.
   - A failed latest run still evaluates as failed; a pending latest run still evaluates as pending.
   - A failed run of a same-named check from another workflow still counts, even when a later run passed.
+  - A superseded parity cancellation no longer blocks generated files from skipping review.
   - Runs without started_at are never treated as superseded.
   - Both worker workflows emit started_at for each check run, and generated surfaces are regenerated.
 status: done
@@ -50,3 +51,4 @@ failure. Grouping by check suite cannot work, because each new workflow run is a
 
 - 2026-11-23T19:54:37.573Z Started: Created ticket QPQ1TQ
 - 2026-11-23T20:45:00Z Done: RED 1fefd45d3, GREEN 43767ffb5, narrowed after review 3dad6a6e6, typecheck fix 1bb672cd6. Refactor: no change warranted.
+- 2026-11-23T21:55:00Z Codex quality review found generatedCheckPassed bypassed the rule; fixed in 281baade4 (shared currentCheckRuns), re-review approved.
