@@ -5,9 +5,9 @@
     "python"
   ],
   "selfReport": {
-    "capture": true,
-    "surface": true,
-    "file": true
+    "capture": false,
+    "surface": false,
+    "file": false
   },
   "testExecution": "remote-preferred",
   "remoteTest": {
