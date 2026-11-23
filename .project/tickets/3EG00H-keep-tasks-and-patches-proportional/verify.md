@@ -122,3 +122,13 @@ All 89 focused checklist, handoff, CLI contract, and proof-registration tests pa
 The [fresh Claude Cloud observation](https://claude.ai/code/session_01ES15yUz4LRkBnMHmbU8wA9) used candidate `ca4b212697fdb03e96671aa4ed6e7e6fe210ecb6` and fixture `3821672`. The operator used the normal classified ticket command to create `retry-once` (VE6W94) with the default inline checklist, synced the revised guidance, and provided fixture-local Git identity and add/commit permissions. The fresh child `7a25b905-b6c8-43e0-a642-f7c61385483b` received only the plain retry and review request.
 
 The child recorded RED and GREEN, but never invoked the verification skill or checked the inline checklist. It treated a denied branch-creation command as a blocker despite local add and commit being allowed. It left the patch, test, ticket, and temporary request file uncommitted. The observer independently confirmed `contributor_work_incomplete` and no release owner in the ticket. This run did not qualify uncoached contributor handoff. The earlier guided run still establishes that the live CLI can record and retain the checklist receipt.
+
+### Uncoached Cloud handoff after GREEN guidance
+
+The [Cloud comparison](https://claude.ai/code/session_01ES15yUz4LRkBnMHmbU8wA9) used candidate `d3e0323cd9060625440e30122ae869c746722a21`, fixture `538bfb7` based on the prior setup, and the same plain prompt and permissions. The operator set up the work branch and synced the handbook before launch. Fresh child `bd0b1faa-33ff-435d-8317-8ed74a2e3bf0` received no coaching after launch.
+
+The child saved RED before editing source at trace lines 698 and 729–757. GREEN was saved at 761–774, and the child followed the CLI's checklist next action at 783–814. It removed the temporary request file and committed the fix and test as `e2737e4`. It recorded checklist proof and committed the ticket with its receipt as `d11f646`. Independent checks on the clean checkout confirmed current GREEN, `ready_for_human_review`, no open contributor items, the release owner pending for rollout, and no merge authority.
+
+The child kept the existing task and created no feature plans. An inline proof error named `execution-plan.md` instead of `ticket.md`, and the child read the parser source to find the proof-table format. It omitted a documentation reason, which the CLI did not require on this fixture. This run passes uncoached checklist discovery and committed contributor readiness. The explicit documentation-reason example remains evidenced by the installed CLI integration test and guided Cloud continuation.
+
+The post-GREEN next-action regression failed before the change, then passed. All 73 focused tests passed.
