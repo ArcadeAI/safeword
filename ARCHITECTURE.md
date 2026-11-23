@@ -112,7 +112,7 @@ Plugin migrations expand support, prove activation, then retire legacy protectio
 
 ## Key Decisions
 
-Planning decisions live in the project-local review ledger. Human approvals bind the ticket, phase, and plan digest. Review evidence records the context used to judge that plan. The ledger retains decision history across host handoffs.
+The records below explain design decisions and their rationale. The project-local review ledger records plan approvals and declines. Human approvals bind the ticket, phase, and plan digest. Review evidence records the context used to judge that plan. The ledger retains decision history across host handoffs.
 
 When requesting plan review, pass the relevant decision records as explicit context so the reviewer receives them with the overview.
 
