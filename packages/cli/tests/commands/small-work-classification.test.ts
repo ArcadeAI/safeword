@@ -158,3 +158,27 @@ describe('classified ticket creation', () => {
     }
   });
 });
+
+describe('small-work proof command', () => {
+  it('describes how to supply the request in help and invalid JSON results', async () => {
+    const command = ['ticket', 'observe-small-work-proof'];
+    const help = await runCli([...command, '--help']);
+    expect(help.exitCode).toBe(0);
+    expect(help.stdout).toContain('baselineRevision');
+    expect(help.stdout).toContain('full Git commit');
+    expect(help.stdout).toContain('contractDigest');
+    expect(help.stdout).toContain('without proof or evaluation');
+    expect(help.stdout).toContain('failure (default) or pass');
+
+    const invalid = await runCli([...command, '{}', '--json']);
+    expect(invalid.exitCode).not.toBe(0);
+    expect(JSON.parse(invalid.stdout).errors).toContainEqual(
+      expect.objectContaining({
+        code: 'CLI_ARGUMENT_INVALID',
+        message: expect.stringMatching(
+          /baselineRevision.*full Git commit.*failure \(default\) or pass/s,
+        ),
+      }),
+    );
+  });
+});

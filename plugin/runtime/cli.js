@@ -91301,6 +91301,22 @@ async function classifySmallWorkHandler(invocation) {
     data: { command: "ticket classify-small-work", ...result }
   });
 }
+var smallWorkProofFields = "Required JSON fields: ticket, contractDigest, argv, cwd, target, entryPoint, baselineRevision (full Git commit), inputs, and expectedFailure. Optional expectation: failure (default) or pass.";
+var SMALL_WORK_PROOF_HELP = [
+  smallWorkProofFields,
+  "",
+  "ticket: the ticket ID.",
+  "contractDigest: lowercase SHA-256 of JSON.stringify(small-work facts without proof or evaluation).",
+  "argv: the test command as an array of strings, including target. The command runs without a shell.",
+  "cwd, target, entryPoint: working directory, test file, and existing source file, relative to the project.",
+  "baselineRevision: use the full output of git rev-parse HEAD at task entry, before editing source.",
+  "inputs: additional project-relative proof files, or [].",
+  "expectedFailure: text from the failing assertion, or an empty string when expectation is pass.",
+  "",
+  "Use --json to get data.observation. In the ticket facts, save proof.request and proof.observation.",
+  "Set proof.relevance to { observationTag: observation.tag, relevant: true, explanation } when the test proves the task."
+].join(`
+`);
 async function observeSmallWorkProofHandler(invocation) {
   const command = "ticket observe-small-work-proof";
   const operand = invocation.operands[0];
@@ -91309,11 +91325,11 @@ async function observeSmallWorkProofHandler(invocation) {
     if (typeof operand === "string")
       request = JSON.parse(operand);
   } catch {
-    return invalidOperand(command, "Expected a valid JSON object.");
+    return invalidOperand(command, `Expected a valid JSON object. ${smallWorkProofFields}`);
   }
   await Promise.resolve().then(() => init_proof_observation());
   if (!isSmallWorkProofRequest(request)) {
-    return invalidOperand(command, "Expected ticket, contractDigest, argv, cwd, target, entryPoint, inputs and expectedFailure.");
+    return invalidOperand(command, smallWorkProofFields);
   }
   try {
     const observed = await observeSmallWorkProof(invocation.cwd, request);
@@ -91583,6 +91599,7 @@ function command2(name, description, effectClass, options = {}) {
     handler: options.handler ?? publicHandler(name),
     registration: {
       syntax: options.syntax ?? name.split(" ").at(-1) ?? name,
+      helpText: options.helpText,
       options: options.commandOptions ?? []
     },
     fixture: options.fixture ?? {
@@ -92021,6 +92038,7 @@ var CANONICAL_COMMANDS = [
   }),
   command2("ticket observe-small-work-proof", "Observe a declared small-work test", "mutate", {
     syntax: "observe-small-work-proof <proofJson>",
+    helpText: SMALL_WORK_PROOF_HELP,
     networkPolicy: "declared",
     fixture: {
       argv: ["ticket", "observe-small-work-proof", "{}"],
@@ -92964,6 +92982,10 @@ function addDefinitionAction(command, definition, invocation) {
   addDefinitionOptions(command, definition);
   if (definition.aliasFor === undefined || !familyNames().has(definition.name)) {
     command.description(definition.description);
+  }
+  if (definition.registration.helpText !== undefined) {
+    command.addHelpText("after", `
+${definition.registration.helpText}`);
   }
   command.action(async (...actionArguments) => {
     const actionCommand = actionArguments.at(-1);

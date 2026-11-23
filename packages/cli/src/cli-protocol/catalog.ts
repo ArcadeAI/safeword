@@ -1,6 +1,6 @@
 import { AGENT_SELECTION_DESCRIPTION } from './agent-selection.js';
 import type { CommandHandler } from './handler.js';
-import { publicHandler } from './public-handlers.js';
+import { publicHandler, SMALL_WORK_PROOF_HELP } from './public-handlers.js';
 import { type CliResult, createResult } from './result.js';
 
 type EffectClass = 'observe' | 'plan' | 'mutate' | 'destructive' | 'hook';
@@ -37,6 +37,7 @@ export interface CommandDefinition {
   readonly handler: CommandHandler;
   readonly registration: {
     readonly syntax: string;
+    readonly helpText?: string;
     readonly options: readonly {
       readonly flags: string;
       readonly description: string;
@@ -68,6 +69,7 @@ function command(
   options: Partial<
     Pick<CommandDefinition, 'promptPolicy' | 'networkPolicy' | 'fixture'> & {
       syntax: string;
+      helpText: string;
       commandOptions: CommandDefinition['registration']['options'];
       handler: CommandHandler;
       exitPolicy: NonNullable<CommandDefinition['exitPolicy']>;
@@ -87,6 +89,7 @@ function command(
     handler: options.handler ?? publicHandler(name),
     registration: {
       syntax: options.syntax ?? name.split(' ').at(-1) ?? name,
+      helpText: options.helpText,
       options: options.commandOptions ?? [],
     },
     fixture: options.fixture ?? {
@@ -652,6 +655,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   }),
   command('ticket observe-small-work-proof', 'Observe a declared small-work test', 'mutate', {
     syntax: 'observe-small-work-proof <proofJson>',
+    helpText: SMALL_WORK_PROOF_HELP,
     networkPolicy: 'declared',
     fixture: {
       argv: ['ticket', 'observe-small-work-proof', '{}'],

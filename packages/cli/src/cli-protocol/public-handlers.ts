@@ -470,6 +470,26 @@ async function classifySmallWorkHandler(invocation: CommandInvocation): Promise<
   });
 }
 
+const smallWorkProofFields =
+  'Required JSON fields: ticket, contractDigest, argv, cwd, target, entryPoint, ' +
+  'baselineRevision (full Git commit), inputs, and expectedFailure. ' +
+  'Optional expectation: failure (default) or pass.';
+
+export const SMALL_WORK_PROOF_HELP = [
+  smallWorkProofFields,
+  '',
+  'ticket: the ticket ID.',
+  'contractDigest: lowercase SHA-256 of JSON.stringify(small-work facts without proof or evaluation).',
+  'argv: the test command as an array of strings, including target. The command runs without a shell.',
+  'cwd, target, entryPoint: working directory, test file, and existing source file, relative to the project.',
+  'baselineRevision: use the full output of git rev-parse HEAD at task entry, before editing source.',
+  'inputs: additional project-relative proof files, or [].',
+  'expectedFailure: text from the failing assertion, or an empty string when expectation is pass.',
+  '',
+  'Use --json to get data.observation. In the ticket facts, save proof.request and proof.observation.',
+  'Set proof.relevance to { observationTag: observation.tag, relevant: true, explanation } when the test proves the task.',
+].join('\n');
+
 async function observeSmallWorkProofHandler(invocation: CommandInvocation): Promise<CliResult> {
   const command = 'ticket observe-small-work-proof';
   const operand = invocation.operands[0];
@@ -477,15 +497,12 @@ async function observeSmallWorkProofHandler(invocation: CommandInvocation): Prom
   try {
     if (typeof operand === 'string') request = JSON.parse(operand) as unknown;
   } catch {
-    return invalidOperand(command, 'Expected a valid JSON object.');
+    return invalidOperand(command, `Expected a valid JSON object. ${smallWorkProofFields}`);
   }
   const { isSmallWorkProofRequest, observeSmallWorkProof } =
     await import('../small-work/proof-observation.js');
   if (!isSmallWorkProofRequest(request)) {
-    return invalidOperand(
-      command,
-      'Expected ticket, contractDigest, argv, cwd, target, entryPoint, inputs and expectedFailure.',
-    );
+    return invalidOperand(command, smallWorkProofFields);
   }
   try {
     const observed = await observeSmallWorkProof(invocation.cwd, request);

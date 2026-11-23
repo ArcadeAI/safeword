@@ -254,6 +254,9 @@ function addDefinitionAction(
   if (definition.aliasFor === undefined || !familyNames().has(definition.name)) {
     command.description(definition.description);
   }
+  if (definition.registration.helpText !== undefined) {
+    command.addHelpText('after', `\n${definition.registration.helpText}`);
+  }
   command.action(async (...actionArguments: unknown[]) => {
     const actionCommand = actionArguments.at(-1);
     if (actionCommand !== command) {
