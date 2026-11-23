@@ -379,9 +379,14 @@ function isSupersededCancellation(
   );
 }
 
+/** The runs of one check that still count: every run except superseded cancellations. */
+function currentCheckRuns(input: InspectionInput, name: string): InspectionInput['checks'] {
+  const sameNamedChecks = input.checks.filter(candidate => candidate.name === name);
+  return sameNamedChecks.filter(check => !isSupersededCancellation(check, sameNamedChecks));
+}
+
 function evaluatePrerequisite(context: string, input: InspectionInput): PrerequisiteState {
-  const sameNamedChecks = input.checks.filter(candidate => candidate.name === context);
-  const checks = sameNamedChecks.filter(check => !isSupersededCancellation(check, sameNamedChecks));
+  const checks = currentCheckRuns(input, context);
   if (checks.length > 0) {
     const states = checks.map(check => evaluateCheckRun(check));
     if (states.includes('failed')) return 'failed';
@@ -507,12 +512,13 @@ export async function inspectPullRequestCommand(
     return { ...artifact, path: sanitizedPath.value };
   });
   const prerequisite = resolvePrerequisiteState(config, input);
+  const generatedRuns =
+    config.generatedFilesCheck === undefined
+      ? []
+      : currentCheckRuns(input, config.generatedFilesCheck);
   const generatedCheckPassed =
-    config.generatedFilesCheck !== undefined &&
-    input.checks.some(check => check.name === config.generatedFilesCheck) &&
-    input.checks
-      .filter(check => check.name === config.generatedFilesCheck)
-      .every(check => check.status === 'completed' && check.conclusion === 'success');
+    generatedRuns.length > 0 &&
+    generatedRuns.every(check => check.status === 'completed' && check.conclusion === 'success');
   let published: PublishedReceipt | undefined;
 
   await reviewPullRequest({
