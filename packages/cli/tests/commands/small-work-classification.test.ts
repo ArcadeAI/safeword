@@ -60,6 +60,17 @@ describe('small-work classification', () => {
     });
   });
 
+  it('documents the versioned facts and accepted decision and proof values in CLI help', async () => {
+    const help = await runCli(['ticket', 'classify-small-work', '--help']);
+    expect(help.exitCode, help.stderr).toBe(0);
+    expect(help.stdout).toContain('schemaVersion: 1');
+    expect(help.stdout).toContain('settled or unresolved');
+    for (const decision of consequentialDecisions) expect(help.stdout).toContain(decision);
+    expect(help.stdout).toContain('existing, targeted, or new-regression');
+    expect(help.stdout).toContain('changesSharedContract');
+    expect(help.stdout).toContain('pendingScopeDecision');
+  });
+
   it('routes established non-behavioral work with targeted verification to patch', () => {
     expect(classifySmallWork(settled)).toMatchObject({ status: 'classified', route: 'patch' });
   });

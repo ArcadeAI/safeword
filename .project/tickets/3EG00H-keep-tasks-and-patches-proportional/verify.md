@@ -207,3 +207,16 @@ Four local Rule 6 rows now share one executable scenario. Both installed edit ad
 Native Claude Code session `909d2641-5836-44fb-bde5-f2a9e234bb4e` and Codex CLI session `01a20a92-1c15-7763-be01-48fd2b4cb3d9` reproduced all three outcomes on candidate `681ab8c30`. The only source edit on each host kept the attempt count at one. The Claude Edit result and Codex PreToolUse router reported the footprint threshold for both rejected edits. Each fixture obtained its passing observation through the CLI build used by its hook. The first Claude fixture used a different verifier and failed the proof check, so that run does not count.
 
 All 64 focused proof-registration, routing, and RED-admission tests passed. Seven of 142 expanded examples now have executable proof links. The acceptance dry run reports 135 undefined examples.
+
+### Cold classification on Claude Code and Codex
+
+Six planning-only sessions started with no tickets or classification facts, inspected the disposable project, and supplied their own facts to the candidate's built classifier. The CLI results identified a README typo as a patch, a private retry change needing a regression as a task, and a breaking public JSON field rename as a feature. Independent Git diffs confirmed that the source and README stayed unchanged in all successful runs.
+
+| Host | Patch | Task | Feature |
+| --- | --- | --- | --- |
+| Claude Code 2.1.330 | `58e8606d-d5c2-4dbd-a594-b5db8bae2a42` | `f5860cbe-b85d-4dc1-b6fa-54c83a1a5988` | `87a91834-9e59-46e9-824b-b18a96d87cea` |
+| Codex CLI 0.171.0 | `01a20aa0-6ce1-7571-91c3-133ca1e6b566` | `01a20aa0-6cd5-7460-9ac5-9a53d51263cd` | `01a20aa0-6ce2-7b32-82a0-891e43a3a031` |
+
+The original Claude task session exhausted its turn limit after guessing unsupported argument values. The command help now describes the schema version, fields, and allowed values. A fresh task session read that help and classified successfully. The first Codex batch resolved a different Safeword installation. The recorded batch used the candidate's absolute path and its new help. The original Claude patch and feature runs used the prior help.
+
+The help regression failed before the change and passed after it. All 51 classifier, CLI help, and contract tests passed. These live runs evidence the six local Rule 2 rows. The prompts explicitly requested a planning-only classification, so the runs leave automatic first-edit enforcement and Cucumber bindings open.

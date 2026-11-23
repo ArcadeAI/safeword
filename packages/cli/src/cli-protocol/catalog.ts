@@ -1,3 +1,4 @@
+import { consequentialDecisions } from '../../templates/hooks/lib/small-work-classification.js';
 import { AGENT_SELECTION_DESCRIPTION } from './agent-selection.js';
 import type { CommandHandler } from './handler.js';
 import { publicHandler, SMALL_WORK_PROOF_HELP } from './public-handlers.js';
@@ -655,6 +656,17 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   }),
   command('ticket classify-small-work', 'Classify versioned small-work facts', 'observe', {
     syntax: 'classify-small-work <factsJson>',
+    helpText: `Pass one JSON object with these fields:
+  schemaVersion: 1
+  scope, outcome: non-empty strings describing the change and expected result
+  decisions: an object with each key below set to settled or unresolved
+    ${consequentialDecisions.join(', ')}
+  introducesUserFlow, multipleUserFlows, newPersistentState,
+  changesSharedContract, changesBehavior: JSON booleans
+  verification: existing, targeted, or new-regression
+  pendingScopeDecision: optional non-empty string naming a decision the user still owns
+
+Use the facts of the proposed work. The command returns the route and the reasons for it.`,
     fixture: {
       argv: ['ticket', 'classify-small-work', '{}'],
       environment: MACHINE_ENVIRONMENT,
