@@ -967,7 +967,7 @@ describe('Claude marketplace update enrollment', () => {
 
 describe('Claude plugin in the Safeword source repository', () => {
   // The source repo runs an unreleased CLI, so no promoted plugin can match its
-  // version; the published plugin also stands its hooks down there.
+  // version, so it accepts the older released plugin its marketplace offers.
   const RELEASED_VERSION = '1.1.0';
   const PRERELEASE_AHEAD = '2.0.0-rc.1';
   const KEEP_MARKETPLACE = { CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '1' };

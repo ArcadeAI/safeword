@@ -867,7 +867,12 @@ function assertConvergeablePluginVersion(plugin: JsonObject, effects: readonly E
   }
 }
 
-/** The released (no prerelease or build tag) Safeword plugin version Claude's marketplace checkout offers. */
+/** A well-formed version with no prerelease or build tag. */
+function isReleaseVersion(version: string): boolean {
+  return isSafePackageVersion(version) && !/[+-]/u.test(version);
+}
+
+/** The released Safeword plugin version Claude's marketplace checkout offers. */
 function offeredReleasedPluginVersion(): string | undefined {
   const cataloguePath = nodePath.join(
     claudeConfigDirectory(),
@@ -881,9 +886,7 @@ function offeredReleasedPluginVersion(): string | undefined {
     const entry = catalogue.plugins.find(
       (plugin): plugin is JsonObject => isJsonObject(plugin) && plugin.name === MARKETPLACE_NAME,
     );
-    return typeof entry?.version === 'string' &&
-      isSafePackageVersion(entry.version) &&
-      !/[+-]/u.test(entry.version)
+    return typeof entry?.version === 'string' && isReleaseVersion(entry.version)
       ? entry.version
       : undefined;
   } catch {

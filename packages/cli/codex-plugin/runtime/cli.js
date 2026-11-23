@@ -69567,6 +69567,9 @@ function assertConvergeablePluginVersion(plugin, effects) {
     throw new ClaudeProfileError("CLAUDE_PLUGIN_DOWNGRADE_REFUSED", `Claude reported ${CLAUDE_PLUGIN_ID} ${plugin.version}, which is newer than ${VERSION}; refusing an implicit downgrade.`, effects);
   }
 }
+function isReleaseVersion(version) {
+  return isSafePackageVersion(version) && !/[+-]/u.test(version);
+}
 function offeredReleasedPluginVersion() {
   const cataloguePath = nodePath93.join(claudeConfigDirectory(), "plugins/marketplaces", MARKETPLACE_NAME, ".claude-plugin/marketplace.json");
   try {
@@ -69574,7 +69577,7 @@ function offeredReleasedPluginVersion() {
     if (!isJsonObject(catalogue) || !Array.isArray(catalogue.plugins))
       return;
     const entry = catalogue.plugins.find((plugin) => isJsonObject(plugin) && plugin.name === MARKETPLACE_NAME);
-    return typeof entry?.version === "string" && isSafePackageVersion(entry.version) && !/[+-]/u.test(entry.version) ? entry.version : undefined;
+    return typeof entry?.version === "string" && isReleaseVersion(entry.version) ? entry.version : undefined;
   } catch {
     return;
   }
