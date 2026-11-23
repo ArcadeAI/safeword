@@ -14,6 +14,7 @@ import { withLegacyRawJsonGuidance } from './legacy-raw-json.js';
 import { onlineRequired } from './online-required.js';
 import { stringOption } from './option-values.js';
 import { isPlanIdentity, malformedPlanIdentity } from './plan.js';
+import { shellQuote } from './replay-command.js';
 import { type CliResult, createResult, invalidOperand } from './result.js';
 import {
   retroReconcileHandler,
@@ -558,6 +559,13 @@ async function observeSmallWorkGreenHandler(invocation: CommandInvocation): Prom
             },
           ],
         },
+        nextActions: [
+          {
+            command: `safeword ticket delivery-checklist ${shellQuote(ticket)} --json --cwd ${shellQuote(invocation.cwd)}`,
+            mutates: false,
+            requiresHuman: false,
+          },
+        ],
         data: { command, current: true, receipt: result.receipt },
       });
     }

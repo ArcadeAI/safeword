@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "a6f7a8c95877a8bd90ac23f9f49b6e38e037bcfcb220df3d744d2aa7c59ea968"
+      "sha256": "697d85d1fc473430c3630877f294f4f082fbc184bd0b7eb66aad274d9c5302b7"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "8dadbbaf1d1ff7af6a9db13a060ff8f7c0b2bbc08aaccaa901a80e29fe9ea763"
+      "sha256": "f940e81ee59201e5f2e2d2005907cee8a8d9b1143dde9e1ca99a5c825518962b"
     },
     {
       "path": "runtime/dispatch.js",
@@ -1675,7 +1675,7 @@
     },
     {
       "path": "templates/SAFEWORD.md",
-      "sha256": "56e3f6772ec2db7352988fd7db0b2f0500d500416555480398c0e81356dc7896"
+      "sha256": "ebed15fc177d7e23785869964a8888d85d457a2579a555fd95c1c7134038062d"
     },
     {
       "path": "templates/scripts/bisect-test-pollution.sh",

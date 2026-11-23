@@ -302,7 +302,15 @@ test('unrelated', () => { throw new Error('${expectedFailure}'); });\n`,
     expect(editDecision().permission).toBe('allow');
     const saved = await run(greenCommand);
     expect(saved.exitCode, saved.stderr || saved.stdout).toBe(0);
-    const receipt = JSON.parse(saved.stdout).data.receipt;
+    const output = JSON.parse(saved.stdout);
+    expect(output.next_actions).toContainEqual(
+      expect.objectContaining({
+        command: expect.stringContaining(`safeword ticket delivery-checklist '${id}' --json`),
+        mutates: false,
+        requires_human: false,
+      }),
+    );
+    const receipt = output.data.receipt;
     expect(receipt.redTag).toBe(intended.tag);
     const storedFacts = readSmallWorkFacts(readFileSync(ticket, 'utf8'));
     expect(storedFacts).toMatchObject({

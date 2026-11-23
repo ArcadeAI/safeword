@@ -91519,6 +91519,13 @@ async function observeSmallWorkGreenHandler(invocation) {
             }
           ]
         },
+        nextActions: [
+          {
+            command: `safeword ticket delivery-checklist ${shellQuote(ticket)} --json --cwd ${shellQuote(invocation.cwd)}`,
+            mutates: false,
+            requiresHuman: false
+          }
+        ],
         data: { command, current: true, receipt: result.receipt }
       });
     }

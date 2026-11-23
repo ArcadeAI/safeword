@@ -121,9 +121,12 @@ demonstrates the agreed behavior gap. The gate checks the observation
 against the current proof inputs. After the fix, run
 `safeword ticket observe-small-work-green <ticketId>` to rerun that exact
 test and save the passing result alongside RED. Use `--check` to check
-the saved pass without rerunning it. If reevaluation finds a consequential
-in-scope decision, stop production edits and continue on the same ticket
-in the phase that owns the decision.
+the saved pass without rerunning it. When preparing the fix for human review,
+follow GREEN with `safeword ticket delivery-checklist <ticketId> --json`. Use
+the saved test as the inline verification proof and record any pending human
+owner on the ticket. Remove the temporary proof request before committing.
+If reevaluation finds a consequential in-scope decision, stop production
+edits and continue on the same ticket in the phase that owns the decision.
 
 Pick the work level internally. Don't announce it as a label ("Feature detected!"); state your scope read as part of your proposal.
 
