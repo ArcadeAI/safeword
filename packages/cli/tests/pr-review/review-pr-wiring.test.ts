@@ -210,6 +210,64 @@ describe('review-pr inspect command wiring', () => {
     },
   );
 
+  // Marking a PR Ready cancels the in-flight CI run and starts a new check suite on the same head,
+  // so a required check can carry a cancelled run alongside its later rerun (#7952). The API does
+  // not order runs, so the later run is listed first here.
+  it.each([
+    ['a later successful rerun', 'completed', 'success', true, undefined],
+    ['a later failed rerun', 'completed', 'failure', false, 'prerequisites_failed'],
+    // eslint-disable-next-line unicorn/no-null -- GitHub uses JSON null until completion.
+    ['a later rerun still in progress', 'in_progress', null, false, 'prerequisites_pending'],
+  ] as const)(
+    'judges a cancelled required check by %s',
+    async (_case, status, conclusion, reviewRuns, expectedStatus) => {
+      const cwd = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-pr-superseded-'));
+      directories.push(cwd);
+      mkdirSync(nodePath.join(cwd, '.safeword'));
+      writeFileSync(
+        nodePath.join(cwd, '.safeword', 'config.json'),
+        JSON.stringify({
+          prReview: {
+            enabled: true,
+            maxTotalBytes: 1024,
+            model: 'gpt-test',
+            provider: 'openai',
+            requiredChecks: [{ context: 'lint' }],
+          },
+        }),
+      );
+      const inputPath = nodePath.join(cwd, 'inspection-input.json');
+      const outputPath = nodePath.join(cwd, 'inspection-result.json');
+      writeFileSync(
+        inputPath,
+        JSON.stringify({
+          artifacts: [textArtifact()],
+          checks: [
+            { conclusion, name: 'lint', startedAt: '2026-11-20T17:28:04Z', status },
+            {
+              conclusion: 'cancelled',
+              name: 'lint',
+              startedAt: '2026-11-20T17:22:11Z',
+              status: 'completed',
+            },
+          ],
+          headSha: 'a'.repeat(40),
+          markerReceiptExists: false,
+          pullState: 'ready',
+          schemaVersion: 1,
+          statuses: [],
+        }),
+      );
+      const provider = vi.fn().mockResolvedValue({ findings: [], tokenUsage: {} });
+
+      const result = await inspectPullRequestCommand({ cwd, inputPath, outputPath, provider });
+
+      expect(provider).toHaveBeenCalledTimes(reviewRuns ? 1 : 0);
+      if (expectedStatus) expect(receiptOf(result)).toMatchObject({ status: expectedStatus });
+      else expect(receiptOf(result).checks).toEqual([{ name: 'lint', status: 'success' }]);
+    },
+  );
+
   it.each([
     ['missing context', [textArtifact()], ['policies/access.flux']],
     [
