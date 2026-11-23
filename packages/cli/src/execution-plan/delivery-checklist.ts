@@ -642,14 +642,20 @@ function parseProofRows(
   return { ok: true, specifications };
 }
 
-export function parseProofSpecifications(content: string): DeliveryProofSpecificationsResult {
+export function parseProofSpecifications(
+  content: string,
+  path: 'ticket.md' | 'execution-plan.md' = 'execution-plan.md',
+): DeliveryProofSpecificationsResult {
   const lines = content.split(/\r?\n/u);
   const headingIndex = lines.findIndex(line => line.trim() === '## Proof specifications');
   if (headingIndex === -1) {
     return {
       ok: false,
       code: 'missing_proof_specifications',
-      message: 'execution-plan.md is missing Proof specifications.',
+      message:
+        path === 'ticket.md'
+          ? 'Add a Proof specifications table before the Delivery Checklist in ticket.md. See the inline example in the verify skill.'
+          : 'execution-plan.md is missing Proof specifications.',
     };
   }
   const start = tableStart(lines, headingIndex);
@@ -667,7 +673,8 @@ export function parseDeliveryPlanContract(
   content: string,
   options: { readonly requireAllCategories?: boolean } = {},
 ): DeliveryPlanContractResult {
-  const proofs = parseProofSpecifications(content);
+  const path = options.requireAllCategories === false ? 'ticket.md' : 'execution-plan.md';
+  const proofs = parseProofSpecifications(content, path);
   if (!proofs.ok) return proofs;
   const checklist = parseDeliveryChecklist(content, options);
   if (!checklist.ok) return checklist;

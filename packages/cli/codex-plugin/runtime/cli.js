@@ -3519,7 +3519,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/tdd-review/SKILL.md": "ae59212a4d368359c3144bde65bb18caaa02fb15590ca72398f15ad507679c70",
         ".claude/skills/testing/SKILL.md": "fe43d03ffe4e39393def44e60a2b88a5f3c70faa878e5e3323f2a22f18470686",
         ".claude/skills/ticket-system/SKILL.md": "5a8ce171c60dc7ab07d641dc66d43ae3730d1a2401df86a02250ce82cf53a800",
-        ".claude/skills/verify/SKILL.md": "af44dad53adb75821186143f99cbebee87b26a5d35c62204bf6dd2c946fd1d6f"
+        ".claude/skills/verify/SKILL.md": "8f650cd280406b116951792825693113692ab4de4abd4aa355a44fa6725d5e4a"
       },
       hook_files: {
         ".safeword/hooks/post-tool-bypass-warn.ts": "33b1be799f57901e247c9b5478b56e42a727178ad99eebba09ce18a637f69956",
@@ -32602,14 +32602,14 @@ function parseProofRows(lines, start) {
   }
   return { ok: true, specifications };
 }
-function parseProofSpecifications(content) {
+function parseProofSpecifications(content, path = "execution-plan.md") {
   const lines = content.split(/\r?\n/u);
   const headingIndex = lines.findIndex((line) => line.trim() === "## Proof specifications");
   if (headingIndex === -1) {
     return {
       ok: false,
       code: "missing_proof_specifications",
-      message: "execution-plan.md is missing Proof specifications."
+      message: path === "ticket.md" ? "Add a Proof specifications table before the Delivery Checklist in ticket.md. See the inline example in the verify skill." : "execution-plan.md is missing Proof specifications."
     };
   }
   const start = tableStart(lines, headingIndex);
@@ -32623,7 +32623,8 @@ function parseProofSpecifications(content) {
   return parseProofRows(lines, start);
 }
 function parseDeliveryPlanContract(content, options = {}) {
-  const proofs = parseProofSpecifications(content);
+  const path = options.requireAllCategories === false ? "ticket.md" : "execution-plan.md";
+  const proofs = parseProofSpecifications(content, path);
   if (!proofs.ok)
     return proofs;
   const checklist = parseDeliveryChecklist(content, options);
@@ -82590,16 +82591,19 @@ function observeInlineDelivery(ticket) {
   const specs = contract.ok ? contract.specifications : [];
   const open = parsed.items.filter((item) => item.owner === "contributor" && item.disposition !== "not_applicable" && !completedCurrent(ticket, item, specs.find((proof) => proof.id === item.requiredProof)));
   const human = parsed.items.filter((item) => item.owner === "human" && item.disposition === "pending_human");
-  const verification = parsed.items.find((item) => item.id === "verification");
-  const hasVerification = verification?.owner === "contributor" && verification.disposition === "complete";
+  const hasVerification = parsed.items.some((item) => item.id === "verification" && item.owner === "contributor" && item.disposition === "complete");
   const ready = hasVerification && open.length === 0 && contract.ok;
+  const pendingFinding = contract.ok ? {
+    code: "small_work_delivery_evidence_pending",
+    message: "The inline checklist needs current contributor evidence before handoff."
+  } : contract;
   return createResult({
     state: ready ? "healthy" : "action_required",
     findings: ready ? [] : [
       {
-        code: "small_work_delivery_evidence_pending",
+        code: pendingFinding.code,
         severity: "warning",
-        message: "The inline checklist needs current contributor evidence before handoff."
+        message: pendingFinding.message
       }
     ],
     data: {

@@ -327,6 +327,27 @@ test('unrelated', () => { throw new Error('${expectedFailure}'); });\n`,
         message: expect.stringContaining('inline Delivery Checklist to ticket.md'),
       }),
     );
+    const ticketWithGreen = readFileSync(ticket, 'utf8');
+    writeFileSync(ticket, ticketWithGreen + renderInitialSmallWorkChecklist());
+    const missingProof = {
+      code: 'missing_proof_specifications',
+      message: expect.stringContaining('ticket.md'),
+    };
+    const needsProof = await run(checklist);
+    expect(JSON.parse(needsProof.stdout).findings).toContainEqual(
+      expect.objectContaining(missingProof),
+    );
+    const recordProof = [
+      'ticket',
+      'record-delivery-proof',
+      id,
+      'verification',
+      'targeted-verification',
+    ];
+    const needsSpecification = await run(recordProof);
+    expect(JSON.parse(needsSpecification.stdout).findings).toContainEqual(
+      expect.objectContaining(missingProof),
+    );
     const testInvocation = JSON.stringify({
       type: 'command',
       cwd: effectiveRequest.cwd,
@@ -342,7 +363,7 @@ test('unrelated', () => { throw new Error('${expectedFailure}'); });\n`,
       '| docs | documentation | Update public documentation | contributor | | not_applicable | missing | | No public contract changed. |',
       '| rollout | rollout and rollback | Approve distribution | human | | pending_human | missing | | Release owner approves distribution. |',
     ].join('\n');
-    writeFileSync(ticket, `${readFileSync(ticket, 'utf8')}\n${delivery}\n`);
+    writeFileSync(ticket, `${ticketWithGreen}\n${delivery}\n`);
     git('add', '.');
     git(
       '-c',

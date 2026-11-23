@@ -132,3 +132,15 @@ The child saved RED before editing source at trace lines 698 and 729–757. GREE
 The child kept the existing task and created no feature plans. An inline proof error named `execution-plan.md` instead of `ticket.md`, and the child read the parser source to find the proof-table format. It omitted a documentation reason, which the CLI did not require on this fixture. This run passes uncoached checklist discovery and committed contributor readiness. The explicit documentation-reason example remains evidenced by the installed CLI integration test and guided Cloud continuation.
 
 The post-GREEN next-action regression failed before the change, then passed. All 73 focused tests passed.
+
+### R14 Cloud contributor-readiness example
+
+The [Claude Code Cloud project hooks example](../../../features/keep-tasks-and-patches-proportional.feature#L468)
+under **Cloud small-work handoff records a human dependency without blocking contributor readiness**
+has a live [Cloud observation](https://claude.ai/code/session_01ES15yUz4LRkBnMHmbU8wA9).
+On candidate `d3e0323cd9060625440e30122ae869c746722a21`, child
+`bd0b1faa-33ff-435d-8317-8ed74a2e3bf0` committed the checklist receipt on
+task `VE6W94` as `d11f646`. Independent checks at that revision found
+`ready_for_human_review`, no open contributor items, release-owner approval
+pending, and no merge authority. This receipt covers the Claude Code Cloud row
+only. The Cursor row is deferred and the Cucumber outline remains unbound.

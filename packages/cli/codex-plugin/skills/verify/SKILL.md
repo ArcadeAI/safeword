@@ -315,6 +315,22 @@ add it to the existing ticket. Use the saved task test or focused patch check
 as the executable verification proof and give concrete reasons for inapplicable
 items. Name any pending human dependency and its owner.
 
+For example, put this section **above** the inline Delivery Checklist. Keep
+the checklist's Required proof ID equal to the Proof ID below. Replace the
+example command with the task's saved test or the patch's focused check.
+
+```markdown
+## Proof specifications
+
+| Proof ID              | Method  | Scope       | Boundary exercised                             | Qualifies as  | Currency         | Invocation                                                             |
+| --------------------- | ------- | ----------- | ---------------------------------------------- | ------------- | ---------------- | ---------------------------------------------------------------------- |
+| targeted-verification | command | integration | Retry helper through its saved regression test | real_boundary | current_required | {"type":"command","cwd":".","argv":["bun","test","src/retry.test.ts"]} |
+```
+
+For the default inline verification row, run
+`safeword ticket record-delivery-proof <ticket-id> verification targeted-verification`
+after committing the contribution. Commit the ticket's recorded receipt before handoff.
+
 For enrolled tasks and patches, and features with a versioned Delivery Checklist, run
 `safeword ticket delivery-checklist <ticket-id> --json` with the CLI resolved
 above. Read `data.readiness_state` and the findings. Follow the reported

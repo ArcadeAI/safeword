@@ -122,19 +122,26 @@ export function observeInlineDelivery(ticket: InlineTicket): CliResult {
   const human = parsed.items.filter(
     item => item.owner === 'human' && item.disposition === 'pending_human',
   );
-  const verification = parsed.items.find(item => item.id === 'verification');
-  const hasVerification =
-    verification?.owner === 'contributor' && verification.disposition === 'complete';
+  const hasVerification = parsed.items.some(
+    item =>
+      item.id === 'verification' && item.owner === 'contributor' && item.disposition === 'complete',
+  );
   const ready = hasVerification && open.length === 0 && contract.ok;
+  const pendingFinding = contract.ok
+    ? {
+        code: 'small_work_delivery_evidence_pending',
+        message: 'The inline checklist needs current contributor evidence before handoff.',
+      }
+    : contract;
   return createResult({
     state: ready ? 'healthy' : 'action_required',
     findings: ready
       ? []
       : [
           {
-            code: 'small_work_delivery_evidence_pending',
+            code: pendingFinding.code,
             severity: 'warning',
-            message: 'The inline checklist needs current contributor evidence before handoff.',
+            message: pendingFinding.message,
           },
         ],
     data: {
