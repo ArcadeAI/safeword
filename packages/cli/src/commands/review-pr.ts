@@ -65,7 +65,7 @@ interface InspectionInput {
     | { kind: 'generated' | 'non_text'; path: string }
     | { kind: 'unreadable_text'; path: string }
   )[];
-  checks: { conclusion: string | null; name: string; status: string }[];
+  checks: { conclusion: string | null; name: string; startedAt?: string; status: string }[];
   headSha: string;
   markerReceiptExists: boolean;
   pullState: 'closed' | 'draft' | 'merged' | 'ready';
@@ -252,11 +252,18 @@ function parseInput(inputPath: string): InspectionInput {
       !isRecord(check) ||
       typeof check.name !== 'string' ||
       typeof check.status !== 'string' ||
-      (check.conclusion !== null && typeof check.conclusion !== 'string')
+      (check.conclusion !== null && typeof check.conclusion !== 'string') ||
+      (check.startedAt !== undefined &&
+        (typeof check.startedAt !== 'string' || Number.isNaN(Date.parse(check.startedAt))))
     ) {
       throw new Error('review-pr: invalid check-run sample');
     }
-    return { conclusion: check.conclusion, name: check.name, status: check.status };
+    return {
+      conclusion: check.conclusion,
+      name: check.name,
+      ...(typeof check.startedAt === 'string' && { startedAt: check.startedAt }),
+      status: check.status,
+    };
   });
   const statuses = raw.statuses.map(status => {
     if (
@@ -354,8 +361,22 @@ function evaluateCheckRun(
   return PASSING_CHECK_CONCLUSIONS.has(check.conclusion) ? 'passed' : 'pending';
 }
 
+/**
+ * Each workflow run makes a new check suite, so a check GitHub cancelled and then re-ran (as when a
+ * PR is marked Ready) has several runs on one head. Only the most recently started runs count.
+ * Without a start time on every run there is no trustworthy order, so all runs count.
+ */
+function currentCheckRuns(checks: InspectionInput['checks']): InspectionInput['checks'] {
+  const startTimes = checks.map(check =>
+    check.startedAt === undefined ? NaN : Date.parse(check.startedAt),
+  );
+  if (startTimes.some(time => Number.isNaN(time))) return checks;
+  const latest = Math.max(...startTimes);
+  return checks.filter((_check, index) => startTimes[index] === latest);
+}
+
 function evaluatePrerequisite(context: string, input: InspectionInput): PrerequisiteState {
-  const checks = input.checks.filter(candidate => candidate.name === context);
+  const checks = currentCheckRuns(input.checks.filter(candidate => candidate.name === context));
   if (checks.length > 0) {
     const states = checks.map(check => evaluateCheckRun(check));
     if (states.includes('failed')) return 'failed';

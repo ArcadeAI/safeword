@@ -63085,10 +63085,15 @@ function parseInput(inputPath) {
     throw new Error("review-pr: pull request artifact count is incomplete or invalid");
   }
   const checks = raw.checks.map((check) => {
-    if (!isRecord10(check) || typeof check.name !== "string" || typeof check.status !== "string" || check.conclusion !== null && typeof check.conclusion !== "string") {
+    if (!isRecord10(check) || typeof check.name !== "string" || typeof check.status !== "string" || check.conclusion !== null && typeof check.conclusion !== "string" || check.startedAt !== undefined && (typeof check.startedAt !== "string" || Number.isNaN(Date.parse(check.startedAt)))) {
       throw new Error("review-pr: invalid check-run sample");
     }
-    return { conclusion: check.conclusion, name: check.name, status: check.status };
+    return {
+      conclusion: check.conclusion,
+      name: check.name,
+      ...typeof check.startedAt === "string" && { startedAt: check.startedAt },
+      status: check.status
+    };
   });
   const statuses = raw.statuses.map((status) => {
     if (!isRecord10(status) || typeof status.context !== "string" || typeof status.state !== "string") {
@@ -63138,8 +63143,15 @@ function evaluateCheckRun(check) {
     return "failed";
   return PASSING_CHECK_CONCLUSIONS.has(check.conclusion) ? "passed" : "pending";
 }
+function currentCheckRuns(checks) {
+  const startTimes = checks.map((check) => check.startedAt === undefined ? NaN : Date.parse(check.startedAt));
+  if (startTimes.some((time) => Number.isNaN(time)))
+    return checks;
+  const latest = Math.max(...startTimes);
+  return checks.filter((_check, index) => startTimes[index] === latest);
+}
 function evaluatePrerequisite(context, input) {
-  const checks = input.checks.filter((candidate) => candidate.name === context);
+  const checks = currentCheckRuns(input.checks.filter((candidate) => candidate.name === context));
   if (checks.length > 0) {
     const states = checks.map((check) => evaluateCheckRun(check));
     if (states.includes("failed"))

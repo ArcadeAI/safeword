@@ -238,10 +238,11 @@ describe('review-pr inspect command wiring', () => {
       );
       const inputPath = nodePath.join(cwd, 'inspection-input.json');
       const outputPath = nodePath.join(cwd, 'inspection-result.json');
+      const fullContent = Buffer.from('allow *\n').toString('base64');
       writeFileSync(
         inputPath,
         JSON.stringify({
-          artifacts: [textArtifact()],
+          artifacts: [textArtifact({ fullContentBase64: fullContent })],
           checks: [
             { conclusion, name: 'lint', startedAt: '2026-11-20T17:28:04Z', status },
             {
