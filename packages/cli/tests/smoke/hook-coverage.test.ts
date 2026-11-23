@@ -46,7 +46,7 @@ const EXEMPT_HOOKS: Record<string, string> = {
   'session-cleanup-quality.ts': SESSION_STARTUP,
   'session-start-reentry.ts': SESSION_STARTUP,
   'session-architecture-heal.ts':
-    'session hook; shells to `safeword architecture` whose selfHeal is covered by tests/utils/architecture-document.test.ts and tests/commands/architecture.test.ts',
+    'session hook; shells to `safeword project architecture` whose selfHeal is covered by tests/utils/architecture-document.test.ts and tests/commands/architecture.test.ts',
   'session-dependency-readiness.ts':
     'session hook; deterministic temp-project coverage in tests/hooks/dependency-readiness.test.ts',
   'dependency-bootstrap.ts':
