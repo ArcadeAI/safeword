@@ -41,7 +41,7 @@
     "test:bdd:acceptance": "NODE_OPTIONS='--import tsx' cucumber-js --tags 'not @wip and not @proof.vitest and not @manual and not @live'",
     "test:bdd:proof": "node scripts/run-vitest-with-build-lock.mjs tests/bdd-proof-tags.test.ts",
     "test:bdd:live": "NODE_OPTIONS='--import tsx' cucumber-js --tags '@live and not @manual'",
-    "test:done": "node scripts/run-vitest-with-build-lock.mjs tests/hooks/ tests/schema.test.ts",
+    "test:done": "node scripts/run-vitest-with-build-lock.mjs --config vitest.done.config.ts",
     "test:integration": "node scripts/run-vitest-with-build-lock.mjs tests/integration/",
     "test:smoke:fast": "node scripts/run-vitest-with-build-lock.mjs tests/hooks/ tests/schema.test.ts tests/integration/quality-gates.test.ts tests/integration/jtbd-gate.test.ts tests/smoke/hook-coverage.test.ts",
     "test:smoke": "node scripts/run-vitest-with-build-lock.mjs tests/hooks/ tests/schema.test.ts tests/integration/quality-gates.test.ts tests/integration/jtbd-gate.test.ts tests/smoke/hook-coverage.test.ts tests/integration/phase0-walkthrough.test.ts tests/integration/golden-path.test.ts",

@@ -274,8 +274,14 @@ export const typescriptManagedFiles: Record<string, ManagedFileDefinition> = {
     generator: ctx => {
       // Skip for non-JS projects (Python-only)
       if (!ctx.languages?.javascript) return;
-      // Only create for TypeScript projects
-      if (!ctx.developmentDeps.typescript && !ctx.developmentDeps['typescript-eslint']) {
+      // Only create for TypeScript projects — including ones that get typescript
+      // in this same run for the BDD lane's TypeScript steps (packages install
+      // after files are generated, so developmentDeps can't show it yet).
+      if (
+        !ctx.developmentDeps.typescript &&
+        !ctx.developmentDeps['typescript-eslint'] &&
+        !ctx.projectType.scaffoldBddLane
+      ) {
         return;
       }
       return JSON.stringify(
@@ -288,6 +294,11 @@ export const typescriptManagedFiles: Record<string, ManagedFileDefinition> = {
             esModuleInterop: true,
             skipLibCheck: true,
             noEmit: true,
+            // TypeScript 6 defaults `types` to []; the lane's steps import node: modules.
+            ...((ctx.projectType.scaffoldBddLane ||
+              Boolean(ctx.developmentDeps['@types/node'])) && {
+              types: ['node'],
+            }),
           },
           include: ['**/*.ts', '**/*.tsx'],
           exclude: ['node_modules', 'dist', 'build'],
@@ -531,6 +542,9 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
 // used in generated configs.
 export const ESLINT_PACKAGE = 'eslint@^10.0.0';
 export const JITI_PACKAGE = 'jiti@^2.2.0';
+// The scaffolded BDD steps are TypeScript, so type-aware linting needs a compiler.
+// Held below 6.1 because the bundled typescript-eslint peer range is `>=4.8.4 <6.1.0`.
+export const TYPESCRIPT_PACKAGE = 'typescript@~6.0.0';
 
 export const typescriptPackages = {
   base: [
@@ -548,6 +562,10 @@ export const typescriptPackages = {
     // Keyed on ProjectType.scaffoldBddLane: suppressed when the repo has its
     // own cucumber harness and safeword's lane is absent (56JCFZ).
     scaffoldBddLane: ['@cucumber/cucumber', 'tsx', '@types/node'],
+    // Compiler for type-aware linting of the lane's TypeScript steps (and any TS
+    // source). Kept out of scaffoldBddLane so health never calls a project's own
+    // typescript a lane leftover.
+    typescriptToolchain: [TYPESCRIPT_PACKAGE],
     // Prettier (only for projects without existing formatter)
     standard: ['prettier'], // "standard" = !existingFormatter
     // Prettier plugins (only for projects without existing formatter that need them)

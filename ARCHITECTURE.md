@@ -591,7 +591,7 @@ safeword install (src/lifecycle/commands.ts)
 | `test:slow`               | `vitest.slow.config.ts`              | `*.slow.test.ts`                                                     | Real package installs                                             |
 | `test:slow:install-proof` | `vitest.slow.config.ts`              | `non-git-install-proof.slow.test.ts`                                 | Focused physical dependency-install proof                         |
 | `test:integration`        | default config                       | `tests/integration/`                                                 | Integration subset                                                |
-| `test:done`               | default config                       | `tests/hooks/` + `tests/schema.test.ts`                              | Hook and schema subset                                            |
+| `test:done`               | `vitest.done.config.ts`              | `tests/hooks/` + `tests/schema.test.ts`, minus 5 heavy hook suites   | Turn-end hook and schema subset for the Stop hook's 60 s cap      |
 | `test:smoke:fast`         | default config                       | Hook, schema, quality-gate, JTBD, and hook-coverage files            | Fast smoke subset                                                 |
 | `test:smoke:live:github`  | `scripts/run-github-live-smokes.mjs` | GitHub-backed live smokes                                            | Live GitHub integration validation                                |
 | `test:coverage`           | default config                       | `*.test.ts` with `--coverage`                                        | Coverage report                                                   |

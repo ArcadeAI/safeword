@@ -31,6 +31,7 @@ function writeProjectFile(projectDirectory: string, relativePath: string, conten
   const absolutePath = nodePath.join(projectDirectory, relativePath);
   mkdirSync(nodePath.dirname(absolutePath), { recursive: true });
   writeFileSync(absolutePath, content);
+  if (relativePath.includes('node_modules/.bin/')) chmodSync(absolutePath, 0o755);
 }
 
 function writeExecutable(directory: string, name: string, body: string): void {
@@ -473,10 +474,17 @@ describe('audit installed-project stack awareness', () => {
   });
 });
 
+function fakeDepcruise(output: string, exitCode = 0): string {
+  return `#!/usr/bin/env bash\necho "[fake-depcruise] $@"\necho '${output}'\nexit ${exitCode}\n`;
+}
+
 describe('audit diff scope', () => {
   const javascriptProject = {
     'package.json': JSON.stringify({ name: 'fixture', packageManager: 'npm@11.0.0' }),
     '.dependency-cruiser.cjs': 'module.exports = { forbidden: [] };\n',
+    'node_modules/.bin/depcruise': fakeDepcruise(
+      '✔ no dependency violations found (3 modules, 2 dependencies cruised)',
+    ),
     'src/changed.ts': 'export const value = 1;\n',
     'README.md': '# Fixture\n',
   };
@@ -493,12 +501,63 @@ describe('audit diff scope', () => {
     expect(result.stdout).toContain('Audit scope: origin/main');
     expect(result.stdout).toContain('src/changed.ts');
     expect(result.stdout).not.toContain('src/stale-main.ts');
-    expect(result.stdout).toMatch(/\[fake-bunx\] depcruise .*--affected [0-9a-f]{40}/);
+    expect(result.stdout).toMatch(/\[fake-depcruise\] .*--affected [0-9a-f]{40}/);
+    expect(result.stdout).not.toContain('[fake-bunx] depcruise');
     expect(result.stdout).toContain(
       'Knip: skipped in diff scope — run a repository audit for whole-workspace unused-code discovery',
     );
     expect(result.stdout).toContain(
       'Duplication: skipped in diff scope — run a repository audit for cross-file clone discovery',
+    );
+  });
+
+  it("never resolves npm's depcruise placeholder when dependency-cruiser is not installed", () => {
+    const { 'node_modules/.bin/depcruise': _installed, ...withoutDependencyCruiser } =
+      javascriptProject;
+    const result = runDiffScopedAuditAutomation({
+      baselineFiles: withoutDependencyCruiser,
+      changedFiles: { 'src/changed.ts': 'export const value = 2;\n' },
+      includeOriginMain: true,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).not.toContain('[fake-bunx] depcruise');
+    expect(result.stdout).toContain(
+      'Manual evidence required: .dependency-cruiser.cjs exists but dependency-cruiser is not installed',
+    );
+  });
+
+  it('flags a cruise that analyzed zero modules instead of reporting a clean pass', () => {
+    const result = runDiffScopedAuditAutomation({
+      baselineFiles: {
+        ...javascriptProject,
+        'node_modules/.bin/depcruise': fakeDepcruise(
+          '✔ no dependency violations found (0 modules, 0 dependencies cruised)',
+        ),
+      },
+      changedFiles: { 'src/changed.ts': 'export const value = 2;\n' },
+      includeOriginMain: true,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain(
+      'Manual evidence required: dependency-cruiser cruised 0 modules',
+    );
+  });
+
+  it('reports a dependency-cruiser crash as a failed check, not a pass', () => {
+    const result = runDiffScopedAuditAutomation({
+      baselineFiles: {
+        ...javascriptProject,
+        'node_modules/.bin/depcruise': fakeDepcruise('ERROR: cannot read config', 1),
+      },
+      changedFiles: { 'src/changed.ts': 'export const value = 2;\n' },
+      includeOriginMain: true,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain(
+      'Architecture check failed to run: dependency-cruiser exited 1',
     );
   });
 
@@ -556,7 +615,7 @@ describe('audit diff scope', () => {
 
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('Code quality scope: no changed source or manifest files');
-    expect(result.stdout).not.toContain('[fake-bunx] depcruise');
+    expect(result.stdout).not.toContain('[fake-depcruise]');
     expect(result.stdout).not.toContain('[fake-knip]');
     expect(result.stdout).not.toContain('[fake-bunx] jscpd');
   });
@@ -594,7 +653,7 @@ describe('audit diff scope', () => {
     expect(result.stdout).toContain('docs/removed.md');
     expect(result.stdout).toContain('docs/type-change.md');
     expect(result.stdout).toContain('Code quality scope: no changed source or manifest files');
-    expect(result.stdout).not.toContain('[fake-bunx] depcruise');
+    expect(result.stdout).not.toContain('[fake-depcruise]');
   });
 
   it('skips unrelated domain-doc drift in a diff audit', () => {
