@@ -133,9 +133,13 @@ test('public status stays ready', () => {
     };
   }
 
-  it.each(['task', 'feature'] as const)(
-    'advances an in-progress %s at intake when a ticket edit records a public contract change',
-    async type => {
+  it.each([
+    { type: 'task', changesSharedContract: true },
+    { type: 'feature', changesSharedContract: true },
+    { type: 'task', changesSharedContract: false },
+  ] as const)(
+    'reconciles a $type at intake after a ticket edit (public contract changed: $changesSharedContract)',
+    async ({ type, changesSharedContract }) => {
       git('init', '-q');
       git(
         '-c',
@@ -165,13 +169,17 @@ test('public status stays ready', () => {
       const ticket = nodePath.join(ticketFolderBySlug(project, slug), 'ticket.md');
       const facts = {
         schemaVersion: 1,
-        scope: 'Rename a public response field',
-        outcome: 'Publish the replacement field',
+        scope: changesSharedContract
+          ? 'Rename a public response field'
+          : 'Correct a private helper',
+        outcome: changesSharedContract
+          ? 'Publish the replacement field'
+          : 'Return the correct value',
         decisions: Object.fromEntries(consequentialDecisions.map(name => [name, 'settled'])),
         introducesUserFlow: false,
         multipleUserFlows: false,
         newPersistentState: false,
-        changesSharedContract: true,
+        changesSharedContract,
         changesBehavior: true,
         verification: 'new-regression',
       };
@@ -187,6 +195,11 @@ test('public status stays ready', () => {
       const first = notify();
       expect(first.status, first.stderr).toBe(0);
       const promoted = readFileSync(ticket, 'utf8');
+      if (!changesSharedContract) {
+        expect(promoted).toBe(edited);
+        expect(first.stdout).not.toContain('now needs feature planning');
+        return;
+      }
       expect(promoted, first.stderr || first.stdout).toMatch(/^type: feature$/m);
       expect(first.stdout).toContain('shared public contract changes');
       expect(promoted).toMatch(/^phase: define-behavior$/m);

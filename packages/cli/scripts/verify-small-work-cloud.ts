@@ -25,18 +25,42 @@ function requiredText(value: unknown, name: string): string {
   return value;
 }
 
-function verifyCase(value: unknown): void {
+type HostedCase = 'response-contract-promotion' | 'response-contract-ticket-edit-promotion';
+
+function verifyCase(value: unknown, scenario: HostedCase): void {
   const evidence = record(value);
-  requireValue(
-    evidence.scenario === 'response-contract-promotion',
-    'Missing response-contract promotion case.',
-  );
-  requireValue(
-    evidence.dispatch_event === 'preToolUse' || evidence.dispatch_event === 'PreToolUse',
-    'Expected a native pre-write event.',
-  );
-  requireValue(Number.isSafeInteger(evidence.exit_status), 'Missing native dispatch exit status.');
-  requireValue(evidence.observed_outcome === 'denied', 'The production write must be denied.');
+  requireValue(evidence.scenario === scenario, `Expected case ${scenario}.`);
+  if (scenario === 'response-contract-ticket-edit-promotion') {
+    requireValue(evidence.dispatch_event === 'PostToolUse', 'Expected a native post-edit event.');
+    requireValue(
+      evidence.tool_name === 'Edit' || evidence.tool_name === 'Write',
+      'Expected a native ticket edit tool.',
+    );
+    requireValue(evidence.exit_status === 0, 'The post-edit hook must complete successfully.');
+    requireValue(
+      evidence.observed_outcome === 'promoted',
+      'Expected promotion on the ticket edit.',
+    );
+    requireValue(
+      evidence.original_type === 'task' && evidence.original_phase === 'intake',
+      'The ticket must start as a task in intake.',
+    );
+    requireValue(
+      evidence.production_write_attempted === false,
+      'The ticket must advance before a production write is attempted.',
+    );
+    requiredText(evidence.native_event_ref, 'native ticket-edit event reference');
+  } else {
+    requireValue(
+      evidence.dispatch_event === 'preToolUse' || evidence.dispatch_event === 'PreToolUse',
+      'Expected a native pre-write event.',
+    );
+    requireValue(
+      Number.isSafeInteger(evidence.exit_status),
+      'Missing native dispatch exit status.',
+    );
+    requireValue(evidence.observed_outcome === 'denied', 'The production write must be denied.');
+  }
   const originalId = requiredText(evidence.original_ticket_id, 'original ticket ID');
   requireValue(evidence.final_ticket_id === originalId, 'The original ticket must be retained.');
   requireValue(
@@ -46,10 +70,19 @@ function verifyCase(value: unknown): void {
   requireValue(evidence.source_unchanged === true, 'The production source must stay unchanged.');
 }
 
-function verifyJob(value: unknown, revision: string, seen: Set<string>): void {
+function verifyJob(
+  value: unknown,
+  revision: string,
+  scenario: HostedCase,
+  seen: Set<string>,
+): void {
   const job = record(value);
   const provider = requiredText(job.provider, 'provider');
   const domain = providers.get(provider);
+  requireValue(
+    scenario !== 'response-contract-ticket-edit-promotion' || provider === 'claude-code-cloud',
+    'The ticket-edit promotion case currently requires Claude Code Cloud.',
+  );
   requireValue(domain && !seen.has(provider), `Unexpected or duplicate provider: ${provider}.`);
   const link = new URL(requiredText(job.job_url, 'provider job link'));
   requireValue(
@@ -79,7 +112,7 @@ function verifyJob(value: unknown, revision: string, seen: Set<string>): void {
     Array.isArray(job.cases) && job.cases.length === 1,
     'Expected exactly one response-contract case.',
   );
-  verifyCase(job.cases[0]);
+  verifyCase(job.cases[0], scenario);
   seen.add(provider);
 }
 
@@ -91,9 +124,11 @@ function main(): void {
       case: { type: 'string' },
     },
   });
+  const scenario = values.case;
   requireValue(
-    values.case === 'response-contract-promotion',
-    'Select --case response-contract-promotion. This verifier does not establish the full hosted matrix.',
+    scenario === 'response-contract-promotion' ||
+      scenario === 'response-contract-ticket-edit-promotion',
+    'Select --case response-contract-promotion or response-contract-ticket-edit-promotion.',
   );
   const ref = requiredText(values.revision, '--revision');
   const commitSuffix = '^{commit}';
@@ -106,8 +141,12 @@ function main(): void {
   const jobs: unknown = JSON.parse(raw.toString('utf8'));
   requireValue(Array.isArray(jobs), 'Evidence must be a list of hosted jobs.');
   const seen = new Set<string>();
-  for (const job of jobs) verifyJob(job, revision, seen);
-  requireValue(seen.size === providers.size, 'Both hosted providers are required.');
+  for (const job of jobs) verifyJob(job, revision, scenario, seen);
+  if (scenario === 'response-contract-ticket-edit-promotion') {
+    requireValue(seen.has('claude-code-cloud'), 'A Claude Code Cloud record is required.');
+  } else {
+    requireValue(seen.size === providers.size, 'Both hosted providers are required.');
+  }
   console.log(
     JSON.stringify({
       case: values.case,

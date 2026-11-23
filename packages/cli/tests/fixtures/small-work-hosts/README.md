@@ -33,3 +33,15 @@ The verifier checks the recorded outcomes and emits the evidence file digest.
 The operator checks provider provenance against the actual jobs. This command
 covers the response-contract case. The other approved hosted scenarios require
 their own fixtures and checks.
+
+For the Claude Code Cloud ticket-edit case, use
+`--case response-contract-ticket-edit-promotion` with one Claude job record.
+Inspect the actual native ticket edit and successful PostToolUse event,
+then record `tool_name` (`Edit` or `Write`), `dispatch_event: "PostToolUse"`,
+`exit_status: 0`, `observed_outcome: "promoted"`, and `native_event_ref`
+(a pointer to that event in the native job transcript or log). Check the
+original task/intake state and record `original_type` and `original_phase`.
+Confirm the same ticket reached feature behavior definition, no production
+write was attempted (`production_write_attempted: false`), and source was
+unchanged. This scores the ticket-edit path. The original case continues to
+score a denied production write and requires both hosted providers.
