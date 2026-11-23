@@ -2,13 +2,13 @@
 id: QPQ1TQ
 slug: superseded-cancelled-check-unblocks-review
 type: task
-phase: implement
+phase: done
 subtype: bug-investigated
 scope: |
-  Judge each required check by its latest run on the head SHA, ordered by the
-  check run's started_at, instead of failing on any cancelled run. The PR review
-  worker passes started_at through into the inspection input; review-pr parses
-  it as an optional field.
+  Ignore a cancelled check run when a later-started run of the same check exists
+  on the head SHA, instead of failing on any cancelled run. The PR review worker
+  (dogfood copy and installed template) passes started_at into the inspection
+  input; review-pr parses it as an optional field.
 out_of_scope: |
   - Commit statuses (the combined-status endpoint already returns the latest per context).
   - Changing which conclusions count as passing or failing.
@@ -16,9 +16,10 @@ out_of_scope: |
 done_when: |
   - A cancelled run followed by a later successful run of the same check evaluates as passed.
   - A failed latest run still evaluates as failed; a pending latest run still evaluates as pending.
-  - Inputs without started_at keep the existing any-run-failed rule.
-  - The worker workflow emits started_at for each check run, and the Claude plugin runtime is regenerated.
-status: in_progress
+  - A failed run of a same-named check from another workflow still counts, even when a later run passed.
+  - Runs without started_at are never treated as superseded.
+  - Both worker workflows emit started_at for each check run, and generated surfaces are regenerated.
+status: done
 created: 2026-11-23T19:54:37.573Z
 last_modified: 2026-11-23T19:54:37.573Z
 ---
@@ -39,10 +40,13 @@ only `{name, status, conclusion}`, so nothing could tell which run is current.
 ## Decision
 
 Order by `started_at`: a pending rerun has no `completed_at`, and check-suite order is not in the
-API response. When any matching run lacks `started_at`, keep the old conservative rule.
+API response. Only a cancelled run with a later-started sibling is dropped. Cross-agent review
+rejected "count only the newest run": a same-named check from another workflow would hide its
+failure. Grouping by check suite cannot work, because each new workflow run is a new suite.
 
 ## Work Log
 
 <!-- Progress history, not part of the accepted contract: record scope and decisions above. -->
 
 - 2026-11-23T19:54:37.573Z Started: Created ticket QPQ1TQ
+- 2026-11-23T20:45:00Z Done: RED 1fefd45d3, GREEN 43767ffb5, narrowed after review 3dad6a6e6, typecheck fix 1bb672cd6. Refactor: no change warranted.
