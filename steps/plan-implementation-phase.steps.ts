@@ -156,6 +156,7 @@ interface PlanWorld extends SafewordWorld {
   schemaSource?: string;
   cursorWrapperSource?: string;
   architectureRecord?: string;
+  planningDecisionPath?: string;
   architectureEditTarget?: string;
   stop?: { decision?: string; reason: string; exitCode: number };
   promptOutput?: string;
@@ -2996,15 +2997,30 @@ Then(
 );
 
 Then('an accepted ADR records the plan-implementation phase', function (this: PlanWorld) {
-  const text = this.architectureRecord ?? '';
-  const headingIndex = text.indexOf('### plan-implementation: a gated planning phase');
-  assert.ok(headingIndex !== -1, 'ARCHITECTURE.md must record the plan-implementation ADR');
-  const section = text.slice(headingIndex, headingIndex + 400);
-  assert.match(section, /\*\*Status:\*\* Accepted/);
+  const link = this.architectureRecord?.match(
+    /\[plan-implementation: a gated planning phase[^\]]*\]\(([^)]+)\)/u,
+  );
+  assert.ok(link?.[1], 'The overview must link to the planning-phase decision');
+  this.planningDecisionPath = nodePath.resolve(PROJECT_ROOT, link[1]);
+  const decision = readFileSync(this.planningDecisionPath, 'utf8');
+  assert.match(decision, /^# plan-implementation: a gated planning phase/mu);
+  assert.match(decision, /^\*\*Status:\*\* Accepted\b/mu);
 });
 
 Then('the decomposition-retirement ADR is marked superseded by it', function (this: PlanWorld) {
-  const text = this.architectureRecord ?? '';
-  assert.match(text, /retire `decomposition` phase/);
-  assert.match(text, /superseded by "plan-implementation: a gated planning phase"/);
+  const link = this.architectureRecord?.match(
+    /\[[^\]]*retire `decomposition` phase[^\]]*\]\(([^)]+)\)/u,
+  );
+  assert.ok(link?.[1], 'The overview must link to the decomposition-retirement decision');
+  const olderPath = nodePath.resolve(PROJECT_ROOT, link[1]);
+  const olderDecision = readFileSync(olderPath, 'utf8');
+  assert.match(olderDecision, /^# .*retire `decomposition` phase/mu);
+  const replacement = olderDecision.match(
+    /^\*\*Status:\*\* .*superseded by \[[^\]]+\]\(([^)]+)\)/mu,
+  );
+  assert.ok(replacement?.[1], 'The status must link to the superseding decision');
+  assert.equal(
+    nodePath.resolve(nodePath.dirname(olderPath), replacement[1]),
+    this.planningDecisionPath,
+  );
 });
