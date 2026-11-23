@@ -34,6 +34,90 @@ describe('installed small-work RED admission', () => {
     removeTemporaryDirectory(fixture);
   });
 
+  it('denies native Claude and Codex production edits after ticket binding when RED is missing', () => {
+    const cli = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
+    const setup = nodePath.resolve(
+      import.meta.dirname,
+      '../fixtures/small-work-hosts/response-contract.ts',
+    );
+    const output = execFileSync('bun', [setup, cli], { cwd: fixture, encoding: 'utf8' });
+    const {
+      root: project,
+      ticket,
+      ticket_id: ticketId,
+    } = JSON.parse(output) as {
+      root: string;
+      ticket: string;
+      ticket_id: string;
+    };
+    try {
+      const ticketPath = nodePath.join(project, ticket);
+      const filePath = nodePath.join(project, 'src/status.ts');
+      const before = readFileSync(filePath, 'utf8');
+      const after = before.replace('ready: true', 'ready: false');
+      const env = { ...process.env, CLAUDE_PROJECT_DIR: project };
+      const hook = (host: 'claude' | 'codex', post: boolean) => {
+        const event = post ? 'PostToolUse' : 'PreToolUse';
+        const tool =
+          host === 'claude'
+            ? {
+                tool_name: 'Write',
+                tool_input: {
+                  file_path: post ? ticketPath : filePath,
+                  content: post ? readFileSync(ticketPath, 'utf8') : after,
+                },
+              }
+            : {
+                tool_name: 'apply_patch',
+                tool_input: {
+                  command: post
+                    ? `*** Begin Patch\n*** Update File: ${ticket}\n@@\n-# Rename the status response field\n+# Retry task\n*** End Patch`
+                    : `*** Begin Patch\n*** Update File: src/status.ts\n@@\n-${before.trimEnd()}\n+${after.trimEnd()}\n*** End Patch`,
+                },
+              };
+        const args =
+          host === 'claude'
+            ? [
+                nodePath.join(
+                  project,
+                  '.safeword/hooks',
+                  post ? 'post-tool-quality.ts' : 'pre-tool-quality.ts',
+                ),
+              ]
+            : [
+                nodePath.resolve(import.meta.dirname, '../../codex-plugin/runtime/cli.js'),
+                'hook',
+                'codex',
+                post ? 'post-tool-use' : 'pre-tool-use',
+                '--plugin-hook',
+              ];
+        const result = spawnSync('bun', args, {
+          cwd: project,
+          encoding: 'utf8',
+          env,
+          input: JSON.stringify({
+            cwd: project,
+            session_id: `missing-red-${host}`,
+            hook_event_name: event,
+            ...tool,
+          }),
+          timeout: 15_000,
+        });
+        expect(result.status, result.stderr).toBe(0);
+        return result;
+      };
+      for (const host of ['claude', 'codex'] as const) {
+        expectHookDeny(hook(host, false), 'Attach this session to the ticket');
+        hook(host, true);
+        expectHookDeny(hook(host, false), 'Record the observed failing test');
+        expect(readFileSync(filePath, 'utf8')).toBe(before);
+        expect(readFileSync(ticketPath, 'utf8')).toContain(`id: ${ticketId}\n`);
+      }
+    } finally {
+      removeTemporaryDirectory(project);
+    }
+  });
+
   it('requires the current observed failure and matching relevance before the first edit', async () => {
     const project = nodePath.join(fixture, 'project');
     mkdirSync(project);

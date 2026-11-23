@@ -20,6 +20,10 @@
     "Restart follows the saved design destination only after behavior approval": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
       "resumes the saved small-work destination from a current receipt in a fresh CLI"
+    ],
+    "Claude Code and Codex block a bound task edit when RED is missing": [
+      "packages/cli/tests/integration/small-work-red-admission.test.ts",
+      "denies native Claude and Codex production edits after ticket binding when RED is missing"
     ]
   }
 }

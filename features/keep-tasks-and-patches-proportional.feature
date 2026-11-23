@@ -231,6 +231,13 @@ Feature: Keep tasks and patches proportional
         | fails only through a newly invented boundary |
         | fails for a reason unrelated to the settled expected behavior |
 
+    @rejection @proof.vitest @surface.claude-code @surface.openai-codex
+    Scenario: Claude Code and Codex block a bound task edit when RED is missing
+      Given a behavior-changing task has settled expected behavior and a saved footprint within its thresholds
+      And a ticket edit binds the task to the active session
+      When the installed Claude Code and Codex edit gates receive a production edit without observed RED
+      Then each gate denies the edit because the failing test has not been observed
+
     @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed lifecycle dispatch enforces meaningful RED
       Given a technical builder has a behavior-changing task with settled expected behavior and <red_state>
@@ -241,11 +248,9 @@ Feature: Keep tasks and patches proportional
         | installed_entry | red_state | gate_result |
         | actual installed CLI dispatch | no observed failing test | the modification is blocked because meaningful RED is missing |
         | actual installed CLI dispatch | an observed meaningful failing test through an existing boundary with linked evidence | the modification is permitted to proceed to GREEN with the linked evidence preserved |
-        | actual Claude Code lifecycle dispatch from installed project hooks | no observed failing test | the modification is blocked because meaningful RED is missing |
         | actual Claude Code lifecycle dispatch from installed project hooks | an observed meaningful failing test through an existing boundary with linked evidence | the modification is permitted to proceed to GREEN with the linked evidence preserved |
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM | no observed failing test | the modification is blocked because meaningful RED is missing |
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM | an observed meaningful failing test through an existing boundary with linked evidence | the modification is permitted to proceed to GREEN with the linked evidence preserved |
-        | actual OpenAI Codex lifecycle dispatch from installed project hooks | no observed failing test | the modification is blocked because meaningful RED is missing |
         | actual OpenAI Codex lifecycle dispatch from installed project hooks | an observed meaningful failing test through an existing boundary with linked evidence | the modification is permitted to proceed to GREEN with the linked evidence preserved |
         | actual Cursor lifecycle dispatch from installed project hooks | no observed failing test | the modification is blocked because meaningful RED is missing |
         | actual Cursor lifecycle dispatch from installed project hooks | an observed meaningful failing test through an existing boundary with linked evidence | the modification is permitted to proceed to GREEN with the linked evidence preserved |

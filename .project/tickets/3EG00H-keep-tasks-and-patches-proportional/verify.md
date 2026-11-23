@@ -191,3 +191,11 @@ A separate trial changed a checkpoint line inside reviewed `ticket.md`. The coor
 `safeword ticket resume <ticketId>` reads the saved destination and verifies the review receipt through the installed CLI's coordinator. It makes no ticket edit while approval is missing or stale. With current approval, it advances the same ticket, clears the pending destination, and retains the investigation text. A repeated invocation is a no-op.
 
 The standalone acceptance scenario now maps to an executable test that starts a fresh CLI process for each attempt. In a separate disposable run, the built command consumed the real Codex-authored, Claude-reviewed receipt `6eca4c06-f5b6-4a00-b477-fec1b10da98d` and advanced the ticket without editing the reviewed text first. The feature has five executable proof links across 146 expanded examples. The acceptance dry run reports the other 141 as undefined.
+
+### Missing RED after attachment on Claude Code and Codex
+
+Two local host rows from Rule 8 now share one executable scenario. Its test dispatches through the installed Claude project hook and the bundled Codex adapter. Each adapter initially refuses an unbound source edit. After an actual PostToolUse handler binds the ticket, it refuses the same source edit specifically because the failing test has yet to be observed.
+
+On candidate `addfa9866`, native Claude Code session `02918ae1-ec8a-4022-929e-35779e3a2f5b` and Codex CLI session `01a20a6b-9363-7cb2-b8d8-f79cf8e2f643` each edited their ticket, then attempted one production edit without running a test. The source stayed at one attempt in both fixtures. Claude's Edit result and Codex's PreToolUse router both reported “Record the observed failing test for this task before editing production code.” Codex used the isolated test profile's invocation-only hook trust override. An initial fixture had uncommitted setup files and triggered the footprint limit. The successful rerun committed those files to the fixture baseline.
+
+All 55 focused proof-registration and RED-admission tests passed. Six of 145 expanded examples now have executable proof links. The acceptance dry run reports the remaining 139 as undefined.
