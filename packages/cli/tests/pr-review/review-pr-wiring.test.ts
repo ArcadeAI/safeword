@@ -284,8 +284,11 @@ describe('review-pr inspect command wiring', () => {
       const result = await inspectPullRequestCommand({ cwd, inputPath, outputPath, provider });
 
       expect(provider).toHaveBeenCalledTimes(expectedStatus ? 0 : 1);
-      if (expectedStatus) expect(receiptOf(result)).toMatchObject({ status: expectedStatus });
-      else expect(receiptOf(result).checks).toEqual([{ name: 'lint', status: 'success' }]);
+      expect(receiptOf(result)).toMatchObject(
+        expectedStatus
+          ? { status: expectedStatus }
+          : { checks: [{ name: 'lint', status: 'success' }] },
+      );
     },
   );
 
