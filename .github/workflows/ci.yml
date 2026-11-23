@@ -32,6 +32,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Check architecture overview size
+        run: sh scripts/check-architecture-size.sh
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
