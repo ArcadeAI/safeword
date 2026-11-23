@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "066d937ff95a2b4ebf5ff3571976dae2988fa9e0be62c742a3028811b9315de4"
+      "sha256": "a6f7a8c95877a8bd90ac23f9f49b6e38e037bcfcb220df3d744d2aa7c59ea968"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "f3d2a6de9c39d9d517f44697635c9863511a87f3a97c13b4a5fc1a9b8f4fd21f"
+      "sha256": "8a3083db3668eddc9b2a41e33698442e7a9af97a2932e5f89ab0100f1d152833"
     },
     {
       "path": "runtime/dispatch.js",
@@ -455,11 +455,11 @@
     },
     {
       "path": "runtime/hooks/lib/small-work-admission.ts",
-      "sha256": "aae27f048a21788a9b04dc7cf45afbd1bd9ce99e06871e510a29edec95a0d684"
+      "sha256": "a1f48fb11ef924aa61132020ac6f2b0cf61b0c2c9ddee6a0570f68f0790b8378"
     },
     {
       "path": "runtime/hooks/lib/small-work-classification.ts",
-      "sha256": "09aa79665df037202c90f15d1b5d2e1bf9f10b24acbcf71b627191c04c92e3e2"
+      "sha256": "ec0cc18c1e519fb8b67d4c3502f2a695e8fe858328b1f1da0088b23c7f90b133"
     },
     {
       "path": "runtime/hooks/lib/small-work-footprint.ts",
@@ -1463,11 +1463,11 @@
     },
     {
       "path": "templates/hooks/lib/small-work-admission.ts",
-      "sha256": "aae27f048a21788a9b04dc7cf45afbd1bd9ce99e06871e510a29edec95a0d684"
+      "sha256": "a1f48fb11ef924aa61132020ac6f2b0cf61b0c2c9ddee6a0570f68f0790b8378"
     },
     {
       "path": "templates/hooks/lib/small-work-classification.ts",
-      "sha256": "09aa79665df037202c90f15d1b5d2e1bf9f10b24acbcf71b627191c04c92e3e2"
+      "sha256": "ec0cc18c1e519fb8b67d4c3502f2a695e8fe858328b1f1da0088b23c7f90b133"
     },
     {
       "path": "templates/hooks/lib/small-work-footprint.ts",
@@ -1675,7 +1675,7 @@
     },
     {
       "path": "templates/SAFEWORD.md",
-      "sha256": "dc4b0f4a1d6e326e6558034ffc20cb1e588fddded178e29067d063ef67ff0957"
+      "sha256": "56e3f6772ec2db7352988fd7db0b2f0500d500416555480398c0e81356dc7896"
     },
     {
       "path": "templates/scripts/bisect-test-pollution.sh",

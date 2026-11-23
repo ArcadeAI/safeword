@@ -674,6 +674,22 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       },
     },
   ),
+  command(
+    'ticket observe-small-work-green',
+    'Rerun the saved RED test and record GREEN',
+    'mutate',
+    {
+      syntax: 'observe-small-work-green <ticketId>',
+      commandOptions: [
+        { flags: '--check', description: 'Check the saved GREEN without running tests' },
+      ],
+      networkPolicy: 'declared',
+      fixture: {
+        argv: ['ticket', 'observe-small-work-green', 'fixture'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
   command('ticket record-delivery-proof', 'Run and retain one reviewed delivery proof', 'mutate', {
     networkPolicy: 'declared',
     syntax: 'record-delivery-proof <ticketId> <itemId> <proofId>',

@@ -490,6 +490,7 @@ export const SMALL_WORK_PROOF_HELP = [
   '',
   'Use --json and save data.request and data.observation as proof.request and proof.observation in the ticket facts.',
   'Set proof.relevance to { observationTag: observation.tag, relevant: true, explanation } when the test proves the task.',
+  'After the source fix, run safeword ticket observe-small-work-green <ticketId> to rerun the same test and save GREEN.',
 ].join('\n');
 
 async function observeSmallWorkProofHandler(invocation: CommandInvocation): Promise<CliResult> {
@@ -530,6 +531,51 @@ async function observeSmallWorkProofHandler(invocation: CommandInvocation): Prom
           retryable: false,
         },
       ],
+    });
+  }
+}
+
+async function observeSmallWorkGreenHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const command = 'ticket observe-small-work-green';
+  const ticket = invocation.operands[0];
+  if (typeof ticket !== 'string') return invalidOperand(command, 'Supply the task ticket ID.');
+  const { observeSmallWorkGreen } = await import('../small-work/green-observation.js');
+  try {
+    const result = await observeSmallWorkGreen(
+      invocation.cwd,
+      ticket,
+      invocation.options.check === true,
+    );
+    if (result.path !== undefined) {
+      return createResult({
+        state: 'changed',
+        effects: {
+          files: [
+            {
+              kind: 'update',
+              target: nodePath.relative(invocation.cwd, result.path),
+              operation: 'write',
+            },
+          ],
+        },
+        data: { command, current: true, receipt: result.receipt },
+      });
+    }
+    return createResult({
+      state: result.current ? 'healthy' : 'action_required',
+      data: { command, current: result.current },
+    });
+  } catch (error) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'SMALL_WORK_GREEN_FAILED',
+          message: error instanceof Error ? error.message : String(error),
+          retryable: false,
+        },
+      ],
+      data: { command },
     });
   }
 }
@@ -752,6 +798,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'ticket classify-small-work': classifySmallWorkHandler,
   'ticket observe-small-work-proof': observeSmallWorkProofHandler,
   'ticket verify-small-work-proof': verifySmallWorkProofHandler,
+  'ticket observe-small-work-green': observeSmallWorkGreenHandler,
   'ticket record-delivery-proof': recordDeliveryProofHandler,
   'review run': reviewRunHandler,
   'review gate executable-red': executableRedGateHandler,

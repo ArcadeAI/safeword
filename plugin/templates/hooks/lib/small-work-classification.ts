@@ -1,19 +1,19 @@
 import { createHash } from 'node:crypto';
+import nodePath from 'node:path';
 
 const FACTS_HEADING = '## Safeword small-work facts';
 export function hasSmallWorkFacts(ticket: string): boolean {
   return ticket.split(/\r?\n/u).includes(FACTS_HEADING);
 }
 
+const FACTS_BLOCK =
+  /^(## Safeword small-work facts\r?\n\r?\n```json\r?\n)([\s\S]*?)(\r?\n```[ \t]*)$/gm;
+
 export function readSmallWorkFacts(ticket: string): unknown {
-  const blocks = [
-    ...ticket.matchAll(
-      /^## Safeword small-work facts\r?\n\r?\n```json\r?\n([\s\S]*?)\r?\n```[ \t]*$/gm,
-    ),
-  ];
+  const blocks = [...ticket.matchAll(FACTS_BLOCK)];
   if (blocks.length !== 1) return undefined;
   try {
-    return JSON.parse(blocks[0]?.[1] ?? '') as unknown;
+    return JSON.parse(blocks[0]?.[2] ?? '') as unknown;
   } catch {
     return undefined;
   }
@@ -22,6 +22,18 @@ export function readSmallWorkFacts(ticket: string): unknown {
 export function smallWorkContractDigest(facts: { proof?: unknown; evaluation?: unknown }): string {
   const { proof: _proof, evaluation: _evaluation, ...contract } = facts;
   return createHash('sha256').update(JSON.stringify(contract)).digest('hex');
+}
+
+export function replaceSmallWorkFacts(ticket: string, facts: unknown): string {
+  return ticket.replace(
+    FACTS_BLOCK,
+    (_block, start: string, _json: string, end: string) => start + JSON.stringify(facts) + end,
+  );
+}
+
+export function smallWorkAdmissionPath(projectRoot: string, ticketId: string): string {
+  const key = createHash('sha256').update(ticketId).digest('hex');
+  return nodePath.join(projectRoot, '.safeword', 'state', 'small-work', `${key}.token`);
 }
 
 export const consequentialDecisions = [

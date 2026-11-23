@@ -118,10 +118,12 @@ revision, exact test command and expected failing assertion. Run the
 declared test through `safeword ticket observe-small-work-proof <proofJson>`.
 Link its observation to the inline task and explain how the assertion
 demonstrates the agreed behavior gap. The gate checks the observation
-against the current proof inputs. Run the same targeted test again after
-the fix. If reevaluation finds a consequential in-scope decision, stop
-production edits and continue on the same ticket in the phase that owns
-the decision.
+against the current proof inputs. After the fix, run
+`safeword ticket observe-small-work-green <ticketId>` to rerun that exact
+test and save the passing result alongside RED. Use `--check` to check
+the saved pass without rerunning it. If reevaluation finds a consequential
+in-scope decision, stop production edits and continue on the same ticket
+in the phase that owns the decision.
 
 Pick the work level internally. Don't announce it as a label ("Feature detected!"); state your scope read as part of your proposal.
 

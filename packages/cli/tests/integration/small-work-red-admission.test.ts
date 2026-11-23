@@ -5,7 +5,10 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { consequentialDecisions } from '../../templates/hooks/lib/small-work-classification.js';
+import {
+  consequentialDecisions,
+  readSmallWorkFacts,
+} from '../../templates/hooks/lib/small-work-classification.js';
 import {
   createTemporaryDirectory,
   expectHookAllow,
@@ -285,11 +288,36 @@ test('unrelated', () => { throw new Error('${expectedFailure}'); });\n`,
     const admitted = editDecision();
     expect(admitted.permission, admitted.agent_message).toBe('allow');
 
+    const greenCommand = ['ticket', 'observe-small-work-green', id];
+    const beforeGreen = readFileSync(ticket, 'utf8');
+    const stillRed = await run(greenCommand);
+    expect(stillRed.exitCode).not.toBe(0);
+    expect(JSON.parse(stillRed.stdout).errors[0].message).toContain('did not pass');
+    expect(readFileSync(ticket, 'utf8')).toBe(beforeGreen);
+
     writeFileSync(nodePath.join(project, entryPoint), 'export const attempts = () => 2;\n');
     const green = spawnSync('bun', ['test', realTest], { cwd: project, encoding: 'utf8' });
     expect(green.status, green.stderr).toBe(0);
     expect(editDecision().permission).toBe('allow');
+    const saved = await run(greenCommand);
+    expect(saved.exitCode, saved.stderr || saved.stdout).toBe(0);
+    const receipt = JSON.parse(saved.stdout).data.receipt;
+    expect(receipt.redTag).toBe(intended.tag);
+    const storedFacts = readSmallWorkFacts(readFileSync(ticket, 'utf8'));
+    expect(storedFacts).toMatchObject({
+      proof: { request: effectiveRequest, observation: intended, green: receipt },
+    });
+    const checkGreen = () => run([...greenCommand, '--check']);
+    const current = await checkGreen();
+    expect(JSON.parse(current.stdout).data).toMatchObject({ current: true });
+    writeFileSync(nodePath.join(project, entryPoint), 'export const attempts = () => 3;\n');
+    const stale = await checkGreen();
+    expect(stale.exitCode).not.toBe(0);
+    expect(JSON.parse(stale.stdout).data).toMatchObject({ current: false });
+    writeFileSync(nodePath.join(project, entryPoint), 'export const attempts = () => 2;\n');
     writeFileSync(nodePath.join(project, realTest), '// changed after the observed run\n');
+    const changedTest = await checkGreen();
+    expect(JSON.parse(changedTest.stdout).data).toMatchObject({ current: false });
     expectDenial(staleEvidence);
   }, 60_000);
 });

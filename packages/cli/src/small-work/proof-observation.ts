@@ -87,7 +87,11 @@ function projectRelativePath(root: string, absolute: string): string {
   return relative.split(nodePath.sep).join('/');
 }
 
-function fingerprint(cwd: string, request: SmallWorkProofRequest, resumed = false): string {
+function fingerprint(
+  cwd: string,
+  request: SmallWorkProofRequest,
+  revision: 'baseline' | 'admitted' | 'current' = 'baseline',
+): string {
   const root = realpathSync.native(cwd);
   const entryPath = realpathSync.native(nodePath.resolve(root, request.entryPoint));
   const entryRelative = projectRelativePath(root, entryPath);
@@ -95,10 +99,11 @@ function fingerprint(cwd: string, request: SmallWorkProofRequest, resumed = fals
     cwd: root,
     stdio: ['ignore', 'pipe', 'ignore'],
   });
-  if (!resumed && !readFileSync(entryPath).equals(baseline)) {
+  if (revision === 'baseline' && !readFileSync(entryPath).equals(baseline)) {
     throw new Error('The declared entry point has changed from the pre-test baseline.');
   }
   const hash = createHash('sha256').update(JSON.stringify(request)).update(baseline);
+  if (revision === 'current') hash.update(readFileSync(entryPath));
   const proofPaths = new Set([request.target, ...request.inputs]);
   for (const path of proofPaths) {
     const absolute = realpathSync.native(nodePath.resolve(root, path));
@@ -177,7 +182,7 @@ export function verifySmallWorkProof(
       (request.expectation === 'pass'
         ? observed.passingRunObserved
         : observed.expectedFailureObserved) &&
-      observed.sourceFingerprint === fingerprint(cwd, request, resumed)
+      observed.sourceFingerprint === fingerprint(cwd, request, resumed ? 'admitted' : 'baseline')
     );
   } catch {
     return false;
@@ -187,4 +192,8 @@ export function verifySmallWorkProof(
 export function smallWorkAdmissionToken(cwd: string, observation: unknown): string | undefined {
   const tag = (observation as Partial<Observation> | undefined)?.tag;
   return typeof tag === 'string' ? smallWorkObservationTag(cwd, `admitted:${tag}`) : undefined;
+}
+
+export function smallWorkGreenFingerprint(cwd: string, request: SmallWorkProofRequest): string {
+  return fingerprint(cwd, request, 'current');
 }

@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { readFileSync, realpathSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -9,6 +8,7 @@ import {
   classifySmallWork,
   hasSmallWorkFacts,
   readSmallWorkFacts,
+  smallWorkAdmissionPath,
   smallWorkContractDigest,
   type SmallWorkFacts,
 } from './small-work-classification.js';
@@ -44,13 +44,7 @@ function taskProofDenial(
   ) {
     return 'Connect the assertion and existing entry point to the current task and test observation.';
   }
-  const admissionPath = nodePath.join(
-    projectRoot,
-    '.safeword',
-    'state',
-    'small-work',
-    `${createHash('sha256').update(ticketId).digest('hex')}.token`,
-  );
+  const admissionPath = smallWorkAdmissionPath(projectRoot, ticketId);
   let previousAdmission: string | undefined;
   if (/^[a-f\d]{64}$/u.test(observation.tag)) {
     try {
