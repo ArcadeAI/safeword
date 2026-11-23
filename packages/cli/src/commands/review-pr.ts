@@ -65,7 +65,13 @@ interface InspectionInput {
     | { kind: 'generated' | 'non_text'; path: string }
     | { kind: 'unreadable_text'; path: string }
   )[];
-  checks: { conclusion: string | null; name: string; startedAt?: string; status: string }[];
+  checks: {
+    conclusion: string | null;
+    name: string;
+    startedAt?: string;
+    status: string;
+    workflow?: string;
+  }[];
   headSha: string;
   markerReceiptExists: boolean;
   pullState: 'closed' | 'draft' | 'merged' | 'ready';
@@ -253,8 +259,7 @@ function parseInput(inputPath: string): InspectionInput {
       typeof check.name !== 'string' ||
       typeof check.status !== 'string' ||
       (check.conclusion !== null && typeof check.conclusion !== 'string') ||
-      (check.startedAt !== undefined &&
-        (typeof check.startedAt !== 'string' || Number.isNaN(Date.parse(check.startedAt))))
+      !hasValidRunProvenance(check)
     ) {
       throw new Error('review-pr: invalid check-run sample');
     }
@@ -263,6 +268,7 @@ function parseInput(inputPath: string): InspectionInput {
       name: check.name,
       ...(typeof check.startedAt === 'string' && { startedAt: check.startedAt }),
       status: check.status,
+      ...(typeof check.workflow === 'string' && { workflow: check.workflow }),
     };
   });
   const statuses = raw.statuses.map(status => {
@@ -361,21 +367,39 @@ function evaluateCheckRun(
   return PASSING_CHECK_CONCLUSIONS.has(check.conclusion) ? 'passed' : 'pending';
 }
 
+/** A check run's optional start time must parse as a date, and its optional workflow must be text. */
+function hasValidRunProvenance(check: Record<string, unknown>): boolean {
+  const { startedAt, workflow } = check;
+  const validStart =
+    startedAt === undefined ||
+    (typeof startedAt === 'string' && !Number.isNaN(Date.parse(startedAt)));
+  return validStart && (workflow === undefined || typeof workflow === 'string');
+}
+
 /**
  * Each workflow run makes a new check suite, so a check GitHub cancelled and then re-ran (as when a
  * PR is marked Ready) keeps its cancelled run on the head beside the rerun. A cancelled run that a
- * later-started run of the same check superseded no longer counts. Every other run still counts,
- * since a same-named check can come from another workflow, and a run without a start time cannot
- * be ordered.
+ * later-started run of the same check from the same workflow superseded no longer counts. Every
+ * other run still counts: a same-named check from another workflow is not a rerun, and a run
+ * without a start time or workflow cannot be shown to be one.
  */
 function isSupersededCancellation(
   check: InspectionInput['checks'][number],
   sameNamedChecks: InspectionInput['checks'],
 ): boolean {
-  if (check.conclusion !== 'cancelled' || check.startedAt === undefined) return false;
+  if (
+    check.conclusion !== 'cancelled' ||
+    check.startedAt === undefined ||
+    check.workflow === undefined
+  ) {
+    return false;
+  }
   const startedAt = Date.parse(check.startedAt);
   return sameNamedChecks.some(
-    other => other.startedAt !== undefined && Date.parse(other.startedAt) > startedAt,
+    other =>
+      other.workflow === check.workflow &&
+      other.startedAt !== undefined &&
+      Date.parse(other.startedAt) > startedAt,
   );
 }
 

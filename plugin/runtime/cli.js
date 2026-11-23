@@ -63085,14 +63085,15 @@ function parseInput(inputPath) {
     throw new Error("review-pr: pull request artifact count is incomplete or invalid");
   }
   const checks = raw.checks.map((check) => {
-    if (!isRecord10(check) || typeof check.name !== "string" || typeof check.status !== "string" || check.conclusion !== null && typeof check.conclusion !== "string" || check.startedAt !== undefined && (typeof check.startedAt !== "string" || Number.isNaN(Date.parse(check.startedAt)))) {
+    if (!isRecord10(check) || typeof check.name !== "string" || typeof check.status !== "string" || check.conclusion !== null && typeof check.conclusion !== "string" || !hasValidRunProvenance(check)) {
       throw new Error("review-pr: invalid check-run sample");
     }
     return {
       conclusion: check.conclusion,
       name: check.name,
       ...typeof check.startedAt === "string" && { startedAt: check.startedAt },
-      status: check.status
+      status: check.status,
+      ...typeof check.workflow === "string" && { workflow: check.workflow }
     };
   });
   const statuses = raw.statuses.map((status) => {
@@ -63143,11 +63144,17 @@ function evaluateCheckRun(check) {
     return "failed";
   return PASSING_CHECK_CONCLUSIONS.has(check.conclusion) ? "passed" : "pending";
 }
+function hasValidRunProvenance(check) {
+  const { startedAt, workflow } = check;
+  const validStart = startedAt === undefined || typeof startedAt === "string" && !Number.isNaN(Date.parse(startedAt));
+  return validStart && (workflow === undefined || typeof workflow === "string");
+}
 function isSupersededCancellation(check, sameNamedChecks) {
-  if (check.conclusion !== "cancelled" || check.startedAt === undefined)
+  if (check.conclusion !== "cancelled" || check.startedAt === undefined || check.workflow === undefined) {
     return false;
+  }
   const startedAt = Date.parse(check.startedAt);
-  return sameNamedChecks.some((other) => other.startedAt !== undefined && Date.parse(other.startedAt) > startedAt);
+  return sameNamedChecks.some((other) => other.workflow === check.workflow && other.startedAt !== undefined && Date.parse(other.startedAt) > startedAt);
 }
 function currentCheckRuns(input, name) {
   const sameNamedChecks = input.checks.filter((candidate) => candidate.name === name);

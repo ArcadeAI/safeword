@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "7e458db45281f51a515966373b5be1cbdcdde2f908512b2c412fde59897baa54"
+      "sha256": "e5e8c2d51d07fe8516576437529ea270613e8317236b352b9a9f108b961ac0e0"
     },
     {
       "path": "runtime/dispatch.js",
@@ -1819,7 +1819,7 @@
     },
     {
       "path": "templates/workflows/pr-review-worker.yml",
-      "sha256": "ec19575414b83b6ebf9217c8fba88c76577a455001578dbb2cf7d5fd2af1ecd7"
+      "sha256": "4ad58c14d4b7ca72d48b665e2770f3b0fb84f61e270322fe3a81700e41eb2884"
     },
     {
       "path": "templates/workflows/pr-review.yml",

@@ -777,10 +777,13 @@ describe('check-run evidence projection', () => {
     'forwards started_at and the workflow from the %s worker, omitting either when unknown',
     (_name, path) => {
       const source = readFileSync(path, 'utf8');
-      const workflowMap = extract(
-        source,
-        /\n\s*(\(\$runs\[0\] \| .+\)) as \$workflowBySuite \|\n/u,
-      );
+      const workflowMapSuffix = ' as $workflowBySuite |';
+      const workflowMap = source
+        .split('\n')
+        .map(line => line.trim())
+        .find(line => line.endsWith(workflowMapSuffix))
+        ?.slice(0, -workflowMapSuffix.length);
+      expect(workflowMap).toMatch(/^\(\$runs\[0\] \| /u);
       const projection = extract(source, /checks: \[\$checks\[0\]\[\] \| (.+)\],\n/u);
       const workflowRuns = [{ check_suite_id: 10, path: '.github/workflows/ci.yml' }];
       const checkRuns = [
@@ -792,7 +795,7 @@ describe('check-run evidence projection', () => {
           started_at: '2026-11-20T17:22:11Z',
           status: 'completed',
         },
-        // eslint-disable-next-line unicorn/no-null -- GitHub sends JSON null before a run starts.
+        /* eslint-disable unicorn/no-null -- GitHub sends JSON null before a run starts. */
         {
           check_suite: { id: 11 },
           conclusion: null,
@@ -801,6 +804,7 @@ describe('check-run evidence projection', () => {
           started_at: null,
           status: 'queued',
         },
+        /* eslint-enable unicorn/no-null */
       ];
 
       const result = spawnSync(
@@ -810,7 +814,7 @@ describe('check-run evidence projection', () => {
           '--argjson',
           'runs',
           JSON.stringify([workflowRuns]),
-          `${workflowMap} as $workflowBySuite | [.[] | ${projection}]`,
+          `${workflowMap ?? ''} as $workflowBySuite | [.[] | ${projection}]`,
         ],
         { encoding: 'utf8', input: JSON.stringify(checkRuns) },
       );
