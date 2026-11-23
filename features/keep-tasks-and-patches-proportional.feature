@@ -87,7 +87,7 @@ Feature: Keep tasks and patches proportional
   @plan-implementability.TBU3.3EG00H.R3
   Rule: plan-implementability.TBU3.3EG00H.R3 — Patches exclude feature triggers
 
-    @rejection
+    @rejection @proof.vitest
     Scenario: A tiny public-contract change cannot be labeled a patch
       Given a one-line edit changes a shared public response contract
       When the narrow patch contract is evaluated
@@ -214,6 +214,7 @@ Feature: Keep tasks and patches proportional
       When production code modification is attempted
       Then the modification is blocked because no meaningful failing test through an existing boundary has been observed
 
+    @proof.vitest
     Scenario: Meaningful RED permits the production change
       Given a technical builder has a behavior-changing task with one observed meaningful failing test through an existing boundary and the failing evidence linked
       When production code modification is attempted

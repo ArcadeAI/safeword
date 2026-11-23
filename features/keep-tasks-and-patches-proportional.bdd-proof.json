@@ -1,0 +1,13 @@
+{
+  "feature": "features/keep-tasks-and-patches-proportional.feature",
+  "scenarios": {
+    "A tiny public-contract change cannot be labeled a patch": [
+      "packages/cli/tests/commands/small-work-classification.test.ts",
+      "uses feature precedence over a declared patch at the built CLI entry point"
+    ],
+    "Meaningful RED permits the production change": [
+      "packages/cli/tests/integration/small-work-red-admission.test.ts",
+      "requires the current observed failure and matching relevance before the first edit"
+    ]
+  }
+}

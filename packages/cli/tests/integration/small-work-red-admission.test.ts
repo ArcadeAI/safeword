@@ -120,16 +120,6 @@ test('unrelated', () => { throw new Error('${expectedFailure}'); });\n`,
         })}\n\`\`\`\n`,
       );
     };
-    writeFileSync(
-      nodePath.join(project, '.project', `quality-state-cursor-${session}.json`),
-      JSON.stringify({
-        activeTicket: id,
-        locSinceCommit: 0,
-        lastCommitHash: '',
-        recentFailures: [],
-        incrementedPatterns: [],
-      }),
-    );
     const editDecision = () => {
       const result = spawnSync('bun', ['.safeword/hooks/cursor/pre-tool-quality.ts'], {
         cwd: project,
@@ -149,12 +139,14 @@ test('unrelated', () => { throw new Error('${expectedFailure}'); });\n`,
       expect(result.status, result.stderr).toBe(0);
       return JSON.parse(result.stdout) as { permission: string; agent_message?: string };
     };
-    writeFacts();
-    expect(editDecision().permission).toBe('deny');
-    writeFileSync(
-      nodePath.join(project, '.project', `quality-state-${session}.json`),
-      JSON.stringify({ activeTicket: id }),
-    );
+    const expectDenial = (reason: string) => {
+      expect(editDecision()).toMatchObject({
+        permission: 'deny',
+        agent_message: expect.stringContaining(reason),
+      });
+    };
+    const unlinkedEvidence = 'Connect the assertion and existing entry point';
+    const staleEvidence = 'could not verify the current task test observation';
     const claudeDecision = (tool_name: string, tool_input: Record<string, string>) =>
       spawnHookScript(
         nodePath.resolve(import.meta.dirname, '../../templates/hooks/pre-tool-quality.ts'),
@@ -162,6 +154,35 @@ test('unrelated', () => { throw new Error('${expectedFailure}'); });\n`,
         { cwd: project, session_id: session, tool_name, tool_input },
       );
     const shellDecision = (command: string) => claudeDecision('Bash', { command });
+    expect(editDecision()).toMatchObject({ permission: 'allow' });
+    writeFacts();
+    expectDenial('Attach this session to the ticket');
+    expectHookDeny(
+      shellDecision(`printf '%s' replacement > ${entryPoint}`),
+      'Attach this session to the ticket',
+    );
+    expectHookAllow(shellDecision(`bun test ${realTest}`));
+    expectHookAllow(
+      claudeDecision('Write', {
+        file_path: nodePath.join(project, realTest),
+        content: 'test setup',
+      }),
+    );
+    writeFileSync(
+      nodePath.join(project, '.project', `quality-state-cursor-${session}.json`),
+      JSON.stringify({
+        activeTicket: id,
+        locSinceCommit: 0,
+        lastCommitHash: '',
+        recentFailures: [],
+        incrementedPatterns: [],
+      }),
+    );
+    expectDenial('Record the observed failing test');
+    writeFileSync(
+      nodePath.join(project, '.project', `quality-state-${session}.json`),
+      JSON.stringify({ activeTicket: id }),
+    );
     expectHookDeny(
       shellDecision(`printf '%s' replacement > ${entryPoint}`),
       'Use the native file edit tool',
@@ -216,21 +237,21 @@ test('unrelated', () => { throw new Error('${expectedFailure}'); });\n`,
     };
 
     record(await observe(unrelatedTest));
-    expect(editDecision().permission).toBe('deny');
+    expectDenial(staleEvidence);
     const intended = await observe(realTest);
     record(intended, { relevanceTag: 'f'.repeat(64) });
-    expect(editDecision().permission).toBe('deny');
+    expectDenial(unlinkedEvidence);
     record(intended, { relevant: false });
-    expect(editDecision().permission).toBe('deny');
+    expectDenial(unlinkedEvidence);
     record(intended, { testTarget: unrelatedTest });
-    expect(editDecision().permission).toBe('deny');
+    expectDenial(staleEvidence);
     const validTest = readFileSync(nodePath.join(project, realTest), 'utf8');
     writeFileSync(
       nodePath.join(project, realTest),
       `throw new Error('${expectedFailure}');\n${validTest}`,
     );
     record(await observe(realTest), { relevant: false });
-    expect(editDecision().permission).toBe('deny');
+    expectDenial(unlinkedEvidence);
     writeFileSync(nodePath.join(project, realTest), validTest);
 
     const invented = await run([
@@ -249,6 +270,6 @@ test('unrelated', () => { throw new Error('${expectedFailure}'); });\n`,
     expect(green.status, green.stderr).toBe(0);
     expect(editDecision().permission).toBe('allow');
     writeFileSync(nodePath.join(project, realTest), '// changed after the observed run\n');
-    expect(editDecision().permission).toBe('deny');
+    expectDenial(staleEvidence);
   }, 60_000);
 });

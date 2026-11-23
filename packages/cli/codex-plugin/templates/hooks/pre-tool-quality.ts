@@ -11,6 +11,7 @@ import {
   executionPlanContractProvenance,
   evaluateFeatureTicketReadiness,
   formatFeatureTicketReadiness,
+  getInProgressTicketFolders,
   getTicketInfo,
   parseTddStep,
 } from './lib/active-ticket.ts';
@@ -128,6 +129,25 @@ function isTestFile(path: string): boolean {
     path.includes('/tests/') ||
     path.startsWith('tests/') ||
     path.includes('/__tests__/')
+  );
+}
+
+function enrolledTicketNeedsBinding(projectDirectory: string): boolean {
+  const tickets = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets');
+  return getInProgressTicketFolders(projectDirectory).some(folder => {
+    try {
+      return hasSmallWorkFacts(readFileSync(nodePath.join(tickets, folder, 'ticket.md'), 'utf8'));
+    } catch {
+      return false;
+    }
+  });
+}
+
+function denyUnboundSmallWork(): never {
+  return deny(
+    'Attach this session to the ticket before changing production files.',
+    'Use the native edit tool to save your scope or test plan in the ticket you are working on. Record the required proof before retrying the source edit.',
+    true,
   );
 }
 
@@ -611,27 +631,24 @@ if (tool === 'Bash') {
     );
   }
   const activeTicket = readSessionState(projectDirectory, input.session_id)?.activeTicket;
-  if (activeTicket) {
-    const { folder } = getTicketInfo(projectDirectory, activeTicket);
-    if (folder !== undefined) {
-      const ticketPath = nodePath.join(
-        resolveNamespaceRoot(projectDirectory),
-        'tickets',
-        folder,
-        'ticket.md',
-      );
-      const write = hasSmallWorkFacts(readFileSync(ticketPath, 'utf8'))
-        ? detectProjectFileWrite(command, target => {
-            if (target === '' || /[$*?{}\x60]/u.test(target)) return false;
-            const file = canonicalEditTarget(launchProjectDirectory, target, input.cwd);
-            return (
-              !isMetaPath(file, canonicalProjectDirectory) &&
-              !isTestFile(file) &&
-              nodePath.extname(file) !== '.feature'
-            );
-          })
-        : undefined;
-      if (write !== undefined) {
+  const write = detectProjectFileWrite(command, target => {
+    if (target === '' || /[$*?{}\x60]/u.test(target)) return false;
+    const file = canonicalEditTarget(launchProjectDirectory, target, input.cwd);
+    return (
+      !isMetaPath(file, canonicalProjectDirectory) &&
+      !isTestFile(file) &&
+      nodePath.extname(file) !== '.feature'
+    );
+  });
+  if (write !== undefined) {
+    if (!activeTicket && enrolledTicketNeedsBinding(projectDirectory)) denyUnboundSmallWork();
+    if (activeTicket) {
+      const { folder } = getTicketInfo(projectDirectory, activeTicket);
+      const tickets = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets');
+      if (
+        folder !== undefined &&
+        hasSmallWorkFacts(readFileSync(nodePath.join(tickets, folder, 'ticket.md'), 'utf8'))
+      ) {
         deny(
           `Use the native file edit tool for ${write.path}. Safeword checks whether this work can proceed before changing production files.`,
           undefined,
@@ -1406,6 +1423,15 @@ if (isMetaPath(editedFile, canonicalProjectDirectory)) {
 // ---------------------------------------------------------------------------
 
 const state = readSessionState(projectDirectory, input.session_id);
+
+if (
+  !state?.activeTicket &&
+  !isTestFile(editedFile) &&
+  nodePath.extname(editedFile) !== '.feature' &&
+  enrolledTicketNeedsBinding(projectDirectory)
+) {
+  denyUnboundSmallWork();
+}
 
 if (!state) {
   process.exit(0);
