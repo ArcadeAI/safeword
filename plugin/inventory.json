@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "4ec005d53e651e7cdf04088ec84830f47e110381970fa9eb9777010e9090e85f"
+      "sha256": "5ed0700c1e55df2560bdde18081cd4319779d2ac1de8b890b222f68873c98ff1"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "b2c8bb1614ca40371dcf6948709f20841b78300ae45b7d4bfc61d9a16c0be6f5"
+      "sha256": "1ae840ee8fc90f6105a74cfd5be0a25447bad4e9c1755dbbe4033dcc34c90427"
     },
     {
       "path": "runtime/event-groups.json",
@@ -725,7 +725,7 @@
     },
     {
       "path": "skills/finish-review/REVIEWER.md",
-      "sha256": "9cddbcc9233c8eb60b1a13c4f957edbc314969fde941f0e1e77e03c2555855b7"
+      "sha256": "82f914df38bff923c0478a82f22e70c71df2aa74f28e2a626a34e4fd5635ca76"
     },
     {
       "path": "skills/finish-review/SKILL.md",
@@ -1743,7 +1743,7 @@
     },
     {
       "path": "templates/skills/finish-review/REVIEWER.md",
-      "sha256": "9cddbcc9233c8eb60b1a13c4f957edbc314969fde941f0e1e77e03c2555855b7"
+      "sha256": "82f914df38bff923c0478a82f22e70c71df2aa74f28e2a626a34e4fd5635ca76"
     },
     {
       "path": "templates/skills/finish-review/SKILL.md",

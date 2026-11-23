@@ -32,6 +32,7 @@ import { reviewerPromptInstructions } from './review-rubric.js';
 import {
   type ConfirmedReviewerModel,
   minimumRouteMs,
+  reviewOutputSchema,
   ReviewRuntimeError,
   runBoundMs,
   runHeadlessReviewerWithProvenance,
@@ -1025,11 +1026,19 @@ function hostContinuationResult(input: {
       review_routes: input.evidence,
       continuation: {
         tier: 'fresh-context',
-        instructions: reviewerPromptInstructions(
-          input.input.kind,
-          input.author,
-          input.prepared.packet.planning_phase,
-        ),
+        instructions: [
+          reviewerPromptInstructions(
+            input.input.kind,
+            input.author,
+            input.prepared.packet.planning_phase,
+          ),
+          'Return an object matching this JSON Schema:',
+          reviewOutputSchema(
+            input.input.kind,
+            input.prepared.packet.planning_phase,
+            input.prepared.packet.dispatch_id,
+          ),
+        ].join('\n'),
         packet: input.prepared.packet,
       },
     },

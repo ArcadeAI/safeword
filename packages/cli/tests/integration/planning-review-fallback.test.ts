@@ -153,6 +153,12 @@ describe('planning fallback after independent route exhaustion', () => {
         continuation: { tier: 'fresh-context', packet: { kind: 'plan-implementation' } },
       });
       if (options.selfReview) {
+        const { instructions, packet } = output.data.continuation;
+        const schema = JSON.parse(
+          instructions.split('Return an object matching this JSON Schema:\n', 2)[1],
+        );
+        expect(schema.required).toContain('evidence_records');
+        expect(schema.properties.dispatch_id.enum).toEqual([packet.dispatch_id]);
         const second = await runCli(
           [
             'review',
