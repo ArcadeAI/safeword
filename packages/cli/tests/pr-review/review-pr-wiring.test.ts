@@ -210,21 +210,71 @@ describe('review-pr inspect command wiring', () => {
     },
   );
 
+  /** Inspects one changed file against a single required `lint` check with the given runs. */
+  function inspectLintRuns(checks: unknown[]) {
+    const cwd = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-pr-superseded-'));
+    directories.push(cwd);
+    mkdirSync(nodePath.join(cwd, '.safeword'));
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      JSON.stringify({
+        prReview: {
+          enabled: true,
+          maxTotalBytes: 1024,
+          model: 'gpt-test',
+          provider: 'openai',
+          requiredChecks: [{ context: 'lint' }],
+        },
+      }),
+    );
+    const inputPath = nodePath.join(cwd, 'inspection-input.json');
+    const outputPath = nodePath.join(cwd, 'inspection-result.json');
+    const fullContent = Buffer.from('allow *\n').toString('base64');
+    writeFileSync(
+      inputPath,
+      JSON.stringify({
+        artifacts: [textArtifact({ fullContentBase64: fullContent })],
+        checks,
+        headSha: 'a'.repeat(40),
+        markerReceiptExists: false,
+        pullState: 'ready',
+        schemaVersion: 1,
+        statuses: [],
+      }),
+    );
+    const provider = vi.fn().mockResolvedValue({ findings: [], tokenUsage: {} });
+    const result = inspectPullRequestCommand({ cwd, inputPath, outputPath, provider });
+    return { provider, result };
+  }
+
+  const earlierCancellation = {
+    conclusion: 'cancelled',
+    name: 'lint',
+    startedAt: '2026-11-20T17:22:11Z',
+    status: 'completed',
+  };
+
   // Marking a PR Ready cancels the in-flight CI run and starts a new check suite on the same head,
   // so a required check can carry a cancelled run alongside its later rerun (#7952). The API does
   // not order runs, so the later run is listed first here.
   it.each([
-    ['a cancelled run then a successful rerun', 'cancelled', 'completed', 'success', undefined],
+    [
+      'a cancelled run then a successful rerun',
+      earlierCancellation,
+      'completed',
+      'success',
+      undefined,
+    ],
     [
       'a cancelled run then a failed rerun',
-      'cancelled',
+      earlierCancellation,
       'completed',
       'failure',
       'prerequisites_failed',
     ],
     [
       'a cancelled run then a rerun in progress',
-      'cancelled',
+      earlierCancellation,
       'in_progress',
       // eslint-disable-next-line unicorn/no-null -- GitHub uses JSON null until completion.
       null,
@@ -233,64 +283,49 @@ describe('review-pr inspect command wiring', () => {
     // A same-named check from another workflow is not a rerun; its failure still counts.
     [
       'an earlier failure then a later success',
-      'failure',
+      { ...earlierCancellation, conclusion: 'failure' },
+      'completed',
+      'success',
+      'prerequisites_failed',
+    ],
+    // Without a start time nothing proves the cancellation came first, so it still counts.
+    [
+      'a cancelled run with no start time then a success',
+      { conclusion: 'cancelled', name: 'lint', status: 'completed' },
       'completed',
       'success',
       'prerequisites_failed',
     ],
   ] as const)(
     'judges a required check with %s',
-    async (_case, earlierConclusion, status, conclusion, expectedStatus) => {
-      const cwd = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-pr-superseded-'));
-      directories.push(cwd);
-      mkdirSync(nodePath.join(cwd, '.safeword'));
-      writeFileSync(
-        nodePath.join(cwd, '.safeword', 'config.json'),
-        JSON.stringify({
-          prReview: {
-            enabled: true,
-            maxTotalBytes: 1024,
-            model: 'gpt-test',
-            provider: 'openai',
-            requiredChecks: [{ context: 'lint' }],
-          },
-        }),
-      );
-      const inputPath = nodePath.join(cwd, 'inspection-input.json');
-      const outputPath = nodePath.join(cwd, 'inspection-result.json');
-      const fullContent = Buffer.from('allow *\n').toString('base64');
-      writeFileSync(
-        inputPath,
-        JSON.stringify({
-          artifacts: [textArtifact({ fullContentBase64: fullContent })],
-          checks: [
-            { conclusion, name: 'lint', startedAt: '2026-11-20T17:28:04Z', status },
-            {
-              conclusion: earlierConclusion,
-              name: 'lint',
-              startedAt: '2026-11-20T17:22:11Z',
-              status: 'completed',
-            },
-          ],
-          headSha: 'a'.repeat(40),
-          markerReceiptExists: false,
-          pullState: 'ready',
-          schemaVersion: 1,
-          statuses: [],
-        }),
-      );
-      const provider = vi.fn().mockResolvedValue({ findings: [], tokenUsage: {} });
+    async (_case, earlierRun, status, conclusion, expectedStatus) => {
+      const { provider, result } = inspectLintRuns([
+        { conclusion, name: 'lint', startedAt: '2026-11-20T17:28:04Z', status },
+        earlierRun,
+      ]);
 
-      const result = await inspectPullRequestCommand({ cwd, inputPath, outputPath, provider });
+      const receipt = receiptOf(await result);
 
       expect(provider).toHaveBeenCalledTimes(expectedStatus ? 0 : 1);
-      expect(receiptOf(result)).toMatchObject(
+      expect(receipt).toMatchObject(
         expectedStatus
           ? { status: expectedStatus }
           : { checks: [{ name: 'lint', status: 'success' }] },
       );
     },
   );
+
+  it.each([
+    ['not a date', 'yesterday'],
+    ['not a string', 1_763_659_331],
+  ])('rejects a check run whose start time is %s', async (_case, startedAt) => {
+    const { provider, result } = inspectLintRuns([
+      { conclusion: 'success', name: 'lint', startedAt, status: 'completed' },
+    ]);
+
+    await expect(result).rejects.toThrow('review-pr: invalid check-run sample');
+    expect(provider).not.toHaveBeenCalled();
+  });
 
   it.each([
     ['missing context', [textArtifact()], ['policies/access.flux']],

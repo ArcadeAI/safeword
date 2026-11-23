@@ -759,3 +759,48 @@ describe('advisory PR review workflow contract', () => {
     }
   });
 });
+
+describe('check-run evidence projection', () => {
+  // review-pr can only tell a superseded cancellation from a live failure when the worker
+  // forwards each check run's start time (#7952).
+  it.each([
+    ['installed', workerPath],
+    ['dogfood', dogfoodWorkerPath],
+  ])(
+    'forwards started_at from the %s worker and omits it when GitHub sends null',
+    (_name, path) => {
+      const projection = /checks: \[\$checks\[0\]\[\] \| (.+)\],\n/u.exec(
+        readFileSync(path, 'utf8'),
+      )?.[1];
+      expect(projection).toBeDefined();
+      const checkRuns = [
+        {
+          conclusion: 'cancelled',
+          id: 1,
+          name: 'lint',
+          started_at: '2026-11-20T17:22:11Z',
+          status: 'completed',
+        },
+        // eslint-disable-next-line unicorn/no-null -- GitHub sends JSON null before a run starts.
+        { conclusion: null, id: 2, name: 'lint', started_at: null, status: 'queued' },
+      ];
+
+      const result = spawnSync('jq', ['-c', `[.[] | ${projection}]`], {
+        encoding: 'utf8',
+        input: JSON.stringify(checkRuns),
+      });
+
+      expect(result.status).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual([
+        {
+          conclusion: 'cancelled',
+          name: 'lint',
+          startedAt: '2026-11-20T17:22:11Z',
+          status: 'completed',
+        },
+        // eslint-disable-next-line unicorn/no-null -- the projection preserves GitHub's null.
+        { conclusion: null, name: 'lint', status: 'queued' },
+      ]);
+    },
+  );
+});
