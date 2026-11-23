@@ -1,0 +1,36 @@
+[
+  {
+    "provider": "claude-code-cloud",
+    "job_url": "https://claude.ai/code/session_01ES15yXJyRPgbYQ68YuLLXX",
+    "job_id": "session_01ES15yXJyRPgbYQ68YuLLXX",
+    "commit_sha": "8691dde907c93688b36b543af23c92fe854cd48c",
+    "delivery_commit": "0a7a3aa12",
+    "provider_verified": true,
+    "provider_verification": "Authenticated Claude CLI cloud transcript, exported after the job completed. Runtime digest independently matched the pinned checkout.",
+    "host_version": "Claude Code 2.1.330",
+    "safeword_version": "1.2.0",
+    "completed_at": "2026-11-23T16:23:30+00:00",
+    "completed_at_source": "Operator observation that the hosted job had completed; provider completion timestamp unavailable in text export.",
+    "runtime_digest": "c8a6fbd23184f1f525096fbedc05b665d36934f0721a154772116c4c50c90ec1",
+    "fixture_baseline": "85a3521aa4b747fd4f79f0798c985cc2b6ab2a29",
+    "native_session_id": "d5cb702d-7894-4ee2-be2d-28c60223daa5",
+    "cases": [
+      {
+        "scenario": "response-contract-ticket-edit-promotion",
+        "dispatch_event": "PostToolUse",
+        "tool_name": "Edit",
+        "exit_status": 0,
+        "observed_outcome": "promoted",
+        "native_event_ref": "toolu_01GuJbfrFL4tY5wMpjPrQtrr; stream.jsonl hook_response f075d0c4-85c5-4da0-94cb-0473da15ce5c line 298; debug.log lines 399\u2013408",
+        "original_ticket_id": "21ZWHN",
+        "original_type": "task",
+        "original_phase": "intake",
+        "final_ticket_id": "21ZWHN",
+        "final_type": "feature",
+        "final_phase": "define-behavior",
+        "production_write_attempted": false,
+        "source_unchanged": true
+      }
+    ]
+  }
+]
