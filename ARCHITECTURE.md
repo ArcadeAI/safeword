@@ -1,1527 +1,194 @@
 # Safeword Architecture
 
-**Version:** 1.25
-**Last Updated:** 2026-10-20
-**Status:** Production
-
----
+Safeword installs and upgrades coding-agent workflows across Claude Code, Cursor, Codex, and OpenCode. The [generated package map](.project/architecture.generated.md) tracks workspace dependencies. The [CLI module map](packages/cli/architecture.generated.md) describes what each module does.
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Monorepo Structure](#monorepo-structure)
-- [Generated State and Human Decisions](#generated-state-and-human-decisions)
-- [CLI Structure](#cli-structure)
-- [Language Packs](#language-packs)
-- [Language Detection](#language-detection)
-- [Reconciliation Engine](#reconciliation-engine)
-- [Dependencies](#dependencies)
-- [Test Structure](#test-structure)
-- [Build & Distribution](#build--distribution)
-- [Migration & Evolution](#migration--evolution)
-- [Key Decisions](#key-decisions)
-- [References](#references)
-
----
+[System map](#overview) · [Key decisions](#key-decisions) · [References](#references)
 
 ## Overview
 
-Safeword is a CLI tool that configures linting, hooks, and development guides for AI coding agent projects (Claude Code, Cursor, Codex, and OpenCode). It supports JavaScript/TypeScript projects (ESLint, Prettier), Python projects (Ruff, mypy), Go projects (golangci-lint), Rust projects (clippy, rustfmt), and dbt projects (SQLFluff).
+The CLI runs under Bun. Language tools run in the project Safeword manages.
 
-### Tech Stack
+[Runtimes and tooling](.project/architecture/overview.md)
 
-| Category        | Choice                     | Rationale                                                                                                            |
-| --------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| CLI Runtime     | Bun                        | Fast startup, TypeScript native                                                                                      |
-| Relay Runtime   | Node 22.23+, 24.18+, 26.5+ | Built-in `node:sqlite` for the separately deployed relay without a native npm addon (`packages/retro-relay` engines) |
-| Package Manager | npm/bun                    | Standard for JS ecosystem                                                                                            |
-| JS Linting      | ESLint                     | Industry standard, extensive rule set                                                                                |
-| Python Linting  | Ruff                       | Fast, replaces flake8/black/isort                                                                                    |
-| Go Linting      | golangci-lint              | Aggregates 100+ linters, fast                                                                                        |
-| Rust Linting    | clippy                     | 750+ lints, pedantic by default                                                                                      |
-| Rust Formatting | rustfmt                    | Deterministic, gofmt-style formatting                                                                                |
-| SQL Linting     | SQLFluff                   | dbt-aware, Jinja templater support                                                                                   |
-| Type Checking   | tsc / mypy                 | Native type checkers for each language                                                                               |
-| Arch Validation | dependency-cruiser         | Circular dep detection, layer rules (JS/TS)                                                                          |
-| Arch Validation | import-linter              | Python cycle guard (acyclic_siblings) + layer contracts, scaffolded by the Python pack                               |
-| Docs Rendering  | Astro/Mermaid              | Starlight documentation with versioned diagrams                                                                      |
-
----
+### [Tech Stack](.project/architecture/overview.md#tech-stack)
 
 ## Monorepo Structure
 
-```text
-packages/
-├── cli/            # Main CLI tool + ESLint configs (bunx safeword)
-├── retro-collector/ # Credential-free public retrospective intake
-├── retro-relay/    # Private retry-safe GitHub filing service
-└── website/        # Documentation site (Astro/Starlight)
-plugin/             # Generated native Claude Code plugin — not a workspace package; distributed via .claude-plugin/marketplace.json
-```
+The CLI owns project configuration. Retrospective collection, transfer, and relay run in separate services with distinct credentials and data ownership.
 
-| Package                     | Purpose                                                 | Published As |
-| --------------------------- | ------------------------------------------------------- | ------------ |
-| `packages/cli/`             | CLI + bundled ESLint configs (`safeword/eslint` export) | `safeword`   |
-| `packages/retro-collector/` | Durable credential-free public retrospective intake     | Private      |
-| `packages/retro-relay/`     | Durable, authenticated retro filing boundary            | Private      |
-| `packages/website/`         | Documentation website                                   | Private      |
+[Package and service boundaries](.project/architecture/monorepo-structure.md)
 
-ESLint configs are bundled in the main package and accessed via `import safeword from "safeword/eslint"`.
+### [CLI-side retrospective flow](.project/architecture/monorepo-structure.md#cli-side-retrospective-flow)
 
-`plugin/` is generated by `packages/cli/scripts/generate-claude-plugin.ts` (`bun run generate:claude-plugin`) and never hand-edited. It contains `agents/`, `hooks/hooks.json` (each event runs `${CLAUDE_PLUGIN_ROOT}/runtime/dispatch.js`), `skills/`, `runtime/` (bundled `cli.js`, `dispatch.js`, event groups, hook scripts), `resources/`, the full canonical `templates/` tree, `package.json`, and the `identity.json` / `inventory.json` integrity manifests. It ships no commands.
+### [Public retrospective collector boundary](.project/architecture/monorepo-structure.md#public-retrospective-collector-boundary)
 
-Exposed Claude skills carry an optional semantic digest over parsed YAML metadata
-and exact body bytes, allowing desktop YAML reserialization without accepting
-changed instructions or permissions. The generator, dispatcher, and profile
-observer share that comparison. Runtime files, templates, and inventories
-without semantic digests retain byte-exact SHA-256 verification.
+### [Cutover-gated collector transfer worker boundary](.project/architecture/monorepo-structure.md#cutover-gated-collector-transfer-worker-boundary)
 
-### CLI-side retrospective flow
-
-1. **Extract.** At Stop, `templates/hooks/stop-retro.ts` runs once per substantial session, out of band, as `safeword retro run --auto-extract` (a headless child guarded against recursion). `src/retro` sanitizes, deduplicates, and triages findings, then spools sealed post-egress drafts.
-2. **File.** `templates/hooks/stop-retro-filing.ts` emits one Stop `decision: "block"` continuation that asks the agent to dispatch the shipped `safeword-retro-filer` subagent with the spool path. The subagent files each draft upstream and drains the spool (ack file plus `drain-retro-spool.ts`); a per-batch attempt cap and the prompt nudge are the backstops.
-3. **Public collector route.** `src/retro/public-config.ts` enables it only when `.safeword/config.json` has a valid `projectUUID` and `publicRetrospectiveCollection` is not `false` (`safeword project public-retros on|off` toggles it). `src/commands/retro.ts` builds the public source and delivery.
-4. **Relay route.** `src/commands/retro.ts` also carries the relay seam (`retro/relay-delivery.ts`, `retro/relay-readiness.ts`). The public CLI leaves it unpopulated while checked-in relay readiness is disabled (see below).
-
-### Public retrospective collector boundary
-
-> **Cutover status:** The queue, worker, and independent release verifier described
-> below are present, but local clients remain on direct filing. The production
-> server route is compiled fail-closed until the required protected canary and
-> fault evidence exists.
-
-`packages/retro-collector` accepts released canonical `v1` single-finding bodies,
-canonical `v2` ordered finding batches, and server-owned `v3` local batches without
-user registration or client credentials. Legacy `v1`/`v2` rows remain inert
-quarantine. A `v3` row is keyed only by its transport-independent UUIDv4 request
-identity and retains the admitted bytes, digest, acceptance time, project identity,
-lease state, quota reservation, and terminal metadata in SQLite.
-
-The collector validates each version's closed envelope and source schema and stores
-the accepted raw body unchanged in SQLite. Legacy duplicate rules remain unchanged;
-`v3` retries reuse a receipt only when the request UUID and exact bytes agree.
-Routine inspection of the `v3` queue is payload-free. Its worker and break-glass
-payload reads use separate credentials and append audit records; the inert legacy
-quarantine retains its pre-existing operator-read compatibility route. Public
-fields grant no read or filing authority. Rolling intake and filing quota windows persist across restarts;
-quota-blocked work stays queued and reaches an alerted dead letter after 24 hours.
-
-### Cutover-gated collector transfer worker boundary
-
-The single-replica Railway worker has no public route and no customer credential.
-It leases FIFO `v3` rows over private networking, forwards the original bytes,
-collector digest and request UUID to the relay's dedicated
-`collector-worker` principal, and completes collector ownership only after relay
-acceptance. A failed handoff releases the lease; a crash is recovered by lease
-expiry. Collector SQLite remains mounted only by the collector service.
-
-### Retro relay boundary
-
-`packages/retro-relay` is deliberately separate from the published CLI.
-Public relay routing remains compiled off until the readiness evidence below
-is satisfied.
-
-**Identity.** The gated shared CLI core sends the same
-tenant/installation/repository/request-ID identity from every harness surface
-(Claude, Codex, Cursor). Which harness or subject made the call is used only
-for authorization and audit — it is never part of that identity.
-
-**Storage.** SQLite WAL is the smallest supported durable store for one
-active process on one host; multi-host deployment or a network filesystem
-requires migrating through the store boundary to PostgreSQL. The relay uses
-Node's built-in `node:sqlite` API, so contributors and deploys need no host
-compiler or native-addon prerequisites. A separate SQLite lock database holds
-one exclusive transaction for the life of the process — if the process
-crashes, the operating system releases that lock automatically, with no PID
-files or stale-lock cleanup needed.
-
-**Deployment.** The Railway deployment profile fixes one replica and one
-persistent `/data` volume. Readiness must query SQLite's schema version. A
-random per-process boot ID proves that an in-place restart replaced the
-process; `RAILWAY_REPLICA_ID` identifies the hosted replica but may stay
-stable across a restart, so it is not a restart oracle.
-
-**Payload handling.** The relay stores request payloads only as AES-256-GCM
-envelopes and keeps GitHub App credentials server-side. When a create
-request's outcome is ambiguous, the relay quarantines it until a privileged
-reconciliation step finds exactly one reserved marker in a complete raw REST
-issue-body scan — sanitized MCP reads are never duplicate authority. The
-client supplies one absolute creation-plus-24-hour retry deadline, which the
-server persists and may shorten but never extend. Collector-owned `v3` is the
-exception: relay acceptance starts its fresh server-owned deadline, as recorded
-under [Collector-to-relay ownership transfer](#collector-to-relay-ownership-transfer).
-Both paths then have one-hour dispatch grace, 30-day filed-payload retention,
-and indefinite tombstones; the timed maintenance worker persists its retry
-schedule and terminal alert outbox in the same database. With #1474 and #1481 complete, canonical/legacy
-semantic adoption and cross-request aliasing remain unbuilt until the
-post-fix collision rates are remeasured and bound into the readiness
-evidence.
-
-**Durability guarantees before transport:**
-
-- The CLI writes one immutable file containing the exact serialized request bytes and a UUIDv4 request ID before transport.
-- Relay routing requires an explicit absolute `SAFEWORD_RETRO_RELAY_OUTBOX` outside the project workspace — there is no inferred cross-provider cloud persistence.
-- Claude, Codex, Cursor, and their cloud surfaces can claim and resend those bytes only when they share that operator-provided durable handoff; without it, routing stays on the native path.
-- The outbox is resolved physically, so an external-looking symlink cannot alias back into the disposable project.
-- Harness identity is never part of request identity.
-- File contents, newly created spool-directory entries, and containing-directory mutations are synced before durable success is reported, and atomic rename fences concurrent claims.
-- An atomic acknowledgement journal is authoritative before recoverable payload cleanup, so a crash cannot convert an unknown relay response into permission for native GitHub fallback.
-- The immutable record carries its creation time and shared 24-hour retry deadline; expiry moves it to a visible local dead letter.
-- Locally, a hashed session, delta-window boundary, and encounter slot correlates retries to that record while allowing later fires and unrelated findings to spool independently; it is stripped before transport and is never server-side semantic or duplicate authority.
-
-**Production authentication and limits:**
-
-- Separate repository-scoped `file` principals for Claude, Codex, and Cursor, plus a `reconcile`/`operate` principal for operators.
-- Bounded request bodies and fields, UUIDv4 request identity.
-- Ten-second inbound/GitHub timeouts.
-- Bounded GitHub concurrency and reconciliation scans.
-- Coalesced installation-token minting.
-- A per-principal filing/reconciliation rate limit.
-
-The single-principal Railway spike configuration is limited to serving health
-checks — it cannot file to GitHub yet. Relay routing is compiled fail-closed
-until parsed versioned metric evidence has a nonempty sample, immutable
-artifact hashes, and Git ancestry bind the evidence to the running build. Its
-drain-throughput evidence is a regression floor: at least 300 queued
-requests, at least 80 ms relay latency, at least two acceptances in one
-bounded drain, and total drain duration below one second. #1474 and #1481 are
-complete prerequisites; their resulting measurements still gate activation.
-Issue #834 remains active; #1495 gates readiness only if client credential
-helpers are reused.
-
----
+### [Retro relay boundary](.project/architecture/monorepo-structure.md#retro-relay-boundary)
 
 ## Generated State and Human Decisions
 
-Safeword intentionally keeps two architecture genres separate:
+Generated indexes describe the source tree. Maintainers own this overview and the linked decision records, including which decisions replaced earlier ones.
 
-| Document                               | Authority                                              | What it contributes                                                                                                                   |
-| -------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `.project/architecture.generated.md`   | Machine-owned monorepo index                           | Workspace package inventory, package purposes, dependency edges, coverage gaps, and a freshness fingerprint                           |
-| `packages/*/architecture.generated.md` | Machine-owned structure plus human-owned purpose prose | Current top-level source modules, resolving paths, per-module purposes, and visible stale/orphan markers                              |
-| `ARCHITECTURE.md`                      | Human-owned decision record                            | System context, runtime and data flows, invariants, rationale, trade-offs, rejected alternatives, and migration/reassessment guidance |
+[Who maintains each record](.project/architecture/generated-state-and-human-decisions.md)
 
-### Reverse-authoring adequacy
-
-The generated state is the structural evidence floor for this document, not a complete replacement for it. It is deliberately sufficient to detect missing, renamed, or orphaned packages/modules. It cannot by itself supply a good architecture narrative because several required inputs are not structural facts:
-
-| Authoring need                                | Generated state                                  | Additional source of truth                                                |
-| --------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------- |
-| Package and top-level module inventory        | Complete when no coverage-gap marker is present  | Generated root and leaf documents                                         |
-| Inter-package dependency direction            | Complete for parsed workspace manifests          | Root generated document and workspace manifests                           |
-| Module responsibility                         | Human prose; may be placeholder or visibly stale | Module entry points and package leaf prose                                |
-| Public commands, effects, and exit semantics  | Not represented                                  | `src/cli-protocol/catalog.ts`, JSON schema, and executable protocol tests |
-| Reconciliation ownership and mutation rules   | Not represented                                  | `src/schema.ts`, `src/reconcile.ts`, and reconciliation tests             |
-| Runtime/event flows and external integrations | Not represented                                  | Command/hook entry points, manifests, workflows, and integration tests    |
-| Why, trade-offs, alternatives, and migrations | Not derivable safely                             | This document and the accepted ticket/design history                      |
-
-Therefore a reverse-written `ARCHITECTURE.md` must start from every generated node, then reconcile it with the CLI catalogue, schema, boundary configuration, package manifests, release workflows, and accepted design records. Treating the generated map alone as sufficient would turn current structure into invented rationale.
-
----
+### [Reverse-authoring adequacy](.project/architecture/generated-state-and-human-decisions.md#reverse-authoring-adequacy)
 
 ## CLI Structure
 
-### Registry-Driven Agent Integrations with Native Trust Boundaries
+The command catalogue defines the public CLI contract. Lifecycle commands coordinate registered integrations. Each adapter defines how its host activates the integration and what proves it ran.
 
-**Status:** Accepted
-**Date:** 2026-08-25
+[CLI integration registry](.project/architecture/cli-structure.md)
 
-| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Context        | Claude, Codex, Cursor, and OpenCode expose different project assets, profile operations, lifecycle events, and execution proof. The lifecycle coordinator previously encoded host names directly, making each new integration another cross-cutting branch.                                                                                                                                                                                                                                                                                                                                                                      |
-| Decision       | A typed integration registry declares each agent's project surfaces, profile operations, lifecycle capabilities, activation evidence, and conformance policy. The project reconciliation surface remains first; selected adapters follow registry declaration order. Native adapter modules retain host-specific trust, migration, and proof semantics. Codex, Claude, and OpenCode own their executable workflows in profile deliveries; OpenCode's managed catalogue includes its plugin, commands, agents, and skills and is proven by exact-version real-process conformance. Cursor retains its declared project authority. |
-| Consequences   | Coordinator logic becomes integration-neutral and contract tests can reject missing dimensions, capability overstatement, duplicate identity, skipped registry entries, and native workflows that borrow project runtime. Project assets are the union of shared enrollment/authored substrate and selected project-delivered consumers, rather than every supported host. Adding an adapter does not imply equal native enforcement: unsupported or observational boundaries remain explicit in status.                                                                                                                         |
-| Alternatives   | Add OpenCode branches to each lifecycle command: rejected because ownership and status logic would keep drifting. Flatten all hosts into one runtime: rejected because it would erase native trust and migration guarantees. Restore `.agents/skills`: rejected because Safeword-owned project copies were deliberately retired for Codex.                                                                                                                                                                                                                                                                                       |
-| Reassess when  | A host exposes a common signed plugin/evidence protocol, OpenCode V2 becomes stable, or the registry cannot express a new integration without host-name branching.                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| Implementation | Ticket `ZM38A2`; `packages/cli/src/lifecycle/integrations.ts`, native plugin modules, schema filters, adapter contract tests, and `packages/cli/features/opencode-parity.feature`.                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-
-The generated package leaf is the current structural inventory. These purposes explain how its top-level modules fit together:
-
-| Module                        | Responsibility                                                                                                                                   |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `boundary`                    | Evaluates architectural boundary evidence and dependency policy                                                                                  |
-| `claude-plugin`               | Native Claude plugin delivery, execution proof, historical ownership classification, legacy contraction                                          |
-| `cli.ts`                      | Executable composition root that registers public, compatibility, and hidden hook commands                                                       |
-| `cli-protocol`                | Typed command catalogue, policy, plan/result envelopes, rendering, and execution adapters                                                        |
-| `codex-plugin`                | Profile plugin catalogue, installation, proof, legacy authority, migration, finalization, and recovery                                           |
-| `commands`                    | Domain command handlers for removal, project workflows, Codex, tickets, and retros (install/status/doctor live in `lifecycle`)                   |
-| `cursor-wrappers.ts`          | Generates thin Cursor command/rule wrappers from canonical workflow templates                                                                    |
-| `health.ts`                   | Aggregates configuration, path, coverage, version, and integration health findings                                                               |
-| `index.ts`                    | Stable library exports for version, detection, reconciliation, and ESLint consumers                                                              |
-| `learning-sync`               | Builds deterministic discovery indexes over project learnings                                                                                    |
-| `lifecycle`                   | Unified install, plan, status, doctor, and uninstall across the project and selected agent integrations (registry in `integrations.ts`)          |
-| `opencode`                    | OpenCode profile discovery, bounded evidence records, and collision-safe reconciliation                                                          |
-| `owned-paths.ts`              | Derives writable top-level path prefixes from the schema                                                                                         |
-| `packs`                       | Detects languages and installs language-native files, packages, and setup behavior                                                               |
-| `parity.ts`                   | Enforces template/dogfood/generated catalogue pairs and one-way content contracts                                                                |
-| `plugin-bundle.ts`            | Normalizes generated plugin JavaScript so machine-specific Bun paths do not change bundle bytes or hashes                                        |
-| `plugin-runtime-authority.ts` | Enforces packaged-runtime authority for native plugin workflow assets                                                                            |
-| `pr-review`                   | Reviews pull-request evidence, applies conservative routing, and separates model inspection from merge-neutral GitHub publication                |
-| `presets`                     | Publishes conditional TypeScript/JavaScript ESLint presets                                                                                       |
-| `project-runtime-helpers.ts`  | Dependency-free inventory of helpers the packaged project runtime may execute                                                                    |
-| `project-state.ts`            | Exposes lazy transient-state ignore management to the packaged CLI runtime                                                                       |
-| `reconcile.ts`                | Computes and executes idempotent file, JSON, text-patch, permission, and dependency plans                                                        |
-| `retro`                       | Sanitizes, deduplicates, triages, reconciles, and files retrospective findings                                                                   |
-| `review`                      | Coordinates independent adversarial reviews across Claude, Codex, and OpenCode: runtime discovery, neutral packets, policy, fallback, provenance |
-| `schema.ts`                   | Single source of truth for owned, managed, preserved, deprecated, merged, and patched assets                                                     |
-| `self-report-capture.ts`      | Accepts bounded CLI-side self-observation events for retrospective analysis                                                                      |
-| `skills`                      | Installs optional third-party language coding skills without owning Safeword workflows                                                           |
-| `templates`                   | Produces dynamic configuration and legacy-cleanup content used by reconciliation                                                                 |
-| `test-execution`              | Resolves local versus remote-preferred test execution, including private worktree configuration and fail-closed validation                       |
-| `test-plan`                   | Resolves and renders the canonical test/build/typecheck/BDD/dependency plan for a project                                                        |
-| `ticket-create`               | Routes ticket creation between local identifiers and issue-first tracker identities                                                              |
-| `ticket-sync`                 | Builds active and completed ticket-corpus discovery indexes                                                                                      |
-| `tracker-connect`             | Configures tracker identity, credentials, secret storage, and handoff state                                                                      |
-| `tracker-sync`                | Plans and applies one-way projection from local tickets to GitHub or Linear                                                                      |
-| `upstream-monitor`            | Tracks upstream agent-CLI release signals, and issues gating workaround removal, for review                                                      |
-| `utils`                       | Shared architecture, manifest, filesystem, Git, path, detection, Gherkin, and ticket primitives                                                  |
-| `version.ts`                  | Reads the release version from package metadata                                                                                                  |
-
-Shipped assets live beside the source: `templates/` is the canonical project-local payload, while `codex-plugin/` is the generated profile-scoped Codex plugin bundle. The generated native Claude plugin lives at the repo-root `plugin/` (see [Monorepo Structure](#monorepo-structure)). `packages/cli/architecture.generated.md` remains the source of structural truth when this table is reviewed.
-
----
+### [Registry-Driven Agent Integrations with Native Trust Boundaries](.project/architecture/cli-structure.md#registry-driven-agent-integrations-with-native-trust-boundaries)
 
 ## Language Packs
 
-### Pattern: Modular Language Support
+Bundled packs select language-specific tools, dependencies, and configuration.
 
-Language-specific tooling (detection, config generation, setup) is encapsulated in **language packs**. Each pack implements a standard interface, enabling consistent multi-language support.
+[Pack responsibilities](.project/architecture/language-packs.md)
 
-```typescript
-interface LanguagePack {
-  id: string; // e.g., 'python', 'typescript', 'golang', 'rust', 'sql'
-  name: string; // e.g., 'Python', 'TypeScript', 'Go', 'Rust', 'SQL'
-  extensions: string[]; // e.g., ['.py', '.pyi']
-  detect: (cwd: string) => boolean; // Is this language present?
-  setup: (cwd: string, ctx: SetupContext) => SetupResult;
-}
+### [Pattern: Modular Language Support](.project/architecture/language-packs.md#pattern-modular-language-support)
 
-// Registry (declaration order is lookup order for getPackForExtension)
-const LANGUAGE_PACKS: Record<string, LanguagePack> = {
-  sql: sqlPack,
-  golang: golangPack,
-  python: pythonPack,
-  rust: rustPack,
-  typescript: typescriptPack,
-};
-```
+### [Pack File Structure](.project/architecture/language-packs.md#pack-file-structure)
 
-### Pack File Structure
-
-**Root files** (shared infrastructure):
-
-| File          | Purpose                                              |
-| ------------- | ---------------------------------------------------- |
-| `registry.ts` | Central registry, `detectLanguages()`, pack lookup   |
-| `config.ts`   | Read/write `.safeword/config.json` (installed packs) |
-| `install.ts`  | Pack installation orchestration                      |
-| `types.ts`    | Shared types (`LanguagePack`, `ProjectContext`)      |
-
-**Per-language packs** (standard pattern: `index.ts`, `files.ts`, `setup.ts`, `skills.ts`):
-
-```text
-packs/{lang}/
-├── index.ts   # LanguagePack interface implementation
-├── files.ts   # ownedFiles, managedFiles, jsonMerges exports
-├── setup.ts   # Setup utilities (language-specific tooling)
-└── skills.ts  # Optional third-party coding-skill manifest (consumed by src/skills)
-```
-
-Note: SQL pack uses `dialect.ts` (dialect auto-detection) instead of `setup.ts` and has no `skills.ts`.
-
-**Exports from files.ts:**
-
-- `{lang}OwnedFiles` - Files overwritten on upgrade
-- `{lang}ManagedFiles` - Files created if missing
-- `{lang}JsonMerges` - JSON keys to merge (TypeScript only)
-- `{lang}Packages` - NPM packages to install (TypeScript only)
-
-These exports are spread into `schema.ts` for the reconciliation engine.
-
-**Implementation:** `packages/cli/src/packs/`
-
-### Config Schema
-
-Installed packs tracked in `.safeword/config.json`:
-
-```json
-{
-  "installedPacks": ["python", "typescript", "golang", "rust"]
-}
-```
-
-> `.safeword/version` (plaintext, regenerated every reconcile) is the source of truth for installed safeword version. `config.json` previously also carried a `version` field, but it was write-once / never-read and was removed in ticket 154.
-
----
+### [Config Schema](.project/architecture/language-packs.md#config-schema)
 
 ## Language Detection
 
-### Pattern: Detect Languages Before Framework
+Detection identifies languages before applying framework-specific configuration.
 
-Language detection runs FIRST, before any framework-specific detection. This prevents side effects like creating package.json for Python-only projects.
+[Language and framework detection](.project/architecture/language-detection.md)
 
-```text
-detectLanguages(cwd)     →  Languages { javascript, python, golang, rust, sql }
-       ↓
-detectProjectType()      →  ProjectType (if javascript)
-detectPythonType()       →  PythonProjectType (if python)
-```
+### [Pattern: Detect Languages Before Framework](.project/architecture/language-detection.md#pattern-detect-languages-before-framework)
 
-### Data Model
+### [Data Model](.project/architecture/language-detection.md#data-model)
 
-```typescript
-// Detection functions
-function detectLanguages(cwd: string): Languages;
-function detectPythonType(cwd: string): PythonProjectType | undefined;
-
-// Language detection result — each field delegates to its pack's detect().
-// TypeScript checks the root package.json only; every other pack scans the
-// tree recursively via existsInTree().
-interface Languages {
-  javascript: boolean; // root package.json exists
-  python: boolean; // pyproject.toml, requirements.txt, Pipfile, setup.py, or setup.cfg
-  golang: boolean; // go.mod exists
-  rust: boolean; // Cargo.toml exists
-  sql: boolean; // dbt_project.yml/.sqlfluff/sqlc.yaml markers, or SQL directory conventions
-}
-
-// Python-specific detection (returned only if languages.python)
-interface PythonProjectType {
-  framework: 'django' | 'flask' | 'fastapi' | undefined;
-  packageManager: 'poetry' | 'uv' | 'pip';
-}
-
-// Extended ProjectContext (packages/cli/src/packs/types.ts)
-// Note: projectType stays REQUIRED - returns all-false for Python-only projects
-interface ProjectContext {
-  cwd: string;
-  projectType: ProjectType; // Unchanged - handles missing package.json
-  developmentDeps: Record<string, string>;
-  productionDeps: Record<string, string>;
-  isGitRepo: boolean;
-  languages?: Languages; // Optional - set when language detection runs
-  namespaceRoot?: string; // Resolved namespace root; reconcile maps namespace paths onto it
-  hookManager?: HookManagerWorld; // Git hook-manager world; gates boundary-shim text patches
-}
-```
-
-**Implementation:** `packages/cli/src/utils/project-detector.ts`
-
-### ESLint Plugin Configuration
-
-Safeword bundles 20+ ESLint plugins organized into three tiers. All rules use `error` severity — LLMs ignore warnings.
-
-**Base Plugins (always included):**
-
-| Plugin                     | Purpose                             |
-| -------------------------- | ----------------------------------- |
-| sonarjs                    | Bug detection, cognitive complexity |
-| security                   | Security anti-patterns              |
-| unicorn                    | Modern JS/TS idioms                 |
-| import-x                   | Import/export validation            |
-| simple-import-sort         | Auto-fixable import ordering        |
-| import-resolver-typescript | TypeScript path alias resolution    |
-| regexp                     | Regex optimization                  |
-| promise                    | Promise anti-patterns               |
-| jsdoc                      | Documentation enforcement           |
-| eslint-comments            | Disable comment governance          |
-
-**Framework Plugins (conditional — included when framework detected in `package.json`):**
-
-| Plugin                      | Detection                          | Peer Dep                                                         |
-| --------------------------- | ---------------------------------- | ---------------------------------------------------------------- |
-| @eslint-react/eslint-plugin | `detectFramework()` returns react  | `node: >=22.0.0`                                                 |
-| react-hooks                 | `detectFramework()` returns react  | —                                                                |
-| jsx-a11y                    | react/astro, and only if installed | — (loaded via `optionalRequire`; CLI devDependency, not bundled) |
-| @next/eslint-plugin-next    | `detectFramework()` returns next   | —                                                                |
-| astro                       | `detectFramework()` returns astro  | —                                                                |
-| storybook                   | `hasStorybook(deps)`               | `storybook: ^10.3.5`                                             |
-| tanstack-query              | `hasTanstackQuery(deps)`           | `typescript: ^5.0.0` (optional)                                  |
-| tailwind                    | `hasTailwind(deps)`                | —                                                                |
-| turbo                       | `hasTurbo(deps)`                   | `turbo: >2.0.0`                                                  |
-
-React framework configs use `@eslint-react/eslint-plugin` for React, JSX, DOM,
-RSC, and web API guardrails. `eslint-plugin-react-hooks` remains the official
-source for Hooks and React Compiler diagnostics; legacy `eslint-plugin-react` is
-not bundled.
-
-`@eslint-react/no-duplicate-key` is intentionally enabled for agent guardrail
-parity even though upstream marks it experimental. Keep
-`@eslint-react/eslint-plugin` exact-pinned until that rule is stable or the
-guardrail is replaced, so minor package updates cannot silently change the
-published React preset.
-
-**Tooling Plugins (conditional — included when test runner detected):**
-
-| Plugin     | Detection             | Peer Dep    |
-| ---------- | --------------------- | ----------- |
-| vitest     | `hasVitest(deps)`     | `vitest: *` |
-| playwright | `hasPlaywright(deps)` | —           |
-
-**Standalone configs** (exported, not auto-detected): `bunTest` declares `bun:test` globals for plain JS test files; `vendoredIgnores` globally ignores `.safeword/**` and the generated `.dependency-cruiser.cjs` for downstream `eslint.config.mjs` files.
-
-**Config hierarchy** (each extends the previous): `recommended` (JS) → `recommendedTypeScript` → `recommendedTypeScriptReact` → `recommendedTypeScriptNext`
-
-**Implementation:** `packages/cli/src/presets/typescript/eslint-configs/`, `packages/cli/src/presets/typescript/detect.ts`
-
----
+### [ESLint Plugin Configuration](.project/architecture/language-detection.md#eslint-plugin-configuration)
 
 ## Reconciliation Engine
 
-The reconciliation engine (`src/reconcile.ts`) is the core of project-configuration file ownership. Setup, convergence, and removal compute plans from the schema rather than copying trees blindly. Domain workflows such as ticket/tracker sync and generated indexes own their narrower state through dedicated modules, but still enter through the typed CLI protocol and report completed effects explicitly.
+The schema defines managed assets. Reconciliation compares the project with its templates. File ownership determines which changes Safeword applies and which user edits it preserves.
 
-### Schema (`src/schema.ts`)
+[File ownership and installation](.project/architecture/reconciliation-engine.md)
 
-Single source of truth for everything safeword manages:
+### [Schema (`src/schema.ts`)](.project/architecture/reconciliation-engine.md#schema-srcschemats)
 
-```typescript
-SAFEWORD_SCHEMA = {
-  version: string             // Current safeword version
-  ownedDirs: [...]            // Created on setup, deleted on reset
-  sharedDirs: [...]           // We add to, not fully owned
-  preservedDirs: [...]        // Created but never deleted (user data)
-  deprecatedFiles: [...]      // Deleted on upgrade
-  deprecatedDirs: [...]       // Deleted on upgrade
-  deprecatedPackages: [...]   // Uninstalled on upgrade
-  ownedFiles: { ... }         // Overwritten on every upgrade
-  managedFiles: { ... }       // Created if missing; refreshed only when opted in and unmodified
-  jsonMerges: { ... }         // Merge specific keys into JSON files
-  textPatches: { ... }        // Marker-based text insertions (one patch or an ordered array per file)
-  legacyTextPatches: { ... }  // Old managed patches removed without being installed
-  contracts: { ... }          // Files that must contain specific strings (predicate parity)
-  codexMigration: { ... }     // Historical Codex identities retained until explicit finalization
-  packages: { base, conditional }  // Dependencies to install
-}
-```
+### [Reconciliation Modes](.project/architecture/reconciliation-engine.md#reconciliation-modes)
 
-A `textPatches` array applies in list order and unpatches in reverse, so the patch that owns file removal runs last on uninstall. A `managedFiles` entry is normally create-if-missing; with `refreshWhileUnmodified: true`, reconcile also rewrites it when the installed bytes still match a known Safeword scaffold (`shouldRefreshManagedFile` in `reconcile.ts`), so user-edited copies are never overwritten.
-
-File definitions support three content sources: `template` (path in `templates/`), `content` (static string or factory), `generator` (dynamic function of `ProjectContext`, returns `undefined` to skip).
-
-A `managedFiles` entry may also carry an optional `configKey` (`'principles' | 'personas' | 'glossary' | 'surfaces' | 'architecture'`). When the user sets the matching `paths.<configKey>` in `.safeword/config.json`, install skips the default scaffold and the user-configured path becomes the single source of truth (ticket K7N2QM). Independently of any override, a `configKey` marks the default as project-owned knowledge, so `reset --full` (`uninstall-full`) preserves it (ticket KD4C2A).
-
-### Reconciliation Modes
-
-| Mode             | Behavior                                                                             |
-| ---------------- | ------------------------------------------------------------------------------------ |
-| `install`        | Create dirs, write files, merge JSON, patch text                                     |
-| `upgrade`        | Remove deprecated, update owned, create missing managed (refresh unmodified opt-ins) |
-| `uninstall`      | Remove safeword-managed files and dirs                                               |
-| `uninstall-full` | Also remove generated configs (ESLint, Prettier)                                     |
-
-**Key property:** Idempotent. Running the same mode twice produces the same result.
-
-### Install Convergence Flow
-
-```text
-safeword install (src/lifecycle/commands.ts)
-  → profile preflight for selected integration adapters
-  → projectLifecycleSchema(cwd, agents)   # schemaForClaudeDelivery() drops .claude/ assets for
-                                          #   native-plugin delivery; Codex + selected-surface filters
-  → convergeSetup() (src/lifecycle/project-install.ts)
-    → namespace migration, version gate
-    → createProjectContext(cwd)           # detect languages, frameworks, tooling
-    → reconcile(schema, install|upgrade, ctx)
-      → computePlan() → executePlan()     # directory, file, JSON, text actions
-    → installPack() for missing packs, public-retro project config
-    → Codex bootstrap, architecture/workspace/ESLint config stages
-    → installDependencies()               # npm/bun/pnpm/yarn
-    → Python tooling, package compatibility
-  → selected integration adapters (registry order: profile install/proof per agent)
-```
-
----
+### [Install Convergence Flow](.project/architecture/reconciliation-engine.md#install-convergence-flow)
 
 ## Dependencies
 
-### Runtime (`dependencies`)
+Package manifests declare runtime, development, and peer dependencies.
 
-| Package                                           | Purpose                                                                                    |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `commander`                                       | CLI argument parsing                                                                       |
-| `yaml`                                            | YAML config parsing, including merge-aware Go lint configuration normalization             |
-| `smol-toml`                                       | TOML parsing for Codex config migration and Go lint configuration normalization            |
-| `jsonc-parser`                                    | Source-range edits that preserve unrelated Claude settings comments and formatting         |
-| `@secretlint/core`                                | Retro egress: in-process secret detection over a raw string (returns spans)                |
-| `@secretlint/secretlint-rule-preset-recommend`    | Retro egress: maintained provider-key rule-packs (28 formats) layered over the regex floor |
-| `@cucumber/gherkin`                               | Gherkin parse engine for `lint-gherkin` and `.feature` scenario-source validation          |
-| `@cucumber/messages`                              | Gherkin AST message types consumed alongside the parser                                    |
-| `@eslint/js`                                      | ESLint core rules                                                                          |
-| `typescript-eslint`                               | TypeScript ESLint parser + rules                                                           |
-| `eslint-config-prettier`                          | Disable formatting rules                                                                   |
-| `@eslint-react/eslint-plugin`                     | React, JSX, DOM, RSC, and web API rules                                                    |
-| `eslint-plugin-*`                                 | Other ESLint plugins (see plugin table above)                                              |
-| `@eslint-community/eslint-plugin-eslint-comments` | Disable comment governance                                                                 |
+[Dependency choices](.project/architecture/dependencies.md)
 
-### Dev (`devDependencies`)
+### [Runtime (`dependencies`)](.project/architecture/dependencies.md#runtime-dependencies)
 
-`packages/cli` devDependencies:
+### [Dev (`devDependencies`)](.project/architecture/dependencies.md#dev-devdependencies)
 
-| Package                         | Purpose                                                                       |
-| ------------------------------- | ----------------------------------------------------------------------------- |
-| `vitest`, `@vitest/coverage-v8` | Test runner and coverage                                                      |
-| `@cucumber/cucumber`, `tsx`     | Gherkin acceptance lane and TypeScript step loading                           |
-| `tsup`, `esbuild`               | Bundler                                                                       |
-| `typescript`, `@types/*`        | Type checking                                                                 |
-| `eslint`                        | Linting (self-hosted)                                                         |
-| `eslint-plugin-jsx-a11y`        | Optional a11y preset exercised in tests (loaded at runtime only if installed) |
-| `prettier`                      | Formatting                                                                    |
-| `ajv`                           | JSON Schema validation of the published CLI result schema                     |
-| `knip`                          | Dead code detection                                                           |
-| `publint`                       | Package publishing lint                                                       |
-
-`jiti` (loading TypeScript ESLint config files) is a devDependency of the root workspace only, not of `packages/cli`.
-
-### Peer
-
-| Package  | Version   | Purpose                        |
-| -------- | --------- | ------------------------------ |
-| `eslint` | `^10.4.0` | Required by consuming projects |
-
----
+### [Peer](.project/architecture/dependencies.md#peer)
 
 ## Test Structure
 
-| Script                    | Config                               | Includes                                                             | Purpose                                                           |
-| ------------------------- | ------------------------------------ | -------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `test`                    | `vitest.config.ts`                   | `*.test.ts`                                                          | Default unit and integration suite                                |
-| `test:smoke`              | default config                       | Named fast and integration smoke files                               | Broader pre-merge smoke validation                                |
-| `test:smoke:live`         | `vitest.live.config.ts`              | `*.live.test.ts`                                                     | Live-model smoke validation                                       |
-| `test:release`            | `vitest.release.config.ts`           | `*.release.test.ts`                                                  | Package, supply-chain, schema, and dogfood release contracts      |
-| `test:slow`               | `vitest.slow.config.ts`              | `*.slow.test.ts`                                                     | Real package installs                                             |
-| `test:slow:install-proof` | `vitest.slow.config.ts`              | `non-git-install-proof.slow.test.ts`                                 | Focused physical dependency-install proof                         |
-| `test:integration`        | default config                       | `tests/integration/`                                                 | Integration subset                                                |
-| `test:done`               | `vitest.done.config.ts`              | `tests/hooks/` + `tests/schema.test.ts`, minus 5 heavy hook suites   | Turn-end hook and schema subset for the Stop hook's 60 s cap      |
-| `test:smoke:fast`         | default config                       | Hook, schema, quality-gate, JTBD, and hook-coverage files            | Fast smoke subset                                                 |
-| `test:smoke:live:github`  | `scripts/run-github-live-smokes.mjs` | GitHub-backed live smokes                                            | Live GitHub integration validation                                |
-| `test:coverage`           | default config                       | `*.test.ts` with `--coverage`                                        | Coverage report                                                   |
-| `test:watch`              | default config                       | `*.test.ts`                                                          | Local watch mode                                                  |
-| `test:bdd`                | `packages/cli/cucumber.mjs` + vitest | `test:bdd:acceptance` then `test:bdd:proof`                          | CLI acceptance lane (cucumber-js, 102a)                           |
-| `test:bdd:acceptance`     | `packages/cli/cucumber.mjs`          | `packages/cli/features/**/*.feature`; steps `features/steps/**/*.ts` | CLI Gherkin scenarios                                             |
-| `test:bdd:proof`          | default config                       | `tests/bdd-proof-tags.test.ts`                                       | Scenarios tagged `@proof.vitest` are proven by named Vitest tests |
-| `test:bdd:live`           | `packages/cli/cucumber.mjs`          | `@live` scenarios                                                    | Live acceptance scenarios                                         |
+CLI tests cover reconciliation, lifecycle behavior, and host contracts. Executable scenarios exercise workflow boundaries.
 
-Root `package.json` adds a second, repo-wide lane. Root `test:bdd` builds the CLI and relay, then delegates to the CLI `test:bdd` above. Root `test:bdd:acceptance` (also run by `test:all`) uses the **root** `cucumber.mjs`: features from root `features/**/*.feature`, workspace `packages|apps|libs|modules/*/features/**/*.feature`, and any configured `paths.features` dir (56JCFZ); steps from root `steps/**/*.ts`, workspace `*/features/steps/**/*.ts`, and `paths.steps`. Root `test:bdd:live` uses the same config's `live` profile. The root config is the same file Safeword scaffolds into customer projects.
-
-The Vitest lanes extend `vitest.base.ts` and use up to three workers. The cucumber lanes are a **separate runner**: cucumber-js executes `.feature` files with TypeScript step defs (loaded via `tsx`). Both configs exclude `@wip`, `@proof.vitest`, `@manual`, and `@live` by default. Unit/integration stay in vitest (which globs only `*.test.ts`); the acceptance lanes and the unit suite partition the tree, neither double-runs a spec.
-
-The lane is also **core customer scaffolding** (102b): `safeword install` writes the same shape into every project — `cucumber.mjs` (safeword-owned), `features/` + `steps/` starters (customer-owned after creation), `@cucumber/cucumber` + `tsx` as conditional packages, and a `test:bdd` script (add-if-absent). A repo with no `package.json` (pure Go/Rust/Python) gets a minimal private one created to host the lane, and the TS toolchain comes along so the lane's step files are themselves linted (Option A, ticket 102b). **Unless the repo already has its own cucumber harness** (56JCFZ, issue #645): installation detects host cucumber configs/deps (excluding safeword's own template revisions, hash-registered in `cucumber-template-revisions.ts`), suppresses the entire starter lane, and points the user at `paths.features`/`paths.steps` — which all readers (`project codify` / `project lint-gherkin` / `doctor` via `feature-source.ts`) and the scaffolded runner consume as augment-not-replace. `safeword doctor` carries the persistent misalignment advisories; removal never removes host-owned harness pieces.
-
----
+[Test suites](.project/architecture/test-structure.md)
 
 ## Build & Distribution
 
-```text
-tsup → dist/
-  ├── cli.js              # Executable entry (#!/usr/bin/env node)
-  ├── index.js            # Library exports (VERSION, detect, eslint)
-  ├── presets/typescript/  # ESLint preset (safeword/eslint)
-  ├── opencode/dispatcher.js  # Self-contained OpenCode dispatcher (rebundled by
-  │                           #   scripts/build-opencode-dispatcher.ts in tsup onSuccess)
-  └── *.d.ts              # Type declarations
-```
+The CLI and plugin bundles use the same source templates. CI checks that their generated copies match before release.
 
-The OpenCode profile copies `dispatcher.js` without sibling chunks or `node_modules`, so the post-build step re-bundles it as one file. Package exports: `.` (library), `./eslint` (preset), and `./schemas/cli-result-v1.json` (the published CLI result JSON Schema).
-
-Published files: `dist/` + `schemas/` + `templates/` (bundled for setup convergence) + `codex-plugin/` (bundled for Codex plugin install). The native Claude plugin ships separately from the repo-root `plugin/` via the Claude marketplace, not the npm tarball.
-
-**Publish path:** an annotated `v*` tag triggers `.github/workflows/release.yml`. Its unprivileged build job installs from the frozen lockfile, builds, runs the release-contract suite, and packs the tarball. When local retro cutover is enabled, a protected job validates fresh production evidence before publication; malformed cutover state or failed evidence blocks the release. A separate minimal OIDC job downloads the artifact and publishes stable versions to `latest` and prereleases to `next` with provenance and install scripts disabled. After a stable publish, a final job advances the non-forced `stable` branch only when it remains a fast-forward. The local `prepublishOnly` hook (tag check → release tests → build) remains defense in depth, not the canonical release path.
-
----
+[Build outputs and release checks](.project/architecture/build--distribution.md)
 
 ## Migration & Evolution
 
-- **Unified installation:** `safeword install` converges the current project and installs Claude plus Codex by default. `--agents` narrows the selected integrations; Cursor and OpenCode are included only when explicitly selected. `safeword setup` remains a hidden, indefinitely retained compatibility alias. Schema ownership categories determine whether an asset is replaced, merged, created only when absent, preserved, or removed.
-- **Public CLI:** canonical commands are catalogued with stable typed effects and schema-versioned JSON. Hidden compatibility aliases are retained indefinitely (`retention: 'indefinite'` in `cli-protocol/catalog.ts`) and emit machine-readable deprecation findings.
-- **Codex delivery:** migration follows Expand → Prove → Contract. Profile-plugin proof must cover the running hook manifest before legacy project protection can be finalized; fingerprinted backup and recovery protect interrupted transitions.
-- **Generated architecture:** fingerprints migrate structural state deterministically. Machine-owned fields heal from source and manifests; human purpose prose survives and is marked stale when it needs semantic review.
-- **Architecture decisions:** update accepted decisions in place. Mark superseded choices explicitly, keep their original rationale, and record the replacement and reassessment trigger rather than creating detached ADR files.
+Plugin migrations expand support, prove activation, then retire legacy protection. Keep superseded decisions linked to their replacements.
 
----
+[Migration and compatibility rules](.project/architecture/migration--evolution.md)
 
 ## Key Decisions
 
-### Collector-to-relay ownership transfer
+Planning decisions live in the project-local review ledger. Human approvals bind the ticket, phase, and plan digest. Review evidence records the context used to judge that plan. The ledger retains decision history across host handoffs.
 
-| Field         | Decision                                                                                                                                                                                                                                                                                                                                                                                                         |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Context       | Anonymous public intake must survive client exit without placing GitHub authority in the collector or consuming the relay retry window while work waits in the collector queue.                                                                                                                                                                                                                                  |
-| Decision      | The collector owns immutable accepted bytes until the private worker receives relay acceptance. Lease expiry returns work to the collector without a retry deadline. Relay acceptance starts a fresh relay-owned 24-hour retry window. Cutover remains disabled until per-harness canary records bind one request ID and session scope to distinct collector and relay receipts plus reviewed artifact evidence. |
-| Consequences  | Collector queue delay cannot expire filing recovery; collector and relay ownership never overlap after acknowledged handoff; production cutover requires correlated, build-attested evidence. The collector, worker, and relay remain separate deployable services and require an independently rotated `collector-worker` credential.                                                                           |
-| Alternatives  | Synchronous collector forwarding loses accepted work on handoff failure; a collector-owned filing deadline consumes recovery before relay acceptance; colocating intake and filing authority weakens the trust boundary; dual filing permits duplicates.                                                                                                                                                         |
-| Reassess when | The collector or worker needs more than one replica, Railway private networking changes, GitHub adds a trustworthy create-idempotency key, or the single-host SQLite queue misses its operational targets.                                                                                                                                                                                                       |
+When requesting plan review, pass the relevant decision records as explicit context so the reviewer receives them with the overview.
 
-**Status:** Accepted
+### [Collector-to-relay ownership transfer](.project/architecture/collector-to-relay-ownership-transfer.md)
 
-**Date:** 2026-09-05
+### [Settled Decisions (2025-12)](.project/architecture/settled-decisions-2025-12.md)
 
-### Settled Decisions (2025-12)
+### [Bundled Language Packs (No External Packages)](.project/architecture/bundled-language-packs-no-external-packages.md)
 
-- **Graceful Linter Fallback:** Skip linter silently if not installed (`.nothrow().quiet()`). Hook should never block Claude's workflow. (`lint.ts`)
-- **TOML Parsing — line-based for detection, `smol-toml` for configuration changes:** pyproject.toml detection uses line-based extraction; it only needs `[tool.poetry]`/`[tool.uv]` and pulls in no TOML parser (`project-detector.ts`). Codex plugin migration uses `smol-toml` to validate config parseability before its line-based hook surgery (`migrate-codex-plugin.ts`). The bundled Go lint executor also uses it to preserve TOML policies while normalizing their path context.
-- **Ruff in Hook, mypy in Command Only:** Ruff is ms/file (safe for hooks); mypy is seconds/project (only runs via `/lint` command).
+### [Unified BDD+TDD Workflow (Inline TDD in BDD Skill)](.project/architecture/unified-bddtdd-workflow-inline-tdd-in-bdd-skill.md)
 
-**Linter crash resilience:** `captureRemainingErrors()` reads stderr when stdout is empty on non-zero exit. This distinguishes "linter found no issues" from "linter crashed" (e.g., golangci-lint Go version mismatch). Crashes surface as warnings via the existing `warnings` array, not as lint errors. This prevents silent failures where a broken linter reports success.
+### [Skill Consolidation (Removed Redundant Skills)](.project/architecture/skill-consolidation-removed-redundant-skills.md)
 
-**golangci-lint version check:** The lint hook checks `golangci-lint version --short` before running Go linting. Safeword generates v2 config format — v1 users get a clear warning with upgrade instructions instead of an opaque config parse error. The check runs once per session (cached via `toolWarnings` set).
+### [Hard Block for Done Phase (Stop `decision: "block"`)](.project/architecture/hard-block-for-done-phase-stop-decision-block.md)
 
-**ESLint disable comment governance:** `@eslint-community/eslint-plugin-eslint-comments` enforces suppression hygiene: `disable-enable-pair` (block orphaned disables), `no-unlimited-disable` (require rule name), `require-description` (require `-- reason`), `no-duplicate-disable`, `no-unused-enable`. Combined with `reportUnusedDisableDirectives: 'error'` via `linterOptions` to catch stale disables.
+### [Hierarchy Navigation on Ticket Completion](.project/architecture/hierarchy-navigation-on-ticket-completion.md)
 
-**Schema drift prevention:** `.husky/pre-push` runs two pure, filesystem-read-only tests (`schema.test.ts`, `skills-commands-validation.test.ts`; ~0.5s) when `git diff origin/main...HEAD` touches `schema.ts`. Install/dist-dependent E2E runs only in CI. Skippable with `git push --no-verify`.
+### [Continuous Quality Gates (LOC + Phase + TDD)](.project/architecture/continuous-quality-gates-loc--phase--tdd.md)
 
-### Bundled Language Packs (No External Packages)
+### [Separate Implementation and Execution Planning Gates](.project/architecture/separate-implementation-and-execution-planning-gates.md)
 
-**Status:** Accepted
-**Date:** 2025-12-26
+### [Conformance-Gated Execution Plan Review](.project/architecture/conformance-gated-execution-plan-review.md)
 
-| Field          | Value                                                                                                   |
-| -------------- | ------------------------------------------------------------------------------------------------------- |
-| What           | Language packs are bundled in safeword core, not separate npm packages                                  |
-| Why            | Simpler distribution, no version matrix, always in sync with CLI                                        |
-| Trade-off      | Can't add languages without safeword release                                                            |
-| Alternatives   | Separate npm packages (rejected: version coordination complexity), user-defined packs (deferred: YAGNI) |
-| Implementation | `packages/cli/src/packs/*.ts`                                                                           |
+### [Digest-Bound Planning Decisions in the Shared Review Ledger](.project/architecture/digest-bound-planning-decisions-in-the-shared-review-ledger.md)
 
-### Unified BDD+TDD Workflow (Inline TDD in BDD Skill)
+### [Semantically Projected Planning Review Provenance](.project/architecture/semantically-projected-planning-review-provenance.md)
 
-**Status:** Accepted
-**Date:** 2026-01-07
+### [Authenticated Reduced-Independence Planning Review Fallback](.project/architecture/authenticated-reduced-independence-planning-review-fallback.md)
 
-| Field          | Value                                                                                                                                                                                                                                                        |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| What           | TDD (RED→GREEN→REFACTOR) is inline in BDD skill Phase 6, not a separate handoff                                                                                                                                                                              |
-| Why            | Skill-to-skill handoffs are unreliable; agent memory doesn't guarantee the delegated skill will be invoked                                                                                                                                                   |
-| Trade-off      | BDD skill is larger; standalone TDD skill and `/tdd` command removed                                                                                                                                                                                         |
-| Alternatives   | Separate TDD skill with handoff (rejected: soft enforcement), subagent delegation (rejected: model-mediated depth and tool availability do not guarantee the workflow handoff)                                                                               |
-| Implementation | `packages/cli/templates/skills/bdd/` — TDD runs in the `implement` phase (`TDD.md`); the skill was later split from one `SKILL.md` into per-phase files (DISCOVERY / SCENARIOS / TDD / VERIFY / DONE / SPLITTING), see the 2026-05-31 Phase 0 decision below |
+### [Independent Review Never Blocks](.project/architecture/independent-review-never-blocks.md)
 
-### Skill Consolidation (Removed Redundant Skills)
+### [Frozen Transcript Fixture Testing](.project/architecture/frozen-transcript-fixture-testing.md)
 
-**Status:** Accepted
-**Date:** 2026-01-09
+### [Product-Framing Layer in BDD Phase 0 (JTBD / Personas / Rules)](.project/architecture/product-framing-layer-in-bdd-phase-0-jtbd--personas--rules.md)
 
-| Field          | Value                                                                                                                                                        |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| What           | Removed standalone TDD, brainstorming, and writing-plans skills; consolidated into BDD orchestration                                                         |
-| Why            | BDD skill's discovery phase covers brainstorming; Phase 6 includes full TDD; Claude Code has native plan mode                                                |
-| Trade-off      | Less granular skill invocation; users must use `/bdd` for structured workflows                                                                               |
-| Removed        | `safeword-tdd-enforcing`, `safeword-brainstorming`, `safeword-writing-plans` skills; `/tdd` command                                                          |
-| Remaining      | Source in `packages/cli/templates/skills/`; Claude Code ships them from generated `plugin/skills/`, Codex from generated `packages/cli/codex-plugin/skills/` |
-| Implementation | Deprecated files listed in `packages/cli/src/schema.ts` deprecatedFiles/deprecatedDirs                                                                       |
+### [Canonical Persona Codes with Legacy Lineage Compatibility](.project/architecture/canonical-persona-codes-with-legacy-lineage-compatibility.md)
 
-### Hard Block for Done Phase (Stop `decision: "block"`)
+### [BDD as a Solo-Agent Adaptation of the Three-Practice Model (retire `decomposition` phase)](.project/architecture/bdd-as-a-solo-agent-adaptation-of-the-three-practice-model-retire-decomposition-phase.md)
 
-**Status:** Accepted
-**Date:** 2026-01-07 (updated 2026-10-02: records the structured-JSON block; the original exit-2 mechanism was replaced)
+### [plan-implementation: a gated planning phase as the Automation on-ramp](.project/architecture/plan-implementation-a-gated-planning-phase-as-the-automation-on-ramp.md)
 
-| Field          | Value                                                                                                                                                                                                                                                                |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| What           | Done phase in the Stop quality hook hard-blocks completion until evidence is shown. `hardBlockDone()` prints `{decision: "block", reason, systemMessage}` JSON and exits 0; `stop_hook_active` does not bypass it, and `systemMessage` surfaces the hint to the user |
-| Why            | Prevents premature "done" claims; agent must show test/scenario/audit output                                                                                                                                                                                         |
-| Trade-off      | Slightly more friction at completion time                                                                                                                                                                                                                            |
-| Alternatives   | Soft block with reminder (rejected: too easy to ignore), no enforcement (rejected: allows false claims)                                                                                                                                                              |
-| Implementation | `packages/cli/templates/hooks/stop-quality.ts` - `hardBlockDone()` with evidence pattern matching; GFM checkbox predicate extracted to `.safeword/hooks/lib/scenario-format.ts` (`analyzeScenarioFormat`) for direct unit testability                                |
-| Evidence       | Features require: `✓ X/X tests pass` + `All N scenarios marked complete` + `Audit passed`. Tasks: test only.                                                                                                                                                         |
+### [Architecture Review Gate (evidence + independent design review for features)](.project/architecture/architecture-review-gate-evidence--independent-design-review-for-features.md)
 
-### Hierarchy Navigation on Ticket Completion
+### [Host-owned cross-agent adversarial review coordinator](.project/architecture/host-owned-cross-agent-adversarial-review-coordinator.md)
 
-**Status:** Accepted
-**Date:** 2026-02-21
+### [Profile-Scoped Generated Codex Plugin and Staged Hook Migration](.project/architecture/profile-scoped-generated-codex-plugin-and-staged-hook-migration.md)
 
-| Field          | Value                                                                                                                                                                    |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| What           | When done gate passes, stop hook walks the ticket tree: marks ticket done, cascades to parent if all siblings done, navigates to next undone sibling                     |
-| Why            | Eliminates manual "what's next?" lookup; agent automatically continues with adjacent work without user prompt                                                            |
-| Trade-off      | Stop hook now has side effects (writes ticket status); must mark current ticket done before calling findNextWork or it finds itself as undone sibling                    |
-| Alternatives   | Manual navigation (rejected: interrupts flow), separate navigation command (rejected: requires user prompt)                                                              |
-| Implementation | `.safeword/hooks/lib/hierarchy.ts` - pure functions `findNextWork`, `updateTicketStatus`, `resolveTicketDirectory`; called from `stop-quality.ts` after done gate passes |
+### [Explicit Project Enrollment for Profile-Scoped Codex Hooks](.project/architecture/explicit-project-enrollment-for-profile-scoped-codex-hooks.md)
 
-**Navigation algorithm:**
+### [Typed CLI Execution and Discovery](.project/architecture/typed-cli-execution-and-discovery.md)
 
-1. Mark current ticket `status: done, phase: done`
-2. Read parent's `children` array
-3. Find first child where `status !== done` → `navigate` to that ticket
-4. If all children done → `cascade-done`: mark parent done, recurse from parent
-5. If no parent or tree exhausted → `all-done`: allow stop
+### [Next-Task Codex Plugin Activation and Migration Result v2](.project/architecture/next-task-codex-plugin-activation-and-migration-result-v2.md)
 
-**Zero-dependency YAML parser:** `hierarchy.ts` uses an inline `parseFrontmatter()` rather than the `yaml` npm package. Hooks run in user project context where `yaml` is not installed; inline parser avoids any runtime dependency.
+### [Generated Native Claude Plugin with Live Proof and Project Contraction](.project/architecture/generated-native-claude-plugin-with-live-proof-and-project-contraction.md)
 
-### Continuous Quality Gates (LOC + Phase + TDD)
+### [Project-Default Claude Plugin Declarations and Project-Bound Proof](.project/architecture/project-default-claude-plugin-declarations-and-project-bound-proof.md)
 
-**Status:** Accepted
-**Date:** 2026-02-07 (updated 2026-03-20: added phase access control, meta-path exemption, null→phase skip, shared active-ticket module)
+### [Proof-Gated Automatic Claude Legacy Contraction](.project/architecture/proof-gated-automatic-claude-legacy-contraction.md)
 
-| Field          | Value                                                                                                                                                                                    |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| What           | PostToolUse hook counts changed lines via `git diff --stat HEAD` and binds `activeTicket` on ticket.md edits. Phase and TDD step are derived at read time from ticket files, not cached. |
-| Why            | Prevents 1000-line PRs; forces commit discipline. Phase/TDD derivation avoids stale cache in multi-session/multi-developer scenarios.                                                    |
-| Trade-off      | Adds ~50ms per tool call (git diff + ticket scan); per-session state in `<namespace-root>/quality-state-{sessionId}.json`                                                                |
-| Alternatives   | LOC check in stop hook only (rejected: too late), commit-prefix detection (rejected: convention-based, bypassable), manual discipline (rejected)                                         |
-| Implementation | `packages/cli/templates/hooks/post-tool-quality.ts` + `pre-tool-quality.ts`; per-session state files; shared `lib/active-ticket.ts` (includes `deriveTddStep()`)                         |
+### [Restart-Bound Codex Plugin Activation](.project/architecture/restart-bound-codex-plugin-activation.md)
 
-**Gate types:**
+### [Advisory PR Review as a Split-Privilege Evidence Pipeline](.project/architecture/advisory-pr-review-as-a-split-privilege-evidence-pipeline.md)
 
-- **LOC gate** (`loc`) — triggers when `git diff --stat HEAD` exceeds 400 LOC of project code; forces commit before more edits. Meta paths (`META_PATHS` in `hooks/lib/quality-state.ts`: `.safeword/`, `.claude/`, `.cursor/`, `.codex/`, `.agents/`, and the namespace root—`.project/` by default, legacy `.safeword-project/`) are excluded from the count via git pathspec, so setup convergence output doesn't inflate it.
-- **Phase reminders** — prompt hook derives current phase from ticket.md via `getTicketInfo()` and injects phase-specific one-liner each turn. No blocking gate — guidance only.
-- **TDD step reminders** — prompt hook derives TDD step from test-definitions.md via `deriveTddStep()` during `implement` phase. Shows RED/GREEN/REFACTOR status each turn.
+### [Deterministic Readiness Evidence Status](.project/architecture/deterministic-readiness-evidence-status.md)
 
-**Phase-based access control:** PreToolUse reads the active ticket's phase directly from ticket files (via `lib/active-ticket.ts`). For features, `plan-implementation` is a code freeze (application edits are denied until `impl-plan.md` is done and the phase advances to `implement`), and `implement` requires `test-definitions.md` before application code. Planning phases (intake, define-behavior, scenario-gate, plan-implementation) are otherwise governed by phase-transition and artifact gates on ticket files, not by a blanket code-edit block. Tasks are exempt from the feature-only gates. No ticket or no in_progress ticket = no restriction.
-
-**Meta-path exemption:** Files under `META_PATHS` (`.safeword/`, `.claude/`, `.cursor/`, `.codex/`, `.agents/`, `.project/`, legacy `.safeword-project/`) are always editable regardless of gates or phase. These are tooling/metadata, not application code. This prevents circular dependencies where a gate blocks editing the file that caused the gate.
-
-**Active ticket resolution:** Session-scoped. Each session's state file (`quality-state-{session_id}.json`) tracks the `activeTicket` it's working on. Both `pre-tool-quality.ts` and `stop-quality.ts` read this session binding, then call `getTicketInfo()` to re-read the ticket's current phase and status from disk (stateless re-evaluation). This prevents cross-session blocking — tickets from other sessions are invisible. `getActiveTicket()` (global scan) is only used for hierarchy navigation after the done gate passes. Post-tool auto-clears `activeTicket` when the ticket reaches `done` or `backlog` status.
-
-**TDD step detection:** PostToolUse watches `test-definitions.md` in ticket directories. Each scenario has three sub-checkboxes (`- [ ] RED`, `- [ ] GREEN`, `- [ ] REFACTOR`). The parser finds the first scenario with mixed checked/unchecked items and determines which step just completed. The act of marking a sub-checkbox IS the detection mechanism — the artifact is the single source of truth. `.feature` files are the scenario source for authoring and acceptance runs, but `deriveTddStep()` reads only the `test-definitions.md` R/G/R ledger; a ticket without that ledger has no derived TDD step.
-
-**Deny remedies ride in the reason (#5760):** A PreToolUse deny carries both WHY it blocked and WHAT TO DO in `permissionDecisionReason` (reason, remedy, `/explain` hint) and emits no `additionalContext`. The reason is the one field every host delivers to the agent: the Cursor adapter and OpenCode's exit-code mode keep only the reason, so a remedy in `additionalContext` never reached them. Remedies still reference skills by name rather than inlining review content, which keeps skills the single owner of that content.
-
-**Quality review cadence (SXSCJQ; implement-step reviews quieted by JENFZX):** The quality review fires at phase boundaries, not on a LOC throttle. PostToolUse surfaces a phase-appropriate review (`getQualityMessage`) as `additionalContext` on each `phase:` change in `ticket.md` — at the edit, so it works in long autonomous runs where the Stop hook never fires. Ordinary implement-step (RED/GREEN/REFACTOR) reviews no longer surface per step; they are folded into the whole-ticket review at the implement→verify exit (JENFZX). The Stop hook is a deduped backstop: it reviews per phase, but only for a boundary not already marked (`lastReviewedPhase` in session state). With no resolvable ticket phase — no active ticket, or one in a status escape hatch — a generic review is recorded once per user-prompt boundary: `stopQualityReviewAwaitingUserPrompt` keeps later idle Stops silent until `UserPromptSubmit` clears it, while typecheck, phase, and done gates remain independent. The former implement-phase LOC review throttle (`LOC_REVIEW_THRESHOLD`) is removed. Shared decision logic lives in `lib/review-trigger.ts` (`shouldReviewPhase`); checkbox-flip detection in `lib/checkbox-transitions.ts`.
-
-**Cross-agent Stop delivery (JN403D/P30CRP):** Claude Code keeps the hard done-gate/review behavior in `stop-quality.ts`. Cursor uses a lighter local Stop adapter for continuation nudges (`cursor/stop.ts` appends `followup_message`). Codex uses the profile-scoped Safeword plugin, whose hook manifest calls the CLI bundled into that exact plugin version. It emits Codex continuation output (`decision: "block"`, `reason`) from queued project context. Codex Stop delivery is advisory continuation, not hard done-gate enforcement.
-
-**Decision-complete terminal handoffs (ASG60P/#4500):** One machine-readable `terminal-handoff/v1` contract in `hooks/lib/quality.ts` defines symmetric decision roles for `Next` and `Need`, plus a separate concise `Action` form when no human choice remains. Claude Code and Codex use their native Stop re-entry flag, while Cursor uses its loop count, to request at most one correction per response. On Claude Code, a non-editing turn whose last tool call successfully launched background work (`run_in_background` Bash/Agent, or Monitor) is waiting rather than handing off, so it is not corrected; its results arrive in a new turn that is (#5765). Existing hard evidence gates keep precedence, malformed inputs and evaluator failures fail open, and `.safeword/config.json` may explicitly disable this default-on behavior with `"terminalHandoffCorrection": false`. Canonical templates generate the Claude and Codex plugin copies; parity checks keep generated and dogfood copies aligned.
-
-**Codex Desktop session identity (S2CWBE):** Hook payload `session_id` and a
-fresh Codex proof-bridge cache remain the preferred sources. When Codex Desktop
-code-mode does not deliver the documented PreToolUse bridge, the shared
-run-identity resolver may use non-empty `CODEX_THREAD_ID` as a Codex-only,
-session-stable fallback. This comes after explicit and cached identities, never
-uses `turn_id`, and is unavailable to explicit Claude and Cursor callers. The
-single resolver is shared by invocation proof, review-stamp session binding,
-and Codex Stop so all three address the same state key.
-
-**Gate clearing:** All gates clear automatically when `git rev-parse --short HEAD` changes (i.e., a commit happened). No manual intervention needed. TDD gates have priority over LOC gate (LOC gate cannot overwrite an active TDD gate).
-
-### Separate Implementation and Execution Planning Gates
-
-**Status:** Accepted
-**Date:** 2026-09-10
-
-| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| What           | Feature work uses two explicit, separately reviewed planning phases: Implementation Planning decides the behavior-shaping architecture, data, interface, operational, rollout, rollback, and proof-scope choices in one project-local `impl-plan.md`; Execution Planning translates that approved approach into startable TDD slices and independently reviewable PRs in `execution-plan.md`.                                                |
-| Why            | A plan optimized for design approval and a plan optimized for execution have different jobs. Keeping them distinct lets people review the approach in a focused meeting while giving an agent enough concrete sequencing to build it without inventing design decisions.                                                                                                                                                                     |
-| Trade-off      | The workflow gains one public phase and one artifact. Phase transitions, review receipts, migration, and every installed host must agree on the added state.                                                                                                                                                                                                                                                                                 |
-| Alternatives   | Keep one mixed plan (rejected: execution detail obscures design decisions); keep two files in one phase (rejected: the boundary is not observable or consistently enforceable); make Execution Planning an agent-private artifact (rejected: it cannot support durable handoff or review).                                                                                                                                                   |
-| Implementation | The canonical phase model inserts `plan-execution` between `plan-implementation` and `implement`. Each phase has one author/reviewer contract and its own current review currency. Significant decisions are linked here before Implementation Plan approval. The planning edit freeze narrowly permits the configured, project-owned architecture record so this requirement is satisfiable; code and ordinary documentation remain frozen. |
-
-This decision supersedes the transition and six-section artifact portions of
-the 2026-07-09 “plan-implementation: a gated planning phase as the Automation
-on-ramp” decision. It preserves that decision's rationale, project-local
-authority, and content-hash review history.
-
-### Conformance-Gated Execution Plan Review
-
-**Status:** Superseded by [Independent Review Never Blocks](#independent-review-never-blocks)
-**Date:** 2026-09-12
-
-| Field     | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| What      | The shared review coordinator accepts `plan-execution` as a public review kind only for one ticket-owned `execution-plan.md`, with that ticket's Implementation Plan and approved scenarios as bounded context. It dispatches only reviewer identities admitted by current digest-bound conformance evidence. The retained typed judgment records scenario-and-approach coverage, the complete ordered proof specifications and stable Delivery Checklist definition, reviewed `not_applicable` reasons and human dependencies, the current `designApprovalGate` value, the slicing decision, and a trusted normalized digest of the complete plan. The digest retains checklist `ID`, `Category`, `Obligation`, `Owner`, and `Required proof`. For contributor rows in `open` or `complete` state, it excludes only ordinary progress in `Disposition`, `Evidence class`, `Revision`, and the final evidence column; reviewed applicability reasons and human dependencies remain stable. Completing one reviewed obligation therefore does not invalidate the same review, while changing a stable obligation field or any other plan definition does. |
-| Why       | Execution Plan approval must prove that accepted design obligations became independently safe, reviewable work; valid JSON or an unproven reviewer route is not evidence of that judgment.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| Trade-off | A changed contract, corpus, reviewer identity, or normalized plan definition withdraws admission until its complete live matrix or plan review passes again. Progress-only edits remain review-current, so normalization must mutation-test every excluded and retained field.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| Scope     | This is the narrow review-coordinator extension owned by [6XW8H7](.project/tickets/6XW8H7-split-large-contributions-into-reviewable-prs/ticket.md). The ticket remains authoritative for the detailed contract and proof; phase migration, review-currency invalidation, coding-transition enforcement, and recovery copy remain separately owned.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-
-### Digest-Bound Planning Decisions in the Shared Review Ledger
-
-**Status:** Accepted
-**Date:** 2026-09-10
-
-| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| What           | Human Implementation Plan approvals and declines are append-only, digest-bound events in the existing project-local review ledger. Each event identifies the ticket, planning phase, exact plan digest, decision, user-authority reference, timestamp, and idempotency key. The same ledger may retain derived `delivery-proof:v1` events that bind an executed reviewed proof to its ticket, checklist item, Proof ID, producing revision, invocation, and outcome; those events are evidence only and grant neither human approval nor merge authority. Delivery proof requires a clean contribution subject outside the ticket's Execution Plan before and after execution. It remains current across the plan-only commit that persists its receipt only while the producing revision is an ancestor and Git reports no other committed or working-tree change; the separately authenticated normalized plan identity prevents that exclusion from hiding stable plan edits. Writers serialize appends with an exclusive lease-bearing lock and monotonically increasing fencing token, reread inside the lock, and atomically replace the ledger only while still owning the current token. Unknown event kinds remain authority-inert and are preserved byte-for-byte when a known event is appended; known receipts remain readable. Events are retained for audit, while a changed plan digest makes an earlier decision non-current. |
-| Why            | Approval is authority over exact reviewed bytes, not mutable ticket state. Append-only history preserves the audit trail; digest binding prevents stale approval; serialization and fencing prevent concurrent writers or stale lock holders from losing an event; compatibility rules let independently released hosts share the ledger without an unfamiliar event invalidating unrelated review evidence.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| Trade-off      | Every supported writer must honor the same locking, compatibility, and clean-subject protocol, and retained events can increase read cost. Excluding the exact Execution Plan avoids an impossible self-referential commit but requires its normalized identity and stable definition to be checked independently. Unrelated repository changes conservatively stale proof. Local filesystems lacking exclusive creation and atomic same-directory rename fail closed. Contention, stale-lease recovery, and ledger growth must remain observable assessment triggers.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| Alternatives   | Mutable ticket frontmatter (rejected: conflates workflow state and authority); overwrite one current receipt (rejected: destroys history); host-local memory (rejected: breaks project handoff); reject a ledger containing an unknown event (rejected: one extension can erase otherwise valid authority); append without fencing (rejected: a stale writer can overwrite a newer append).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| Migration      | Existing ledgers remain valid. Tickets with approval enabled but no current digest-bound decision read as pending; no backfill invents authority. During rollback, new decision events remain readable but are non-authoritative under the old phase sequence. `YCFFNC` owns coordinated activation and rollback across installed hosts.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| Implementation | Ticket `G1C9PP` owns the consumer model, local writer protocol, current-digest lookup, and fail-closed behavior. Ticket `5F5ZZA` owns authenticated host-user-event provenance and transport. Ticket `YCFFNC` owns cross-host deployment compatibility.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-
-**A639WN extension:** The ledger also retains `delivery-compatibility:v1`
-events. Each event binds an independent compatibility judgment to the exact
-delivery receipt, reason, retained definition, revision pair, request digest,
-and source review. The deterministic request under
-`.safeword/state/reviews/requests/` is ignored transient reviewer input; only
-the ledger event is durable authority. A dedicated `delivery-compatibility`
-review kind reuses the shared coordinator, integrity, routing, and verdict
-machinery but owns the narrow semantic question of whether the earlier receipt
-still proves its retained boundary across the supplied complete diff.
-Compatibility evidence grants neither human approval nor merge authority.
-
-### Semantically Projected Planning Review Provenance
-
-**Status:** Proposed
-**Date:** 2026-09-20
-
-<!-- prettier-ignore -->
-| Field | Value |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Context | Product, Implementation, and Execution Planning reviews depend on their target-plan identity and a larger accepted context. Product and Implementation use exact work-product bytes; Execution retains its accepted normalized identity so ordinary checklist progress does not force review of an unchanged delivery design. Raw whole-packet hashing safely catches every edit but makes formatting, comments, progress, and unrelated persona or surface inventory invalidate approval. Looser caller-selected packets can omit a load-bearing boundary and still appear current. |
-| Decision | One phase-aware resolver derives the complete role-labeled dependency set from ticket and project configuration. One projector binds exact Product/Implementation target bytes or the trusted normalized Execution identity, plus exact canonical-contract bytes and semantically normalized ticket-relevant slices of each other context role, into a deterministic SHA-256 review-currency identity. Execution normalization excludes only ordinary progress in contributor-row Disposition, Evidence class, Revision, and final evidence cells; every stable obligation and every other plan byte remains identity-bearing. Separately, an exact-byte copy-integrity check requires every installed authoring contract and generated reviewer rubric to match the canonical generated bytes at authoring, dispatch, and admission. The existing coordinator stores the currency identity with the authenticated receipt, and the existing phase-admission path recomputes it before accepting a ledger stamp. Shared scope, lifecycle, trust, and authority clauses are authored once and generated into the three planning contracts; phase-specific judgment remains separate. |
-| Consequences | Cosmetic context and unrelated inventory edits remain review-current, while changed canonical-contract bytes, scope, Rules, scenarios, referenced personas, affected surfaces, applicable principles, or accepted decisions stale the dependent review. Cosmetic drift in an installed author copy leaves the receipt current while blocking the separate copy-integrity gate. A generated copy that differs by even whitespace fails its separate integrity gate until canonical bytes are restored. Missing, unreadable, stale, duplicate, unknown, or ambiguous required structures fail closed. Product, Implementation, and Execution approvals remain limited to behavior, design, and startable delivery respectively. |
-| Alternatives | Hash every packet byte: rejected because it violates the accepted semantic-stability contract. Persist a general Merkle dependency graph: rejected because a fixed three-phase dependency model does not justify another store, migration surface, or graph evaluator. Let each host assemble and validate context: rejected because authority and behavior would drift by surface. |
-| Data and compatibility | The integrity-protected review job remains the provenance store and the append-only review ledger remains the admission-claim store. New jobs carry a versioned review identity; no backfill or history rewrite occurs. Existing records remain preserved and authorize only when the active reader can authenticate them and recompute the current required identity. Existing Execution Plan normalized-digest and delivery-proof semantics remain unchanged. |
-| Reassess when | A false-current approval exposes an omitted semantic field; cosmetic edits repeatedly cause false staleness; a fourth planning artifact requires non-linear dependencies; a host's lifecycle authority changes; or SHA-256 is withdrawn for this use. |
-| Implementation | Ticket `5F5ZZA`; the shared review packet/job/admission path, generated planning contracts, Product Plan review contract, and installed host adapters. |
-
-**#5139 continuation proposal — evidence and installed-rule currency:** New
-planning verdicts carry a versioned `evidence_records` collection in the existing
-integrity-protected job result. An empty array asserts no new external evidence.
-Plan-owned V1 records remain exact plan inputs, separately embedded under
-Decisions; new retrieved external evidence must declare its source, versions,
-claim, and license/attribution/redistribution/security/privacy/reuse limits before
-reuse. The parser validates declared V1 records; semantic review checks missing
-declarations. Historical format-flexible research tables remain dated context,
-not newly qualified evidence. One shared evidence store or mandatory linked
-artifact was rejected because either splits lifecycle ownership or blurs
-author/reviewer authority. No new store, backfill, or history rewrite is added.
-
-For currency, read the exact canonical marked region from the trusted package
-or plugin's `templates/skills/bdd/DISCOVERY.md`, `PLAN_IMPLEMENTATION.md`, or
-`PLAN_EXECUTION.md`, never from the project's mutable installed author copy.
-Compare those exact bytes, including internal layout and comments, with the
-packaged generated rubric and retained contract identity. Outside-region edits
-retain currency; inside-region edits stale it. Whole-copy exact integrity stays
-mandatory separately for authoring, dispatch, and admission. Compiled-only
-currency misses changed installed rules; whole-file currency rereviews unrelated
-copy edits; normalizing canonical bytes hides changes the accepted contract
-makes identity-bearing. The identity remains V1 and existing digest checks stale
-changed contracts. Consumers are planning dispatch, status, receipt verification,
-and phase admission. Reverting this increment retains records and main's other
-repairs; an incompatible older reader must refuse admission. Reassess if the
-canonical region or evidence ownership changes.
-
-**Historical record status:** The surrounding Proposed label remains unchanged;
-implemented-main facts are not new proposals. Plan approval accepts only its
-explicit continuation decisions and does not promote the whole historical
-record. Safeword maintainers own separate historical-status reconciliation.
-
-**5F5ZZA Product Plan gate placement:** Product Plan review runs at the exit
-from `intake`, before `define-behavior` and scenario-quality review. Its
-approval is authority only for the bounded behavior decision; it grants no
-scenario, design, execution, human, merge, or release authority.
-
-**5F5ZZA user-disposition extension:** A user-declined optional strengthening
-is stored as versioned ticket context, not as reviewer authority or a new
-ledger claim. The record binds an authenticated nonblocking finding fingerprint
-to its review kind, accepted-boundary digest, `declined` disposition, and user
-reason. A typed command writes it only after explicit user direction, using a
-versioned exclusive sibling lock, expected exact-ticket digest check under that
-lock, and atomic replacement. The lock serializes cooperating Safeword writers;
-it does not claim universal compare-and-swap against an out-of-band writer that
-ignores the lock. Because dispositions are part of the ticket semantic
-projection, recording, editing, or removing one stales dependent review and
-sends the unchanged plan through fresh review with the user's decision in
-context. This preserves the decline across sessions without widening scope,
-extending the admission ledger's authority, or adding a store. Older readers
-preserve the unknown ticket field but derive no authority from it.
-
-### Authenticated Reduced-Independence Planning Review Fallback
-
-**Status:** Proposed
-**Date:** 2026-09-20
-
-<!-- prettier-ignore -->
-| Field | Value |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Context | The independent-review coordinator already has a bounded fallback ladder, but its 2026-08-02 record says host-reported fresh-context and bounded self-review can never create a stamp and calls same-agent completion degraded. The accepted planning contract instead permits those tiers to advance with honestly reduced independence only after every stronger configured route was attempted and failed. |
-| Decision | Keep one ordered ladder: independent routes, same-agent headless review, host-reported fresh-context review, then bounded self-review. Fallback is unavailable while a stronger route remains available or before at least one configured independent route was attempted. When policy permits it, the coordinator binds every tier to the same immutable packet; host-owned tiers complete a tier-bound continuation whose typed result is integrity-sealed in the existing job store. An approval may produce a stamp-eligible receipt with the actual reviewer/tier and `reduced` independence. It never claims cross-agent independence, human approval, merge authority, or release authority. `require` policy and ungated origins remain blocking. |
-| Consequences | Planning can finish honestly when external review infrastructure is exhausted without misrepresenting assurance or creating a parallel receipt store. Phase admission authenticates and currency-checks fallback receipts exactly like independent receipts, while policy and ordered-route evidence determine whether reduced independence is admissible. Zero configured/reachable independent routes before any attempt remains a configuration block rather than an automatic fallback. |
-| Supersedes | The 2026-08-02 coordinator clauses that label all same-agent fallback `degraded`, say foreground fresh-context/self-review never create a review stamp, require host tiers to read live worktree paths without revalidated source integrity, allow `off` to coexist with a required planning review, and treat agent/process separation as sufficient under `require` when author capability is unverifiable. Every tier now reviews the same immutable coordinator packet through a tier-bound continuation. `off` blocks a required planning review; `require` blocks rather than weakening independence. The older record's route preference, typed failures, authentication, containment, and actual-provenance decisions remain in force. |
-| Alternatives | Preserve non-stamping host fallback: rejected because accepted R6 phase transitions could never advance. Treat fallback as independent: rejected because it fabricates assurance. Let hosts write ledger stamps directly: rejected because it bypasses coordinator authentication and packet identity. |
-| Reassess when | A host provides cryptographically attestable fresh-context identity, reduced-independence reviews show materially different defect-catch rates, or policy needs to distinguish which fallback tiers may advance. |
-| Implementation | Ticket `5F5ZZA`; coordinator recovery jobs, authenticated result persistence, review stamps, phase admission, and installed host recovery guidance. |
-
-**5F5ZZA capability-classification extension:** Cross-agent independence also
-requires a verified reviewer model with a sealed not-weaker comparison to the
-verified author model. A versioned packaged exact-model pair catalogue
-provides fire-and-forget defaults for supported models; the existing project/
-user review-route configuration authority selects routes but cannot override
-empirical comparisons with integer ranks. Each packaged comparison records its
-evidence date and revision. Provider documentation can identify selectors but
-cannot replace a pinned Safeword planning-review comparison. Missing, conflicting,
-or stale evidence leaves the pair unknown. Unknown, unverified, or
-observed weaker pairings fail closed and cannot earn cross-agent independence. Agent
-or vendor identity alone never implies model capability. The release-gating
-corpus gives each exact model the same human-labelled Product, Implementation,
-and Execution Plan packets, rubric, tools, and deterministic settings for three
-runs. A run passes only when its verdict matches, every required finding is
-present, and no forbidden finding is present. Catalogue generation requires
-every fixture to pass in at least 2 of 3 runs, at least 90% of all runs to pass,
-and the candidate's passing-run count to equal or exceed the author's on every
-fixture the author passes at least 2 of 3 times. The release-maintainer-owned
-manifest declares that floor before candidate runs; changing the floor, corpus,
-rubric, or settings invalidates the evidence and reruns every compared model.
-Each generated entry retains the
-model, corpus/rubric/settings digests, evidence date, and results digest. Release
-verification fails if a shipped default cross-vendor pair has no supported
-comparison, preventing a default install from silently falling into reduced
-review.
-
-**5F5ZZA model-identity authority:** The author model comes from trusted host
-session metadata captured by the coordinator. The reviewer model comes only
-from the coordinator resolving and launching an exact non-alias selector whose
-adapter-specific launch proof confirms the same ID. Runtime defaults, aliases,
-missing confirmation, configured/launched/confirmed mismatch, and model names
-inside reviewer output are unverified and return
-`reviewer_capability_unknown`; reviewer output never upgrades coordinator-
-observed provenance. Safeword release maintainers own refreshing a retired or
-changed default and may not waive the release gate to mint an unsupported
-packaged comparison. A retired exact selector returns its typed route failure;
-an observed exact model absent from the active catalogue returns
-`reviewer_capability_unknown`. Runtime code never invents a comparison from dated
-provider evidence. Claude Code's trusted SessionStart model field can establish
-exact author identity. Current Codex, Cursor, and OpenCode lifecycle contracts
-cannot, so those hosts return `author_capability_unknown`: `prefer` may reach an
-authenticated `reduced` receipt immediately from a successful different-agent,
-separate-process review, while `require` retains the findings but blocks. Claude
-reviewers confirm the requested exact selector through canonical model data in
-their trusted JSON envelope. Codex reviewers use the coordinator-owned exact
-`--model` argv plus successful completion after a versioned selector-contract
-probe; its JSONL does not echo model identity. OpenCode remains unverified until
-live adapter proof establishes trusted provider/model metadata, and no packaged
-independent default depends on it. Existing runtime-default reviewer routes
-remain readable and attempted but earn cross-agent classification only when the
-adapter-specific proof resolves an exact qualified model. Upgrade never rewrites
-user route lists. Existing `off` configurations block at planning review until
-the user selects `prefer` or `require`; non-Claude `require` configurations block
-until the host exposes verified author identity. Safeword never weakens policy
-automatically.
-
-**#5139 continuation proposal — pre-launch qualification:** On the supported
-verified Claude-author path, explicit cross-agent Claude/Codex model selectors
-are checked against the sealed catalogue before dispatch. Unknown exact
-selectors, unqualified explicit aliases, and observed weaker selectors receive
-typed skipped failures without receiving the packet. Routes with no explicit
-model and the unverified OpenCode adapter retain launch-and-confirm behavior;
-they cannot earn independent approval without the existing post-launch checks.
-Universal pre-egress qualification is not claimed. This narrows compatibility
-only for those explicit selectors; recovery is to pin a qualified selector.
-
-A skipped candidate can establish exhaustion of that candidate, never an
-actual independent attempt. If every independent candidate is refused before
-launch, the job stays blocked. Main's fallback requirement remains: at least
-one actual independent attempt returned a typed failure and every stronger
-route is exhausted before a reduced tier may run. Route order, retained stronger
-findings, unknown-author reduced receipts, authenticated job persistence, and
-retry currency remain unchanged. Launching already-known refusals wastes
-egress; treating skips alone as attempts would invent independent review.
-Consumers are the coordinator and continuation admission reader. Reassess when
-trusted host identity or selector confirmation changes; rollback preserves job
-history and may not infer approval from unsupported fields. This is a proposed
-continuation constraint, not promotion of the entire historical record above.
-
-### Independent Review Never Blocks
-
-**Status:** Proposed
-**Date:** 2026-11-07
-
-<!-- prettier-ignore -->
-| Field | Value |
-| -------------- | ----- |
-| Context | A real-user trial showed every Claude-authored Execution Plan ending in `REVIEW_ROUTES_EXHAUSTED`: Codex had no Execution Plan admission, and fallback to the admitted Claude route required a failed independent attempt. The SessionStart author-model capture also never reached `safeword review run` (the env line lacked `export`; headless `claude -p` sends no model), so every Claude-authored planning review was downgraded, and Codex authors always were. |
-| Decision | Independence means a different agent reviewed. Safeword still tries a different agent first, but when none can review for any reason (absent, signed out, failed, unfunded by the run budget, or stopped after an unstoppable reviewer) it falls back to the same agent and records `reduced` independence; when no route completes, a planning review continues on the host. Reviewers are not ranked against the author's model. `require` is retired and read as `prefer`. |
-| Consequences | Planning reviews no longer block on independence; receipts still name the actual reviewer and achieved independence, and phase admission accepts `reduced`. Reviewers are not qualified: every review kind uses the latest Opus (`opus`) or Sol (`gpt-6.1-sol`) first and may retry on Sonnet or Terra. |
-| Supersedes | The fallback precondition above ("at least one actual independent attempt"), the 5F5ZZA capability-classification extension (author-model capability pairs, `reviewer_capability_unknown` / `reviewer_capability_weaker`, `AUTHOR_CAPABILITY_UNKNOWN`), `require` enforcement, the MR5M3A `crossModelReview` ceiling, and Execution Plan reviewer qualification (the 63-case conformance corpus and admission evidence). |
-| Alternatives | Fix the author-model `export` and keep strength ranking: rejected because strength ranking would exclude specialist reviewers and headless hosts still supply no model. Keep `require` as opt-in: rejected because it reintroduces blocking. |
-| Reassess when | A host can attest the author model, or reduced-independence reviews show materially worse defect detection. |
-| Implementation | Ticket `K8VPME`; `coordinator.ts` route loop and host continuation, `policy.ts`, `phase-admission.ts`, `delivery-admission.ts`, `review-ledger.ts`; `session-author-model.ts`, the Execution Plan conformance corpus and admission, and the reviewer capability harness removed. |
-
-### Frozen Transcript Fixture Testing
-
-**Status:** Accepted
-**Date:** 2026-03-15
-
-| Field          | Value                                                                                                                                                                                                      |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| What           | A checked-in JSONL fixture (`packages/cli/tests/fixtures/stop-hook-transcript.jsonl`) captures the real Claude Code v2.1.42 transcript wire format; CI runs the stop hook against it                       |
-| Why            | The stop hook parses transcript JSONL to detect edits. If Anthropic changes the format (field names, nesting, content block types), the hook silently exits 0 instead of blocking — this test catches that |
-| Trade-off      | Fixture must be manually updated when Claude Code's transcript format changes; no LLM API key required                                                                                                     |
-| Alternatives   | Real E2E with live API (rejected: non-deterministic, expensive), hand-crafted simplified fixtures only (rejected: doesn't catch real format drift)                                                         |
-| Implementation | `packages/cli/tests/integration/stop-hook-transcript-format.test.ts`; fixture includes thinking blocks, tool_use, tool_result, and real envelope fields (parentUuid, requestId, etc.)                      |
-
-### Product-Framing Layer in BDD Phase 0 (JTBD / Personas / Rules)
-
-**Status:** Accepted
-**Date:** 2026-05-31
-
-| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| What           | BDD intake writes one marked Product Plan for an epic or standalone feature: Product Bet → persona-anchored Jobs To Be Done and Rules → milestone Shape → Killer Demo. Child features store only stable parent references, their Contribution, and collision-safe Rules (`<parent-job>.<child-ticket-id>.R<n>`). A formatting-normalized digest covers only the selected parent job, milestone outcome/non-goals, project non-goals, and success threshold; phase boundaries require explicit reconciliation after those values change. Legacy unmarked specs remain readable and untouched. |
-| Why            | Engineering scope (`scope` / `out_of_scope` / `done_when`) captured _what_ to build but not _who_ for or _why_; product framing anchors scenarios to verifiable criteria and lets `safeword doctor` flag uncovered rules and orphan scenarios.                                                                                                                                                                                                                                                                                                                                               |
-| Trade-off      | Epic intake carries the durable product decision, while child intake stays small but cannot advance on stale or dangling parent references. Formatting-only edits do not create reconciliation work.                                                                                                                                                                                                                                                                                                                                                                                         |
-| Alternatives   | Keep engineering-only scope (rejected: no product framing); separate product skill with handoff (rejected: skill-to-skill handoffs unreliable — same reasoning as the BDD+TDD merge above).                                                                                                                                                                                                                                                                                                                                                                                                  |
-| Implementation | `spec-template.md`, `child-spec-template.md`, `ticket new --parent/--parent-job/--milestone`, `ticket reconcile-parent`, phase hooks, and `skills/bdd/DISCOVERY.md`. Demand research is a separate bounded skill used only for unresolved decision-critical Why now claims. Reassess when nested epics, partial child overrides, or tracker-native milestones become supported.                                                                                                                                                                                                              |
-
-### Canonical Persona Codes with Legacy Lineage Compatibility
-
-**Status:** Accepted
-**Date:** 2026-07-13 (updated 2026-07-14: explicit new codes may use 2–4 letters)
-
-| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                     |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| What           | Newly derived persona codes use deterministic 3–4 character identifiers across the CLI and installed JTBD hook; collisions receive a bounded numeric suffix. Explicitly authored new codes may use 2–4 characters, so natural acronyms such as `PO` remain available. Persisted 5–6 character codes and former derived aliases continue to resolve for compatibility.                                     |
-| Why            | Three-character automatic defaults avoid ambiguous initials without forbidding a builder from choosing an obvious two-letter acronym. Separating automatic and explicit bounds improves default readability while preserving user judgment and historical lineage.                                                                                                                                        |
-| Trade-off      | Explicit two-letter codes can collide or be less recognizable, so the author owns that choice. The resolver also carries a small legacy-alias path, and the CLI and standalone installed hook deliberately duplicate the pure derivation policy because deployed hooks cannot import the CLI distribution. Exhausting the four-character collision namespace requires an explicit 2–4 character override. |
-| Alternatives   | Auto-generate 2–4 characters (rejected: recreates ambiguous initials by default); enforce 3–4 characters for every explicit code (rejected: forbids natural acronyms and breaks history); accept 2–6 as equally recommended (rejected: weakens concise lineage guidance); bulk-rename historical Gherkin tags (rejected: destroys stable traceability).                                                   |
-| Implementation | `packages/cli/src/utils/personas.ts`, `packages/cli/templates/hooks/lib/jtbd.ts`, `packages/cli/templates/personas-template.md`, and BDD authoring templates. The repo's current persona catalog uses `TBU`, `NTB`, and `SWM`; existing historical `TB` and `SM` references resolve through compatibility aliases. Ticket FAJV19.                                                                         |
-
-### BDD as a Solo-Agent Adaptation of the Three-Practice Model (retire `decomposition` phase)
-
-**Status:** Accepted — planning-beat placement superseded by "plan-implementation: a gated planning phase" (2026-07-09, below); the solo-agent adaptation rationale stands
-**Date:** 2026-06-02
-
-| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| What           | safeword's `bdd` workflow is explicitly an adaptation of canonical BDD's three practices — Discovery → Formulation → Automation — for a **single agent + one human**, not a team: the agent plays all three "Three Amigos" roles. As part of aligning to that model, the `decomposition` phase is retired as a distinct beat — its only scenario-dependent job (per-scenario test-layer assignment + build order) folds into the `scenario-gate` exit, and its overlapping jobs (component identification, design-doc/ADR triggers) stay in `intake`, where they already happen.                                                                                                                                                 |
-| Why            | (1) Canonical BDD has no breakdown phase — decomposition is foreign to the model safeword is built on. (2) It is the only phase with no gate and no required artifact, so agents skip it and nothing notices. (3) ~75% of its work duplicates intake's architecture step (chain audit, epic EECVXB). Retiring it makes the pipeline match the canonical Discovery→Formulation→Automation shape: `intake` (Discovery) → `define-behavior`/`scenario-gate` (Formulation) → `implement`/`verify` (Automation).                                                                                                                                                                                                                      |
-| Trade-off      | safeword runs the BDD ritual **more consistently** than a human team (enforced ordering, durable traceable artifacts, an always-on adversarial pass) but **cannot replicate the Three Amigos' core value** — independent minds whose blind spots don't overlap. One model playing all three roles has correlated errors; self-adversarial review is weaker than independent review. The mitigations below reduce but do not eliminate this.                                                                                                                                                                                                                                                                                      |
-| Alternatives   | Delete the `decomposition` enum value + files outright (rejected: cross-cutting — touches the phase enum, hooks, the paired Cursor rule, `schema.ts`, the parity fixture, and tests — and a live ticket sits in the phase; staged to a follow-up). Keep `decomposition` as an optional advisory phase (rejected: preserves off-pattern dead weight).                                                                                                                                                                                                                                                                                                                                                                             |
-| Implementation | Reversible step (FSX1PP): `scenario-gate` exit (`SCENARIOS.md`) absorbs test-layer assignment + sequencing; `SKILL.md` + `lib/quality.ts` mark `decomposition` deprecated; `scenario-gate` advances straight to `implement`. Staged removal **completed (W9GPE7, 2026-06-02)**: dropped the enum value from `BddPhase`/`PHASE_EVIDENCE` and the hook phase-lists, deleted `DECOMPOSITION.md` + the Cursor rule `bdd-decomposition.mdc` (both copies), removed the `schema.ts`/parity-fixture refs and the skill/doc phase-table rows; ticket `153-boundary-resilience` reached `done`. Historical retirement-rationale prose citing this ADR is kept in `DISCOVERY.md`/`SCENARIOS.md`. Decision via `/figure-it-out` 2026-06-02. |
-
-### plan-implementation: a gated planning phase as the Automation on-ramp
-
-**Status:** Accepted — transition and six-section artifact portions superseded by “Separate Implementation and Execution Planning Gates” (2026-09-10, above); rationale, project-local authority, and content-hash history stand
-**Date:** 2026-07-09
-
-| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| What           | Insert a `plan-implementation` phase between `scenario-gate` and `implement` (issue #480, ticket TXRHMD). The phase owns `impl-plan.md` authoring (now six content-or-skip sections incl. Doc impact), the ADR lifecycle (significance-tested emission from `adr-template.md` into the `paths.architecture` location, supersede-never-edit, date-prefixed directory filenames), relevance-scoped skill surfacing, and the review-before-handoff exit with the default-off `designApprovalGate`. A pre-tool transition gate blocks `phase: implement` until the plan parses valid with status `planned`; scenario-gate becomes a pure behavior-quality gate.                                                                                                         |
-| Why            | The scenario-gate exit bundled two kinds of judgment (behavior quality + implementation design); planning items sat late in a five-step prose checklist where instruction-following measurably decays, resume state lied mid-planning, and one review stamp covered two judgments. Evidence: gated artifacts carry value where ungated prose is noise (Spec-Kit ablation, arXiv 2604.05278); plan-mode convergence across harnesses. This **supersedes the placement half** of the decomposition-retirement ADR above: its objections are each answered — this phase carries a hard-gated artifact (decomposition had none), architecture _design_ stays at intake (no duplication), and the phase is the Automation practice's on-ramp, not a fourth BDD practice. |
-| Trade-off      | One more phase for feature tickets (tasks/patches exempt; legacy features without spec.md grandfathered). In-flight tickets at scenario-gate pass through the new phase doing work they already owed; the one-step provenance denial self-explains the migration.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| Alternatives   | Gate-only hardening without a phase (rejected: resume/reminder/review-stamp state stays wrong — the checklist decay this fixes); relocating architecture-guide consumption into the phase per the issue text (rejected: recreates the intake duplication the retirement ADR correctly killed).                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| Implementation | `CANONICAL_PHASES`/`BddPhase`/`PHASE_EVIDENCE` enum insertion; `hooks/lib/plan-gate.ts` + pre-tool wiring; stop/boundary list memberships + planning code freeze; `parseImplPlan` optional-section support; `PLAN_IMPLEMENTATION.md` phase doc (trio + Cursor rule); `adr-template.md`; `designApprovalGate` config doc. Decision trail: ticket TXRHMD spec.md decisions 1-23 (four /figure-it-out passes, 2026-07-08).                                                                                                                                                                                                                                                                                                                                             |
-
-**The Three Amigos, played by one agent.** Canonical BDD's Discovery practice convenes three _perspectives_ — business/product, development, testing — to talk through concrete examples before code. safeword has no room of three; one agent wears all three hats:
-
-- **Product/business** — split with the human: the agent frames personas → JTBD → acceptance criteria in intake and uses `/elicit` to extract intent, but the user signs off at each propose-and-converge gate.
-- **Development** — the agent's own proposal; `/figure-it-out` for design calls; the architecture survey-and-reconcile step.
-- **Testing/QA** — the `scenario-gate`: AODI checks plus the adversarial "what breaks that none of these scenarios catch?" pass and the negative-case-coverage rule.
-
-**Where the simulation is weaker than a real room** (the deliberate, accepted divergences):
-
-1. **Correlated blind spots** — three different brains catch what each misses; one model re-reading its own work inherits its own misreads across all three hats. This is the irreducible gap.
-2. **The human reacts rather than contributes** — the burden of curiosity sits on the agent; an unasked question yields an unvolunteered rule. `/elicit` softens this.
-3. **No naive-question friction and no _held_ disagreement** — the agent resolves its own debate instantly; `/figure-it-out`'s steelman-both-sides is one mind arguing with itself.
-4. **Unknowns aren't tracked** — Example Mapping's red "question cards" give a readiness signal safeword lacks; ticket V6N5PW addresses this.
-
-safeword accepts this trade — **consistency and enforcement over independent blind-spot coverage** — because an autonomous agent cannot convene independent humans, and the mitigations (adversarial pass, `/elicit`, `/figure-it-out`, user sign-off gates) recover much of the value.
-
-### Architecture Review Gate (evidence + independent design review for features)
-
-**Status:** Accepted
-**Date:** 2026-06-12
-
-| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| What           | A default-off stop-hook gate (`checkArchitectureReviewGate`, ticket MR5M3A) that, for a new-flow feature leaving implement (verify/done), requires its `impl-plan.md` design to (a) carry cited evidence in the Decisions section — a URL or `[n]` marker, the `/figure-it-out` trace — and (b) hold an independent design-review stamp bound to the plan's current content hash. An opt-in `crossModelReview` posture additionally requires the review to run on a _different model_ than the author. Builds on #204's impl-plan artifact; reuses the Tier 2 review-ledger verbatim.                                                                                                                                                                                                                                                     |
-| Why            | Architecture was the last major workflow surface with no gate, no required artifact, and no independent review — the same blind spot that retired `decomposition`. It is the direct, concrete mitigation for the **correlated blind spots** gap named in the ADR above: a fresh-context reviewer (different model, under `crossModelReview`) is the one thing that recovers the "independent minds" value a single agent structurally lacks. Research backing: correlated-error limits of self-review; ADRs are governance only when tied to enforcement, not documentation.                                                                                                                                                                                                                                                              |
-| Trade-off      | Hooks enforce _presence_ (a citation exists, a stamp exists), not _quality_ — a same-model fork still shares the author's blind spots, and the stamp is honor-system at the hook boundary (Tier 1 floor). It raises the floor and makes the worst outcome (a confident, un-researched, unchallenged design) hard to ship silently; it does not guarantee excellence. Cross-model is the ceiling-raiser but is opt-in.                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| Alternatives   | Advisory-only auto-fire of `/figure-it-out` (rejected: unenforced records are documentation theater — the `decomposition` failure mode). A presence-only artifact gate without independent review (rejected: launders a bad design instead of challenging it). A voting panel of reviewers (rejected: the "popularity trap" — correlated models converge on shared wrong answers and underperform a single adversarial reviewer).                                                                                                                                                                                                                                                                                                                                                                                                         |
-| Implementation | Pure helpers in `lib/review-ledger.ts` (`isArchitectureReviewGateEnabled`, model tag on the stamp; the `crossModelReview` helpers were removed by K8VPME) and `lib/impl-plan.ts` (`hasCitation`, `sectionBody`); gate branch in `stop-quality.ts`, hoisted with the sibling artifact gates above the edit-activity early-exit so it enforces on phase/state. Default-off behind `architectureReviewGate`; tasks and grandfathered features exempt; every requirement carries an auditable `skip:`. Shipped #208 (2026-06-12). Decision and mid-build correction (reviewer cannot self-report its model → orchestrator-recorded; cross-model review is an explicit different-model subagent, not a `context: fork`) via `/figure-it-out` against the Claude Code docs. Follow-up `7A0B2K`: extend cross-model to the scenario-gate review. |
-
----
-
-### Host-owned cross-agent adversarial review coordinator
-
-**Status:** Accepted
-**Date:** 2026-08-02
-
-**Context:** Class-1 quality, scenario/phase, and implementation-plan reviews currently rely on host-native fresh contexts. That preserves same-vendor blind spots and lets each surface drift. Live bidirectional testing also showed that first-hit `PATH` lookup and trailing prompts are brittle, while nested sandboxes may hide a reviewer's desktop credential store.
-
-**Decision:** One host-owned `safeword review run` coordinator derives the author runtime, prefers the opposite Claude/Codex CLI, snapshots bounded inputs into a neutral workspace, uses explicit capability-checked executables with structured argv and stdin, validates structured output, and returns typed reviewer/failure/independence provenance. Desktop profiles are reused only where the host boundary can access them; cloud receives only reviewer-scoped managed credentials. Default policy is `prefer` after parity proof, with `require` and `off` as explicit configurations.
-
-**Consequences:** All class-1 skills share one observable execution and fallback contract. A same-agent fallback is labeled degraded and cannot satisfy required cross-agent evidence. Executable discovery, unsupported capabilities, compatibility-probe timeout, launch failure, runtime timeout, and invalid output remain distinct typed failures as they advance through bounded CLI routes. A configured-model rejection remains typed even when the reviewer succeeds or fails on its default model. Authentication is recoverable reviewer state: it returns a typed action-required handoff with the reviewer's exact login command before any same-agent fallback. Review packets label work-product targets separately from bounded supporting context while treating both as untrusted and integrity-checking both. Direct CLI use still returns typed `REVIEW_ROUTES_EXHAUSTED` loudly. Foreground agent workflows may then make one best-effort host-native fresh-context attempt and one main-thread self-review; both remain explicitly non-independent, read only accepted paths from the live worktree with source integrity not revalidated, never create a review stamp, and preserve a required-policy failure. Neutral packet containment, tool denial, vendor sandbox flags, and post-run hashes remain layered controls; no sandbox label is trusted alone.
-
-**Alternatives:** Host-native delegation only was rejected because it cannot choose the opposite vendor deterministically. Direct vendor SDK calls were rejected because they duplicate CLI-owned authentication/provider configuration. Shell commands and first-hit `PATH` lookup were rejected by the live spike. Trusting nested read-only mode alone was rejected because host sandbox behavior and credential access differ.
-
-**Reassess when:** A host offers a supported credential broker or external-review primitive; Claude/Codex materially change noninteractive or sandbox contracts; Cursor joins the pairing; or review packets regularly exceed bounded snapshot limits.
-
-**Implementation:** Tickets `QZAFT2` and `ZRV8D5`; `packages/cli/src/review/`, typed `review run` CLI wiring, optional agent provenance on review stamps, canonical class-1 and internal `finish-review` skill templates, the `safeword-reviewer` host agent, parity tests, and desktop/cloud simulation plus live smoke coverage.
-
-**Bounded large-lockfile review (2026-10-18).** Oversized existing `bun.lock`
-quality-review targets keep their original logical path and carry a complete Git
-patch with explicit baseline and full-source identity. The serialized view must
-fit the existing 256 KiB file and 1 MiB packet budgets; source and baseline each
-have a separate 8 MiB capture bound. Generated exclusions retain priority.
-Full source, baseline and patch receive the usual credential and UTF-8 checks.
-The first available remote default reference, then local main/master, supplies
-the merge-base; an unusable selected reference fails closed. Checkout refs and
-the host Git executable remain trusted inputs.
-
-Private, isolated Git operations produce the patch and must reconstruct the
-exact captured bytes and executable mode from the displayed patch before review.
-Temporary full-byte files are removed after capture. Signed job identity binds
-representation metadata under a separate fingerprint domain; later source,
-snapshot or resolved-baseline drift invalidates approval. Legacy full-text
-fingerprints remain unchanged. The reviewer sees the representation explicitly
-and requests more context when needed. Packet capture owns projection and
-freshness; the job layer owns signed identity, without a new persistence store.
-
-This deliberately departs from whole-file capture at one narrow input boundary:
-the whole-file cap otherwise makes routine release changes unreviewable.
-Increasing global limits would spend review input on unchanged dependency graphs;
-generated annotations would hide meaningful resolution changes. Complete bounded
-patches preserve review coverage at the cost of a Git baseline and reconstruction
-step. New, deleted, renamed or unchanged oversized locks remain unsupported.
-Ticket `319VCW` records the regression and adversarial boundary proofs.
-
-**Superseded in part by the 2026-09-20 planning fallback decision.** Its
-same-agent `degraded` label, prohibition on fresh-context/self-review stamps,
-and live-worktree/no-revalidated-integrity clause do not govern planning
-fallback. Every planning tier receives the immutable coordinator packet, and
-an admitted fallback records `reduced` independence. The original route
-preference, typed failures, authentication, containment, and actual-provenance
-decisions remain in force.
-
-**OpenCode extension (2026-09-01, superseded in part 2026-09-02).** The coordinator's
-default remains the three-runtime route plan: Claude-authored work prefers Codex, Codex-authored
-work prefers Claude, and either may use OpenCode as the next independent route
-before same-author degraded review. OpenCode-authored work prefers Claude and
-then Codex; its own fallback remains explicitly non-independent. The OpenCode
-adapter uses the trusted executable boundary, stdin prompt, completed JSON text
-events, `--pure`, deny-all permissions, shared deadlines, closed provenance,
-and post-run integrity checks.
-
-**Ranked local routes (2026-09-02).** `crossAgentReviewRoutes[author]` can replace
-that default with one exact ordered list of reviewer and optional model pairs.
-The coordinator resolves each author independently: a project entry in
-`.safeword/config.json` replaces the user entry in the Safeword profile config,
-which replaces the built-in route plan. Lists are indivisible and never merged.
-Effective reads validate both scopes, while set/reset operations read and write
-only their selected scope so damage in one file cannot block repair of the other.
-The coordinator derives independence from reviewer versus author identity,
-never from position, and cached status observations are descriptive only.
-Runtime-wide failures skip later models on that runtime; attempt-specific
-failures leave them eligible. Exact runtime/model (or explicit runtime-default)
-identity binds durable proof. Reassess this design when a fourth concrete
-review runtime is requested or OpenCode changes this stable-1.x contract.
-
-**Executable RED attestation extension (2026-09-06).** The `executable-red` kind extends the same
-durable job and review routes. Its integrity-sealed request contains exact JSON argv, a
-project-contained cwd, evidence class, literal failure matcher, timeout, and declared proof inputs.
-The trusted worker executes once without a shell, hashes complete stdout/stderr while retaining
-bounded excerpts, and gives every reviewer route the same attestation. Reviewers may approve only
-an intended missing-behavior failure at the actor boundary; syntax, import, fixture, configuration,
-infrastructure, unrelated assertions, timeouts, signals, pasted output, and stale inputs remain
-unapproved. Scenario and project-relative ledger identity are part of the request. Identical fresh
-approved proof identities can reuse one receipt. The public receipt gate recomputes the current
-declared-input fingerprint and accepts only an integrity-valid cross-agent approval for that exact
-scenario and ledger; the shared pre-tool hook invokes it at the
-actual `[ ] GREEN` to `[x] GREEN` ledger transition for Claude Code, Codex, OpenCode, and Cursor.
-Direct CLI integrations call the same gate. Missing, stale, incomplete, mismatched, fabricated, or
-non-independent evidence therefore cannot earn GREEN credit.
-Proof commands run as trusted same-user project processes, not inside an OS security sandbox. The
-worker removes internal review variables from their environment, terminates remaining descendants,
-and invalidates preemptively completed jobs; hostile-code isolation would be a separate design.
-
-### Profile-Scoped Generated Codex Plugin and Staged Hook Migration
-
-**Status:** Accepted
-**Date:** 2026-07-16
-**Supersedes:** none
-**Superseded in part by:** [Next-Task Codex Plugin Activation and Migration Result v2](#next-task-codex-plugin-activation-and-migration-result-v2) (lifecycle wording, pending-marker name, and schema-1 migration-state result)
-
-| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Context        | Codex needs the full Safeword workflow without copying workflow files into each repository. Plugin installation and enablement do not prove its hooks executed, so migration cannot safely remove working legacy protection. Shared repository cleanup also needs to survive interruption without overwriting teammate changes.                                                                                                                                                                                                                                             |
-| Decision       | Generate and distribute the Codex plugin from canonical templates. Migrate with Expand → Prove → Contract: install profile-first; record profile-local SessionStart proof bound to package version and the exact hook-manifest digest; let each viable legacy event remain authoritative while the plugin covers gaps; and finalize only with current proof plus explicit confirmation. Finalization uses a contained, fingerprinted transaction backup and conflict-safe recovery. Historical ownership and viability identities live in `SAFEWORD_SCHEMA.codexMigration`. |
-| Consequences   | Generic setup and upgrade preserve recognized legacy assets. `safeword codex status` derives human and schema-1 JSON output from one typed state model. Finalization removes only schema-owned assets, preserves custom content, records plugin mode, and leaves a setup-only bootstrap. Interrupted work reports `recovery_required`; recovery refuses to overwrite intervening edits. Profile proof is operational evidence for the active profile, not a claim that every teammate migrated.                                                                             |
-| Alternatives   | Manually maintain plugin skills: rejected because the existing thin catalogue drifted. Generate at customer runtime: rejected because it adds a customer-time failure mode and cannot prove the installed cache. Delete hooks on plugin enablement: rejected because enabled does not mean trusted.                                                                                                                                                                                                                                                                         |
-| Reassess when  | Codex adds a public trust-status or approval API, changes plugin/cache or hook schemas, introduces project-scoped plugins, or the canonical workflow adopts metadata/reference syntax outside the generator allowlist.                                                                                                                                                                                                                                                                                                                                                      |
-| Implementation | Tickets MZH9QH and AJVXWV (#1572): `packages/cli/src/codex-plugin/`, schema-owned migration inventory, generated `packages/cli/codex-plugin/skills/`, proof/restart markers, event-level dispatch authority, typed status, transactional finalization/recovery, tarball/cache proof, and documented interactive hook acceptance.                                                                                                                                                                                                                                            |
-
-### Explicit Project Enrollment for Profile-Scoped Codex Hooks
-
-**Status:** Accepted
-**Date:** 2026-07-27
-**Supersedes:** implicit hook-time namespace creation
-
-| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Context        | The Codex plugin is profile-scoped, so its lifecycle hooks can run in repositories that never installed Safeword. The quality-state observer previously treated any committed repository as enrolled and created a partial `.project/` namespace after ordinary tool use.                                                                                                                                                                  |
-| Decision       | `.safeword/enrolled`, created by explicit `safeword install`, is the project-enrollment marker (older installs are still recognized by their `.safeword/SAFEWORD.md` handbook copy, which plugin-only upgrades retire). Before that marker exists, Codex project gates fail open and project-scoped PreToolUse, PostToolUse, and Stop handlers do not run or write state; SessionStart may still supply package-owned plugin instructions. |
-| Consequences   | Installing the profile plugin never implicitly enrolls a repository. After enrollment, a workflow may create missing framework-owned transient state and its exact ignore rule at first use without running install or inventing authored knowledge. Ignore creation succeeds before state creation. Default, legacy, and configured custom namespace roots retain identical behavior.                                                     |
-| Alternatives   | Lazy full bootstrap was rejected because a global plugin should not mutate unrelated repositories. User-cache state before enrollment was rejected because project gates lack the project artifacts they govern and repository fingerprinting would add lifecycle complexity without useful enforcement.                                                                                                                                   |
-| Reassess when  | Codex introduces project-scoped plugin activation, or Safeword adds a standalone profile workflow whose pre-enrollment state has value independent of project setup.                                                                                                                                                                                                                                                                       |
-| Implementation | Ticket F7BH4J: `hasSafewordProjectMarker` in CLI and standalone hook path helpers; packaged Codex dispatcher guards; Codex proof-cache guard; integration coverage for unconfigured, default, legacy, and custom-root repositories.                                                                                                                                                                                                        |
-
-### Typed CLI Execution and Discovery
-
-**Status:** Accepted
-**Date:** 2026-07-28
-**Supersedes:** command-specific output and implicit command discovery
-**Superseded in part by:** [Next-Task Codex Plugin Activation and Migration Result v2](#next-task-codex-plugin-activation-and-migration-result-v2) (Codex domain migration result only; the public CLI result envelope remains v1)
-
-| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Context        | Safeword commands historically mixed observation, mutation, prompting, output, and process termination. Humans could infer intent from prose, but agents could not reliably discover effects, distinguish drift from failure, or bind destructive consent to an exact preview.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| Decision       | Public commands follow Observe → Plan → Confirm → Apply → Verify → Report. Domain handlers return schema-version-1 `Plan` and `Result` values; the executable adapter alone renders output and maps `healthy`/`changed`/`action_required`/`failed` to exit 0/0/2/1. A declarative command catalog owns canonical leaves, aliases, internal routes, compatibility rewrites, effect/prompt/network policy, schema versions, and deterministic invocation fixtures. One side-effect-free `createCliProgram()` factory assembles the production Commander tree; a focused contract gate recursively reconciles that real tree with the catalog and its generated surfaces. `Result.effects` records completed effects; proposed effects live in `Plan.effects`. Destructive confirmation binds a plan identity to its precondition digest. |
-| Consequences   | Bare `safeword` is read-only status. Every public leaf supports `--json --no-input`; JSON is one snake-case envelope validated against the published v1 JSON Schema, while human output leads with one verdict and at most one next action. `--offline` refuses declared network work, read-only commands cannot report applied effects, and partial failures retain completed effects plus stable recovery. Legacy names remain hidden deprecated aliases, retained indefinitely. Hook helpers remain hidden and keep their latency-oriented direct adapters under stricter no-network/no-lifecycle policy.                                                                                                                                                                                                                           |
-| Alternatives   | Capture legacy console output (rejected: prose cannot preserve semantic effect integrity); derive capabilities from Commander (rejected: it lacks effect, consent, compatibility, and fixture metadata); require `--yes` without a plan identity (rejected: consent could apply to changed effects); remove old commands immediately (rejected: breaks scripts and installed integrations).                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| Reassess when  | A second JSON schema is needed, Commander cannot preserve global-option placement or `--` semantics, or a host exposes a native typed command/effect protocol that can replace Safeword’s adapter.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| Implementation | Issue #1574 / ticket K53GQ9 established `packages/cli/src/cli-protocol/`, the schema, catalog, and executable fixtures. Issue #2283 / ticket 6N6M40 adds `cli-protocol/program.ts`, runtime reconciliation, deterministic command-reference generation, terminology checks, `check:cli-contract`, and the dedicated required CI context.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-
-Every public invocation, including compatibility aliases and interactive
-commands, executes through its catalog handler and returns the shared typed
-result to the renderer. Aliases add a machine-readable deprecation finding to
-that same result. Command-specific output schemas and direct console/process
-exit paths are not compatibility boundaries; callers migrate through the
-versioned result envelope and published aliases instead.
-
-Commands that intentionally emit a shell or code artifact still return a typed
-Result. They place the artifact in the Result's raw-presentation field, and the
-shared renderer emits it for human mode while JSON mode keeps the common
-schema-1 envelope. Raw presentation is an output form, not a second command
-protocol.
-
-The typed Codex protocol adapters are observation-only unless their catalog
-entry explicitly declares mutation. Project SessionStart automation is a
-separate, fail-open lifecycle feature across Claude, Cursor, and Codex: it may
-wire the committed Git guard, bootstrap missing dependencies, and apply
-compatible Safeword upgrades. Codex uses a host-neutral dependency adapter in
-its managed project bootstrap; startup remains advisory, while the repo-owned
-composed CLI script can require readiness. `safeword install` is the explicit
-convergence path.
-
-### Next-Task Codex Plugin Activation and Migration Result v2
-
-**Status:** Superseded by [Restart-Bound Codex Plugin Activation](#restart-bound-codex-plugin-activation)
-**Date:** 2026-08-01
-**Supersedes in part:** [Profile-Scoped Generated Codex Plugin and Staged Hook Migration](#profile-scoped-generated-codex-plugin-and-staged-hook-migration) and [Typed CLI Execution and Discovery](#typed-cli-execution-and-discovery)
-
-| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Context        | Codex can install a refreshed plugin while the app is running, but an existing task keeps the bundle it already loaded. The former `restart-pending-v1.json` name and `plugin_installed_restart_required` state incorrectly prescribed an application reboot. Reusing schema version 1 for renamed lifecycle semantics would silently break machine consumers.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| Decision       | Before installing the released plugin, inspect configured marketplaces through `codex plugin marketplace list --json`; refresh an existing Git-backed `safeword` marketplace only when its source identity is the official `ArcadeAI/safeword` repository, fail closed on a mismatched Git source, and retain the supported add path for fresh, local, or older-source metadata. Installation fails closed if marketplace discovery or refresh fails. Write `activation-pending-v1.json`, bound to exact plugin version and hook-manifest digest. The current task remains immutable; a later task's matching SessionStart proof retires the marker. Read the v0.70 restart marker only as an exact-identity compatibility input; once a canonical marker is durably written, it supersedes and removes any older legacy marker. Emit `CodexMigrationResultV2` with `schema_version: 2` and `plugin_installed_new_session_required`; expose it under the public schema-v1 envelope's versioned `data.migration` object while retaining the former `data.migration_state` value for compatibility. |
-| Consequences   | Users can deploy a plugin update without restarting Codex, but must start a new task to use it and review changed hooks. Human output names the current-task/new-task boundary explicitly. Malformed, stale, version-mismatched, and digest-mismatched markers create neither pending activation nor proof. Schema-1 domain migration-result consumers must move consciously to v2; public `safeword ... --json` envelope consumers are unaffected.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| Alternatives   | Hot-reload or rewrite the running task: rejected because Codex exposes no supported task reload boundary. Use a stable `safeword@latest` hook dispatcher: rejected because reviewed hook behavior could change without renewed trust. Keep the old state and change prose only: rejected because machine and human contracts would disagree. Rename the enum under schema 1: rejected because it is a breaking in-place mutation. Mutate Codex's cache directly: rejected because supported marketplace commands own that state.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| Reassess when  | Codex exposes a documented trust-preserving plugin hot-reload API, a task/plugin identity API, or materially changes marketplace list/upgrade JSON.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| Implementation | Ticket `4S2S8V-codex-plugin-next-task-upgrades`; `packages/cli/src/commands/migrate-codex-plugin.ts`, `packages/cli/src/codex-plugin/profile-proof.ts`, `packages/cli/src/codex-plugin/migration.ts`, command/filesystem integration tests, tagged Cucumber scenarios, and a release-time live host runbook.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-
-### Generated Native Claude Plugin with Live Proof and Project Contraction
-
-**Status:** Superseded by [Project-Default Claude Plugin Declarations and Project-Bound Proof](#project-default-claude-plugin-declarations-and-project-bound-proof)
-**Date:** 2026-08-02
-**Supersedes:** none
-
-| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Context        | Claude Code can install a marketplace plugin into a user profile and apply plugin changes in the current task with `/reload-plugins`, but installation and listing do not prove the selected cache bundle executed. Existing projects already contain working Safeword-owned Claude hooks and workflows, while fresh projects should avoid materializing that framework tree. Cleanup must not overwrite custom project content or mutate Claude's marketplace, trust, reload, or enablement state.                                                                                                                                                                                                                                                                                                                                                                                       |
-| Decision       | Generate the complete root `plugin/` tree from canonical CLI templates and distribute it through the official release-tagged marketplace. Install converges the user-scoped profile through supported Claude commands. SessionStart or the first UserPromptSubmit after reload records proof under `${CLAUDE_PLUGIN_DATA}`, bound to exact version, hook-manifest digest, and canonical `${CLAUDE_PLUGIN_ROOT}`. Existing projects retain viable legacy authority per event until current proof and an explicitly confirmed project-only cleanup. Cleanup uses a host-neutral contained, fingerprinted, durable transaction shared with Codex behind host-specific inventory and marker adapters. Reconciliation computes one of `fresh-native`, `legacy`, or `plugin-mode` before planning files, so setup preserves existing protection and never recreates retired Claude-only assets. |
-| Consequences   | Native skills use Claude's `safeword:` namespace and the installed cache is the framework runtime boundary. Status joins profile health, execution proof, legacy inventory, and recovery state under an explicit precedence order. `/reload-plugins` can activate a new bundle without restarting the task; the next prompt proves it. Public Claude profile commands may leave reported partial effects on failure because supported add/remove operations do not restore byte-identical private files; Safeword never rewrites those files directly. Project cleanup preserves unknown content and refuses stale plans, concurrent edits, symlinks, and path escape.                                                                                                                                                                                                                    |
-| Alternatives   | Keep project-local delivery: rejected because every upgrade churns framework-owned repository files. Treat enabled/listed as proof: rejected because configuration is not execution. Delete legacy assets during setup or install: rejected because it creates a protection gap and crosses profile/project scopes. Copy Codex migration wholesale: rejected because Claude has different cache, reload, trust, namespace, and settings semantics. Restore private Claude profile files after failure: rejected because those formats are undocumented and a restore could overwrite concurrent user changes.                                                                                                                                                                                                                                                                             |
-| Reassess when  | Claude exposes a supported non-interactive reload/trust API, changes SessionStart/UserPromptSubmit ordering or plugin environment variables, makes marketplace operations transactional, changes tagged-source or cache semantics, or Cursor gains a native boundary that removes the shared materialized runtime constraint.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| Implementation | Ticket `0S31PG` / issue #1785; planned modules under `packages/cli/src/claude-plugin/`, shared migration transaction extraction, schema delivery modes, generated root plugin catalogue, typed `safeword claude` commands, release-tag cache smoke, and migration/status/setup integration coverage.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-
-### Project-Default Claude Plugin Declarations and Project-Bound Proof
-
-**Status:** Accepted
-**Date:** 2026-08-02
-**Supersedes:** [Generated Native Claude Plugin with Live Proof and Project Contraction](#generated-native-claude-plugin-with-live-proof-and-project-contraction)
-**Superseded in part:** The prohibition on project-local transient proof and its
-retired ignore/untrack carve-out are narrowly superseded by the local delivery
-extension to [Deterministic Readiness Evidence Status](#deterministic-readiness-evidence-status).
-
-**Context:** Claude supports project- and user-scoped marketplace/plugin declarations while keeping installed plugin payloads in a shared profile cache. A user-only default activates Safeword in unrelated repositories and cannot express a team's dependency in committed project configuration. Live Claude 2.1.170 evidence shows the same plugin may have simultaneous user and project entries sharing one `installPath`; project entries include `projectPath`, and entries for other repositories remain visible in profile-wide listing. One global execution proof therefore cannot establish that the plugin ran for the repository authorizing legacy cleanup.
-
-**Decision:** `safeword claude install` defaults to project scope and accepts explicit `--scope project|user`; local scope is unsupported. The selected scope's documented settings declaration is independent authority, while marketplace listing and payload verification describe shared Claude-managed checkout/cache health. Safeword observes all plugin entries, resolves project applicability by comparing the real paths of `projectPath` and the current project root, mutates only through supported Claude commands, preserves the other scope, and reports simultaneous applicable entries as `scope-overlap` without automatic removal. SessionStart or UserPromptSubmit writes one durable schema-v2 proof per canonical project beneath `${CLAUDE_PLUGIN_DATA}/execution-proofs-v2/`, keyed by SHA-256 of that project root and bound to exact version, manifest digest, plugin root, event, and session. Only one exact applicable declaration with matching current-project proof can authorize confirmed project-only legacy cleanup; global v1 proof remains diagnostic and non-authorizing. All other per-project migration state — the plugin-mode marker, the attention record, the bounded launch claims, and the durable cleanup transaction — lives beside that proof at `${CLAUDE_PLUGIN_DATA}/project-state-v1/<sha256(canonical project root)>/`, not in the customer's working tree. Every location, proof included, is derived from one resolution of `${CLAUDE_PLUGIN_DATA}` (falling back to the documented `<config>/plugins/data/<sanitized-plugin-id>` when no hook exported it) rather than from a path literal, so a reader cannot address a directory the writer never wrote to. State an earlier release left in the working tree is adopted on first access: published by rename, receipted before any step that can still fail, and removed from every location it can occupy so a survivor can never take a retired entry's place.
-
-**Consequences:** Teams can commit small Claude marketplace and enablement declarations without vendoring Safeword's framework payload, while developers retain a profile-wide opt-in. Project and user declarations can coexist, but status requires an explicit choice because shared cache execution cannot prove which declaration supplied authority. Another repository's project entry never applies to the current project. Scoped install, upgrade, status, and uninstall preservation require a real-host acceptance gate because same-name overlap is observed behavior rather than an explicit Claude guarantee. Cleanup fails closed on missing or unresolvable project identity, malformed/stale proof, proof for another project, or overlap, and never mutates Claude settings, marketplace, cache, or the surviving scope directly. Safeword's own per-session state stops churning customer repositories — `attempts-v1/` alone grew one file per Claude session — and Claude removes it on plugin uninstall. The gitignore block, the untrack-on-upgrade migration, and the transient-path carve-out that existed only to contain that churn are no longer load-bearing for it.
-
-**Alternatives:** Keep user scope as the default: rejected because it leaks activation across repositories and cannot declare team policy. Use separate project/user commands: rejected because duplicated lifecycle paths would drift. Treat shared cache state as the selected declaration: rejected because one scope could incorrectly satisfy or overwrite the other. Prefer project silently during overlap or auto-remove user scope: rejected because ambiguity would be hidden and other repositories could lose protection. Store a profile-global or mutable project map proof: rejected because it cannot safely isolate concurrent projects. Vendor the plugin into the repository: rejected because it recreates framework-owned upgrade churn.
-
-**Reassess when:** Claude exposes a documented effective-scope API, guarantees or forbids same-name cross-scope declarations, makes marketplace checkout/cache scope-specific, changes `plugin list --json` scope or `projectPath`, moves project declarations away from `.claude/settings.json`, provides trustworthy project identity directly to plugins, or Safeword deliberately adds local scope or an authorized cross-scope migration command.
-
-**Implementation:** Ticket `H87DZR`; `packages/cli/src/claude-plugin/` scoped observer/reconciler and status, `packages/cli/src/cli-protocol/` scope option, generated runtime project proof, Cucumber/Vitest coverage, isolated real-Claude four-direction upgrade/removal acceptance, customer documentation, and the manual release-candidate runbook. Issues #3787 and #3788; `packages/cli/src/claude-plugin/plugin-data.ts` single-derivation resolver, `migration-state.ts` adoption with staged publish and adoption receipts, `status.ts` proof reader.
-
-### Proof-Gated Automatic Claude Legacy Contraction
-
-**Status:** Accepted
-**Date:** 2026-08-05
-**Supersedes in part:** [Project-Default Claude Plugin Declarations and Project-Bound Proof](#project-default-claude-plugin-declarations-and-project-bound-proof)
-
-| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Context        | The native Claude plugin can prove that its exact generated bundle successfully handled a prompt for one canonical repository. Requiring a separate human cleanup after that proof leaves clean 0.68–0.72 framework assets in repositories, creates recurring support work, and causes historical bytes to be mistaken for user modifications. Concurrent hook processes and interrupted filesystem changes mean automatic cleanup must be recoverable rather than merely careful. Identical user- and project-scoped declarations can refer to the same Claude-managed payload, while incompatible declarations remain ambiguous.                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| Decision       | After every successful `UserPromptSubmit` sibling, the generated dispatcher writes exact project-bound execution proof and calls one shared, deadline-aware migration function in-process; the explicit CLI repair path calls the same function. A committed, release-checked catalogue of path-specific historical bytes and exact structural settings-hook fingerprints is the sole deletion authority. The function removes every recognized legacy item, preserves and reports every unknown item, and records forward changes in an exclusively created durable transaction. Recovery accepts each recorded target in either its before or after state and refuses any third state. Clean completion writes the plugin-mode marker before retiring the transaction. Migration failure, deadline, conflict, or contention never blocks the prompt. Project enrollment declarations always survive. Identical applicable project/user entries resolve to one effective project installation; incompatible entries retain the `scope-overlap` error and do not authorize contraction. |
-| Consequences   | Clean pre-plugin projects contract on the first successful plugin prompt without cleanup ceremony. Modified and third-party content survives, with one understandable advisory when attention remains. A crash may defer completion to the next prompt but cannot justify guessing ownership or overwriting concurrent edits. A new trusted teammate is still enrolled through Claude's supported project declaration and install prompt. Historical release fixtures, settings fingerprints, hidden entrypoint reachability, and generated bundle dependencies become release-contract inputs.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| Alternatives   | Keep explicit confirmation: rejected because exact current execution proof plus byte ownership and a recoverable transaction already supply the meaningful safety boundaries. Delete only when every item is recognized: rejected because one custom file would retain all obsolete framework churn. Run migration during setup only: rejected because it misses repositories opened directly after upgrading the plugin. Duplicate logic in the dispatcher: rejected because cleanup and status classification would drift. Treat every cross-scope overlap as an error: rejected for identical identity/payload because it produces duplicate-work support failures without protecting additional state.                                                                                                                                                                                                                                                                                                                                                                              |
-| Reassess when  | Claude documents or changes effective-scope resolution, project trust and teammate installation, hook deadlines, reload behavior, or plugin cache isolation; a cancellable asynchronous host API exists; the supported historical floor moves; or the filesystem transaction assumptions no longer hold.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| Implementation | Ticket `GZZEY7`; historical ownership catalogue and generator, shared legacy classifier, forward-idempotent transaction/recovery, in-process generated migration function, explicit repair adapter, dispatcher integration, scope/status reconciliation, real 0.68/0.69/0.72 fixtures, and disposable real-host acceptance.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-
-### Restart-Bound Codex Plugin Activation
-
-**Status:** Accepted
-**Date:** 2026-08-02
-**Supersedes:** [Next-Task Codex Plugin Activation and Migration Result v2](#next-task-codex-plugin-activation-and-migration-result-v2)
-
-| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Context        | Live rc.1 verification disproved the assumption that a new Codex task reloads an externally upgraded plugin. The long-lived Desktop app-server reused a cached rc.0 skill catalogue while rc.1 hooks executed, creating a split-brain plugin. Matching version-and-manifest hook timestamps also predated installation, so hook proof alone could not establish coherent activation.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Decision       | External installation writes `activation-pending-v2.json` with exact plugin identity, a unique activation ID, installation time, and every Codex app-server process identity active during installation. It removes pre-install event proof that could authorize cleanup, while retaining bounded task-bound SessionStart history as advisory evidence only. SessionStart may retire the marker only when it runs after installation under a different app-server PID and start time; successful retirement writes an activation receipt. Before that transition, status uses `plugin_installed_app_restart_required` and tells the user to fully restart Codex. If status observes the transition but the marker remains because no current lifecycle hook proof arrived, it uses `plugin_installed_hook_activation_failed` and directs the user to a Codex surface that dispatches lifecycle hooks instead of repeating the restart. POSIX `ps` and Windows PowerShell process tables are parsed without shell interpolation; unavailable or ambiguous host identity fails closed. |
-| Consequences   | A new task in the same app cannot turn status green. Restarting Codex automatically converges proof when the host dispatches SessionStart; a completed restart without that dispatch remains explicitly unprotected rather than entering an endless restart loop. Bootstrap distinguishes exact-current protection, an observed prior runtime, and wholly unverified protection; prior-runtime history never proves the installed update or authorizes cleanup. Advisory SessionStart history persists in the user's Codex profile and is bounded to the newest 256 task records per project and 64 projects. Hook proof remains evidence for hook execution, while the host transition proves only that the install-time process was replaced. The deprecated public `data.migration_state` compatibility value remains unchanged; canonical consumers use `data.migration.state`.                                                                                                                                                                                                  |
-| Alternatives   | Continue promising next-task activation: rejected by live evidence. Treat post-install hook timestamps as whole-plugin proof: rejected because hooks and skills can resolve from different snapshots. Require a permanent manual confirmation flag: rejected because a verifiable host transition can converge automatically. Ask the running Desktop host to refresh after an external CLI install: rejected because the parent-owned app-server transport gives an unrelated Safeword process no supported way to address that host and request its existing runtime refresh.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| Reassess when  | Codex exposes a supported external-installer-to-running-host refresh boundary, provides a stable app-instance identity to hooks, or guarantees that creating a task reconstructs the plugin manager.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Implementation | Ticket `4S2S8V`; `packages/cli/src/codex-plugin/host-process.ts`, `profile-proof.ts`, migration status and CLI handlers, process/proof/migration tests, revised Cucumber lifecycle scenarios, customer documentation, and the dogfood removal of retired project-local Codex hooks.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-
-### Advisory PR Review as a Split-Privilege Evidence Pipeline
-
-**Status:** Accepted — the no-approval/check/merge-capability constraint is narrowed to model-derived publication by [Deterministic Readiness Evidence Status](#deterministic-readiness-evidence-status) (2026-09-07, below); the split-privilege rationale stands
-**Date:** 2026-08-04
-**Supersedes:** none
-
-| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Context        | Automatic review must inspect attacker-controlled pull-request content, optionally call a model, and publish useful findings without executing fork code under authority or acquiring an approval/check/merge capability. Draft PR #1917 proved useful trigger, parser, and poster seams but combined model inspection with a write-capable parent job, used a check-run receipt, and could inspect before all required checks settled.                                                                                                                                                                                                                                                                                                                                                                                                  |
-| Decision       | Deliver the pipeline in three additive phases. The MVP is one serialized, schema-managed `pull_request_target` workflow with job-scoped privilege separation: a metadata-only invalidator may update the ordinary-comment receipt; a no-checkout inspection job reads pull-request artifacts as data and calls the configured model without GitHub write permission; and a no-checkout/no-model-secret publisher receives only a strict bounded advisory result. Every new SHA gets a full fresh review. Later children may add exact-SHA inline comments, proven inert/immaterial reuse, finding lifecycle, and finally isolated same-repository execution. The initial provider-neutral adapter ships an explicit OpenAI Responses implementation with strict structured output; provider/model selection is configured, not inferred. |
-| Consequences   | The MVP has no customer-code execution, no positive remedy-verification state, no materiality classifier, and no merge-affecting publication surface. Unknown or unreadable artifacts fail conservative; incomplete/failed/stale states cannot become positive. GitHub remains the durable receipt store, so no database is added. Workflow and endpoint contract tests become security gates. Setup adds the uniquely named workflow through schema reconciliation and remains default-off. The first complete live workflow proof requires the file on a repository's default branch or a disposable fixture.                                                                                                                                                                                                                          |
-| Alternatives   | Reuse #1917 unchanged: rejected because a check receipt can affect merge policy and model/publisher authority is not separated by job. Use `workflow_run` after one bundle workflow: rejected because one workflow completion does not mean all repository prerequisites settled and GitHub provides no wildcard workflow list. Use `check_suite` as the universal wakeup: rejected because GitHub suppresses these events for Actions-created suites. Use a single privileged process with a scrubbed child environment: rejected because process hygiene is weaker than job-scoped capability absence. Use an external queue/database: rejected as unnecessary for the first serialized release.                                                                                                                                       |
-| Reassess when  | GitHub changes privileged-event, job-permission, required-check, concurrency, artifact, or comment semantics; a second provider ships; PR scale exceeds the bounded evidence budget; or distributed workers require a transactional claim store.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| Implementation | Epic `P0D6S2` / issue #1909, phased into MVP `HXT3GW`, freshness/noise child `Z7M7Y3`, controlled-execution child `436EQW`, and release-hardening child `YC6JCC`. The MVP implements `packages/cli/src/pr-review/`, typed `review-pr inspect\|invalidate\|publish` commands, a default-off schema-managed router/reusable-worker pair, deterministic contract/wiring tests, and guarded `.flux` and disposable-GitHub evaluations.                                                                                                                                                                                                                                                                                                                                                                                                       |
-
-### Deterministic Readiness Evidence Status
-
-**Status:** Accepted
-**Date:** 2026-09-07
-**Supersedes:** the no-approval/check/merge-capability clause of [Advisory PR Review as a Split-Privilege Evidence Pipeline](#advisory-pr-review-as-a-split-privilege-evidence-pipeline)
-
-| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Context        | The seven pr-readiness gates were guidance with no observer. Four are author attestations no machine can falsify, and two are already owned elsewhere — CI by the repository's own checks, AI review by the existing receipt comment. What remained unobserved was the skill's own stated invariant: evidence is pinned to a head SHA and must never be carried forward once the head moves. Publishing that observation requires a commit status, and the prior ADR recorded the pipeline as acquiring no approval/check/merge capability — a constraint written against a _model-derived_ receipt gating merges, which is not what a deterministic freshness check is.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| Decision       | Publish `safeword/pr-readiness` from a job in the existing router with no model, no secret, and `statuses: write` only. Customer workflows invoke the pinned npm CLI that installed them. Safeword's dogfood workflow checks out the trusted default branch and invokes its bundled runtime so the new command works on the first merge; because `pull_request_target` is privileged, that checkout must never select the pull request head. The command reads the pull request body and head SHA and emits one of five verdicts — `current`, `draft`, `stale`, `missing`, `blocked` — whose status descriptions come from a closed set of constants, so attacker-controlled body text never reaches the privileged request. It observes the evidence block and never judges the gates behind it. The job is serialized per pull request with `cancel-in-progress`; every run fetches the current body and head, so older events converge on the newest state. `edited` is in the trigger set because the status is about the body; the advisory reviewer excludes that action so a body edit never spends a model call. Safeword never modifies branch protection, and **recommends against requiring this context.** Known limitation, accepted: a commit status is commit-scoped while readiness is pull-request-scoped, so two open pull requests sharing one head commit — the same branch opened against two base branches — write to the same context, and the later run's verdict stands. Per-pull-request serialization removes stale-event races but not that cross-pull-request ambiguity; a conservative verdict would cost an extra listing call and a second evaluation pass for a rare topology. This is a further reason not to require the context. |
-| Consequences   | The narrowed constraint is now: no _model-derived_ publication may affect merge policy. That still holds — the advisory reviewer publishes only an ordinary issue comment. Two consequences of requiring the readiness context are why we advise against it. A required context that stops being reported leaves every pull request stuck on "Expected — waiting for status to be reported", and this job only runs where `prReview.enabled` generates the router, so disabling the reviewer would jam merges repository-wide. And requiring a self-attestation converts it into a formality: the check enforces freshness and self-consistency, never truth, so a motivated author satisfies it by writing a fresh block. Left unrequired it catches the honest failure it was built for — real evidence that went stale on a later push.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| Alternatives   | Relocate the job to its own workflow to satisfy the original clause: rejected because branch protection matches required checks by context-name string, not by workflow file, so relocation leaves the capability identical and would have been compliance in appearance only. Fold the verdict into the existing comment receipt: rejected because a comment cannot be required even by an owner who wants the signal to bind. A local PreToolUse hook blocking `gh pr ready`: rejected because it covers only the CLI path, misses the GitHub UI button entirely, and would block on text it cannot validate.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| Reassess when  | GitHub gives the draft-to-ready transition its own gateable rule; a mechanism appears that can verify an attestation rather than its freshness; or demand appears for the status in repositories that do not run the advisory reviewer.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| Implementation | Ticket `522E5Z`; `packages/cli/src/pr-review/readiness.ts` (pure evaluator), `packages/cli/src/commands/review-pr-readiness.ts`, the `review-pr readiness` protocol entry, the `readiness` job in `templates/workflows/pr-review.yml`, and `packages/cli/tests/pr-review/readiness.test.ts` including a mutation-verified success-path publication test.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-
-#### Local delivery completion extension
-
-**Status:** Accepted
-**Date:** 2026-09-18
-**Ticket:** `PY73VN`
-
-- **What:** Before a supported local agent runs `gh pr ready` or a
-  ready-by-default `gh pr create` (including its documented `gh pr new` alias),
-  its blockable shell boundary revalidates the
-  resolved ticket and verification artifact. A successful verified closure
-  writes one ignored, worktree-local `readiness-ticket.json` receipt bound to the
-  full current HEAD. Active ticket state takes precedence over recent completed
-  session state, which takes precedence over the durable receipt. Draft creation
-  remains available for CI and review evidence. Claude Code, OpenAI Codex, and
-  Cursor use the same evaluator through native adapters.
-- **Why:** The remote status above can prove that PR-body evidence is current,
-  but it cannot prevent a local agent from requesting review before delivery is
-  complete. Ticket status, `verify.md`, and local HEAD are readable at the
-  irreversible command boundary, so this narrower invariant can be enforced
-  deterministically without trusting model compliance.
-- **Trade-off:** The receipt deliberately restores one schema-owned transient
-  file inside the project namespace. It survives agent sessions in one worktree
-  but not another clone or worktree, and any later commit invalidates it until
-  verification runs again. Shell wrappers that hide `gh` in nested command
-  text, the web UI, `gh api`, direct REST/GraphQL, and cloud-agent mutations
-  remain outside this local boundary. The remote freshness observer remains
-  separate and unchanged.
-- **Alternatives considered:** Guidance alone was rejected because it is
-  bypassable. Blocking every PR command was rejected because Draft evidence is
-  part of delivery. Profile-global state was rejected because it crosses
-  worktree identity. Reusing the remote PR-body status was rejected because it
-  observes a different trust boundary and cannot validate local ticket closure.
-- **Implementation:** `packages/cli/templates/hooks/lib/pr-readiness-guard.ts`,
-  `packages/cli/templates/hooks/pre-tool-quality.ts`,
-  `packages/cli/templates/hooks/post-tool-quality.ts`, generated host adapters,
-  schema registration, and the `pr-readiness-*` plus
-  `delivery-continuation-contract` tests.
-- **Reassess when:** GitHub adds another first-class Ready mutation, a supported
-  host loses its blockable local shell boundary, or readiness must transfer
-  across worktrees or machines.
-
-### Transactional Claude Marketplace Ref Replacement
-
-**Status:** Accepted
-**Date:** 2026-09-10
-**Supersedes in part:** the command-only profile mutation and no-private-file-restore clauses of [Generated Native Claude Plugin with Live Proof and Project Contraction](#generated-native-claude-plugin-with-live-proof-and-project-contraction) and [Project-Default Claude Plugin Declarations and Project-Bound Proof](#project-default-claude-plugin-declarations-and-project-bound-proof)
-
-| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Context        | Claude Code can report a successful marketplace update after a stored release ref changes while leaving the checkout and installed plugin on the prior release. This prevents an existing stable installation from selecting a prerelease. Remove and re-add selects the requested ref, but those commands temporarily remove marketplace and plugin registration state.                                                                                                                                                                                                                                       |
-| Decision       | When the existing marketplace is the trusted `ArcadeAI/safeword` source but its ref is stale, snapshot the contained marketplace checkout plus the selected scope's settings, marketplace registry, and plugin registration. Replace the marketplace through Claude's supported remove/add commands, then write the canonical source declaration and auto-update policy durably. Keep the snapshot until plugin convergence and verification finish; any intervening failure restores the exact prior profile. Refuse conflicting sources, unexpected checkout locations, and unsafe metadata before mutation. |
-| Consequences   | Stable-to-prerelease and pinned-release upgrades select the requested tag instead of trusting a false-positive host update. Failed upgrades recover customer configuration and the prior working plugin, at the cost of bounded temporary disk usage and direct writes to already-validated Claude profile metadata during commit/rollback. Real-host release-candidate acceptance remains required because Claude's marketplace persistence behavior is observed rather than guaranteed.                                                                                                                      |
-| Alternatives   | Keep using `marketplace update`: rejected because live Claude evidence showed success without checkout movement. Remove/re-add without rollback: rejected because a later failure strands a previously working profile. Edit only the stored ref: rejected because Claude can continue using the old checkout.                                                                                                                                                                                                                                                                                                 |
-| Reassess when  | Claude makes ref changes transactional, exposes an atomic replace command, or documents a profile API that removes the need to snapshot private marketplace metadata.                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| Implementation | Ticket `P0WEJD`; `packages/cli/src/claude-plugin/profile.ts`, profile integration tests, and public `0.83.1` to release-candidate acceptance.                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-
-### Executable Resource Contract for Native Plugin Bundles
-
-**Status:** Accepted
-**Date:** 2026-09-13
-
-| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Context        | The standalone CLI bundled into the Claude and Codex plugins resolves one canonical, flat `templates/` tree. Their generators instead emitted host-shaped subsets: Claude split resources across `resources/`, `skills/`, and `runtime/hooks/`, while Codex emitted only a handbook and hooks under `templates/`. File inventories still passed because they proved emitted-byte integrity, not that the bundled executable could resolve its runtime resources. Separately, Claude treated every cache-integrity failure as exit 2, so PreToolUse denied the repair tools needed to recover the cache.                                 |
-| Decision       | Both native plugin generators package the complete canonical `templates/` tree in addition to host-native resources. Release tests execute `ticket new` and `install` from each generated payload in a clean repository; catalogue assertions cover key resource classes but do not substitute for execution. Any Claude cache-integrity failure remains a hard failure to trust or execute Safeword hooks. For PreToolUse only, degraded mode returns Claude's structured `ask` decision with repair guidance so a human may explicitly authorize diagnostics or repair; other lifecycle events warn without running unverified hooks. |
-| Consequences   | Native bundles are larger and contain deliberate generated duplication, but their host-native workflows and standalone CLI share one source resource contract. A damaged cache cannot silently run or automatically permit a mutation, yet it no longer creates an unconditional denial loop. Missing, modified, and unlisted files all remain visible as integrity failures.                                                                                                                                                                                                                                                           |
-| Alternatives   | Teach the runtime to reconstruct one root from host-shaped paths: rejected because required resources are absent as well as relocated, and the split trees do not form one unambiguous flat root. Reshape host-native resources only: rejected because it would couple native discovery layout to the CLI's install layout. Ignore unlisted extras: rejected because auto-discovered skills can be behaviorally active. Keep exit 2 for damaged PreToolUse: rejected because it prevents in-session recovery.                                                                                                                           |
-| Reassess when  | The bundled CLI receives an explicit resource-provider abstraction, either host exposes a canonical package-resource API, or Claude introduces a dedicated recoverable plugin-health decision separate from PreToolUse authorization.                                                                                                                                                                                                                                                                                                                                                                                                   |
-| Implementation | Ticket `HX3KFQ`; native plugin generators and catalogues, generated payloads, dispatcher degraded mode, generator drift checks, and executable release-contract tests.                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-
-### One Safeword CLI lookup for every hook
-
-**Status:** Accepted
-**Date:** 2026-10-13
-
-| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Context        | Nine hooks each worked out how to run the Safeword CLI. Trust checks (the GREEN receipt guard, the retrospective gate) accepted only a plugin path, so they failed wherever hooks run from project files (Cursor, project-local delivery; #5807, #5026). Action hooks fell back to `bunx safeword@latest` or an unpinned `bunx safeword`, which can run a different version than the installed hooks and downloads from npm on demand. The Claude plugin generator rewrote those `@latest` strings at build time.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| Decision       | `hooks/lib/safeword-cli.ts` is the only place hooks resolve the CLI. `trustedSafewordClis` serves trust checks and never returns a CLI the project can edit. When a plugin is running (named by `SAFEWORD_PLUGIN_CLI` or `CLAUDE_PLUGIN_ROOT`, or inferred from the module's own `<plugin>/runtime/hooks/lib/` path when a skill runs a bundled helper from Bash), its bundled copy is the only answer, and a missing or project-writable copy answers nothing: another build sharing the version string can fingerprint differently and call approved receipts stale (#7501). Hosts without a plugin get the Codex plugin cache for the pinned version, then `bunx safeword@<.safeword/version>` run from the home directory so project files cannot shadow it. `safewordClis` serves plain actions: this repo's source (only when the checkout is the `safeword` package, so Safeword's own development runs its edits), the plugin's bundled copy, the installed `node_modules/.bin/safeword` (only when it is the pinned version), then the same pinned `bunx`. |
-| Consequences   | Plugin hosts (Claude Code, Codex) keep running their own bundled copy. Hosts without a plugin run exactly the installed version, and a first `bunx` run may need the network. No hook runs `@latest`; a hook with no resolvable CLI skips its action, and trust checks fail closed. Auto-upgrade still deliberately runs the newest version.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| Alternatives   | Drop the plugin bundles and always use `bunx`: rejected because plugins then depend on npm at hook time and could drift from their own version. Add `bunx` only to the GREEN guard: rejected because the other copies would keep drifting.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| Reassess when  | Cursor ships a plugin with a bundled runtime, or a host exposes the plugin's own runtime path to project-delivered hooks.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| Implementation | Ticket `8VG20K`; `hooks/lib/safeword-cli.ts`, its unit and contract tests, and the GREEN guard, retrospective gate, review runner, architecture, learnings, retro, lint, and test-runner call sites.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-
-### Per-file host JavaScript toolchain ownership
-
-**Status:** Accepted
-**Date:** 2026-07-24
-
-| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| What           | The shared post-edit JS/TS hook resolves a recognized host toolchain from the edited file's canonical directory ancestry, bounded by the canonical Safeword project root. A recognized Ultracite Biome preset takes precedence over direct Biome; the owner runs only through its local executable, with owner `cwd`, owner-relative `--`-guarded operand, and a child environment without `BIOME_CONFIG_PATH` or `BIOME_BINARY`. |
-| Why            | Root-only detection causes nested polyglot workspaces to use the wrong policy; PATH/package-runner execution and ambient Biome overrides can run a different tool or configuration than the project declared.                                                                                                                                                                                                                     |
-| Trade-off      | The hook owns path/config parsing and executable lookup instead of delegating to package runners. Unsupported formatters remain on the existing no-Prettier path until a dedicated adapter and scenarios are added.                                                                                                                                                                                                               |
-| Alternatives   | Root-wide formatter detection: rejected because it crosses workspace boundaries. Generic package-manager invocation: rejected because it can download or select a global binary. Shell commands: rejected because filenames are operands, not code.                                                                                                                                                                               |
-| Implementation | `packages/cli/templates/hooks/lib/host-toolchain.ts` and the shared `lintFile` entry point; ticket 13E3EN.                                                                                                                                                                                                                                                                                                                        |
-
-### Go lint package loading preserves configuration context
-
-**Status:** Accepted
-**Date:** 2026-10-21
-
-Go post-edit lint loads the complete, nonrecursive package from the edited file's
-canonical directory. A single-file package omits sibling declarations, and a
-repository-root loader loses nested-module imports (#4733, #5105, #5427).
-
-The shared hook calls the internal `hook go-lint` CLI action through the existing
-pinned CLI resolver using the call-time project root. The executor resolves the
-original configuration's base before changing directories, materializes a
-short-lived `cfg`-mode copy at that base, and anchors documented resource paths
-to their original locations. YAML/TOML parsing uses existing bundled libraries;
-customer config files remain untouched. This separates Go package loading from
-configuration path policy without imposing a new mode on customer files.
-
-Only the edited file is formatted. Package lint is check-only, and feedback names
-the package and actual source paths, retains infrastructure warnings, and admits
-that findings may predate the edit. No recursive module scan or diagnostic filter
-can hide a genuine typecheck failure.
-
-The compatibility cost is an ephemeral config file and removal of Go linter
-autofixes. Cleanup runs on ordinary completion and handled termination signals;
-abrupt termination can leave a recognizable orphan. An unresolvable original
-module base or unwritable base produces a warning instead of changed-policy lint.
-Arbitrary third-party plugin filesystem operations are not virtualized.
-
-Implementation and proof: [prevent-false-go-lint-errors](.project/tickets/HWVKKQ-prevent-false-go-lint-errors/ticket.md),
-`src/commands/go-lint.ts`, `src/go-lint/`, shared lint hooks, and real package/config
-fixtures with the oldest supported v2 and current linter in the CI matrix.
+#### [Local delivery completion extension](.project/architecture/local-delivery-completion.md)
+
+### [Transactional Claude Marketplace Ref Replacement](.project/architecture/transactional-claude-marketplace-ref-replacement.md)
+
+### [Executable Resource Contract for Native Plugin Bundles](.project/architecture/executable-resource-contract-for-native-plugin-bundles.md)
+
+### [One Safeword CLI lookup for every hook](.project/architecture/one-safeword-cli-lookup-for-every-hook.md)
+
+### [Per-file host JavaScript toolchain ownership](.project/architecture/per-file-host-javascript-toolchain-ownership.md)
+
+### [Go lint package loading preserves configuration context](.project/architecture/go-lint-package-loading-preserves-configuration-context.md)
 
 ## References
 
