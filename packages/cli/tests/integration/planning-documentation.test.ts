@@ -7,7 +7,13 @@ const root = nodePath.resolve(import.meta.dirname, '../../../..');
 
 describe('planning fallback documentation', () => {
   it('marks the older coordinator decision as superseded in part', () => {
-    const architecture = readFileSync(nodePath.join(root, 'ARCHITECTURE.md'), 'utf8');
+    const architecture = readFileSync(
+      nodePath.join(
+        root,
+        '.project/architecture/host-owned-cross-agent-adversarial-review-coordinator.md',
+      ),
+      'utf8',
+    );
     const olderRecord = architecture
       .split('**Date:** 2026-08-02', 2)[1]
       ?.split('**OpenCode extension', 1)[0];
