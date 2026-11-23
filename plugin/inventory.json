@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "0082c614fb0282f15fc5c4b098313dbad6f27cff8b3513c9cb7c07787466c652"
+      "sha256": "ac3d001c69e096610b46303e6e4920fe891d30b310ac8b44a512d94e7175d1a6"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "3d354cb3103b809a491596d485926155cd013baed9e234be73ccc2d3dea96ba2"
+      "sha256": "a5f846f895dbf2a1f7e521006e6d70e047a193dcf80f505692f376d38c579608"
     },
     {
       "path": "runtime/event-groups.json",
@@ -455,7 +455,7 @@
     },
     {
       "path": "runtime/hooks/lib/small-work-admission.ts",
-      "sha256": "ae3580011abe1fc9569287cfec68d531da7ad7753d3b8188efff2a87d52e24bd"
+      "sha256": "1f177d2bdb8fc1983b5c602c6b081fd87d5edd4e4bfcf6e29a55226caac62b63"
     },
     {
       "path": "runtime/hooks/lib/small-work-classification.ts",
@@ -507,7 +507,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-quality.ts",
-      "sha256": "b2779b9d64941ee5a7dff082a27d2391260c2600c4d641b08658dd4cb3aec428"
+      "sha256": "8b51ca4ea4b93cea577f1d49af7b6f601c1eb144c17af815a9dabc04d5fbc672"
     },
     {
       "path": "runtime/hooks/post-tool-skill-nudge.ts",
@@ -1463,7 +1463,7 @@
     },
     {
       "path": "templates/hooks/lib/small-work-admission.ts",
-      "sha256": "ae3580011abe1fc9569287cfec68d531da7ad7753d3b8188efff2a87d52e24bd"
+      "sha256": "1f177d2bdb8fc1983b5c602c6b081fd87d5edd4e4bfcf6e29a55226caac62b63"
     },
     {
       "path": "templates/hooks/lib/small-work-classification.ts",
@@ -1515,7 +1515,7 @@
     },
     {
       "path": "templates/hooks/post-tool-quality.ts",
-      "sha256": "b2779b9d64941ee5a7dff082a27d2391260c2600c4d641b08658dd4cb3aec428"
+      "sha256": "8b51ca4ea4b93cea577f1d49af7b6f601c1eb144c17af815a9dabc04d5fbc672"
     },
     {
       "path": "templates/hooks/post-tool-skill-nudge.ts",

@@ -13,6 +13,7 @@ import {
   createTemporaryDirectory,
   removeTemporaryDirectory,
   runCli,
+  spawnHookScript,
   ticketFolderBySlug,
   ticketIdBySlug,
 } from '../helpers.js';
@@ -131,6 +132,71 @@ test('public status stays ready', () => {
       },
     };
   }
+
+  it.each(['task', 'feature'] as const)(
+    'advances an in-progress %s at intake when a ticket edit records a public contract change',
+    async type => {
+      git('init', '-q');
+      git(
+        '-c',
+        'user.name=Fixture',
+        '-c',
+        'user.email=fixture@example.test',
+        '-c',
+        'commit.gpgsign=false',
+        'commit',
+        '--allow-empty',
+        '-qm',
+        'baseline',
+      );
+      const installation = await runCli(
+        ['install', '--agents=cursor', '--no-modify', '--offline'],
+        { cwd: project },
+      );
+      expect(installation.exitCode, installation.stderr).toBe(0);
+      const creation = await runCli(
+        ['ticket', 'new', slug, '--type', 'task', '--goal', 'Rename a field'],
+        {
+          cwd: project,
+        },
+      );
+      expect(creation.exitCode, creation.stderr).toBe(0);
+      const ticketId = ticketIdBySlug(project, slug);
+      const ticket = nodePath.join(ticketFolderBySlug(project, slug), 'ticket.md');
+      const facts = {
+        schemaVersion: 1,
+        scope: 'Rename a public response field',
+        outcome: 'Publish the replacement field',
+        decisions: Object.fromEntries(consequentialDecisions.map(name => [name, 'settled'])),
+        introducesUserFlow: false,
+        multipleUserFlows: false,
+        newPersistentState: false,
+        changesSharedContract: true,
+        changesBehavior: true,
+        verification: 'new-regression',
+      };
+      const original = readFileSync(ticket, 'utf8').replace('type: task', () => `type: ${type}`);
+      const edited = `${original}\n## Safeword small-work facts\n\n\`\`\`json\n${JSON.stringify(facts)}\n\`\`\`\n`;
+      writeFileSync(ticket, edited);
+      const notify = () =>
+        spawnHookScript(nodePath.join(project, '.safeword/hooks/post-tool-quality.ts'), project, {
+          session_id: sessionId,
+          tool_name: 'Write',
+          tool_input: { file_path: ticket, content: edited },
+        });
+      const first = notify();
+      expect(first.status, first.stderr).toBe(0);
+      const promoted = readFileSync(ticket, 'utf8');
+      expect(promoted, first.stderr || first.stdout).toMatch(/^type: feature$/m);
+      expect(first.stdout).toContain('shared public contract changes');
+      expect(promoted).toMatch(/^phase: define-behavior$/m);
+      expect(promoted).toMatch(/^small_work_pending_phase: plan-implementation$/m);
+      expect(promoted).toContain(`id: ${ticketId}`);
+      expect(promoted).toContain(JSON.stringify(facts));
+      expect(notify().stdout).not.toContain('shared public contract changes');
+      expect(readFileSync(ticket, 'utf8')).toBe(promoted);
+    },
+  );
 
   it.each(['public contract', 'private helper'] as const)(
     'checks a valid task at the installed edit boundary for a %s change',

@@ -24,6 +24,10 @@ const safeword = (...args: string[]) =>
 
 git('init', '-q');
 safeword('install', '--agents=cursor', '--no-modify', '--offline');
+const configPath = path.join(root, '.safeword/config.json');
+const config = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
+config.selfReport = { capture: false, surface: false, file: false };
+writeFileSync(configPath, `${JSON.stringify(config, undefined, 2)}\n`);
 mkdirSync(path.join(root, 'src'));
 writeFileSync(path.join(root, 'src/status.ts'), 'export const status = { ready: true };\n');
 writeFileSync(
@@ -66,7 +70,7 @@ const decisions = Object.fromEntries(consequentialDecisions.map(decision => [dec
 const facts = renderSmallWorkFacts({
   schemaVersion: 1,
   scope: 'Polish the status command output',
-  outcome: 'Keep the existing caller working',
+  outcome: 'Publish the renamed field in the status response',
   decisions,
   introducesUserFlow: false,
   multipleUserFlows: false,
@@ -92,6 +96,6 @@ console.log(
     bin,
     ticket: data.file,
     ticket_id: data.ticket_id,
-    prompt: `Pick up the existing task in ${data.file}. Replace the ready field in the public status response with available, without keeping a compatibility alias.`,
+    prompt: `Pick up the existing task in ${data.file}. Read .safeword/SAFEWORD.md and README.md. Replace the ready field in the public status response with available, without keeping a compatibility alias. For this disposable test, breaking the documented external client is intentional and approved.`,
   }),
 );

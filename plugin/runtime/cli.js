@@ -3525,7 +3525,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/post-tool-bypass-warn.ts": "33b1be799f57901e247c9b5478b56e42a727178ad99eebba09ce18a637f69956",
         ".safeword/hooks/post-tool-dependency-readiness.ts": "6418539671ace93e5df04b4ee4d74b9f28b241ec81bbcf2588017702d3b092f6",
         ".safeword/hooks/post-tool-lint.ts": "a1779513108c3f0dc6296bb765752507c65f3ff9c29af35e1e28878ace079f06",
-        ".safeword/hooks/post-tool-quality.ts": "b2779b9d64941ee5a7dff082a27d2391260c2600c4d641b08658dd4cb3aec428",
+        ".safeword/hooks/post-tool-quality.ts": "8b51ca4ea4b93cea577f1d49af7b6f601c1eb144c17af815a9dabc04d5fbc672",
         ".safeword/hooks/post-tool-skill-nudge.ts": "d71158796facccdd5cbf7b64f460b36ebef0b92c41ee3a2f2a09625483e7af39",
         ".safeword/hooks/post-tool-sync-learnings.ts": "0bb2a936c94bd99afec58b62b933e8ce097c4aea115f6844a9688f709d66a85f",
         ".safeword/hooks/post-tool-work-log.ts": "d7b4508fa0e3f190c9c8c83d01a08e60fd41330b8f62f7f51376f89423998766",

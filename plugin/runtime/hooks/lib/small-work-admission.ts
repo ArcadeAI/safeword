@@ -115,12 +115,30 @@ function taskProofDenial(
   return undefined;
 }
 
+/** Reconcile a canonical ticket edit without attempting a production write. */
+export function promoteSmallWorkAfterTicketEdit(
+  projectRoot: string,
+  ticketPath: string,
+  ticketId: string,
+): string | undefined {
+  return reconcileSmallWork(projectRoot, ticketPath, ticketId);
+}
+
 /** Explicit versioned facts opt a ticket into the new route until matched rollout. */
 export function smallWorkRoutingDenial(
   projectRoot: string,
   ticketPath: string,
   ticketId: string,
   proposed: string,
+): string | undefined {
+  return reconcileSmallWork(projectRoot, ticketPath, ticketId, proposed);
+}
+
+function reconcileSmallWork(
+  projectRoot: string,
+  ticketPath: string,
+  ticketId: string,
+  proposed?: string,
 ): string | undefined {
   let ticket: string;
   try {
@@ -147,12 +165,17 @@ export function smallWorkRoutingDenial(
   if (frontmatter === undefined)
     return 'Safeword could not read the small-work ticket frontmatter.';
   if (
+    proposed !== undefined &&
     /^type:[ \t]*feature[ \t]*$/m.test(frontmatter) &&
     /^phase:[ \t]*(?:define-behavior|scenario-gate)[ \t]*$/m.test(frontmatter)
   ) {
     return 'Complete behavior definition and its scenario review before editing production code.';
   }
-  if (!/^type:\s*(?:task|patch)\s*$/m.test(frontmatter)) return undefined;
+  const smallWork = /^type:[ \t]*(?:task|patch)[ \t]*$/m.test(frontmatter);
+  const featureAtIntake =
+    /^type:[ \t]*feature[ \t]*$/m.test(frontmatter) &&
+    /^phase:[ \t]*intake[ \t]*$/m.test(frontmatter);
+  if (!smallWork && !featureAtIntake) return undefined;
 
   const facts = readFacts(ticket);
   const decision = classifySmallWork(facts);
@@ -160,13 +183,20 @@ export function smallWorkRoutingDenial(
     return `Small-work classification ${decision.status}: ${decision.reasons.join(', ')}.`;
   }
   const evaluated = facts as SmallWorkFacts & { evaluation?: unknown };
+  if (decision.route !== 'feature' && (proposed === undefined || !smallWork)) {
+    return undefined;
+  }
   try {
     const thresholds = smallWorkThresholds(projectRoot);
-    const footprintDenial =
-      decision.route === 'feature'
-        ? undefined
-        : smallWorkFootprintDenial(projectRoot, proposed, evaluated.evaluation, thresholds);
-    if (footprintDenial !== undefined) return footprintDenial;
+    if (decision.route !== 'feature' && proposed !== undefined) {
+      const footprintDenial = smallWorkFootprintDenial(
+        projectRoot,
+        proposed,
+        evaluated.evaluation,
+        thresholds,
+      );
+      if (footprintDenial !== undefined) return footprintDenial;
+    }
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     return `Safeword could not evaluate the current small-work footprint: ${reason}`;

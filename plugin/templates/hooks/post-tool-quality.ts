@@ -18,6 +18,7 @@ import {
   type QualityState,
 } from './lib/quality-state.ts';
 import { shouldReviewPhase } from './lib/review-trigger.ts';
+import { promoteSmallWorkAfterTicketEdit } from './lib/small-work-admission.ts';
 import { isTicketCloseEdit } from './lib/ticket-close.ts';
 import {
   hasSafewordProjectMarker,
@@ -290,7 +291,7 @@ if (
     ? canonicalEditedFile
     : nodePath.join(projectDirectory, canonicalEditedFile);
   if (existsSync(fullPath)) {
-    const content = readFileSync(fullPath, 'utf8');
+    let content = readFileSync(fullPath, 'utf8');
 
     // Track active ticket
     const ticketId = frontmatterField(content, 'id');
@@ -333,12 +334,27 @@ if (
       state.activeTicket = null;
     }
 
+    const ticketPath = nodePath.relative(
+      canonicalPathForGate(nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets')),
+      fullPath,
+    );
+    if (
+      ticketStatus === 'in_progress' &&
+      ticketId !== undefined &&
+      ticketPath.split(nodePath.sep).length === 2 &&
+      !ticketPath.startsWith(`..${nodePath.sep}`) &&
+      isEditTool(input.tool_name ?? '')
+    ) {
+      reviewMessage = promoteSmallWorkAfterTicketEdit(projectDirectory, fullPath, ticketId) ?? null;
+      if (reviewMessage !== null) content = readFileSync(fullPath, 'utf8');
+    }
+
     // Per-phase review (enter-semantics, deduped). Fires on the first edit that
     // brings the ticket into an un-reviewed phase — autonomous-safe, since it
     // does not wait for a Stop. The Stop backstop covers non-edit phase bumps.
     const phase = frontmatterField(content, 'phase');
     if (shouldReviewPhase(phase, state.lastReviewedPhase)) {
-      reviewMessage = getQualityMessage(phase);
+      reviewMessage = [reviewMessage, getQualityMessage(phase)].filter(Boolean).join('\n\n');
       state.lastReviewedPhase = phase;
     }
   }
