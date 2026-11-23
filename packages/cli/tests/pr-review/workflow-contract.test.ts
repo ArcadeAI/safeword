@@ -844,3 +844,43 @@ describe('check-run evidence projection', () => {
     expect(source).toMatch(/permissions:\n\s+actions: read\n\s+contents: read\n\s+issues: read\n/u);
   });
 });
+
+describe('caller-to-worker permission wiring', () => {
+  // A reusable workflow cannot raise a permission its caller withholds, so every caller job must
+  // grant each permission the worker's jobs request, at least at the same level.
+  const levels: Record<string, number> = { none: 0, read: 1, write: 2 };
+  type Permissions = Record<string, string>;
+  interface Job {
+    permissions?: Permissions;
+    uses?: string;
+  }
+
+  it.each([
+    ['installed', routerPath, workerPath],
+    ['dogfood', dogfoodRouterPath, dogfoodWorkerPath],
+  ])('lets every %s caller grant what the worker needs', (_name, callerPath, calleePath) => {
+    const caller = YAML.parse(readFileSync(callerPath, 'utf8')) as { jobs: Record<string, Job> };
+    const worker = YAML.parse(readFileSync(calleePath, 'utf8')) as { jobs: Record<string, Job> };
+    const required: Permissions = {};
+    const workerGrants = Object.values(worker.jobs).flatMap(job =>
+      Object.entries(job.permissions ?? {}),
+    );
+    for (const [scope, level] of workerGrants) {
+      if ((levels[level] ?? 0) > (levels[required[scope] ?? 'none'] ?? 0)) {
+        required[scope] = level;
+      }
+    }
+    const callers = Object.entries(caller.jobs).filter(([, job]) =>
+      job.uses?.endsWith('safeword-pr-review-worker.yml'),
+    );
+
+    expect(callers.length).toBeGreaterThan(0);
+    for (const [name, job] of callers) {
+      const missing = Object.entries(required).filter(
+        ([scope, level]) =>
+          (levels[job.permissions?.[scope] ?? 'none'] ?? 0) < (levels[level] ?? 0),
+      );
+      expect({ name, missing }).toEqual({ name, missing: [] });
+    }
+  });
+});

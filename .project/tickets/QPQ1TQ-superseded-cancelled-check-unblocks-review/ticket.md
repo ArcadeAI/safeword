@@ -47,6 +47,13 @@ API response. Only a cancelled run with a later-started sibling is dropped. Cros
 rejected "count only the newest run": a same-named check from another workflow would hide its
 failure. Grouping by check suite cannot work, because each new workflow run is a new suite.
 
+The advisory PR review then found the same hole for cancellations: a later success from another
+workflow could hide a same-named cancelled run. Check runs carry no workflow identity (suite id,
+run id and `external_id` all change per run), so the workers now read
+`actions/runs?head_sha=...` (`actions: read`, read-only) and map each run's `check_suite_id` to its
+workflow `path`. A cancellation is superseded only by a later run from the same workflow; runs from
+apps outside GitHub Actions carry no workflow and are never superseded (fail closed).
+
 ## Work Log
 
 <!-- Progress history, not part of the accepted contract: record scope and decisions above. -->
