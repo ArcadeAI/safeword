@@ -2,8 +2,8 @@
 id: 4J2WX2
 slug: stop-hook-pinned-toolchain
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-11-19T06:39:33.097Z
 last_modified: 2026-11-19T06:39:33.097Z
 scope:
@@ -41,3 +41,5 @@ Detect a mise pin, not `scripts/dev`. `scripts/dev` exists only in this repo and
 - 2026-11-19T06:41:09.167Z Phase: intake → implement
 - 2026-11-23T16:44:21.112Z Phase: implement → verify
 - 2026-11-23T16:44:21.226Z Phase: implement → verify
+- 2026-11-23T17:21:34.551Z Phase: verify → done
+- 2026-11-23T17:21:34.611Z Phase: verify → done
