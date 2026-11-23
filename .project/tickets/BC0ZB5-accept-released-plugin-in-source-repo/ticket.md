@@ -2,8 +2,8 @@
 id: BC0ZB5
 slug: accept-released-plugin-in-source-repo
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 external_prs:
   - https://github.com/ArcadeAI/safeword/pull/6258
 scope:
@@ -59,4 +59,7 @@ last_modified: 2026-11-19T17:13:23.180Z
 - 2026-11-19 quality-review pass 2 (Codex, review 0a5a7858): request_changes, 1 error — an older prerelease the marketplace itself offers was still accepted and called "released". Fixed: only a release-qualified offered version (no prerelease or build tag) qualifies; RED then GREEN, and removing the check fails the new test.
 - 2026-11-19 quality-review pass 3 (Codex, review 7d3f58fe): request_changes, 1 error (same proof class as pass 1, point 2) — released-plugin tests only relabel the current payload. Fixed the class: a test rebuilds the newest real release below the CLI (git archive v1.1.0 plugin) and runs install and status against it; skips only outside CI when tags are absent (CI test job uses fetch-depth 0). Passes on the real v1.1.0 payload; removing the exception fails it.
 - 2026-11-19 quality-review pass 4 (Codex, review 085596ce): approve, no findings.
+- 2026-11-23 Merged origin/main (f7640bffb; generated surfaces regenerated). Refactor pass 3c7ab0f36: isReleaseVersion helper, stale test comment fixed; Claude plugin suites 251 passed. Closed as done with user confirmation.
 - 2026-11-19 audit (diff scope vs origin/main 8974a7ad6): depcruise clean (71 modules); no agent-config, learning, domain-doc, or docs impact; no impl-plan principle trace. Test quality: three near-identical status tests consolidated into one it.each table (each row still killed by its mutation). Errors 0, warnings 0.
+- 2026-11-23T16:35:55.005Z Phase: implement → done
+- 2026-11-23T16:35:55.083Z Phase: implement → done

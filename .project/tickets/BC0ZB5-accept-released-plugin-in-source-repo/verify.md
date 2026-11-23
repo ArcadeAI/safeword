@@ -8,7 +8,7 @@
 **Lint:** ✅ Clean (CI lint job passes)
 **Typecheck:** ✅ Clean (`tsc --noEmit`, 0 errors)
 **Scenarios:** All 12 scenarios marked complete
-**Refactor:** ✅ Completed — `ed25356b7` (three status tests consolidated into one `it.each` table); helpers extracted for lint complexity in `031e2a7a8`
+**Refactor:** ✅ Completed — `/refactor` pass in `3c7ab0f36` (named `isReleaseVersion` helper; corrected a stale test comment; Claude plugin suites 251 passed, 1 skipped). Deferred: a helper for the repeated `fixture(...)` calls (cosmetic). Earlier cleanup: `ed25356b7`, `031e2a7a8`.
 **PR Scope:** ✅ Diff matches ticket scope (`profile.ts`, `profile-install.test.ts`, regenerated plugin surfaces, ticket artifacts)
 **Dep Drift:** ✅ Clean (no dependency changes)
 **Parent Epic:** N/A
