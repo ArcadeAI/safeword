@@ -536,6 +536,14 @@ async function observeSmallWorkProofHandler(invocation: CommandInvocation): Prom
   }
 }
 
+async function resumeTicketHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const command = 'ticket resume';
+  const ticket = invocation.operands[0];
+  if (typeof ticket !== 'string') return invalidOperand(command, 'Supply the ticket ID.');
+  const { resumeTicket } = await import('../small-work/resume-ticket.js');
+  return resumeTicket(invocation.cwd, ticket);
+}
+
 async function observeSmallWorkGreenHandler(invocation: CommandInvocation): Promise<CliResult> {
   const command = 'ticket observe-small-work-green';
   const ticket = invocation.operands[0];
@@ -803,6 +811,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'ticket delivery-checklist': deliveryChecklistHandler,
   'ticket execution-prerequisite': executionPrerequisiteHandler,
   'ticket coding-authorization': codingAuthorizationHandler,
+  'ticket resume': resumeTicketHandler,
   'ticket classify-small-work': classifySmallWorkHandler,
   'ticket observe-small-work-proof': observeSmallWorkProofHandler,
   'ticket verify-small-work-proof': verifySmallWorkProofHandler,

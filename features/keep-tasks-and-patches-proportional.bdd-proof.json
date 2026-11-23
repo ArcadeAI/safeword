@@ -16,6 +16,10 @@
     "A resumed ticket edit follows the saved design destination after current approval": [
       "packages/cli/tests/integration/small-work-routing.test.ts",
       "resumes the saved design destination only after current behavior approval"
+    ],
+    "Restart follows the saved design destination only after behavior approval": [
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "resumes the saved small-work destination from a current receipt in a fresh CLI"
     ]
   }
 }

@@ -795,6 +795,84 @@ describe('cross-agent review public-command wiring', () => {
     expect(prompt).not.toContain('hand control back to `bdd/SCENARIOS.md`');
   });
 
+  it('resumes the saved small-work destination from a current receipt in a fresh CLI', async () => {
+    const cwd = createTemporaryDirectory();
+    const folder = 'T1-resume-design';
+    const directory = nodePath.join(cwd, '.project', 'tickets', folder);
+    mkdirSync(directory, { recursive: true });
+    const ticket = nodePath.join(directory, 'ticket.md');
+    const scenario = nodePath.join(directory, 'behavior.feature');
+    const spec = nodePath.join(directory, 'spec.md');
+    const ledger = nodePath.join(cwd, '.project', 'skill-invocations.log');
+    const original =
+      '---\nid: T1\ntype: feature\nstatus: in_progress\nphase: scenario-gate\n' +
+      'small_work_pending_phase: plan-implementation\n---\n\n' +
+      'Existing evidence: [observed RED](proof.log).\n\n' +
+      '## Safeword small-work facts\n\n```json\n{}\n```\n';
+    writeFileSync(ticket, original);
+    const behavior =
+      'Feature: Read existing response\n  Scenario: Consumer reads status\n    Then status stays readable\n';
+    writeFileSync(scenario, behavior);
+    writeFileSync(spec, '# Approved behavior\n');
+    const env = {
+      PATH: `${installFakeReviewer(cwd, 'claude')}:/usr/bin:/bin`,
+      SAFEWORD_AGENT_RUNTIME: 'codex',
+      SAFEWORD_REVIEW_LOG: nodePath.join(cwd, 'review.log'),
+      SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(cwd, 'review-keys'),
+      SAFEWORD_NO_UPDATE_CHECK: '1',
+    };
+    const resume = () => runCli(['ticket', 'resume', 'T1', '--json', '--cwd', cwd], { cwd, env });
+    const missing = await resume();
+    expect(JSON.parse(missing.stdout)).toMatchObject({ state: 'action_required', changed: false });
+    expect(readFileSync(ticket, 'utf8')).toBe(original);
+
+    const ran = await runCli(
+      [
+        'review',
+        'run',
+        'scenario-gate',
+        nodePath.relative(cwd, scenario),
+        '--context',
+        nodePath.relative(cwd, spec),
+        nodePath.relative(cwd, ticket),
+        '--json',
+        '--cwd',
+        cwd,
+      ],
+      { cwd, env },
+    );
+    expect(ran.exitCode, ran.stdout).toBe(0);
+    const { data: review } = JSON.parse(ran.stdout);
+    expect(review, ran.stdout).toMatchObject({ status: 'approved', independence: 'cross-agent' });
+    writeFileSync(
+      ledger,
+      `2026-11-23T00:00:00Z fixture review:${folder}:phase@scenario-gate author:codex reviewer:claude independence:cross-agent review-id:${review.review_id}\n`,
+    );
+
+    writeFileSync(scenario, `${behavior}# Changed since review\n`);
+    const stale = await resume();
+    expect(JSON.parse(stale.stdout)).toMatchObject({
+      state: 'action_required',
+      changed: false,
+    });
+    expect(readFileSync(ticket, 'utf8')).toBe(original);
+
+    writeFileSync(scenario, behavior);
+    const approved = await resume();
+    expect(approved.exitCode, approved.stdout).toBe(0);
+    expect(JSON.parse(approved.stdout)).toMatchObject({
+      state: 'changed',
+      data: { ticket: 'T1', phase: 'plan-implementation' },
+    });
+    const planned = readFileSync(ticket, 'utf8');
+    expect(planned).toContain('phase: plan-implementation\n');
+    expect(planned).not.toContain('small_work_pending_phase:');
+    expect(planned.split('---', 3)[2]).toBe(original.split('---', 3)[2]);
+    const alreadyResumed = await resume();
+    expect(JSON.parse(alreadyResumed.stdout)).toMatchObject({ state: 'healthy', changed: false });
+    expect(readFileSync(ticket, 'utf8')).toBe(planned);
+  });
+
   it('composes the shared severity foundation with the plan-review rubric', async () => {
     const directory = createTemporaryDirectory();
     const reviewLog = nodePath.join(directory, 'review.log');

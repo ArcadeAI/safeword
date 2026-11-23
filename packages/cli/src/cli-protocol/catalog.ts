@@ -646,6 +646,13 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       },
     },
   ),
+  command('ticket resume', 'Resume a ticket from its saved small-work destination', 'mutate', {
+    syntax: 'resume <ticketId>',
+    fixture: {
+      argv: ['ticket', 'resume', 'fixture'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
   command('ticket classify-small-work', 'Classify versioned small-work facts', 'observe', {
     syntax: 'classify-small-work <factsJson>',
     fixture: {

@@ -11,6 +11,7 @@ import {
   parseReviewStamps,
   reviewScope,
 } from './review-ledger.js';
+import type { ReviewReceipt } from './review-receipt.js';
 import { askTrustedSafeword } from './safeword-cli.js';
 import { smallWorkFootprintDenial, smallWorkThresholds } from './small-work-footprint.js';
 import {
@@ -29,6 +30,7 @@ const pendingPlanLine = /^small_work_pending_phase:[^\r\n]*\r?\n?/m;
 export function hasCurrentSmallWorkScenarioApproval(
   projectRoot: string,
   ticketPath: string,
+  readReceipt?: (id: string) => ReviewReceipt | undefined,
 ): boolean {
   const scope = reviewScope(
     nodePath.basename(nodePath.dirname(ticketPath)),
@@ -47,7 +49,10 @@ export function hasCurrentSmallWorkScenarioApproval(
   const claims = parseReviewStamps(ledger).filter(stamp =>
     isSatisfyingCoordinatorReviewStamp(scope, stamp),
   );
-  return verifiedStamps(claims, projectRoot, scope, { requireDeclaredScenario: true }).length > 0;
+  return (
+    verifiedStamps(claims, projectRoot, scope, { requireDeclaredScenario: true, readReceipt })
+      .length > 0
+  );
 }
 
 function publishPhase(
@@ -168,6 +173,62 @@ function taskProofDenial(
   return undefined;
 }
 
+export function resumePendingSmallWork(
+  projectRoot: string,
+  ticketPath: string,
+  readReceipt?: (id: string) => ReviewReceipt | undefined,
+): { state: 'changed' | 'unchanged' | 'waiting' | 'blocked'; message?: string } {
+  let ticket: string;
+  let canonical: string;
+  try {
+    canonical = realpathSync(ticketPath);
+    if (
+      canonical !== nodePath.join(realpathSync(nodePath.dirname(ticketPath)), 'ticket.md') ||
+      !canonical.startsWith(realpathSync(projectRoot) + nodePath.sep) ||
+      !canonical.startsWith(realpathSync(resolveNamespaceRoot(projectRoot)) + nodePath.sep)
+    ) {
+      return {
+        state: 'blocked',
+        message: 'Resume requires a canonical ticket inside the project.',
+      };
+    }
+    ticket = readFileSync(canonical, 'utf8');
+  } catch {
+    return { state: 'blocked', message: 'Safeword could not read the selected ticket.' };
+  }
+  const opening = /^---\r?\n([\s\S]*?)\r?\n---(?=\r?\n|$)/.exec(ticket);
+  const frontmatter = opening?.[1];
+  if (
+    !hasSmallWorkFacts(ticket) ||
+    opening === null ||
+    frontmatter === undefined ||
+    !/^type:[ \t]*feature[ \t]*$/m.test(frontmatter) ||
+    !/^status:[ \t]*in_progress[ \t]*$/m.test(frontmatter) ||
+    !/^small_work_pending_phase:[ \t]*plan-implementation[ \t]*$/m.test(frontmatter)
+  )
+    return { state: 'unchanged' };
+
+  if (
+    !/^phase:[ \t]*scenario-gate[ \t]*$/m.test(frontmatter) ||
+    !hasCurrentSmallWorkScenarioApproval(projectRoot, ticketPath, readReceipt)
+  ) {
+    return {
+      state: 'waiting',
+      message: 'Implementation Planning is waiting for current approval at the scenario gate.',
+    };
+  }
+  const message = publishPhase(
+    projectRoot,
+    canonical,
+    ticket,
+    opening[0],
+    frontmatter,
+    'plan-implementation',
+    false,
+  );
+  return message === undefined ? { state: 'changed' } : { state: 'blocked', message };
+}
+
 /** Reconcile a canonical ticket edit without attempting a production write. */
 export function promoteSmallWorkAfterTicketEdit(
   projectRoot: string,
@@ -230,19 +291,11 @@ function reconcileSmallWork(
     /^phase:[ \t]*scenario-gate[ \t]*$/m.test(frontmatter) &&
     /^small_work_pending_phase:[ \t]*plan-implementation[ \t]*$/m.test(frontmatter)
   ) {
-    if (!hasCurrentSmallWorkScenarioApproval(projectRoot, ticketPath)) return undefined;
-    return (
-      publishPhase(
-        projectRoot,
-        ticketPath,
-        ticket,
-        beginning[0],
-        frontmatter,
-        'plan-implementation',
-        false,
-      ) ??
-      'Current scenario approval was verified. Continue on the same ticket from Implementation Planning. Reread the ticket before editing it again.'
-    );
+    const result = resumePendingSmallWork(projectRoot, ticketPath);
+    if (result.state === 'changed') {
+      return 'Current scenario approval was verified. Continue on the same ticket from Implementation Planning. Reread the ticket before editing it again.';
+    }
+    return result.state === 'blocked' ? result.message : undefined;
   }
   const smallWork = /^type:[ \t]*(?:task|patch)[ \t]*$/m.test(frontmatter);
   const featureAtIntake =

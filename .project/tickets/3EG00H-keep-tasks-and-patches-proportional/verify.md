@@ -185,3 +185,9 @@ In disposable projects, the real coordinator accepted both synthetic readiness s
 | Deferred, resumed from the scenario gate | `daf4e548-9367-4903-b466-7bf5014f7564` | Same ticket entered Implementation Planning, cleared its pending destination, and kept its notes. |
 
 A separate trial changed a checkpoint line inside reviewed `ticket.md`. The coordinator correctly reported its full-context receipt stale under the current fingerprinting rules. The successful receipt runs used hook events with the reviewed bytes intact. The native sessions above exercised actual edits with fixture approval. Standalone CLI restart and whether to treat bookkeeping-only changes as semantically neutral remain open.
+
+### Standalone CLI resume
+
+`safeword ticket resume <ticketId>` reads the saved destination and verifies the review receipt through the installed CLI's coordinator. It makes no ticket edit while approval is missing or stale. With current approval, it advances the same ticket, clears the pending destination, and retains the investigation text. A repeated invocation is a no-op.
+
+The standalone acceptance scenario now maps to an executable test that starts a fresh CLI process for each attempt. In a separate disposable run, the built command consumed the real Codex-authored, Claude-reviewed receipt `6eca4c06-f5b6-4a00-b477-fec1b10da98d` and advanced the ticket without editing the reviewed text first. The feature has five executable proof links across 146 expanded examples. The acceptance dry run reports the other 141 as undefined.

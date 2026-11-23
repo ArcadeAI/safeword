@@ -387,17 +387,12 @@ Feature: Keep tasks and patches proportional
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM |
         | actual Cursor Cloud Agents lifecycle dispatch from project hooks in a fresh runner |
 
-    @surface.safeword-cli
-    Scenario Outline: Restart follows the saved design destination only after behavior approval
-      Given a promoted ticket is at the existing scenario gate with Implementation Planning saved as its destination and its original evidence linked
-      And the gate has <approval> for the applicable feature behavior
-      When a fresh installed CLI invocation resumes the ticket from disk
-      Then the same ticket retains its original evidence links and <resume_outcome>
-
-      Examples:
-        | approval | resume_outcome |
-        | no current approval | stays at the scenario gate with Implementation Planning still pending |
-        | current approval | enters Implementation Planning from the saved destination |
+    @surface.safeword-cli @proof.vitest
+    Scenario: Restart follows the saved design destination only after behavior approval
+      Given a promoted ticket is at the scenario gate with Implementation Planning saved and its original evidence linked
+      When a fresh Safeword CLI invocation resumes the ticket
+      Then missing or stale approval leaves the ticket and its saved destination in place
+      And a fresh invocation with current approval advances the same ticket to Implementation Planning with its original evidence intact
 
     Scenario: Work already promoted to a feature routes a sequencing-only change to Execution Planning
       Given a task was already promoted to a feature for a feature-triggering decision and has an accepted Implementation Plan
