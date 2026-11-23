@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "8a3083db3668eddc9b2a41e33698442e7a9af97a2932e5f89ab0100f1d152833"
+      "sha256": "8dadbbaf1d1ff7af6a9db13a060ff8f7c0b2bbc08aaccaa901a80e29fe9ea763"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "a358688c08095a67bcfb6ec92c774c563851c0b5ac29ae71077fb35c5d228b6d"
+      "sha256": "c1bc228189259f05378411fb1cc041ca46c734c54a29597f32b1f102ac032244"
     },
     {
       "path": "runtime/event-groups.json",
@@ -806,8 +806,8 @@
     },
     {
       "path": "skills/verify/SKILL.md",
-      "sha256": "66c518f856c3f07aaaedda93cdd70540de562fe70a463e26a1d5ee2d9c4f2d78",
-      "skill_sha256": "ea56a94ee007a241bd93a8a77bb9e68ed57c7056fbca5afc9b53caee752ab6d1"
+      "sha256": "953a9d2cacb493c64a4451e64bd2555febd00192d4385b07def39cce96454f89",
+      "skill_sha256": "fc49a33e44dc2b15af6517339aeafd08041e01eba0262afada4d0c7b7c9cb0ac"
     },
     {
       "path": "templates/.jscpd.json",
@@ -1823,7 +1823,7 @@
     },
     {
       "path": "templates/skills/verify/SKILL.md",
-      "sha256": "440496033f496153e5514028643123b5603bde3ba540750f91aaf8849e8b2675"
+      "sha256": "af44dad53adb75821186143f99cbebee87b26a5d35c62204bf6dd2c946fd1d6f"
     },
     {
       "path": "templates/spec-template.md",

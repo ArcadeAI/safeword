@@ -3519,7 +3519,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/tdd-review/SKILL.md": "ae59212a4d368359c3144bde65bb18caaa02fb15590ca72398f15ad507679c70",
         ".claude/skills/testing/SKILL.md": "fe43d03ffe4e39393def44e60a2b88a5f3c70faa878e5e3323f2a22f18470686",
         ".claude/skills/ticket-system/SKILL.md": "5a8ce171c60dc7ab07d641dc66d43ae3730d1a2401df86a02250ce82cf53a800",
-        ".claude/skills/verify/SKILL.md": "440496033f496153e5514028643123b5603bde3ba540750f91aaf8849e8b2675"
+        ".claude/skills/verify/SKILL.md": "af44dad53adb75821186143f99cbebee87b26a5d35c62204bf6dd2c946fd1d6f"
       },
       hook_files: {
         ".safeword/hooks/post-tool-bypass-warn.ts": "33b1be799f57901e247c9b5478b56e42a727178ad99eebba09ce18a637f69956",
@@ -32544,7 +32544,7 @@ function parseDeliveryChecklist(content, options = {}) {
   const lines = content.split(/\r?\n/u);
   const markerIndex = lines.findIndex((line) => line.trim() === MARKER);
   if (markerIndex === -1) {
-    return invalid("missing_delivery_checklist", "execution-plan.md is missing the Delivery Checklist.");
+    return invalid("missing_delivery_checklist", options.requireAllCategories === false ? "Add the inline Delivery Checklist to ticket.md, then check delivery readiness again." : "execution-plan.md is missing the Delivery Checklist.");
   }
   const start = tableStart(lines, markerIndex);
   if (start === -1 || !validHeader(lines, start)) {
@@ -32652,18 +32652,19 @@ function parseDeliveryPlanContract(content, options = {}) {
       message: `Delivery Checklist item ${unsupported.id} requires ${unsupported.requiredProof}, which is not a real-boundary proof.`
     };
   }
-  const hasExecutableTestingProof = checklist.items.some((item) => {
-    if (item.category !== "testing" || item.owner !== "contributor" || item.disposition === "not_applicable") {
+  const inlinePatch = options.requireAllCategories === false && readFrontmatterScalar(content, "type") === "patch";
+  const hasExecutableVerification = checklist.items.some((item) => {
+    if ((inlinePatch ? item.id !== "verification" : item.category !== "testing") || item.owner !== "contributor" || item.disposition === "not_applicable") {
       return false;
     }
     const proof = specificationsById.get(item.requiredProof);
     return proof?.method === "command" && proof.qualifiesAs === "real_boundary";
   });
-  if (!hasExecutableTestingProof) {
+  if (!hasExecutableVerification) {
     return {
       ok: false,
       code: "testing_proof_not_executable",
-      message: "The Delivery Checklist testing category needs a contributor-owned real-boundary command proof."
+      message: inlinePatch ? "The inline patch verification item needs a contributor-owned real-boundary command proof." : "The Delivery Checklist testing category needs a contributor-owned real-boundary command proof."
     };
   }
   return {
@@ -92198,7 +92199,7 @@ var CANONICAL_COMMANDS = [
       environment: MACHINE_ENVIRONMENT
     }
   }),
-  command2("ticket delivery-checklist", "Report feature delivery readiness", "observe", {
+  command2("ticket delivery-checklist", "Report delivery readiness for a ticket", "observe", {
     syntax: "delivery-checklist <ticketId>",
     fixture: {
       argv: ["ticket", "delivery-checklist", "fixture"],

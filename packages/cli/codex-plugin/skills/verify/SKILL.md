@@ -309,10 +309,16 @@ If PR scope fails, do not collapse to "Ready to mark done." Put the concrete spl
 
 ### 7. Write verify.md (skip if no ticket)
 
-For a feature whose Execution Plan uses the versioned Delivery Checklist, run
+For an enrolled task or patch, use the inline Delivery Checklist and Proof
+specifications in `ticket.md`. If enrollment did not scaffold the checklist,
+add it to the existing ticket. Use the saved task test or focused patch check
+as the executable verification proof and give concrete reasons for inapplicable
+items. Name any pending human dependency and its owner.
+
+For enrolled tasks and patches, and features with a versioned Delivery Checklist, run
 `safeword ticket delivery-checklist <ticket-id> --json` with the CLI resolved
-above. Read `data.readiness_state` and the findings. If the current plan cannot
-be admitted, follow the reported recovery action. For an open contributor row,
+above. Read `data.readiness_state` and the findings. Follow the reported
+recovery action if the checklist cannot be evaluated. For an open contributor row,
 complete its reviewed obligation and use
 `safeword ticket record-delivery-proof <ticket-id> <item-id> <proof-id>` when
 its reviewed proof is an executable command. Resolve stale or partial proof at

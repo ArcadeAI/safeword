@@ -311,6 +311,14 @@ test('unrelated', () => { throw new Error('${expectedFailure}'); });\n`,
     const checkGreen = () => run([...greenCommand, '--check']);
     const current = await checkGreen();
     expect(JSON.parse(current.stdout).data).toMatchObject({ current: true });
+    const checklist = ['ticket', 'delivery-checklist', id];
+    const missingChecklist = await run(checklist);
+    expect(JSON.parse(missingChecklist.stdout).findings).toContainEqual(
+      expect.objectContaining({
+        code: 'missing_delivery_checklist',
+        message: expect.stringContaining('inline Delivery Checklist to ticket.md'),
+      }),
+    );
     const testInvocation = JSON.stringify({
       type: 'command',
       cwd: effectiveRequest.cwd,
@@ -339,7 +347,6 @@ test('unrelated', () => { throw new Error('${expectedFailure}'); });\n`,
       '-qm',
       'candidate for contributor handoff',
     );
-    const checklist = ['ticket', 'delivery-checklist', id];
     const beforeHandoff = await run(checklist);
     expect(JSON.parse(beforeHandoff.stdout).data).toMatchObject({
       open_contributor_items: ['verification'],

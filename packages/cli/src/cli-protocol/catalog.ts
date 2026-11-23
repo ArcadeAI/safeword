@@ -615,7 +615,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       },
     },
   ),
-  command('ticket delivery-checklist', 'Report feature delivery readiness', 'observe', {
+  command('ticket delivery-checklist', 'Report delivery readiness for a ticket', 'observe', {
     syntax: 'delivery-checklist <ticketId>',
     fixture: {
       argv: ['ticket', 'delivery-checklist', 'fixture'],

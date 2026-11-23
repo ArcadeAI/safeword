@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 
 import type { ExecutionPlanDeliveryDefinition } from '../review/contract.js';
+import { readFrontmatterScalar } from '../utils/frontmatter.js';
 
 export { normalizedExecutionPlanDigest } from './review-identity.js';
 
@@ -576,7 +577,9 @@ export function parseDeliveryChecklist(
   if (markerIndex === -1) {
     return invalid(
       'missing_delivery_checklist',
-      'execution-plan.md is missing the Delivery Checklist.',
+      options.requireAllCategories === false
+        ? 'Add the inline Delivery Checklist to ticket.md, then check delivery readiness again.'
+        : 'execution-plan.md is missing the Delivery Checklist.',
     );
   }
   const start = tableStart(lines, markerIndex);
@@ -692,9 +695,11 @@ export function parseDeliveryPlanContract(
       message: `Delivery Checklist item ${unsupported.id} requires ${unsupported.requiredProof}, which is not a real-boundary proof.`,
     };
   }
-  const hasExecutableTestingProof = checklist.items.some(item => {
+  const inlinePatch =
+    options.requireAllCategories === false && readFrontmatterScalar(content, 'type') === 'patch';
+  const hasExecutableVerification = checklist.items.some(item => {
     if (
-      item.category !== 'testing' ||
+      (inlinePatch ? item.id !== 'verification' : item.category !== 'testing') ||
       item.owner !== 'contributor' ||
       item.disposition === 'not_applicable'
     ) {
@@ -703,12 +708,13 @@ export function parseDeliveryPlanContract(
     const proof = specificationsById.get(item.requiredProof);
     return proof?.method === 'command' && proof.qualifiesAs === 'real_boundary';
   });
-  if (!hasExecutableTestingProof) {
+  if (!hasExecutableVerification) {
     return {
       ok: false,
       code: 'testing_proof_not_executable',
-      message:
-        'The Delivery Checklist testing category needs a contributor-owned real-boundary command proof.',
+      message: inlinePatch
+        ? 'The inline patch verification item needs a contributor-owned real-boundary command proof.'
+        : 'The Delivery Checklist testing category needs a contributor-owned real-boundary command proof.',
     };
   }
   return {

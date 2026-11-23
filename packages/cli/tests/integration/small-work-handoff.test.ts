@@ -1,5 +1,5 @@
-import { execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { expect, it } from 'vitest';
@@ -41,14 +41,43 @@ it('hands off a small patch with current proof and a named human dependency', as
     const folder = ticketFolderBySlug(project, slug);
     const ticket = nodePath.join(folder, 'ticket.md');
     const text = readFileSync(ticket, 'utf8');
+    expect(text).toMatch(/^type: patch$/m);
     expect(text).toContain('## Delivery Checklist');
 
-    writeFileSync(nodePath.join(project, 'guide.md'), '# Setup\n');
+    const guide = nodePath.join(project, 'guide.md');
+    const originalGuide = '# Setpu\n\n[Go to setup](#setup)\n';
+    writeFileSync(guide, originalGuide);
     writeFileSync(
       nodePath.join(project, 'check-guide.ts'),
-      String.raw`import { readFileSync } from 'node:fs';
-if (!readFileSync('guide.md', 'utf8').startsWith('# Setup\n')) process.exitCode = 1;
+      `import { readFileSync, writeFileSync } from 'node:fs';
+const html = Bun.markdown.render(readFileSync('guide.md', 'utf8'), {
+  heading: (text, { level }) => '<h' + level + ' id="' + text.toLowerCase() + '">' + text + '</h' + level + '>',
+  paragraph: text => '<p>' + text + '</p>',
+  link: (text, { href }) => '<a href="' + href + '">' + text + '</a>',
+});
+if (process.argv.includes('--render')) writeFileSync('guide.html', html);
+if (html !== readFileSync('guide.html', 'utf8')) throw new Error('Rendered guide is stale');
+const anchors = new Set();
+const fragments = [];
+new HTMLRewriter()
+  .on('[id]', { element: element => anchors.add(element.getAttribute('id')) })
+  .on('a[href^="#"]', { element: element => fragments.push(element.getAttribute('href').slice(1)) })
+  .transform(html);
+if (fragments.length !== 1 || fragments.some(id => !anchors.has(id))) {
+  throw new Error('Broken link in rendered guide: ' + fragments.join(', '));
+}
 `,
+    );
+    const renderAndCheck = () =>
+      spawnSync('bun', ['check-guide.ts', '--render'], { cwd: project, encoding: 'utf8' });
+    const broken = renderAndCheck();
+    expect(broken.status).toBe(1);
+    expect(broken.stderr).toContain('Broken link in rendered guide: setup');
+    writeFileSync(guide, originalGuide.replace('Setpu', 'Setup'));
+    const fixed = renderAndCheck();
+    expect(fixed.status, fixed.stderr).toBe(0);
+    expect(readFileSync(nodePath.join(project, 'guide.html'), 'utf8')).toContain(
+      '<h1 id="setup">Setup</h1>',
     );
     const invocation = JSON.stringify({
       type: 'command',
@@ -60,17 +89,24 @@ if (!readFileSync('guide.md', 'utf8').startsWith('# Setup\n')) process.exitCode 
       '',
       '| Proof ID | Method | Scope | Boundary exercised | Qualifies as | Currency | Invocation |',
       '| --- | --- | --- | --- | --- | --- | --- |',
-      `| targeted-verification | command | integration | Read the delivered guide | real_boundary | current_required | ${invocation} |`,
+      `| targeted-verification | command | integration | Render Markdown and check the actual heading link | real_boundary | current_required | ${invocation} |`,
       '',
       '',
     ].join('\n');
-    const dependency =
-      '| rollout | rollout and rollback | Approve distribution | human | | pending_human | missing | | Release owner approves distribution. |';
-    const withChecklist = text.replace(
-      '## Delivery Checklist',
-      () => `${specs}## Delivery Checklist`,
-    );
-    writeFileSync(ticket, `${withChecklist.trimEnd()}\n${dependency}\n`);
+    const dispositions = [
+      '| tests | testing | Run executable behavior tests | contributor | | not_applicable | missing | | Executable behavior did not change. |',
+      '| monitoring | monitoring and failure signals | Monitor the deployment | contributor | | not_applicable | missing | | No runtime changed. |',
+      '| rollout | rollout and rollback | Approve distribution | human | | pending_human | missing | | Release owner approves distribution. |',
+    ];
+    const renderLink = nodePath.relative(folder, nodePath.join(project, 'guide.html'));
+    const withChecklist = text
+      .replace('## Delivery Checklist', () => `${specs}## Delivery Checklist`)
+      .replace(
+        '| verification | testing | Verify the agreed outcome at its existing boundary |',
+        () =>
+          `| verification | documentation | Verify the [corrected rendered guide](${renderLink}#setup) |`,
+      );
+    writeFileSync(ticket, `${withChecklist.trimEnd()}\n${dispositions.join('\n')}\n`);
     git('add', '.');
     git(
       '-c',
@@ -104,6 +140,11 @@ if (!readFileSync('guide.md', 'utf8').startsWith('# Setup\n')) process.exitCode 
         grants_merge_authority: false,
       },
     });
+    const handoffTicket = readFileSync(ticket, 'utf8');
+    expect(handoffTicket).toContain(`[corrected rendered guide](${renderLink}#setup)`);
+    expect(handoffTicket).toContain('Executable behavior did not change.');
+    expect(handoffTicket).toContain('No runtime changed.');
+    expect(readdirSync(folder)).toEqual(['ticket.md']);
     writeFileSync(nodePath.join(project, 'guide.md'), '# Different heading\n');
     const stale = await run(['ticket', 'delivery-checklist', id]);
     expect(stale.exitCode).toBe(2);
