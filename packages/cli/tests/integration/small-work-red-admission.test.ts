@@ -222,11 +222,18 @@ test('unrelated', () => { throw new Error('${expectedFailure}'); });\n`,
     };
     const record = (
       observation: { tag: string },
-      options: { relevanceTag?: string; relevant?: boolean; testTarget?: string } = {},
+      options: {
+        relevanceTag?: string;
+        relevant?: boolean;
+        testTarget?: string;
+        request?: typeof request;
+      } = {},
     ) => {
       writeFacts({
         request:
-          options.testTarget === undefined ? request : { ...request, target: options.testTarget },
+          options.testTarget === undefined
+            ? (options.request ?? request)
+            : { ...request, target: options.testTarget },
         observation,
         relevance: {
           observationTag: options.relevanceTag ?? observation.tag,
@@ -238,7 +245,20 @@ test('unrelated', () => { throw new Error('${expectedFailure}'); });\n`,
 
     record(await observe(unrelatedTest));
     expectDenial(staleEvidence);
-    const intended = await observe(realTest);
+    const { contractDigest, ...fileRequest } = request;
+    writeFileSync(
+      nodePath.join(project, '.project', 'retry-proof.json'),
+      JSON.stringify(fileRequest),
+    );
+    const fromFile = await run([
+      'ticket',
+      'observe-small-work-proof',
+      '@.project/retry-proof.json',
+    ]);
+    expect(fromFile.exitCode, fromFile.stderr || fromFile.stdout).toBe(0);
+    const { request: effectiveRequest, observation: intended } = JSON.parse(fromFile.stdout).data;
+    expect(effectiveRequest).toEqual({ ...fileRequest, contractDigest });
+    expect(intended.expectedFailureObserved).toBe(true);
     record(intended, { relevanceTag: 'f'.repeat(64) });
     expectDenial(unlinkedEvidence);
     record(intended, { relevant: false });
@@ -261,7 +281,7 @@ test('unrelated', () => { throw new Error('${expectedFailure}'); });\n`,
     ]);
     expect(invented.exitCode).toBe(1);
 
-    record(intended);
+    record(intended, { request: effectiveRequest });
     const admitted = editDecision();
     expect(admitted.permission, admitted.agent_message).toBe('allow');
 

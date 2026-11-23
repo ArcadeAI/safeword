@@ -654,7 +654,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     },
   }),
   command('ticket observe-small-work-proof', 'Observe a declared small-work test', 'mutate', {
-    syntax: 'observe-small-work-proof <proofJson>',
+    syntax: 'observe-small-work-proof <proofJsonOrFile>',
     helpText: SMALL_WORK_PROOF_HELP,
     networkPolicy: 'declared',
     fixture: {

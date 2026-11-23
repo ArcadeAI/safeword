@@ -3533,7 +3533,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6cf974642f71ee8091f19a8d8c68246f4a2dcdba86c7f5966ea22f992c43636a",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "83d1369a1db26474ce498565e1f67711834137276234ca697de3be0f1abbafff",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "b0ebab1ec33e807727a0cc40db247852564581cc0c659016a0b1ee7bbcc1f49a",
+        ".safeword/hooks/pre-tool-quality.ts": "52095f5199e5a1c871eeaa2024041508be2ce90e66d2d448650234c59cbbf309",
         ".safeword/hooks/pre-tool-stale-main.ts": "6a7c2d75a9955f661f620ee20f4210bec09fa206625d84363cd0376fc56fdf5d",
         ".safeword/hooks/prompt-questions.ts": "ac2f53a7c2e87cb4517b7a4c9d965bacdd262828aa28474d0441dc2edafc215d",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -65328,6 +65328,23 @@ var init_sync_tracker = __esm(() => {
 });
 
 // templates/hooks/lib/small-work-classification.ts
+import { createHash as createHash33 } from "crypto";
+function readSmallWorkFacts(ticket) {
+  const blocks = [
+    ...ticket.matchAll(/^## Safeword small-work facts\r?\n\r?\n```json\r?\n([\s\S]*?)\r?\n```[ \t]*$/gm)
+  ];
+  if (blocks.length !== 1)
+    return;
+  try {
+    return JSON.parse(blocks[0]?.[1] ?? "");
+  } catch {
+    return;
+  }
+}
+function smallWorkContractDigest(facts) {
+  const { proof: _proof, evaluation: _evaluation, ...contract } = facts;
+  return createHash33("sha256").update(JSON.stringify(contract)).digest("hex");
+}
 function isRecord12(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -68381,9 +68398,9 @@ var init_detect = __esm(() => {
 });
 
 // src/utils/cucumber-template-revisions.ts
-import { createHash as createHash33 } from "crypto";
+import { createHash as createHash34 } from "crypto";
 function isShippedCucumberTemplateRevision(content) {
-  const hash = createHash33("sha256").update(content).digest("hex");
+  const hash = createHash34("sha256").update(content).digest("hex");
   return CUCUMBER_TEMPLATE_REVISION_HASHES.has(hash);
 }
 var CUCUMBER_TEMPLATE_REVISION_HASHES;
@@ -69453,7 +69470,7 @@ var init_health = __esm(() => {
 });
 
 // src/claude-plugin/asset-integrity.ts
-import { createHash as createHash34 } from "crypto";
+import { createHash as createHash35 } from "crypto";
 function canonicalValue(value) {
   if (value === null || typeof value === "string" || typeof value === "boolean")
     return value;
@@ -69493,10 +69510,10 @@ function claudeSkillSha256(path, content) {
     throw new TypeError(`Skill front matter is invalid: ${path}`);
   }
   const metadata = canonicalValue(document2.toJS({ mapAsMap: true, maxAliasCount: 0 }));
-  return createHash34("sha256").update(JSON.stringify([metadata, text.slice(header[0].length)])).digest("hex");
+  return createHash35("sha256").update(JSON.stringify([metadata, text.slice(header[0].length)])).digest("hex");
 }
 function claudeAssetMatches(asset, content) {
-  if (createHash34("sha256").update(content).digest("hex") === asset.sha256)
+  if (createHash35("sha256").update(content).digest("hex") === asset.sha256)
     return true;
   if (typeof asset.skill_sha256 !== "string" || !/^[\da-f]{64}$/u.test(asset.skill_sha256)) {
     return false;
@@ -69509,7 +69526,7 @@ var init_asset_integrity = __esm(() => {
 
 // src/claude-plugin/profile.ts
 import { spawnSync as spawnSync16 } from "child_process";
-import { createHash as createHash35 } from "crypto";
+import { createHash as createHash36 } from "crypto";
 import {
   closeSync as closeSync10,
   cpSync as cpSync2,
@@ -70052,7 +70069,7 @@ function convergePlugin(cwd, scope, effects) {
   }
 }
 function fileSha256(path) {
-  return createHash35("sha256").update(readFileSync68(path)).digest("hex");
+  return createHash36("sha256").update(readFileSync68(path)).digest("hex");
 }
 function assertInstalledAsset(installPath, asset) {
   if (typeof asset.path !== "string" || nodePath97.isAbsolute(asset.path) || asset.path.split(/[\\/]/u).includes("..") || typeof asset.sha256 !== "string") {
@@ -70064,7 +70081,7 @@ function assertInstalledAsset(installPath, asset) {
   }
 }
 function assertInstalledIdentity(identity, inventory, inventoryContent) {
-  if (identity.schema_version !== 1 || identity.plugin_version !== VERSION || identity.inventory_sha256 !== createHash35("sha256").update(inventoryContent).digest("hex") || inventory.schema_version !== 1 || !Array.isArray(inventory.assets)) {
+  if (identity.schema_version !== 1 || identity.plugin_version !== VERSION || identity.inventory_sha256 !== createHash36("sha256").update(inventoryContent).digest("hex") || inventory.schema_version !== 1 || !Array.isArray(inventory.assets)) {
     throw new TypeError("installed identity or inventory is inconsistent");
   }
 }
@@ -70364,7 +70381,7 @@ var init_profile = __esm(() => {
 });
 
 // src/claude-plugin/hook-manifest.ts
-import { createHash as createHash36 } from "crypto";
+import { createHash as createHash37 } from "crypto";
 function adaptHookValue(value) {
   if (typeof value === "string") {
     return value.replaceAll(PROJECT_HOOK_ROOT, () => PLUGIN_HOOK_ROOT);
@@ -70414,7 +70431,7 @@ function pluginHookManifest() {
 `;
 }
 function currentClaudePluginHookManifestSha256() {
-  return createHash36("sha256").update(pluginHookManifest()).digest("hex");
+  return createHash37("sha256").update(pluginHookManifest()).digest("hex");
 }
 var PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks', PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks', PLUGIN_DISPATCH = 'bun --no-env-file --cwd "${CLAUDE_PLUGIN_ROOT}" "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js', EVENT_GROUP_EVENTS;
 var init_hook_manifest = __esm(() => {
@@ -71612,7 +71629,7 @@ __export(exports_profile, {
   resolveOpenCodeConfigRoot: () => resolveOpenCodeConfigRoot,
   uninstallOpenCodeProfile: () => uninstallOpenCodeProfile
 });
-import { createHash as createHash37 } from "crypto";
+import { createHash as createHash38 } from "crypto";
 import {
   existsSync as existsSync50,
   lstatSync as lstatSync20,
@@ -71670,7 +71687,7 @@ function observeFile2(path) {
   }
 }
 function sha2567(value) {
-  return createHash37("sha256").update(value).digest("hex");
+  return createHash38("sha256").update(value).digest("hex");
 }
 function packagedDispatcherPath() {
   const moduleDirectory = import.meta.dirname;
@@ -72596,7 +72613,7 @@ __export(exports_conformance, {
   runOpenCodeConformance: () => runOpenCodeConformance
 });
 import { spawnSync as spawnSync18 } from "child_process";
-import { createHash as createHash38 } from "crypto";
+import { createHash as createHash39 } from "crypto";
 import { accessSync as accessSync4, constants as constants6, lstatSync as lstatSync21, readFileSync as readFileSync73, realpathSync as realpathSync19, statSync as statSync11 } from "fs";
 import nodePath105 from "path";
 function resolveExecutable(environment) {
@@ -72651,7 +72668,7 @@ function profileRemediation() {
   });
 }
 function sha2568(value) {
-  return createHash38("sha256").update(value).digest("hex");
+  return createHash39("sha256").update(value).digest("hex");
 }
 function installedProfile(environment) {
   const root = resolveOpenCodeConfigRoot({
@@ -73572,7 +73589,7 @@ var init_doctor = __esm(() => {
 });
 
 // src/cli-protocol/reconciliation.ts
-import { createHash as createHash39 } from "crypto";
+import { createHash as createHash40 } from "crypto";
 import { lstatSync as lstatSync22, readdirSync as readdirSync30, readFileSync as readFileSync74, readlinkSync as readlinkSync4 } from "fs";
 import nodePath106 from "path";
 function actionTargets(action) {
@@ -73623,7 +73640,7 @@ function hashPath(hash, absolutePath, relativePath, readFile) {
   }
 }
 function preconditionDigestForPaths(cwd, paths, readFile = readFileForDigest) {
-  const hash = createHash39("sha256");
+  const hash = createHash40("sha256");
   const targets = [...new Set(paths)].toSorted((left, right) => left.localeCompare(right));
   for (const target of targets) {
     hashField(hash, "target", target);
@@ -74342,7 +74359,7 @@ To wire the warn-only boundary gate, add under repos:
 
 // src/utils/namespace-migration.ts
 import { execSync } from "child_process";
-import { createHash as createHash40 } from "crypto";
+import { createHash as createHash41 } from "crypto";
 import {
   closeSync as closeSync11,
   constants as fsConstants3,
@@ -74391,7 +74408,7 @@ function validateDirectoryRoot(path, label) {
 }
 function conflictArchivePath(source, relative) {
   const metadata = lstatSync23(source);
-  const digest = createHash40("sha256").update(`${metadata.mode.toString(8)}\x00`).update(readFileSync77(source)).digest("hex");
+  const digest = createHash41("sha256").update(`${metadata.mode.toString(8)}\x00`).update(readFileSync77(source)).digest("hex");
   return nodePath113.join(".safeword", "namespace-migration-conflicts-v1", digest, relative);
 }
 function plannedNamespaceMigrationFiles(cwd) {
@@ -75103,7 +75120,7 @@ var init_vendored_ignores_nudge = __esm(() => {
 });
 
 // src/lifecycle/project-install.ts
-import { createHash as createHash41 } from "crypto";
+import { createHash as createHash42 } from "crypto";
 import {
   closeSync as closeSync12,
   constants as fsConstants4,
@@ -75408,7 +75425,7 @@ function setupPreconditionDigest(cwd, reconciliationDigest, effects, context, op
     ...effects.files.map((effect) => effect.target),
     ...effects.destructive.map((effect) => effect.target)
   ].filter((target) => !target.includes(" \u2192 "));
-  return createHash41("sha256").update(JSON.stringify([
+  return createHash42("sha256").update(JSON.stringify([
     reconciliationDigest,
     effects,
     JSON.stringify(context, (_key, value) => typeof value === "string" ? value.replaceAll(cwd, "<project>") : value),
@@ -76456,7 +76473,7 @@ var init_project_install = __esm(() => {
 });
 
 // src/lifecycle/commands.ts
-import { createHash as createHash42 } from "crypto";
+import { createHash as createHash43 } from "crypto";
 function activationActionsFor(surface) {
   if (surface.name === "claude" && surface.result.changed)
     return ["run /reload-plugins"];
@@ -76652,7 +76669,7 @@ async function prepareLifecycle(cwd, operation, agents, options = {}) {
   };
   const integrationSurfaces = observedSurfaces.filter((surface) => selected.has(surface.name));
   const surfaces = [{ name: "project", effects: project.plan.effects }, ...integrationSurfaces];
-  const preconditionDigest = createHash42("sha256").update(JSON.stringify([
+  const preconditionDigest = createHash43("sha256").update(JSON.stringify([
     project.plan.preconditionDigest,
     agents,
     scope,
@@ -76945,7 +76962,7 @@ var init_commands = __esm(() => {
 });
 
 // src/claude-plugin/cleanup.ts
-import { createHash as createHash43, randomUUID as randomUUID14 } from "crypto";
+import { createHash as createHash44, randomUUID as randomUUID14 } from "crypto";
 import {
   closeSync as closeSync13,
   constants as fsConstants5,
@@ -76965,7 +76982,7 @@ import {
 } from "fs";
 import nodePath120 from "path";
 function sha2569(content) {
-  return createHash43("sha256").update(content).digest("hex");
+  return createHash44("sha256").update(content).digest("hex");
 }
 function containsJsonComments(content) {
   let found = false;
@@ -77998,7 +78015,7 @@ function resolveExecutionMode(input) {
 }
 
 // src/test-execution/remote-workflow-contract.ts
-import { createHash as createHash44 } from "crypto";
+import { createHash as createHash45 } from "crypto";
 function mapping(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : undefined;
 }
@@ -78142,7 +78159,7 @@ function hasFixedUpload(steps) {
 }
 function resultViolations(steps) {
   const reportRun = stepById(steps, "report")?.run;
-  const reportValid = typeof reportRun === "string" && createHash44("sha256").update(reportRun).digest("hex") === REPORT_COMMAND_SHA256;
+  const reportValid = typeof reportRun === "string" && createHash45("sha256").update(reportRun).digest("hex") === REPORT_COMMAND_SHA256;
   return reportValid && hasFixedUpload(steps) ? [] : ["fixed_result_protocol"];
 }
 function hasSecretsKey(value) {
@@ -78400,7 +78417,7 @@ var init_remote_workflow_fs = __esm(() => {
 });
 
 // src/test-execution/remote-workflow-state.ts
-import { createHash as createHash45 } from "crypto";
+import { createHash as createHash46 } from "crypto";
 import nodePath123 from "path";
 function observationError(error, path) {
   const code = filesystemErrorCode(error);
@@ -78415,7 +78432,7 @@ function normalizeLineEndings2(content) {
 `);
 }
 function workflowDigest(content) {
-  return createHash45("sha256").update(normalizeLineEndings2(content)).digest("hex");
+  return createHash46("sha256").update(normalizeLineEndings2(content)).digest("hex");
 }
 function readOpenedWorkflow(descriptor, filesystem) {
   const metadata = filesystem.fstat(descriptor);
@@ -80825,7 +80842,7 @@ var init_plan_gate = __esm(() => {
 });
 
 // src/review/approval-ledger.ts
-import { createHash as createHash46, randomUUID as randomUUID16 } from "crypto";
+import { createHash as createHash47, randomUUID as randomUUID16 } from "crypto";
 import {
   closeSync as closeSync16,
   constants as constants9,
@@ -80944,7 +80961,7 @@ function positionedEvents(ledger) {
   ];
 }
 function decisionIdempotencyKey(identity, supersedesPosition) {
-  return createHash46("sha256").update(JSON.stringify([
+  return createHash47("sha256").update(JSON.stringify([
     identity.ticket,
     identity.planDigest,
     identity.decision,
@@ -80953,7 +80970,7 @@ function decisionIdempotencyKey(identity, supersedesPosition) {
   ])).digest("hex");
 }
 function deliveryIdempotencyKey(identity) {
-  return createHash46("sha256").update(JSON.stringify([
+  return createHash47("sha256").update(JSON.stringify([
     identity.ticket,
     identity.itemId,
     identity.proofId,
@@ -80962,7 +80979,7 @@ function deliveryIdempotencyKey(identity) {
   ])).digest("hex");
 }
 function deliveryCompatibilityIdempotencyKey(identity) {
-  return createHash46("sha256").update(JSON.stringify([
+  return createHash47("sha256").update(JSON.stringify([
     identity.ticket,
     identity.itemId,
     identity.proofId,
@@ -81413,7 +81430,7 @@ var init_planning_contract_copy_failure = __esm(() => {
 });
 
 // src/commands/plan-approval.ts
-import { createHash as createHash47, randomUUID as randomUUID17 } from "crypto";
+import { createHash as createHash48, randomUUID as randomUUID17 } from "crypto";
 import {
   appendFileSync as appendFileSync4,
   existsSync as existsSync63,
@@ -81431,7 +81448,7 @@ function interruptApprovalForTest(boundary) {
   }
 }
 function planDigest(content) {
-  return createHash47("sha256").update(content).digest("hex");
+  return createHash48("sha256").update(content).digest("hex");
 }
 function readContext2(cwd, ticketId) {
   const ticketDirectory = resolveTicketDirectory(cwd, ticketId);
@@ -82248,11 +82265,11 @@ var init_delivery_admission = __esm(() => {
 
 // src/execution-plan/delivery-compatibility.ts
 import { spawnSync as spawnSync22 } from "child_process";
-import { createHash as createHash48 } from "crypto";
+import { createHash as createHash49 } from "crypto";
 import { mkdirSync as mkdirSync28, writeFileSync as writeFileSync36 } from "fs";
 import nodePath139 from "path";
 function sha25610(value) {
-  return createHash48("sha256").update(value).digest("hex");
+  return createHash49("sha256").update(value).digest("hex");
 }
 function relativePathspec(projectRoot, path) {
   const relative = nodePath139.relative(projectRoot, nodePath139.resolve(path));
@@ -82654,7 +82671,7 @@ var init_delivery = __esm(() => {
 });
 
 // src/commands/delivery-checklist.ts
-import { createHash as createHash49 } from "crypto";
+import { createHash as createHash50 } from "crypto";
 import { existsSync as existsSync66, readFileSync as readFileSync95 } from "fs";
 import nodePath142 from "path";
 function findingResult(command, code, message, recovery) {
@@ -82666,7 +82683,7 @@ function findingResult(command, code, message, recovery) {
   });
 }
 function sha25611(value) {
-  return createHash49("sha256").update(value).digest("hex");
+  return createHash50("sha256").update(value).digest("hex");
 }
 function designApprovalEnabled2(cwd) {
   const path = nodePath142.join(cwd, ".safeword", "config.json");
@@ -83425,7 +83442,7 @@ var init_delivery_checklist2 = __esm(() => {
 });
 
 // src/execution-plan/execution-prerequisite.ts
-import { createHash as createHash50 } from "crypto";
+import { createHash as createHash51 } from "crypto";
 import { existsSync as existsSync67, readFileSync as readFileSync96 } from "fs";
 import nodePath143 from "path";
 function successful(status, achievedIndependence, inputIdentity, executionPlanArtifact) {
@@ -83488,7 +83505,7 @@ function designDecisionAccepted(input) {
     return true;
   if (!existsSync67(input.implementationPath))
     return false;
-  const planDigest = createHash50("sha256").update(readFileSync96(input.implementationPath, "utf8")).digest("hex");
+  const planDigest = createHash51("sha256").update(readFileSync96(input.implementationPath, "utf8")).digest("hex");
   return currentDesignDecision(input.ledgerPath, input.ticketId, planDigest) === "approved";
 }
 function contractedFeature(ticketDirectory, phase) {
@@ -83676,7 +83693,7 @@ function checklistPrerequisite(context, inspection) {
   };
 }
 function digest7(content) {
-  return createHash50("sha256").update(content).digest("hex");
+  return createHash51("sha256").update(content).digest("hex");
 }
 function fileDigest2(path) {
   return path !== undefined && existsSync67(path) ? digest7(readFileSync96(path, "utf8")) : "missing";
@@ -83864,7 +83881,7 @@ var init_coding_authorization = __esm(() => {
 
 // src/small-work/proof-observation.ts
 import { execFileSync as execFileSync10 } from "child_process";
-import { createHash as createHash51 } from "crypto";
+import { createHash as createHash52 } from "crypto";
 import { readFileSync as readFileSync97, realpathSync as realpathSync22 } from "fs";
 import nodePath144 from "path";
 function isStringArray2(value) {
@@ -83880,6 +83897,24 @@ function isSmallWorkProofRequest(value) {
     return false;
   const { ticket, contractDigest, baselineRevision, argv, inputs } = request;
   return ticket.trim() !== "" && CONTRACT_DIGEST.test(contractDigest) && GIT_OBJECT_ID.test(baselineRevision) && isStringArray2(argv) && isStringArray2(inputs);
+}
+function completeSmallWorkProofRequest(cwd, value) {
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    return value;
+  if ("contractDigest" in value || !("ticket" in value) || typeof value.ticket !== "string") {
+    return value;
+  }
+  const directory = resolveTicketDirectory(cwd, value.ticket);
+  if (directory === undefined)
+    throw new Error(`Ticket ${value.ticket} could not be resolved.`);
+  const facts = readSmallWorkFacts(readFileSync97(nodePath144.join(directory, "ticket.md"), "utf8"));
+  if (classifySmallWork(facts).status !== "classified") {
+    throw new Error(`Ticket ${value.ticket} does not have classified small-work facts.`);
+  }
+  return {
+    ...value,
+    contractDigest: smallWorkContractDigest(facts)
+  };
 }
 function projectRelativePath(root, absolute) {
   const relative = nodePath144.relative(root, absolute);
@@ -83899,13 +83934,13 @@ function fingerprint2(cwd, request, resumed = false) {
   if (!resumed && !readFileSync97(entryPath).equals(baseline)) {
     throw new Error("The declared entry point has changed from the pre-test baseline.");
   }
-  const hash = createHash51("sha256").update(JSON.stringify(request)).update(baseline);
+  const hash = createHash52("sha256").update(JSON.stringify(request)).update(baseline);
   const proofPaths = new Set([request.target, ...request.inputs]);
   for (const path of proofPaths) {
     const absolute = realpathSync22.native(nodePath144.resolve(root, path));
     const relative = projectRelativePath(root, absolute);
     const contents = absolute === entryPath ? baseline : readFileSync97(absolute);
-    const digest = createHash51("sha256").update(contents).digest("hex");
+    const digest = createHash52("sha256").update(contents).digest("hex");
     hash.update(JSON.stringify([path, relative, digest]));
   }
   return hash.digest("hex");
@@ -83961,8 +83996,10 @@ function smallWorkAdmissionToken(cwd, observation) {
 }
 var CONTRACT_DIGEST, GIT_OBJECT_ID, textFields;
 var init_proof_observation = __esm(() => {
+  init_small_work_classification();
   init_job();
   init_red_execution();
+  init_product_plan_contract();
   CONTRACT_DIGEST = /^[a-f\d]{64}$/u;
   GIT_OBJECT_ID = /^(?:[a-f\d]{40}|[a-f\d]{64})$/u;
   textFields = [
@@ -85540,7 +85577,7 @@ var init_boundary = __esm(() => {
 // src/go-lint/config.ts
 import { spawnSync as spawnSync27 } from "child_process";
 import { randomUUID as randomUUID19 } from "crypto";
-import { closeSync as closeSync17, existsSync as existsSync77, openSync as openSync17, readFileSync as readFileSync103, unlinkSync as unlinkSync10, writeFileSync as writeFileSync39 } from "fs";
+import { closeSync as closeSync17, existsSync as existsSync77, openSync as openSync17, readFileSync as readFileSync104, unlinkSync as unlinkSync10, writeFileSync as writeFileSync39 } from "fs";
 import { homedir as homedir8 } from "os";
 import path8 from "path";
 function record3(value) {
@@ -85627,7 +85664,7 @@ function parseYamlConfig(text) {
   return document2.toJS({ maxAliasCount: 100 });
 }
 function parseConfig2(file) {
-  const text = readFileSync103(file, "utf8");
+  const text = readFileSync104(file, "utf8");
   let parsed;
   switch (path8.extname(file)) {
     case ".json": {
@@ -85984,7 +86021,7 @@ import {
   mkdirSync as mkdirSync32,
   mkdtempSync as mkdtempSync11,
   readdirSync as readdirSync38,
-  readFileSync as readFileSync104,
+  readFileSync as readFileSync105,
   renameSync as renameSync19,
   rmSync as rmSync20,
   writeFileSync as writeFileSync41
@@ -86185,7 +86222,7 @@ function packagedSafewordHandbookPath() {
 }
 function usablePackagedHandbookPath() {
   const instructionsPath = findPackagedTemplate("SAFEWORD.md");
-  if (!instructionsPath || !readFileSync104(instructionsPath, "utf8").trim())
+  if (!instructionsPath || !readFileSync105(instructionsPath, "utf8").trim())
     return;
   return instructionsPath;
 }
@@ -86328,7 +86365,7 @@ function rewriteSnapshotImportsForNode(directory, root = directory) {
     if (!entry.isFile() || !entry.name.endsWith(".ts"))
       continue;
     const relativePath = nodePath158.relative(root, path);
-    const source = readFileSync104(path, "utf8");
+    const source = readFileSync105(path, "utf8");
     const importRewritten = source.replaceAll(/(from\s+['"]|import\s*\(\s*['"])(\.{1,2}\/[^'"]+)\.js(['"])/gu, "$1$2.ts$3");
     const rewritten = rewriteOpenCodeHookRuntime(relativePath, source, importRewritten, path);
     if (rewritten !== source)
@@ -86398,7 +86435,7 @@ function emitPackagedPreToolResult(result) {
 }
 function readProjectTextFile(projectDirectory, relativePath) {
   const filePath = nodePath158.join(projectDirectory, relativePath);
-  return existsSync78(filePath) ? readFileSync104(filePath, "utf8") : undefined;
+  return existsSync78(filePath) ? readFileSync105(filePath, "utf8") : undefined;
 }
 function emitAdditionalContext(output) {
   process25.stdout.write(`${JSON.stringify(output)}
@@ -86449,7 +86486,7 @@ function maybeDenyTestDefinitionsWrite(projectDirectory, targetPath) {
   if (existsSync78(nodePath158.join(ticketDirectory, "test-definitions.md")))
     return false;
   const ticketPath = nodePath158.join(ticketDirectory, "ticket.md");
-  const ticketContent = existsSync78(ticketPath) ? readFileSync104(ticketPath, "utf8") : "";
+  const ticketContent = existsSync78(ticketPath) ? readFileSync105(ticketPath, "utf8") : "";
   const missing = missingIntakeFields(ticketContent);
   if (missing.length === 0)
     return false;
@@ -88774,7 +88811,7 @@ init_agent_selection();
 
 // src/cli-protocol/public-handlers.ts
 init_agent_selection();
-import { existsSync as existsSync75 } from "fs";
+import { existsSync as existsSync75, readFileSync as readFileSync103 } from "fs";
 import nodePath155 from "path";
 
 // src/cli-protocol/architecture-handlers.ts
@@ -91301,10 +91338,12 @@ async function classifySmallWorkHandler(invocation) {
     data: { command: "ticket classify-small-work", ...result }
   });
 }
-var smallWorkProofFields = "Required JSON fields: ticket, contractDigest, argv, cwd, target, entryPoint, baselineRevision (full Git commit), inputs, and expectedFailure. Optional expectation: failure (default) or pass.";
+var smallWorkProofFields = "Required JSON fields: ticket, argv, cwd, target, entryPoint, baselineRevision (full Git commit), inputs, and expectedFailure. Optional expectation: failure (default) or pass. Omit contractDigest to derive it from the ticket.";
 var SMALL_WORK_PROOF_HELP = [
   smallWorkProofFields,
   "",
+  "Supply inline JSON or @path to a JSON file. Example: safeword ticket observe-small-work-proof @.project/retry-proof.json --json",
+  "Keep a temporary request file under the project ticket namespace so it is excluded from the task footprint.",
   "ticket: the ticket ID.",
   "contractDigest: lowercase SHA-256 of JSON.stringify(small-work facts without proof or evaluation).",
   "argv: the test command as an array of strings, including target. The command runs without a shell.",
@@ -91313,21 +91352,24 @@ var SMALL_WORK_PROOF_HELP = [
   "inputs: additional project-relative proof files, or [].",
   "expectedFailure: text from the failing assertion, or an empty string when expectation is pass.",
   "",
-  "Use --json to get data.observation. In the ticket facts, save proof.request and proof.observation.",
+  "Use --json and save data.request and data.observation as proof.request and proof.observation in the ticket facts.",
   "Set proof.relevance to { observationTag: observation.tag, relevant: true, explanation } when the test proves the task."
 ].join(`
 `);
 async function observeSmallWorkProofHandler(invocation) {
   const command = "ticket observe-small-work-proof";
   const operand = invocation.operands[0];
+  if (typeof operand !== "string")
+    return invalidOperand(command, smallWorkProofFields);
+  await Promise.resolve().then(() => init_proof_observation());
   let request;
   try {
-    if (typeof operand === "string")
-      request = JSON.parse(operand);
-  } catch {
-    return invalidOperand(command, `Expected a valid JSON object. ${smallWorkProofFields}`);
+    const json = operand.startsWith("@") ? readFileSync103(nodePath155.resolve(invocation.cwd, operand.slice(1)), "utf8") : operand;
+    request = completeSmallWorkProofRequest(invocation.cwd, JSON.parse(json));
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    return invalidOperand(command, `Could not load the proof request. ${reason} ${smallWorkProofFields}`);
   }
-  await Promise.resolve().then(() => init_proof_observation());
   if (!isSmallWorkProofRequest(request)) {
     return invalidOperand(command, smallWorkProofFields);
   }
@@ -91335,7 +91377,7 @@ async function observeSmallWorkProofHandler(invocation) {
     const observed = await observeSmallWorkProof(invocation.cwd, request);
     return createResult({
       state: "healthy",
-      data: { command, ...observed }
+      data: { command, request, ...observed }
     });
   } catch (error) {
     return createResult({
@@ -92037,7 +92079,7 @@ var CANONICAL_COMMANDS = [
     }
   }),
   command2("ticket observe-small-work-proof", "Observe a declared small-work test", "mutate", {
-    syntax: "observe-small-work-proof <proofJson>",
+    syntax: "observe-small-work-proof <proofJsonOrFile>",
     helpText: SMALL_WORK_PROOF_HELP,
     networkPolicy: "declared",
     fixture: {

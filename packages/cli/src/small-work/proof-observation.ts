@@ -3,8 +3,14 @@ import { createHash } from 'node:crypto';
 import { readFileSync, realpathSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import {
+  classifySmallWork,
+  readSmallWorkFacts,
+  smallWorkContractDigest,
+} from '../../templates/hooks/lib/small-work-classification.js';
 import { smallWorkObservationTag, validSmallWorkObservationTag } from '../review/job.js';
 import { executeNoShellCommand } from '../review/red-execution.js';
+import { resolveTicketDirectory } from '../utils/product-plan-contract.js';
 
 export interface SmallWorkProofRequest {
   readonly ticket: string;
@@ -50,6 +56,23 @@ export function isSmallWorkProofRequest(value: unknown): value is SmallWorkProof
     isStringArray(argv) &&
     isStringArray(inputs)
   );
+}
+
+export function completeSmallWorkProofRequest(cwd: string, value: unknown): unknown {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return value;
+  if ('contractDigest' in value || !('ticket' in value) || typeof value.ticket !== 'string') {
+    return value;
+  }
+  const directory = resolveTicketDirectory(cwd, value.ticket);
+  if (directory === undefined) throw new Error(`Ticket ${value.ticket} could not be resolved.`);
+  const facts = readSmallWorkFacts(readFileSync(nodePath.join(directory, 'ticket.md'), 'utf8'));
+  if (classifySmallWork(facts).status !== 'classified') {
+    throw new Error(`Ticket ${value.ticket} does not have classified small-work facts.`);
+  }
+  return {
+    ...value,
+    contractDigest: smallWorkContractDigest(facts as { proof?: unknown; evaluation?: unknown }),
+  };
 }
 
 function projectRelativePath(root: string, absolute: string): string {

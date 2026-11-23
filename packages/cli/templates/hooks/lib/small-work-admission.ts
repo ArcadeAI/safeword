@@ -5,35 +5,22 @@ import nodePath from 'node:path';
 import { atomicWriteFile } from './jsonl-spool.js';
 import { askTrustedSafeword } from './safeword-cli.js';
 import { smallWorkFootprintDenial, smallWorkThresholds } from './small-work-footprint.js';
-import { classifySmallWork, type SmallWorkFacts } from './small-work-classification.js';
-
-const FACTS_HEADING = '## Safeword small-work facts';
-export function hasSmallWorkFacts(ticket: string): boolean {
-  return ticket.split(/\r?\n/u).includes(FACTS_HEADING);
-}
+import {
+  classifySmallWork,
+  hasSmallWorkFacts,
+  readSmallWorkFacts,
+  smallWorkContractDigest,
+  type SmallWorkFacts,
+} from './small-work-classification.js';
 
 const PENDING_PLAN = 'small_work_pending_phase: plan-implementation';
-
-function readFacts(ticket: string): unknown {
-  const blocks = [
-    ...ticket.matchAll(
-      /^## Safeword small-work facts\r?\n\r?\n```json\r?\n([\s\S]*?)\r?\n```[ \t]*$/gm,
-    ),
-  ];
-  if (blocks.length !== 1) return undefined;
-  try {
-    return JSON.parse(blocks[0]?.[1] ?? '') as unknown;
-  } catch {
-    return undefined;
-  }
-}
 
 function taskProofDenial(
   projectRoot: string,
   ticketId: string,
   facts: SmallWorkFacts & { proof?: unknown; evaluation?: unknown },
 ): string | undefined {
-  const { proof, evaluation: _evaluation, ...contract } = facts;
+  const { proof } = facts;
   if (typeof proof !== 'object' || proof === null) {
     return facts.changesBehavior
       ? 'Record the observed failing test for this task before editing production code.'
@@ -44,7 +31,7 @@ function taskProofDenial(
     observation?: Record<string, unknown>;
     relevance?: Record<string, unknown>;
   };
-  const currentDigest = createHash('sha256').update(JSON.stringify(contract)).digest('hex');
+  const currentDigest = smallWorkContractDigest(facts);
   if (
     request?.ticket !== ticketId ||
     (request.expectation === 'pass') === facts.changesBehavior ||
@@ -177,7 +164,7 @@ function reconcileSmallWork(
     /^phase:[ \t]*intake[ \t]*$/m.test(frontmatter);
   if (!smallWork && !featureAtIntake) return undefined;
 
-  const facts = readFacts(ticket);
+  const facts = readSmallWorkFacts(ticket);
   const decision = classifySmallWork(facts);
   if (decision.status !== 'classified') {
     return proposed === undefined

@@ -86,7 +86,8 @@ import {
 } from './lib/plan-gate.ts';
 import { evaluateParentContract } from './lib/product-plan-contract.ts';
 import { installCrashCapture } from './lib/self-report.ts';
-import { hasSmallWorkFacts, smallWorkRoutingDenial } from './lib/small-work-admission.ts';
+import { smallWorkRoutingDenial } from './lib/small-work-admission.ts';
+import { hasSmallWorkFacts } from './lib/small-work-classification.ts';
 
 const crashCapture = installCrashCapture('pre-tool-quality');
 

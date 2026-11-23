@@ -1,3 +1,29 @@
+import { createHash } from 'node:crypto';
+
+const FACTS_HEADING = '## Safeword small-work facts';
+export function hasSmallWorkFacts(ticket: string): boolean {
+  return ticket.split(/\r?\n/u).includes(FACTS_HEADING);
+}
+
+export function readSmallWorkFacts(ticket: string): unknown {
+  const blocks = [
+    ...ticket.matchAll(
+      /^## Safeword small-work facts\r?\n\r?\n```json\r?\n([\s\S]*?)\r?\n```[ \t]*$/gm,
+    ),
+  ];
+  if (blocks.length !== 1) return undefined;
+  try {
+    return JSON.parse(blocks[0]?.[1] ?? '') as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+export function smallWorkContractDigest(facts: { proof?: unknown; evaluation?: unknown }): string {
+  const { proof: _proof, evaluation: _evaluation, ...contract } = facts;
+  return createHash('sha256').update(JSON.stringify(contract)).digest('hex');
+}
+
 export const consequentialDecisions = [
   'behavior',
   'shared-contract',

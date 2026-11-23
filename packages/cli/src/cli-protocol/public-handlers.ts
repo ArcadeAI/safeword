@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { type AgentSelectionError, parseAgentSelection } from './agent-selection.js';
@@ -471,13 +471,15 @@ async function classifySmallWorkHandler(invocation: CommandInvocation): Promise<
 }
 
 const smallWorkProofFields =
-  'Required JSON fields: ticket, contractDigest, argv, cwd, target, entryPoint, ' +
+  'Required JSON fields: ticket, argv, cwd, target, entryPoint, ' +
   'baselineRevision (full Git commit), inputs, and expectedFailure. ' +
-  'Optional expectation: failure (default) or pass.';
+  'Optional expectation: failure (default) or pass. Omit contractDigest to derive it from the ticket.';
 
 export const SMALL_WORK_PROOF_HELP = [
   smallWorkProofFields,
   '',
+  'Supply inline JSON or @path to a JSON file. Example: safeword ticket observe-small-work-proof @.project/retry-proof.json --json',
+  'Keep a temporary request file under the project ticket namespace so it is excluded from the task footprint.',
   'ticket: the ticket ID.',
   'contractDigest: lowercase SHA-256 of JSON.stringify(small-work facts without proof or evaluation).',
   'argv: the test command as an array of strings, including target. The command runs without a shell.',
@@ -486,21 +488,29 @@ export const SMALL_WORK_PROOF_HELP = [
   'inputs: additional project-relative proof files, or [].',
   'expectedFailure: text from the failing assertion, or an empty string when expectation is pass.',
   '',
-  'Use --json to get data.observation. In the ticket facts, save proof.request and proof.observation.',
+  'Use --json and save data.request and data.observation as proof.request and proof.observation in the ticket facts.',
   'Set proof.relevance to { observationTag: observation.tag, relevant: true, explanation } when the test proves the task.',
 ].join('\n');
 
 async function observeSmallWorkProofHandler(invocation: CommandInvocation): Promise<CliResult> {
   const command = 'ticket observe-small-work-proof';
   const operand = invocation.operands[0];
+  if (typeof operand !== 'string') return invalidOperand(command, smallWorkProofFields);
+  const { completeSmallWorkProofRequest, isSmallWorkProofRequest, observeSmallWorkProof } =
+    await import('../small-work/proof-observation.js');
   let request: unknown;
   try {
-    if (typeof operand === 'string') request = JSON.parse(operand) as unknown;
-  } catch {
-    return invalidOperand(command, `Expected a valid JSON object. ${smallWorkProofFields}`);
+    const json = operand.startsWith('@')
+      ? readFileSync(nodePath.resolve(invocation.cwd, operand.slice(1)), 'utf8')
+      : operand;
+    request = completeSmallWorkProofRequest(invocation.cwd, JSON.parse(json) as unknown);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    return invalidOperand(
+      command,
+      `Could not load the proof request. ${reason} ${smallWorkProofFields}`,
+    );
   }
-  const { isSmallWorkProofRequest, observeSmallWorkProof } =
-    await import('../small-work/proof-observation.js');
   if (!isSmallWorkProofRequest(request)) {
     return invalidOperand(command, smallWorkProofFields);
   }
@@ -508,7 +518,7 @@ async function observeSmallWorkProofHandler(invocation: CommandInvocation): Prom
     const observed = await observeSmallWorkProof(invocation.cwd, request);
     return createResult({
       state: 'healthy',
-      data: { command, ...observed },
+      data: { command, request, ...observed },
     });
   } catch (error) {
     return createResult({

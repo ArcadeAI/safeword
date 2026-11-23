@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "ead4ac04039c39125f2467c9df5f516f6514a0bf903ce6d292b1b20ff59a27b2"
+      "sha256": "f3d2a6de9c39d9d517f44697635c9863511a87f3a97c13b4a5fc1a9b8f4fd21f"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "a714ef831bcb861e14c30a95f51da2da3f280f7c5478c638516c98b22aa474d5"
+      "sha256": "a358688c08095a67bcfb6ec92c774c563851c0b5ac29ae71077fb35c5d228b6d"
     },
     {
       "path": "runtime/event-groups.json",
@@ -455,11 +455,11 @@
     },
     {
       "path": "runtime/hooks/lib/small-work-admission.ts",
-      "sha256": "0fcb632c0c730cce545bf24e6dd842dff59362dd91f204d1bd673324db48bbff"
+      "sha256": "aae27f048a21788a9b04dc7cf45afbd1bd9ce99e06871e510a29edec95a0d684"
     },
     {
       "path": "runtime/hooks/lib/small-work-classification.ts",
-      "sha256": "a0806c8cc17cb15fafc174edd210740d532a600d27ace44198dc5d2a4269005e"
+      "sha256": "09aa79665df037202c90f15d1b5d2e1bf9f10b24acbcf71b627191c04c92e3e2"
     },
     {
       "path": "runtime/hooks/lib/small-work-footprint.ts",
@@ -539,7 +539,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "ea75fd4164f3e5459489baa46b9168acdce9fdb02703eec4e12d9cd4178f710a"
+      "sha256": "583d3f23cf369c670e8616308347ab47120e196f83cda3d401305afae9c91afb"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -1463,11 +1463,11 @@
     },
     {
       "path": "templates/hooks/lib/small-work-admission.ts",
-      "sha256": "0fcb632c0c730cce545bf24e6dd842dff59362dd91f204d1bd673324db48bbff"
+      "sha256": "aae27f048a21788a9b04dc7cf45afbd1bd9ce99e06871e510a29edec95a0d684"
     },
     {
       "path": "templates/hooks/lib/small-work-classification.ts",
-      "sha256": "a0806c8cc17cb15fafc174edd210740d532a600d27ace44198dc5d2a4269005e"
+      "sha256": "09aa79665df037202c90f15d1b5d2e1bf9f10b24acbcf71b627191c04c92e3e2"
     },
     {
       "path": "templates/hooks/lib/small-work-footprint.ts",
@@ -1547,7 +1547,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "b0ebab1ec33e807727a0cc40db247852564581cc0c659016a0b1ee7bbcc1f49a"
+      "sha256": "52095f5199e5a1c871eeaa2024041508be2ce90e66d2d448650234c59cbbf309"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",
