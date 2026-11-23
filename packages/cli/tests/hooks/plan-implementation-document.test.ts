@@ -330,8 +330,14 @@ describe('surfaces rewritten by the phase introduction (TXRHMD)', () => {
 });
 
 describe('record + public docs (TXRHMD slices 6-7)', () => {
-  it('ARCHITECTURE.md records the superseding ADR and marks the old one superseded (SM1.R3)', () => {
-    const text = readFileSync(nodePath.join(repoRoot, 'ARCHITECTURE.md'), 'utf8');
+  it('the older BDD decision identifies its superseding planning phase (SM1.R3)', () => {
+    const text = readFileSync(
+      nodePath.join(
+        repoRoot,
+        '.project/architecture/bdd-as-a-solo-agent-adaptation-of-the-three-practice-model-retire-decomposition-phase.md',
+      ),
+      'utf8',
+    );
     expect(text).toMatch(/plan-implementation/);
     expect(text).toMatch(/[Ss]uperseded by/);
   });
