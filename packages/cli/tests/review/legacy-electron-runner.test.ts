@@ -27,6 +27,61 @@ it('identifies an untracked declared support input before installation', async (
   }
 });
 
+it('refuses dirty tracked source before installing dependencies', async () => {
+  const fixture = electronRunnerFixture();
+  try {
+    fixture.write(electronRequest.implementationPath, 'uncommitted change');
+    await expect(
+      runElectronProof(fixture.root, electronRequest, fixture.requestPath),
+    ).rejects.toThrow('Commit tracked changes');
+    expect(existsSync(path.join(fixture.temporary, 'processes.jsonl'))).toBe(false);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+it.each([
+  ['a missing anchor', 'export const unrelated = true;\n'],
+  ['a repeated anchor', 'behavior = true; behavior = true;\n'],
+])('refuses %s before installation', async (_name, source) => {
+  const fixture = electronRunnerFixture();
+  try {
+    fixture.write(electronRequest.implementationPath, source);
+    fixture.git('add', electronRequest.implementationPath);
+    fixture.git('commit', '-qm', 'change the mutation anchor');
+    await expect(
+      runElectronProof(fixture.root, electronRequest, fixture.requestPath),
+    ).rejects.toThrow('anchor must occur exactly once');
+    expect(existsSync(path.join(fixture.temporary, 'processes.jsonl'))).toBe(false);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+it.runIf(process.platform !== 'win32').each([
+  ['install-failure', 'Electron frozen install failed'],
+  ['build-failure', 'Electron full desktop build failed'],
+  ['lock-drift', 'Electron install changed committed proof inputs'],
+  ['surviving-mutation', 'Electron proof statistics'],
+])('refuses %s and removes its owned snapshots', async (mode, reason) => {
+  const fixture = electronRunnerFixture();
+  for (const [name, value] of Object.entries(fixture.environment)) vi.stubEnv(name, value);
+  vi.stubEnv('SAFEWORD_ELECTRON_FIXTURE_MODE', mode);
+  try {
+    await expect(
+      runElectronProof(fixture.root, electronRequest, fixture.requestPath),
+    ).rejects.toThrow(reason);
+    const installations = fixture.events().filter(event => event.event === 'install');
+    expect(installations.length).toBeGreaterThan(0);
+    for (const installation of installations) expect(existsSync(installation.root)).toBe(false);
+    expect(readFileSync(path.join(fixture.root, 'pnpm-lock.yaml'), 'utf8')).toBe(
+      'lockfileVersion: 9.0\n',
+    );
+  } finally {
+    fixture.cleanup();
+  }
+});
+
 it('passes owned Electron isolation to a real child without changing the host environment', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'safeword-electron-environment-'));
   const previousPort = process.env.SOULLESS_ELECTRON_TEST_PORT;

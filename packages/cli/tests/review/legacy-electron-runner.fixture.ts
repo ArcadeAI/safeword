@@ -67,7 +67,7 @@ if (fs.existsSync(path.join(root, 'untracked-poison'))) process.exit(73);
 const args = process.argv.slice(2);
 if (!args.includes('--workers=1') || !args.includes('--retries=0') || !args.includes('--repeat-each=1') || !args.includes('--no-deps') || !args.includes('--forbid-only')) process.exit(74);
 fs.appendFileSync(process.env.SAFEWORD_ELECTRON_FIXTURE_LOG, JSON.stringify({event:'test', root, source, port:process.env.SOULLESS_ELECTRON_TEST_PORT, profile:process.env.TMPDIR})+'\n');
-const mutated = source.includes('behavior = false');
+const mutated = process.env.SAFEWORD_ELECTRON_FIXTURE_MODE !== 'surviving-mutation' && source.includes('behavior = false');
 const failure = 'Error: expect(received).toEqual(expected)\nExpected: '+request.mutation.expectedFailure+'\nReceived: missing package behavior\n    at '+request.mutation.assertionLocation+':3';
 const result = {status:mutated?'failed':'passed',retry:0,annotations:[],errors:mutated?[{message:failure,location:{file:path.join(root,request.testFile),line:39,column:3}}]:[]};
 const report = {config:{projects:[{id:'',name:'',repeatEach:1,retries:0}]},suites:[{title:path.basename(request.testFile),specs:[{title:request.scenario,file:path.basename(request.testFile),line:request.testLine,tests:[{projectId:'',projectName:'',expectedStatus:'passed',status:mutated?'unexpected':'expected',annotations:[],results:[result]}]}],suites:[]}],errors:[],stats:{expected:mutated?0:1,unexpected:mutated?1:0,flaky:0,skipped:0}};
@@ -82,11 +82,14 @@ if (args.length === 1 && args[0] === '--version') { console.log('11.7.0'); proce
 const root = process.cwd();
 const event = args[0] === 'install' ? 'install' : 'build';
 fs.appendFileSync(process.env.SAFEWORD_ELECTRON_FIXTURE_LOG, JSON.stringify({event,root,args})+'\n');
+const mode = process.env.SAFEWORD_ELECTRON_FIXTURE_MODE;
+if (mode === event+'-failure') { console.error('controlled '+event+' failure'); process.exit(23); }
 if (event === 'install') {
   if (JSON.stringify(args) !== JSON.stringify(['install','--frozen-lockfile'])) process.exit(75);
   fs.mkdirSync('node_modules/playwright', {recursive:true});
   fs.writeFileSync('node_modules/installed-for', root);
   fs.writeFileSync('node_modules/playwright/cli.js', ${JSON.stringify(playwright)});
+  if (mode === 'lock-drift') fs.appendFileSync('pnpm-lock.yaml', 'changed by installation\n');
   process.exit(0);
 }
 if (JSON.stringify(args) !== JSON.stringify(['--filter','@soulless/desktop','run','build'])) process.exit(76);
