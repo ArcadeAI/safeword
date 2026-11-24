@@ -3579,7 +3579,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/elicit/SKILL.md": "2638c773ce241a886563d1db8abbee70d72edefa780f762c0ed095df0f65cee5",
         ".claude/skills/explain/SKILL.md": "6e50852d12d72fa9cb606e68ec14775fdd9e0d41754674de8a48e89377f96ec3",
         ".claude/skills/figure-it-out/SKILL.md": "18e2b44e9a91562079b3e1f52fcd9f952b5f57a0f0e7647b0273809848a75c0d",
-        ".claude/skills/finish-review/REVIEWER.md": "9cddbcc9233c8eb60b1a13c4f957edbc314969fde941f0e1e77e03c2555855b7",
+        ".claude/skills/finish-review/REVIEWER.md": "82f914df38bff923c0478a82f22e70c71df2aa74f28e2a626a34e4fd5635ca76",
         ".claude/skills/finish-review/SKILL.md": "003936abdb031d977fc46341e01135f0d63e953511874693f2dfcbab1c57d96f",
         ".claude/skills/lint/SKILL.md": "f8bc868fb10a06ca46a22236309b9f0c3ffbd70eecc024d3c79de8ef0e42fd14",
         ".claude/skills/pr-readiness/SKILL.md": "42fc32b8bef9a50d85c5d9ac81dcb3edab91f9d92c3e6bfe842fbabba2eed749",
@@ -63788,14 +63788,15 @@ import nodePath65 from "path";
 function isPlanningReview(kind, planningPhase) {
   return planningPhase === "product-plan" || kind === "scenario-gate" || kind === "plan-implementation" || kind === "plan-execution";
 }
-function reviewOutputSchema(kind, planningPhase, dispatchId) {
+function reviewOutputSchema(kind, planningPhase, dispatchId, hostAuthor) {
   const planningSchema = isPlanningReview(kind, planningPhase) ? PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE : REVIEW_OUTPUT_SCHEMA_SHAPE;
   const schema = kind === "plan-execution" ? EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE : planningSchema;
-  return JSON.stringify(dispatchId === undefined ? schema : {
+  return JSON.stringify({
     ...schema,
     properties: {
       ...schema.properties,
-      dispatch_id: { type: "string", enum: [dispatchId] }
+      ...dispatchId !== undefined && { dispatch_id: { type: "string", enum: [dispatchId] } },
+      ...hostAuthor !== undefined && { reviewer_agent: { type: "string", enum: [hostAuthor] } }
     }
   });
 }
@@ -65779,6 +65780,7 @@ function rankedTerminalResult(input) {
 function hostContinuationResult(input) {
   if (!input.planning || input.degraded !== undefined)
     return;
+  const { packet } = input.prepared;
   const headlessRoute = input.evidence.some((route) => route.independence === "degraded");
   return createResult({
     state: "action_required",
@@ -65801,8 +65803,13 @@ function hostContinuationResult(input) {
       review_routes: input.evidence,
       continuation: {
         tier: "fresh-context",
-        instructions: reviewerPromptInstructions(input.input.kind, input.author, input.prepared.packet.planning_phase),
-        packet: input.prepared.packet
+        instructions: [
+          reviewerPromptInstructions(packet.kind, input.author, packet.planning_phase),
+          "Return an object matching this JSON Schema:",
+          reviewOutputSchema(packet.kind, packet.planning_phase, packet.dispatch_id, input.author)
+        ].join(`
+`),
+        packet
       }
     }
   });
