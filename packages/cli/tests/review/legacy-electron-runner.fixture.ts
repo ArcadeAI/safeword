@@ -90,6 +90,7 @@ process.exit(mutated?1:0);
   const pnpm = String.raw`#!${process.execPath}
 const fs = require('node:fs');
 const path = require('node:path');
+if (path.basename(process.argv[1]) !== 'pnpm') { console.error('invoke the pnpm shim, not its multi-call target'); process.exit(77); }
 const args = process.argv.slice(2);
 if (args.length === 1 && args[0] === '--version') { console.log('11.7.0'); process.exit(0); }
 const root = process.cwd();
@@ -107,12 +108,13 @@ if (event === 'install') {
 }
 if (JSON.stringify(args) !== JSON.stringify(['--filter','@soulless/desktop','run','build'])) process.exit(76);
 const source = fs.readFileSync(${JSON.stringify(electronRequest.implementationPath)}, 'utf8');
-for (const file of ['main/index.js','preload/index.js','renderer/index.html']) {
+for (const file of ['main/index.js','preload/index.cjs','renderer/index.html']) {
   const target = path.join('packages/desktop/out',file);
   fs.mkdirSync(path.dirname(target), {recursive:true}); fs.writeFileSync(target,source);
 }
 `;
-  writeFileSync(path.join(bin, 'pnpm'), pnpm, { mode: 0o755 });
+  writeFileSync(path.join(bin, 'multi-call-tool'), pnpm, { mode: 0o755 });
+  if (process.platform !== 'win32') symlinkSync('multi-call-tool', path.join(bin, 'pnpm'));
   return {
     temporary,
     root,

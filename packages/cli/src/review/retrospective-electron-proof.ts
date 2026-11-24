@@ -25,6 +25,7 @@ import {
   currentProofCommit,
   proofEnvironment,
   proofExecutable,
+  proofExecutableInvocation,
   proofGit,
   proofSha256,
   readProofInput,
@@ -277,7 +278,7 @@ async function executeSnapshot(
     env,
     'full desktop build',
   );
-  for (const file of ['main/index.js', 'preload/index.js', 'renderer/index.html'])
+  for (const file of ['main/index.js', 'preload/index.cjs', 'renderer/index.html'])
     readProofInput(copy, `${DESKTOP}/out/${file}`);
   requireSnapshotInputs(copy, inputs, digests, 'Electron build changed committed proof inputs.');
   rmSync(reportPath, { force: true });
@@ -342,7 +343,7 @@ export async function runElectronProof(
   requireCompatibilityAliases(canonical, commit);
   const sourceSha256 = proofSha256(readProofInput(canonical, request.implementationPath));
   const node = proofExecutable(canonical, 'node', 'Node');
-  const pnpm = proofExecutable(canonical, 'pnpm', 'pnpm');
+  const pnpm = proofExecutableInvocation(canonical, 'pnpm', 'pnpm');
   const temporaryPath = mkdtempSync(path.join(tmpdir(), 'safeword-electron-proof-'));
   const temporary = realpathSync.native(temporaryPath);
   try {

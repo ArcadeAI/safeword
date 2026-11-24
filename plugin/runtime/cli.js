@@ -60620,7 +60620,7 @@ function projectPath(root, candidate) {
   const relative = nodePath66.relative(root, candidate);
   return relative === "" || relative !== ".." && !relative.startsWith(`..${nodePath66.sep}`) && !nodePath66.isAbsolute(relative);
 }
-function proofExecutable(root, name, label) {
+function resolveProofExecutable(root, name, label) {
   const project = realpathSync12.native(root);
   const directories = (process.env.PATH ?? "").split(nodePath66.delimiter);
   for (const directory of directories) {
@@ -60633,10 +60633,16 @@ function proofExecutable(root, name, label) {
     }
     try {
       accessSync3(canonical, constants5.X_OK);
-      return canonical;
+      return { invocation: candidate, canonical };
     } catch {}
   }
   throw new Error(`An installed ${label} executable is required for retrospective proof.`);
+}
+function proofExecutable(root, name, label) {
+  return resolveProofExecutable(root, name, label).canonical;
+}
+function proofExecutableInvocation(root, name, label) {
+  return resolveProofExecutable(root, name, label).invocation;
 }
 function runTest(copy, argv, fullName, expectedStatus) {
   const cwd = nodePath66.join(copy, "packages/cli");
@@ -61309,7 +61315,7 @@ async function executeSnapshot(input) {
   requireSnapshotInputs(copy, inputs, digests, "Electron install changed committed proof inputs.");
   rmSync13(isolation.build, { recursive: true, force: true });
   await setupCommand(copy, [pnpm, "--filter", "@soulless/desktop", "run", "build"], env, "full desktop build");
-  for (const file of ["main/index.js", "preload/index.js", "renderer/index.html"])
+  for (const file of ["main/index.js", "preload/index.cjs", "renderer/index.html"])
     readProofInput(copy, `${DESKTOP}/out/${file}`);
   requireSnapshotInputs(copy, inputs, digests, "Electron build changed committed proof inputs.");
   rmSync13(reportPath, { force: true });
@@ -61349,7 +61355,7 @@ async function runElectronProof(root, input, requestPath) {
   requireCompatibilityAliases(canonical, commit);
   const sourceSha256 = sha2565(readProofInput(canonical, request.implementationPath));
   const node = proofExecutable(canonical, "node", "Node");
-  const pnpm = proofExecutable(canonical, "pnpm", "pnpm");
+  const pnpm = proofExecutableInvocation(canonical, "pnpm", "pnpm");
   const temporaryPath = mkdtempSync9(path9.join(tmpdir7(), "safeword-electron-proof-"));
   const temporary = realpathSync14.native(temporaryPath);
   try {

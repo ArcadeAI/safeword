@@ -57,6 +57,29 @@ through `codex plugin add`; lifecycle fixture verification from `--fix` could
 not start because another checkout owned the package-test lock. No five-surface
 verification success is claimed for that regeneration attempt.
 
+## Subsequent executable checks
+
+Preserving the validated external pnpm launcher name corrected mise dispatch.
+The next real run installed and built successfully, then exposed the runner's
+incorrect preload filename. Soulless's committed configuration and main process
+both name `out/preload/index.cjs`; the runner and portable fixture now match.
+The following live attempt passed its original and reached the mutant's declared
+assertion location, but refused the assertion-message format. No observation was
+issued. A standalone Playwright 1.62.1 equality matcher confirmed its object-diff
+headers omit scalar-label colons, and a separate synthetic contract probe failed
+in the current evaluator. This is formatter research, not an Electron proof.
+
+The queued runner protection finally executed: 10 tests passed, including the
+exact compatibility links, external multi-call launcher, correct preload layout,
+independent installs/builds, untracked exclusion and failure cleanup. Its log's
+earlier RED-oriented filename does not change that actual GREEN-only outcome.
+
+Independent report/request review `ce3d5e88-18bf-4d0b-9c1b-695b943ef037`
+(Claude Opus, cross-agent) requested changes for missing one-variable mutation
+refusals and missing original-pass refusals. Those characterization matrices are
+written; their execution and the object-diff regression remain pending. Warnings
+about scenario/title binding and nested file selection also remain to resolve.
+
 ## Remaining delivery
 
 - [ ] Implement and protect independent Electron snapshot execution.

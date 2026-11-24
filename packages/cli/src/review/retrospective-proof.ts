@@ -29,6 +29,7 @@ export {
   snapshot as archiveProofSnapshot,
   proofEnvironment,
   proofExecutable,
+  proofExecutableInvocation,
   git as proofGit,
   sha256 as proofSha256,
   requireDigests,
@@ -251,7 +252,11 @@ function projectPath(root: string, candidate: string): boolean {
 }
 
 /** Resolve proof tooling outside the project; committed test scripts still require review. */
-function proofExecutable(root: string, name: string, label: string): string {
+function resolveProofExecutable(
+  root: string,
+  name: string,
+  label: string,
+): { invocation: string; canonical: string } {
   const project = realpathSync.native(root);
   const directories = (process.env.PATH ?? '').split(nodePath.delimiter);
   for (const directory of directories) {
@@ -271,12 +276,21 @@ function proofExecutable(root: string, name: string, label: string): string {
     }
     try {
       accessSync(canonical, constants.X_OK);
-      return canonical;
+      return { invocation: candidate, canonical };
     } catch {
       /* Continue past a non-executable PATH entry. */
     }
   }
   throw new Error(`An installed ${label} executable is required for retrospective proof.`);
+}
+
+function proofExecutable(root: string, name: string, label: string): string {
+  return resolveProofExecutable(root, name, label).canonical;
+}
+
+/** Multi-call launchers such as mise dispatch by their original executable name. */
+function proofExecutableInvocation(root: string, name: string, label: string): string {
+  return resolveProofExecutable(root, name, label).invocation;
 }
 
 // eslint-disable-next-line complexity -- Every branch validates a separate test outcome.
