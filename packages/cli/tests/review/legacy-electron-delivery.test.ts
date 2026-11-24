@@ -6,38 +6,33 @@ import { expect, it } from 'vitest';
 import { SOULLESS_RETROSPECTIVE_POLICY as policy } from '../../src/review/retrospective-policy.js';
 import { electronDeliveryFixture } from './legacy-electron-delivery.fixture.js';
 
-it.runIf(process.platform !== 'win32')(
-  'checks every enrolled row and closing through the installed distribution without creating credit',
-  () => {
-    const fixture = electronDeliveryFixture();
-    try {
-      const result = fixture.run();
-      expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
-      expect(JSON.parse(result.stdout)).toMatchObject({
-        ticketId: policy.ticketId,
-        ledger: policy.ledger,
-        sourceCommit: fixture.git('rev-parse', 'HEAD'),
-        closingStatus: 'approved',
-      });
-      const calls = fixture.calls();
-      expect(calls).toHaveLength(18);
-      expect(calls.slice(0, 17).map(args => args[args.indexOf('--scenario') + 1])).toEqual([
-        ...policy.scenarios,
-      ]);
-      for (const args of calls) {
-        expect(args).toContain('gate');
-        expect(args).not.toContain('attest');
-      }
-      expect(fixture.git('status', '--porcelain')).toBe('');
-    } finally {
-      fixture.cleanup();
+it('checks every enrolled row and closing through the installed distribution without creating credit', () => {
+  const fixture = electronDeliveryFixture();
+  try {
+    const result = fixture.run();
+    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ticketId: policy.ticketId,
+      ledger: policy.ledger,
+      sourceCommit: fixture.git('rev-parse', 'HEAD'),
+      closingStatus: 'approved',
+    });
+    const calls = fixture.calls();
+    expect(calls).toHaveLength(18);
+    expect(calls.slice(0, 17).map(args => args[args.indexOf('--scenario') + 1])).toEqual([
+      ...policy.scenarios,
+    ]);
+    for (const args of calls) {
+      expect(args).toContain('gate');
+      expect(args).not.toContain('attest');
     }
-  },
-);
+    expect(fixture.git('status', '--porcelain')).toBe('');
+  } finally {
+    fixture.cleanup();
+  }
+});
 
-it
-  .runIf(process.platform !== 'win32')
-  .each(['missing-row', 'stale-row', 'forged-row', 'blocked-close', 'wrong-identity'])(
+it.each(['missing-row', 'stale-row', 'forged-row', 'blocked-close', 'wrong-identity'])(
   'refuses an installed %s response rather than reporting delivery complete',
   mode => {
     const fixture = electronDeliveryFixture();
@@ -53,33 +48,30 @@ it
   },
 );
 
-it.runIf(process.platform !== 'win32')(
-  'refuses an incomplete ledger even when every installed response would approve',
-  () => {
-    const fixture = electronDeliveryFixture();
-    try {
-      const first = fixture.rows[0];
-      if (first === undefined) throw new Error('The complete fixture has no rows.');
-      fixture.write(
-        policy.ledger,
-        fixture.ledger
-          .split('\n')
-          .filter(line => !line.includes(`proof=${first.proofId}`))
-          .join('\n'),
-      );
-      fixture.git('add', policy.ledger);
-      fixture.git('commit', '-qm', 'remove one structural verified entry');
-      const result = fixture.run();
-      expect(result.status).toBe(1);
-      expect(result.stderr).toContain('exact 17 enrolled VERIFIED rows');
-      expect(fixture.calls()).toHaveLength(0);
-    } finally {
-      fixture.cleanup();
-    }
-  },
-);
+it('refuses an incomplete ledger even when every installed response would approve', () => {
+  const fixture = electronDeliveryFixture();
+  try {
+    const first = fixture.rows[0];
+    if (first === undefined) throw new Error('The complete fixture has no rows.');
+    fixture.write(
+      policy.ledger,
+      fixture.ledger
+        .split('\n')
+        .filter(line => !line.includes(`proof=${first.proofId}`))
+        .join('\n'),
+    );
+    fixture.git('add', policy.ledger);
+    fixture.git('commit', '-qm', 'remove one structural verified entry');
+    const result = fixture.run();
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('exact 17 enrolled VERIFIED rows');
+    expect(fixture.calls()).toHaveLength(0);
+  } finally {
+    fixture.cleanup();
+  }
+});
 
-it.runIf(process.platform !== 'win32').each(['project', 'outside-cache'] as const)(
+it.each(['project', 'outside-cache'] as const)(
   'refuses a %s CLI instead of the supported installed distribution',
   location => {
     const fixture = electronDeliveryFixture();

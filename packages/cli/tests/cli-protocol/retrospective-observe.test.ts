@@ -23,20 +23,18 @@ it.each(['README.md', 'packages/website/src/content/docs/reference/cli.mdx'])(
   },
 );
 
-it.runIf(process.platform !== 'win32')(
-  'observes through the real public parser and fixed runner without creating verification credit',
-  async () => {
-    const fixture = electronRunnerFixture();
-    try {
-      fixture.git('remote', 'add', 'origin', 'https://github.com/ArcadeAI/soulless-monorepo.git');
-      const git = execFileSync('which', ['git'], { encoding: 'utf8' }).trim();
-      const cutoff = '4990ae4158d3e2744a8c5934089a8e1d5d2b19b1';
-      const commitSuffix = '^{commit}';
-      // Only external Git prerequisites are simulated; archive/status/blob work
-      // delegates to real Git. This is CLI wiring, not real migration ancestry.
-      writeFileSync(
-        path.join(fixture.bin, 'git'),
-        `#!${process.execPath}
+it('observes through the real public parser and fixed runner without creating verification credit', async () => {
+  const fixture = electronRunnerFixture();
+  try {
+    fixture.git('remote', 'add', 'origin', 'https://github.com/ArcadeAI/soulless-monorepo.git');
+    const git = execFileSync('which', ['git'], { encoding: 'utf8' }).trim();
+    const cutoff = '4990ae4158d3e2744a8c5934089a8e1d5d2b19b1';
+    const commitSuffix = '^{commit}';
+    // Only external Git prerequisites are simulated; archive/status/blob work
+    // delegates to real Git. This is CLI wiring, not real migration ancestry.
+    writeFileSync(
+      path.join(fixture.bin, 'git'),
+      `#!${process.execPath}
 const {spawnSync} = require('node:child_process');
 const args = process.argv.slice(2);
 const cutoff = ${JSON.stringify(cutoff)};
@@ -45,43 +43,42 @@ if (args.includes('merge-base') && args.includes(cutoff)) process.exit(0);
 const result = spawnSync(${JSON.stringify(git)}, args, {stdio:'inherit'});
 process.exit(result.status ?? 1);
 `,
-        { mode: 0o755 },
-      );
-      const result = await runCliWithLiteralArguments(
-        [
-          'review',
-          'observe',
-          'retrospective',
-          '--request',
-          fixture.requestPath,
-          '--cwd',
-          fixture.root,
-          '--json',
-          '--no-input',
-        ],
-        { cwd: fixture.root, env: fixture.environment, timeout: 30_000 },
-      );
-      expect(result.exitCode, `${result.stdout}\n${result.stderr}`).toBe(0);
-      const payload = JSON.parse(result.stdout) as {
-        data?: { observation?: { commit: string; request: unknown } };
-      };
-      expect(payload).toMatchObject({
-        ok: true,
-        data: {
-          command: 'review observe retrospective',
-          status: 'observed',
-          observation: {
-            commit: fixture.git('rev-parse', 'HEAD'),
-            request: electronRequest,
-            passing: { exitCode: 0, passedTests: 1, failedTests: 0 },
-            mutated: { exitCode: 1, passedTests: 0, failedTests: 1 },
-          },
+      { mode: 0o755 },
+    );
+    const result = await runCliWithLiteralArguments(
+      [
+        'review',
+        'observe',
+        'retrospective',
+        '--request',
+        fixture.requestPath,
+        '--cwd',
+        fixture.root,
+        '--json',
+        '--no-input',
+      ],
+      { cwd: fixture.root, env: fixture.environment, timeout: 30_000 },
+    );
+    expect(result.exitCode, `${result.stdout}\n${result.stderr}`).toBe(0);
+    const payload = JSON.parse(result.stdout) as {
+      data?: { observation?: { commit: string; request: unknown } };
+    };
+    expect(payload).toMatchObject({
+      ok: true,
+      data: {
+        command: 'review observe retrospective',
+        status: 'observed',
+        observation: {
+          commit: fixture.git('rev-parse', 'HEAD'),
+          request: electronRequest,
+          passing: { exitCode: 0, passedTests: 1, failedTests: 0 },
+          mutated: { exitCode: 1, passedTests: 0, failedTests: 1 },
         },
-      });
-      expect(existsSync(path.join(fixture.root, '.safeword/state/reviews'))).toBe(false);
-      expect(fixture.events().filter(event => event.event === 'test')).toHaveLength(2);
-    } finally {
-      fixture.cleanup();
-    }
-  },
-);
+      },
+    });
+    expect(existsSync(path.join(fixture.root, '.safeword/state/reviews'))).toBe(false);
+    expect(fixture.events().filter(event => event.event === 'test')).toHaveLength(2);
+  } finally {
+    fixture.cleanup();
+  }
+});

@@ -112,6 +112,8 @@ const LEGITIMATE: Record<string, string> = {
   'src/utils/git.ts': 'gitToplevel() serves git operations, not project choice',
   'src/commands/architecture.ts': 'git context for staging architecture documents',
   'src/review/retrospective-proof.ts': 'git repository identity for proof records',
+  'src/review/retrospective-electron-proof.ts':
+    'validates the explicitly supplied proof root; never selects a different project',
   'src/codex-plugin/inventory.ts': 'Codex hook launcher locates hook scripts in the git tree',
   'src/codex-plugin/project-bootstrap.ts':
     'dependency bootstrap runs in the git tree it is invoked in',
