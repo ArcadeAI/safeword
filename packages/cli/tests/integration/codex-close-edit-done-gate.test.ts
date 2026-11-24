@@ -11,8 +11,8 @@
  * the counter proves exactly how many times the done gate ran its tests.
  */
 
-import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync, execSync, spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
@@ -116,6 +116,7 @@ function commitTaskTicket(directory: string, ticketId: string): string {
  * Desktop omits it — only through CODEX_THREAD_ID in the hook environment.
  */
 interface CodexRun {
+  pluginHook?: boolean;
   payload: { session_id?: string };
   env: Record<string, string>;
 }
@@ -142,7 +143,9 @@ function runCodexHook(
   event: 'post-tool-use' | 'stop',
   payload: Record<string, unknown>,
 ): string {
-  const result = spawnSync(process.execPath, [testCliPath, 'hook', 'codex', event], {
+  const args = [testCliPath, 'hook', 'codex', event];
+  if (run.pluginHook) args.push('--plugin-hook');
+  const result = spawnSync(process.execPath, args, {
     cwd: directory,
     input: JSON.stringify({ ...run.payload, cwd: directory, ...payload }),
     env: codexEnvironment(directory, run),
@@ -184,6 +187,57 @@ function runCodexStop(
 describe.each(Object.entries(RUNS))(
   'Codex Stop runs the done gate owed by a close-by-edit (%s)',
   (_label, makeRun) => {
+    it('verifies the linked ticket after the session returns to its primary checkout', () => {
+      const primary = fixture.projectDirectory;
+      const temporary = createTemporaryDirectory();
+      const linked = nodePath.join(temporary, 'linked');
+      const profile = nodePath.join(temporary, 'profile');
+      const session = makeRun(nodePath.basename(temporary));
+      const other = makeRun(`${nodePath.basename(temporary)}-other`);
+      for (const run of [session, other]) {
+        run.pluginHook = true;
+        Object.assign(run.env, { CLAUDE_PROJECT_DIR: primary, CODEX_HOME: profile });
+      }
+      execFileSync('git', ['worktree', 'add', '--quiet', '--detach', linked], { cwd: primary });
+      try {
+        mkdirSync(nodePath.join(linked, 'node_modules'), { recursive: true });
+        for (const entry of ['.bin', '@cucumber']) {
+          symlinkSync(
+            nodePath.join(primary, 'node_modules', entry),
+            nodePath.join(linked, 'node_modules', entry),
+            'dir',
+          );
+        }
+        setTestExitCode(linked, 1);
+        closeThroughCodexPostToolUse(linked, session, commitTaskTicket(linked, '5467'));
+        // A later edit in the primary checkout supersedes the last-edit pointer.
+        writeTestFile(primary, 'notes.md', 'updated');
+        runCodexHook(primary, session, 'post-tool-use', {
+          tool_name: 'apply_patch',
+          tool_input: {
+            command: '*** Begin Patch\n*** Add File: notes.md\n+updated\n*** End Patch',
+          },
+        });
+        const primaryBaseline = testRunCount(primary);
+        expect(runCodexStop(primary, other)).toEqual({});
+        expect(testRunCount(linked)).toBe(0);
+        expect(runCodexStop(primary, session)).toMatchObject({
+          decision: 'block',
+          reason: expect.stringContaining('Tests failed'),
+        });
+        expect(testRunCount(linked)).toBe(1);
+        setTestExitCode(linked, 0);
+        expect(runCodexStop(primary, session, true)).toEqual({});
+        expect(testRunCount(linked)).toBe(2);
+        expect(runCodexStop(primary, session)).toEqual({});
+        expect(testRunCount(linked)).toBe(2);
+        expect(testRunCount(primary)).toBe(primaryBaseline);
+      } finally {
+        execFileSync('git', ['worktree', 'remove', '--force', linked], { cwd: primary });
+        removeTemporaryDirectory(temporary);
+      }
+    });
+
     it('blocks the Stop after the close when tests fail', () => {
       const directory = fixture.projectDirectory;
       const run = makeRun('thread-block');

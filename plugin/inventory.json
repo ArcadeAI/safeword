@@ -1139,7 +1139,7 @@
     },
     {
       "path": "templates/hooks/codex/stop.ts",
-      "sha256": "93f9d132ac7734a86e7e7912a52e86055084e11fd4ce97f2f8e2edbe933b3d7f"
+      "sha256": "59e87cb256283eeff4808942e99763552b9d070c6bede285c969b94b3e1fe13f"
     },
     {
       "path": "templates/hooks/cursor/after-file-edit.ts",
