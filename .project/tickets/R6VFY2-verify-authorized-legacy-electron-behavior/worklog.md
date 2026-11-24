@@ -91,6 +91,23 @@ additional diagnostics must identify the remaining mismatch before any credit.
 
 ## Remaining delivery
 
+Row admission protection passed 57 tests, including authenticated synthetic
+external-review jobs, metadata HEAD replay and same-HEAD failure/renewal. Review
+905e1baf-6acd-4dd6-966a-3c2415bdfa08 then found a newline bug in the new ledger
+parser and missing recorded-credit coverage. A real-parser regression failed at
+that exact refusal before trimming only heading input; it now passes. The public
+close test independently failed because the legacy close handler returned CKWE2D
+identity for SGWMBS. The new per-policy close entry point passes its missing-row
+refusal. Complete all-17 aggregate execution and tamper coverage remain pending;
+these first checks do not establish working closure.
+
+The installed hook permits only one VERIFIED transition per tool call. Delivery
+must respect that existing limit rather than silently bypass it. Per-row guarded
+edits and commits, each following current-HEAD attestation, can preserve the same
+original histories and exact all-17 closing requirement. Reconcile the execution
+plan's atomic batch-edit wording before delivery; no broader policy change is
+needed to preserve the intended outcome.
+
 The standalone journal implementation passed real-filesystem tests for pending,
 passed, failed, concurrent, SIGKILL-interrupted, and failed-publication outcomes.
 Independent review bec573f6-30c9-4253-bc8b-c0d77fe8e950 identified missing

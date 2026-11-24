@@ -229,16 +229,25 @@ async function retrospectiveHandler(
       command,
       'Ticket, scenario, ledger, eligibility, and proof are required.',
     );
-  const { retrospectiveGate, attestRetrospectiveRow } =
-    await import('../review/retrospective-gate.js');
-  const check = replay ? attestRetrospectiveRow : retrospectiveGate;
-  return check(invocation.cwd, {
+  const request = {
     ticketId: ticket as string,
     scenario: scenario as string,
     ledger: ledger as string,
     eligibilityId: eligibility as string,
     proofId: proof as string,
-  });
+  };
+  if (ticket === 'SGWMBS') {
+    const { electronRetrospectiveGate, attestElectronRetrospectiveRow } =
+      await import('../review/retrospective-electron-gate.js');
+    return replay
+      ? attestElectronRetrospectiveRow(invocation.cwd, request)
+      : electronRetrospectiveGate(invocation.cwd, request);
+  }
+  const { retrospectiveGate, attestRetrospectiveRow } =
+    await import('../review/retrospective-gate.js');
+  return replay
+    ? attestRetrospectiveRow(invocation.cwd, request)
+    : retrospectiveGate(invocation.cwd, request);
 }
 
 export async function retrospectiveCloseAttestHandler(
@@ -247,6 +256,11 @@ export async function retrospectiveCloseAttestHandler(
   const { ticket, ledger } = invocation.options;
   if (typeof ticket !== 'string' || typeof ledger !== 'string')
     return invalidOperand('review attest retrospective-close', 'Ticket and ledger are required.');
+  if (ticket === 'SGWMBS') {
+    const { attestElectronRetrospectiveClose } =
+      await import('../review/retrospective-electron-close.js');
+    return attestElectronRetrospectiveClose(invocation.cwd, ticket, ledger);
+  }
   const { attestRetrospectiveClose } = await import('../review/retrospective-close.js');
   return attestRetrospectiveClose(invocation.cwd, ticket, ledger);
 }
@@ -257,6 +271,11 @@ export async function retrospectiveCloseGateHandler(
   const { ticket, ledger } = invocation.options;
   if (typeof ticket !== 'string' || typeof ledger !== 'string')
     return invalidOperand('review gate retrospective-close', 'Ticket and ledger are required.');
+  if (ticket === 'SGWMBS') {
+    const { electronRetrospectiveCloseGate } =
+      await import('../review/retrospective-electron-close.js');
+    return electronRetrospectiveCloseGate(invocation.cwd, ticket, ledger);
+  }
   const { retrospectiveCloseGate } = await import('../review/retrospective-close.js');
   return retrospectiveCloseGate(invocation.cwd, ticket, ledger);
 }
