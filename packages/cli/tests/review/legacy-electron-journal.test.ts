@@ -93,8 +93,8 @@ it('refuses a concurrent replay without taking ownership from the first invocati
   const execution = new Promise<string>(resolve => {
     completion.resolve = resolve;
   });
+  const first = withElectronReplay(root, identity, commit, () => execution);
   try {
-    const first = withElectronReplay(root, identity, commit, () => execution);
     await expect(
       withElectronReplay(root, identity, commit, () => Promise.resolve('second')),
     ).rejects.toMatchObject({ code: 'EEXIST' });
@@ -104,8 +104,12 @@ it('refuses a concurrent replay without taking ownership from the first invocati
     expect(hasPassedElectronReplay(root, identity, commit)).toBe(true);
   } finally {
     completion.resolve?.('cleanup');
-    vi.unstubAllEnvs();
-    rmSync(root, { recursive: true, force: true });
+    try {
+      await first;
+    } finally {
+      vi.unstubAllEnvs();
+      rmSync(root, { recursive: true, force: true });
+    }
   }
 });
 
