@@ -114,11 +114,16 @@ function ledgerClaim(
 }
 
 function requireClaimShape(claim: EligibilityClaim): void {
+  for (const [name, actual, expected] of [
+    ['ticket', claim.ticketId, policy.ticketId],
+    ['ledger', claim.ledgerPath, policy.ledger],
+    ['feature', claim.featurePath, policy.feature],
+    ['fixed cutoff', claim.cutoff, policy.cutoff],
+  ]) {
+    if (actual !== expected)
+      throw new Error(`Electron eligibility ${name} does not match the fixed migration boundary.`);
+  }
   if (
-    claim.ticketId !== policy.ticketId ||
-    claim.ledgerPath !== policy.ledger ||
-    claim.featurePath !== policy.feature ||
-    claim.cutoff !== policy.cutoff ||
     typeof claim.rationale !== 'string' ||
     !Array.isArray(claim.scenarios) ||
     !Array.isArray(claim.blobs)
@@ -188,7 +193,9 @@ export function prepareElectronAdmission(root: string, request: RetrospectiveGat
   requireClaimShape(eligibility);
   const history = checkRetrospectivePrerequisites(root, eligibility, eligibility.blobs);
   if (!history.eligibleForReview)
-    throw new Error(`Electron eligibility is invalid: ${history.reason}`);
+    throw new Error(
+      `Electron eligibility is invalid (baseline ${eligibility.baseline}): ${history.reason}`,
+    );
   requireScenarioBody(root, eligibility, request.scenario);
   const proof = parseElectronProofRequest(
     JSON.parse(committedElectronInput(root, requestPath).toString('utf8')),

@@ -62865,7 +62865,16 @@ function ledgerClaim(line, scenario, seen) {
   return claim;
 }
 function requireClaimShape(claim) {
-  if (claim.ticketId !== SOULLESS_RETROSPECTIVE_POLICY.ticketId || claim.ledgerPath !== SOULLESS_RETROSPECTIVE_POLICY.ledger || claim.featurePath !== SOULLESS_RETROSPECTIVE_POLICY.feature || claim.cutoff !== SOULLESS_RETROSPECTIVE_POLICY.cutoff || typeof claim.rationale !== "string" || !Array.isArray(claim.scenarios) || !Array.isArray(claim.blobs))
+  for (const [name, actual, expected] of [
+    ["ticket", claim.ticketId, SOULLESS_RETROSPECTIVE_POLICY.ticketId],
+    ["ledger", claim.ledgerPath, SOULLESS_RETROSPECTIVE_POLICY.ledger],
+    ["feature", claim.featurePath, SOULLESS_RETROSPECTIVE_POLICY.feature],
+    ["fixed cutoff", claim.cutoff, SOULLESS_RETROSPECTIVE_POLICY.cutoff]
+  ]) {
+    if (actual !== expected)
+      throw new Error(`Electron eligibility ${name} does not match the fixed migration boundary.`);
+  }
+  if (typeof claim.rationale !== "string" || !Array.isArray(claim.scenarios) || !Array.isArray(claim.blobs))
     throw new Error("Electron eligibility does not match the fixed migration identity and baseline evidence.");
   requireClaimEvidence(claim);
 }
@@ -62893,7 +62902,7 @@ function prepareElectronAdmission(root, request) {
   requireClaimShape(eligibility);
   const history = checkRetrospectivePrerequisites(root, eligibility, eligibility.blobs);
   if (!history.eligibleForReview)
-    throw new Error(`Electron eligibility is invalid: ${history.reason}`);
+    throw new Error(`Electron eligibility is invalid (baseline ${eligibility.baseline}): ${history.reason}`);
   requireScenarioBody(root, eligibility, request.scenario);
   const proof = parseElectronProofRequest(JSON.parse(committedElectronInput(root, requestPath).toString("utf8")));
   if (proof.scenario !== request.scenario || eligibility.blobs.every((blob) => blob.currentPath !== proof.implementationPath))
@@ -92731,7 +92740,7 @@ var CANONICAL_COMMANDS = [
       environment: MACHINE_ENVIRONMENT
     }
   }),
-  command2("review gate retrospective", "Check CKWE2D retrospective receipts", "observe", {
+  command2("review gate retrospective", "Check approved legacy proof receipts", "observe", {
     syntax: "retrospective",
     commandOptions: [
       { flags: "--ticket <id>", description: "Ticket claiming retrospective completion" },
@@ -92759,7 +92768,7 @@ var CANONICAL_COMMANDS = [
       environment: MACHINE_ENVIRONMENT
     }
   }),
-  command2("review attest retrospective", "Replay one CKWE2D proof before checking its row", "mutate", {
+  command2("review attest retrospective", "Replay one approved legacy proof before checking its row", "mutate", {
     syntax: "retrospective",
     commandOptions: [
       { flags: "--ticket <id>", description: "Ticket claiming retrospective completion" },
@@ -92787,7 +92796,7 @@ var CANONICAL_COMMANDS = [
       environment: MACHINE_ENVIRONMENT
     }
   }),
-  command2("review attest retrospective-close", "Replay CKWE2D proofs for closing", "mutate", {
+  command2("review attest retrospective-close", "Replay approved legacy proofs for closing", "mutate", {
     syntax: "retrospective-close",
     commandOptions: [
       { flags: "--ticket <id>", description: "Ticket claiming retrospective completion" },
@@ -92806,7 +92815,7 @@ var CANONICAL_COMMANDS = [
       environment: MACHINE_ENVIRONMENT
     }
   }),
-  command2("review gate retrospective-close", "Check current CKWE2D closing proof", "observe", {
+  command2("review gate retrospective-close", "Check the current approved legacy closing proof", "observe", {
     syntax: "retrospective-close",
     commandOptions: [
       { flags: "--ticket <id>", description: "Ticket claiming retrospective completion" },

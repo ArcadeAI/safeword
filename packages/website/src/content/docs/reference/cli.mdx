@@ -99,10 +99,10 @@ canonical commands below.
 | `review continue`                       | mutate      | Complete a sealed planning review continuation                                                                                                   |
 | `review gate executable-red`            | observe     | Check whether a scenario may claim GREEN                                                                                                         |
 | `review observe retrospective`          | mutate      | Observe isolated historical Electron proof without granting credit                                                                               |
-| `review gate retrospective`             | observe     | Check CKWE2D retrospective receipts                                                                                                              |
-| `review attest retrospective`           | mutate      | Replay one CKWE2D proof before checking its row                                                                                                  |
-| `review attest retrospective-close`     | mutate      | Replay CKWE2D proofs for closing                                                                                                                 |
-| `review gate retrospective-close`       | observe     | Check current CKWE2D closing proof                                                                                                               |
+| `review gate retrospective`             | observe     | Check approved legacy proof receipts                                                                                                             |
+| `review attest retrospective`           | mutate      | Replay one approved legacy proof before checking its row                                                                                         |
+| `review attest retrospective-close`     | mutate      | Replay approved legacy proofs for closing                                                                                                        |
+| `review gate retrospective-close`       | observe     | Check the current approved legacy closing proof                                                                                                  |
 | `review cancel`                         | mutate      | Cancel a durable independent review                                                                                                              |
 | `review routes set`                     | mutate      | Set ranked review routes                                                                                                                         |
 | `review routes list`                    | observe     | List effective ranked review routes                                                                                                              |
