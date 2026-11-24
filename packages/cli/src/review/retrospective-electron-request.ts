@@ -12,8 +12,12 @@ function record(value: unknown, keys: readonly string[]): Record<string, unknown
     throw new Error('Electron proof request must contain typed objects.');
   }
   const fields = Object.keys(value);
-  if (fields.length !== keys.length || fields.some(field => !keys.includes(field))) {
-    throw new Error('Electron proof request contains missing or unsupported fields.');
+  const missing = keys.filter(key => !fields.includes(key));
+  const unsupported = fields.filter(field => !keys.includes(field));
+  if (missing.length > 0 || unsupported.length > 0) {
+    throw new Error(
+      `Electron proof request contains missing fields: ${JSON.stringify(missing)}; unsupported fields: ${JSON.stringify(unsupported)}.`,
+    );
   }
   return value as Record<string, unknown>;
 }
