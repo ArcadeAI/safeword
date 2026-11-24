@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "6a7c9ee475daa5e0ac7e81e559d1a83227af65b2c272df8453bdd7fe7a5dcd76"
+      "sha256": "ec3bf5d08fd61f34db0d27f44aef3d727b6f545903ac39d098f9362e8ad40e7f"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "0cdf2f20c3404067101d606b95f9ebd3ec1f2243f093d4e0e464c5798682c391"
+      "sha256": "387aad79b9e4eadfa1518dcacaf2e4d9559f65299a1d6cb9f014453863c4b76d"
     },
     {
       "path": "runtime/event-groups.json",
@@ -239,7 +239,7 @@
     },
     {
       "path": "runtime/hooks/lib/done-gate.ts",
-      "sha256": "d4d7dcbeb57bc4b65a768ac6bb97819644c8bc3f80dcefe4369c101a40164e91"
+      "sha256": "2b26b1763d713da1d7027bec64c4bf5472cd887ef2549bc1e6a67d3cff0b4d84"
     },
     {
       "path": "runtime/hooks/lib/drain-retro-spool.ts",
@@ -579,7 +579,7 @@
     },
     {
       "path": "runtime/hooks/session-architecture-heal.ts",
-      "sha256": "2288bfca27f7a039fafd5a60c4e3cf8c3e07b2f387ec2502545a16bc3005346e"
+      "sha256": "8eedd3ac81844dd2676505d313135c24c8d9ad0b7eec2f7f7734c0870cb7ae90"
     },
     {
       "path": "runtime/hooks/session-auto-upgrade.ts",
@@ -1251,7 +1251,7 @@
     },
     {
       "path": "templates/hooks/lib/done-gate.ts",
-      "sha256": "d4d7dcbeb57bc4b65a768ac6bb97819644c8bc3f80dcefe4369c101a40164e91"
+      "sha256": "2b26b1763d713da1d7027bec64c4bf5472cd887ef2549bc1e6a67d3cff0b4d84"
     },
     {
       "path": "templates/hooks/lib/drain-retro-spool.ts",
@@ -1587,7 +1587,7 @@
     },
     {
       "path": "templates/hooks/session-architecture-heal.ts",
-      "sha256": "2288bfca27f7a039fafd5a60c4e3cf8c3e07b2f387ec2502545a16bc3005346e"
+      "sha256": "8eedd3ac81844dd2676505d313135c24c8d9ad0b7eec2f7f7734c0870cb7ae90"
     },
     {
       "path": "templates/hooks/session-auto-upgrade.ts",
@@ -1843,11 +1843,11 @@
     },
     {
       "path": "templates/workflows/pr-review-worker.yml",
-      "sha256": "f03e0e570921b230384d73ff549e9fd461dc5598e301be9319a9c5ce4a14177b"
+      "sha256": "ac47e1b6364adc3b509b533ebc1c00895852d5b4cf5a4a184491eff8792bfb2b"
     },
     {
       "path": "templates/workflows/pr-review.yml",
-      "sha256": "c2d7b7b36ae72b255104cd0b2720c8708b4d4e01348d912622431041d643d881"
+      "sha256": "f3c00e2ee4b4e01500cb05652287c7ffc225afa486b89addeab32d1c4995f652"
     },
     {
       "path": "templates/workflows/remote-tests.yml",

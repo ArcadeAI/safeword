@@ -3645,7 +3645,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/prompt-questions.ts": "ac2f53a7c2e87cb4517b7a4c9d965bacdd262828aa28474d0441dc2edafc215d",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
         ".safeword/hooks/prompt-timestamp.ts": "d7939e98528717fed556adf65dcb9fd3c24fac530ba76be2db9c5faebbac27f3",
-        ".safeword/hooks/session-architecture-heal.ts": "2288bfca27f7a039fafd5a60c4e3cf8c3e07b2f387ec2502545a16bc3005346e",
+        ".safeword/hooks/session-architecture-heal.ts": "8eedd3ac81844dd2676505d313135c24c8d9ad0b7eec2f7f7734c0870cb7ae90",
         ".safeword/hooks/session-auto-upgrade.ts": "58403ff9922ae1423becd4e9a682fb91d9b68db4881f4c0d8c5e46edc3ea8fc2",
         ".safeword/hooks/session-bun-check.sh": "47e97a2f787228347213521d8391ab6b001e19270aed8e2795f13d6ea0603c29",
         ".safeword/hooks/session-cleanup-quality.ts": "cfabcc1d6b07b9423f497d32624e99824631131c3749ae1d1ff615b054d49e64",
@@ -70871,10 +70871,16 @@ function parseInput(inputPath) {
     throw new Error("review-pr: pull request artifact count is incomplete or invalid");
   }
   const checks = raw.checks.map((check) => {
-    if (!isRecord11(check) || typeof check.name !== "string" || typeof check.status !== "string" || check.conclusion !== null && typeof check.conclusion !== "string") {
+    if (!isRecord11(check) || typeof check.name !== "string" || typeof check.status !== "string" || check.conclusion !== null && typeof check.conclusion !== "string" || !hasValidRunProvenance(check)) {
       throw new Error("review-pr: invalid check-run sample");
     }
-    return { conclusion: check.conclusion, name: check.name, status: check.status };
+    return {
+      conclusion: check.conclusion,
+      name: check.name,
+      ...typeof check.runNumber === "number" && { runNumber: check.runNumber },
+      status: check.status,
+      ...typeof check.workflow === "string" && { workflow: check.workflow }
+    };
   });
   const statuses = raw.statuses.map((status) => {
     if (!isRecord11(status) || typeof status.context !== "string" || typeof status.state !== "string") {
@@ -70924,8 +70930,31 @@ function evaluateCheckRun(check) {
     return "failed";
   return PASSING_CHECK_CONCLUSIONS.has(check.conclusion) ? "passed" : "pending";
 }
+function hasValidRunProvenance(check) {
+  const { runNumber, workflow } = check;
+  return (runNumber === undefined || typeof runNumber === "number" && Number.isSafeInteger(runNumber) && runNumber > 0) && (workflow === undefined || typeof workflow === "string" && workflow.length > 0);
+}
+function currentCheckRuns(input, name) {
+  const checks = input.checks.filter((check) => check.name === name);
+  const byWorkflow = new Map;
+  for (const { workflow, runNumber } of checks) {
+    if (workflow === undefined || runNumber === undefined)
+      continue;
+    const counts = byWorkflow.get(workflow) ?? new Map;
+    counts.set(runNumber, (counts.get(runNumber) ?? 0) + 1);
+    byWorkflow.set(workflow, counts);
+  }
+  return checks.filter(({ conclusion, workflow, runNumber }) => {
+    if (conclusion !== "cancelled" || workflow === undefined || runNumber === undefined)
+      return true;
+    const counts = byWorkflow.get(workflow);
+    if (counts?.get(runNumber) !== 1)
+      return true;
+    return [...counts].every(([later, count]) => later <= runNumber || count !== 1);
+  });
+}
 function evaluatePrerequisite(context, input) {
-  const checks = input.checks.filter((candidate) => candidate.name === context);
+  const checks = currentCheckRuns(input, context);
   if (checks.length > 0) {
     const states = checks.map((check) => evaluateCheckRun(check));
     if (states.includes("failed"))
@@ -71020,7 +71049,8 @@ async function inspectPullRequestCommand(options) {
     return { ...artifact, path: sanitizedPath.value };
   });
   const prerequisite = resolvePrerequisiteState(config, input);
-  const generatedCheckPassed = config.generatedFilesCheck !== undefined && input.checks.some((check) => check.name === config.generatedFilesCheck) && input.checks.filter((check) => check.name === config.generatedFilesCheck).every((check) => check.status === "completed" && check.conclusion === "success");
+  const generatedRuns = config.generatedFilesCheck === undefined ? [] : currentCheckRuns(input, config.generatedFilesCheck);
+  const generatedCheckPassed = generatedRuns.length > 0 && generatedRuns.every((check) => check.status === "completed" && check.conclusion === "success");
   let published;
   await reviewPullRequest({
     inspect: async () => {
@@ -71134,7 +71164,7 @@ var init_review_pr = __esm(() => {
   INSPECTION_AUDIT = {
     checkout: false,
     customerCodeExecution: false,
-    githubPermissions: { contents: "read", issues: "read", pullRequests: "read" },
+    githubPermissions: { actions: "read", contents: "read", issues: "read", pullRequests: "read" },
     githubWriteCredential: false
   };
   PULL_STATES = new Set(["closed", "draft", "merged", "ready"]);
@@ -93117,9 +93147,8 @@ function checkVerifyArtifact(content) {
   const lines = content.split(`
 `);
   const fenced = balancedFenceBodyLines(lines);
-  for (const [index, line] of lines.entries()) {
-    if (fenced.has(index))
-      continue;
+  const reportLines = lines.filter((_, index) => !fenced.has(index));
+  for (const line of reportLines) {
     const check = FAILED_VERIFY_CHECK_PATTERN.exec(line)?.groups?.check;
     if (!check)
       continue;
@@ -93128,7 +93157,8 @@ function checkVerifyArtifact(content) {
       reason: `${check} failed. Fix the failures listed in verify.md, then run /verify again.`
     };
   }
-  const prScopeMatch = PR_SCOPE_LINE_PATTERN.exec(content);
+  const prScopeMatch = PR_SCOPE_LINE_PATTERN.exec(reportLines.join(`
+`));
   if (!prScopeMatch?.groups?.status) {
     return {
       ok: false,

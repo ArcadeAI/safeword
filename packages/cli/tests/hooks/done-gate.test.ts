@@ -42,6 +42,27 @@ describe('checkVerifyArtifact', () => {
     expect(verdict).toEqual({ ok: true });
   });
 
+  it('requires a PR-scope result outside fenced examples', () => {
+    const report = ['```markdown', VALID_VERIFY.trimEnd(), '```'].join('\n');
+    expect(checkVerifyArtifact(report)).toMatchObject({
+      ok: false,
+      reason: expect.stringContaining('PR scope'),
+    });
+  });
+
+  it('uses the actual PR-scope result after a fenced example', () => {
+    const report = [
+      '```markdown',
+      VALID_VERIFY.trimEnd(),
+      '```',
+      '**PR Scope:** ❌ piggybacked changes',
+    ].join('\n');
+    expect(checkVerifyArtifact(report)).toMatchObject({
+      ok: false,
+      reason: expect.stringContaining('piggybacked'),
+    });
+  });
+
   it('fails when the PR-scope line is missing', () => {
     const verdict = checkVerifyArtifact('# Verify\n\nlooks fine\n');
     expect(verdict.ok).toBe(false);
