@@ -1,11 +1,12 @@
 import type * as ChildProcess from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import {
   cpSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -24,6 +25,7 @@ import {
 import { SOULLESS_RETROSPECTIVE_POLICY as electronPolicy } from '../../src/review/retrospective-policy.js';
 import type * as Proof from '../../src/review/retrospective-proof.js';
 import { scenarioBodyDigest } from '../../src/review/retrospective-scenario-body.js';
+import legacyRow from './fixtures/ckwe2d-pre-extension-row-v2.json';
 
 // These collaborators isolate replay-record orchestration, not actor behavior,
 // review independence, historical eligibility, or the two-copy proof runner.
@@ -172,6 +174,32 @@ describe('retrospective row replay record', () => {
     replay.absoluteTargets = true;
     expect(attestRetrospectiveRow(root, claim).state).toBe('changed');
     expect(retrospectiveGate(root, claim).state).toBe('healthy');
+  });
+
+  it('reads a pinned pre-extension CKWE2D row without minting replacement credit', () => {
+    expect(claim).toEqual(legacyRow.claim);
+    expect(RETROSPECTIVE_CUTOFF).toBe(legacyRow.cutoff);
+    expect(RETROSPECTIVE_LEDGER).toBe(legacyRow.claim.ledger);
+    expect(RETROSPECTIVE_FEATURE).toBe(legacyRow.feature);
+    // Frozen baseline payload, domain and filename; do not call the current writer.
+    // Review/history collaborators remain isolated, while disk reads and HMAC are real.
+    put('profile/safeword/review-integrity.key', `${legacyRow.keyHex}\n`);
+    const tag = `${createHmac('sha256', Buffer.from(legacyRow.keyHex, 'hex'))
+      .update(realpathSync.native(root))
+      .update(legacyRow.hmacDomain)
+      .update(legacyRow.rowPayload)
+      .digest('hex')}\n`;
+    const relative = `.safeword/state/reviews/${legacyRow.filename}`;
+    put(relative, tag);
+    expect(retrospectiveGate(root, legacyRow.claim).state).toBe('healthy');
+    expect(replay.calls).toBe(0);
+    expect(readdirSync(path.join(root, '.safeword/state/reviews'))).toEqual([legacyRow.filename]);
+    expect(readFileSync(path.join(root, relative), 'utf8')).toBe(tag);
+    put(relative, `${tag.startsWith('0') ? '1' : '0'}${tag.slice(1)}`);
+    expect(retrospectiveGate(root, legacyRow.claim).state).toBe('action_required');
+    put(relative, tag);
+    expect(retrospectiveGate(root, legacyRow.claim).state).toBe('healthy');
+    expect(replay.calls).toBe(0);
   });
 
   it('rejects SGWMBS eligibility identity against an otherwise authorized CKWE2D row', () => {
