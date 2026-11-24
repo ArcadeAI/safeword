@@ -85,7 +85,13 @@ function committedDigests(
   return Object.fromEntries(
     inputs.map(input => {
       const bytes = readProofInput(root, input);
-      if (!bytes.equals(proofGit(root, ['show', `${commit}:${input}`]))) {
+      let committed: Buffer;
+      try {
+        committed = proofGit(root, ['show', `${commit}:${input}`]);
+      } catch (error: unknown) {
+        throw new Error(`Could not verify committed Electron input: ${input}`, { cause: error });
+      }
+      if (!bytes.equals(committed)) {
         throw new Error(`Electron proof input differs from the committed view: ${input}`);
       }
       return [input, proofSha256(bytes)];

@@ -10,6 +10,23 @@ import { electronRequest, electronRunnerFixture } from './legacy-electron-runner
 
 afterEach(() => vi.unstubAllEnvs());
 
+it('identifies an untracked declared support input before installation', async () => {
+  const fixture = electronRunnerFixture();
+  const support = 'packages/desktop/untracked-support.ts';
+  const request = { ...electronRequest, supportFiles: [...electronRequest.supportFiles, support] };
+  try {
+    fixture.write(fixture.requestPath, JSON.stringify(request));
+    fixture.git('add', fixture.requestPath);
+    fixture.git('commit', '-qm', 'declare support without committing it');
+    fixture.write(support, 'untracked runtime input');
+    await expect(runElectronProof(fixture.root, request, fixture.requestPath)).rejects.toThrow(
+      `Could not verify committed Electron input: ${support}`,
+    );
+  } finally {
+    fixture.cleanup();
+  }
+});
+
 it('passes owned Electron isolation to a real child without changing the host environment', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'safeword-electron-environment-'));
   const previousPort = process.env.SOULLESS_ELECTRON_TEST_PORT;
