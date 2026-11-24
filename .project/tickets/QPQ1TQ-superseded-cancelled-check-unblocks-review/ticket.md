@@ -2,7 +2,7 @@
 id: QPQ1TQ
 slug: superseded-cancelled-check-unblocks-review
 type: task
-phase: implement
+phase: done
 subtype: bug-investigated
 scope: |
   Ignore a cancelled check run when a later-started run of the same check exists
@@ -22,7 +22,7 @@ done_when: |
   - Both worker workflows emit started_at for each check run, and generated surfaces are regenerated.
   - A cancelled run is superseded only by a later run of the same workflow; a cancellation from another workflow with the same check name still counts (advisory review finding on PR #8231).
   - Both workers forward each check run's workflow (via actions/runs, with actions: read on the inspect job); a run without a workflow is never superseded.
-status: in_progress
+status: done
 created: 2026-11-23T19:54:37.573Z
 last_modified: 2026-11-23T19:54:37.573Z
 ---
@@ -62,3 +62,6 @@ apps outside GitHub Actions carry no workflow and are never superseded (fail clo
 - 2026-11-23T20:45:00Z Done: RED 1fefd45d3, GREEN 43767ffb5, narrowed after review 3dad6a6e6, typecheck fix 1bb672cd6. Refactor: no change warranted.
 - 2026-11-23T21:55:00Z Codex quality review found generatedCheckPassed bypassed the rule; fixed in 281baade4 (shared currentCheckRuns), re-review approved.
 - 2026-11-23: Reopened. Advisory PR review found a same-named cancellation from another workflow could be hidden by a later success. Maintainer approved adding `actions: read` to forward workflow identity.
+- 2026-11-24T00:08:35.612Z Phase: implement → done
+- 2026-11-24T00:08:35.674Z Phase: implement → done
+- 2026-11-24T00:30:00Z Done again: workflow-identity follow-up RED c102b1c00/224690f66/6f2828e0e, GREEN d7bca5fd0/403cedf62/b706be3b3. Codex implement review dff1e70b approved (cross-agent). Two pre-existing findings proposed as separate tasks.

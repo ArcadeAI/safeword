@@ -17,7 +17,7 @@
 **Surface Evidence:** ⏭️ N/A — no affected surfaces in spec; live GitHub workflow behavior unproven until a PR is marked Ready after merge
 **Evidence limits:** ⚠️ Full-suite review-process tests are timing-sensitive under local load (pass alone and in CI). Local Go toolchain mismatch fails `lint-go-context`; CI is the authority for that file. Whether queued check runs carry a null `started_at` is unverified (fails closed if so).
 
-Audit passed (re-run on final diff at b42a23fd8) — depcruise clean, config sync healthy, no agent-config/learning/doc drift (README prReview text stays accurate), test quality reviewed (parameterized, behavior-level assertions, failure and pending paths covered).
+Audit passed (re-run on the workflow-identity follow-up at 16bc0d5b5: config sync healthy, depcruise --affected clean, diff limited to the ticket's files; earlier full audit on final diff at b42a23fd8) — depcruise clean, config sync healthy, no agent-config/learning/doc drift (README prReview text stays accurate), test quality reviewed (parameterized, behavior-level assertions, failure and pending paths covered).
 
 Cross-agent quality review:
 
