@@ -29,7 +29,11 @@ import { getActiveTicket } from '../lib/active-ticket.ts';
 import { architectureDocumentNudgeForProject } from '../lib/architecture-document-nudge.ts';
 import { evaluateDoneEvidence } from '../lib/done-gate.ts';
 import { updateTicketStatus } from '../lib/hierarchy.ts';
-import { resolveNamespaceRoot } from '../lib/namespace-root.ts';
+import {
+  canonicalPathForGate,
+  hasSafewordProjectMarker,
+  resolveNamespaceRoot,
+} from '../lib/namespace-root.ts';
 import {
   laterOwedDoneGatesMessage,
   nextOwedDoneGate,
@@ -120,6 +124,32 @@ function runOwedDoneGate(projectDirectory: string, runIdentity: RunIdentity): st
   }
   settleOwedDoneGate(projectDirectory, runIdentity, gate.ticketId);
   return gate.later.length > 0 ? laterOwedDoneGatesMessage(gate) : undefined;
+}
+
+// A session may return to the primary checkout after closing a linked ticket.
+// Git supplies the sibling roots even if a later edit changed the session pointer.
+function runLinkedWorktreeDoneGates(
+  projectDirectory: string,
+  identity: RunIdentity,
+): string | undefined {
+  const result = spawnSync('git', ['worktree', 'list', '--porcelain', '-z'], {
+    cwd: projectDirectory,
+    encoding: 'utf8',
+    timeout: 5000,
+  });
+  if (result.status !== 0) return undefined;
+  const current = canonicalPathForGate(projectDirectory);
+  for (const record of result.stdout.split('\0\0')) {
+    const [header, ...fields] = record.split('\0');
+    if (!header?.startsWith('worktree ') || !fields.some(field => field.startsWith('HEAD ')))
+      continue;
+    const directory = header.slice('worktree '.length);
+    if (canonicalPathForGate(directory) === current || !hasSafewordProjectMarker(directory))
+      continue;
+    const reason = runOwedDoneGate(directory, identity);
+    if (reason) return `Verification in ${directory}: ${reason}`;
+  }
+  return undefined;
 }
 
 interface DoneTransitionResult {
@@ -288,11 +318,13 @@ async function main(): Promise<string> {
 
   // An owed done gate is a hard gate, like stop-quality.ts's: the continuation
   // loop guard must not let a failed gate, or a later owed one, slip through.
-  const owedGateReason = runOwedDoneGate(
-    projectDirectory,
-    resolveRunIdentity(input, { runtime: 'codex' }),
-  );
-  if (owedGateReason) return JSON.stringify({ decision: 'block', reason: owedGateReason });
+  const runIdentity = resolveRunIdentity(input, { runtime: 'codex' });
+  const localReason = runOwedDoneGate(projectDirectory, runIdentity);
+  if (localReason) return JSON.stringify({ decision: 'block', reason: localReason });
+  if (runIdentity.sessionKey !== null) {
+    const reason = runLinkedWorktreeDoneGates(projectDirectory, runIdentity);
+    if (reason) return JSON.stringify({ decision: 'block', reason });
+  }
 
   // Everything below is advisory; a continuation Stop stays silent.
   if (continuation) return SILENT;

@@ -39,6 +39,21 @@ history. [CI run](https://github.com/ArcadeAI/safeword/actions/runs/45485362001)
 [Vitest file scheduling](https://vitest.dev/config/fileparallelism), and
 [GitHub job timeout semantics](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idtimeout-minutes).
 
+## Latest main integration
+
+Main advanced to 2db8dddb332c5b7c65b36a8d03dd4e3d073a22a7 while CI was being
+finished. It includes e5d9f5a6b's linked-worktree pending-close verification and
+its routing documentation. The earlier comparison used the older base SHA shown
+on the PR rather than a fresh main ref. The actual merge conflicts were generated
+integrity files, not an unresolved source conflict or a reason to bypass checks.
+Those files were regenerated through the supported five-surface checker, which
+verified every surface. Dogfood parity was already in sync.
+
+The merged worktree-close, retrospective-gate and public-observation protection
+passed all 32 tests. No scenario history or policy enrollment is changed by this
+merge. The prior manual CI snapshot is cancelled because it predates these main
+changes; final delivery still requires terminal green CI on the merged head.
+
 ## Verify Checklist
 
 **Test Suite:** ✓ 12333/12333 tests pass, with 14 pre-existing local skips, across
