@@ -1,12 +1,16 @@
 import { execFileSync } from 'node:child_process';
 import nodePath from 'node:path';
 
+import { resolveProjectDirectory } from '../../templates/hooks/lib/project-directory.js';
+
 export function resolveCodexProjectDirectory(
   cwd: string = process.cwd(),
   environment: NodeJS.ProcessEnv = process.env,
 ): string {
   const configuredProject = environment.CLAUDE_PROJECT_DIR?.trim();
-  if (configuredProject) return nodePath.resolve(configuredProject);
+  if (configuredProject) {
+    return resolveProjectDirectory({ cwd, launchDirectory: nodePath.resolve(configuredProject) });
+  }
 
   try {
     const root = execFileSync('git', ['-C', cwd, 'rev-parse', '--show-toplevel'], {
