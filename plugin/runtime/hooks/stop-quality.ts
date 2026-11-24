@@ -137,7 +137,9 @@ function getCurrentTicketInfo(sessionId: StateIdentity): TicketInfo {
     const state = readSessionState(projectDir, sessionId);
     if (!state) return fallbackGlobalScan();
 
-    owedDoneGate = nextOwedDoneGate(projectDir, sessionId, state.doneGateOwedTickets);
+    const nextGate = nextOwedDoneGate(projectDir, sessionId, state.doneGateOwedTickets);
+    if (nextGate && 'blockReason' in nextGate) hardBlockDone(nextGate.blockReason);
+    owedDoneGate = nextGate;
     if (owedDoneGate)
       return { phase: 'done', type: owedDoneGate.type, folder: owedDoneGate.folder };
 

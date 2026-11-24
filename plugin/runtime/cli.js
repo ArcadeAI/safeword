@@ -3549,7 +3549,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/session-safeword-context.ts": "0c54231000694c482d4b2c92fa1bf55f4c6211910c310f2d29836cdb61719937",
         ".safeword/hooks/session-start-reentry.ts": "b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d",
         ".safeword/hooks/session-version.ts": "7480f836ec466c06b9bc81384710fa32e33fce67070788b1766965282d778e72",
-        ".safeword/hooks/stop-quality.ts": "c32e98a13c864d8cd52a109745af4bf1a07f68d383dafe89ad7e5fbdd6fc346a",
+        ".safeword/hooks/stop-quality.ts": "d3423c9619b9c116580457a1ad0b075334377cdddd50ca01bdb9c95d2a68dc08",
         ".safeword/hooks/stop-reentry.ts": "a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5",
         ".safeword/hooks/stop-retro-filing.ts": "ae5693347a530547701c7fd9efd9d76ee4f690cd235b7e28b409d59d6090417d",
         ".safeword/hooks/stop-retro.ts": "ecdb55e277a4188e5daf1c9a9de3f5e28bed724a14064e374eb4db10a9d0921e",
@@ -91310,34 +91310,43 @@ import { existsSync as existsSync69, readFileSync as readFileSync96, readdirSync
 import nodePath146 from "path";
 import process21 from "process";
 function getTicketInfo(projectDirectory, ticketId) {
-  const ticketsDirectory = nodePath146.join(resolveNamespaceRoot(projectDirectory), "tickets");
-  if (!existsSync69(ticketsDirectory))
-    return EMPTY_DETAILS;
   try {
-    const folders = readdirSync37(ticketsDirectory);
-    const matches = findTicketFolderMatches(folders, ticketId);
-    if (matches.length === 0)
-      return EMPTY_DETAILS;
-    if (matches.length > 1) {
-      process21.stderr.write(`Ambiguous ticket ID "${ticketId}": ${matches.join(", ")}
+    return readTicketInfo(projectDirectory, ticketId);
+  } catch (error) {
+    if (error instanceof Error)
+      process21.stderr.write(`${error.message}
 `);
-      return EMPTY_DETAILS;
-    }
-    const [match] = matches;
-    if (match === undefined)
-      return EMPTY_DETAILS;
-    const content = readFileSync96(nodePath146.join(ticketsDirectory, match, "ticket.md"), "utf8");
-    const slug = content.match(/^slug:\s*(\S+)/m)?.[1] ?? (match.startsWith(`${ticketId}-`) ? match.slice(ticketId.length + 1) : undefined);
-    return {
-      phase: content.match(/^phase:\s*(\S+)/m)?.[1],
-      status: content.match(/^status:\s*(\S+)/m)?.[1],
-      type: content.match(/^type:\s*(\S+)/m)?.[1],
-      folder: match,
-      slug
-    };
-  } catch {
     return EMPTY_DETAILS;
   }
+}
+function readTicketInfo(projectDirectory, ticketId) {
+  const ticketsDirectory = nodePath146.join(resolveNamespaceRoot(projectDirectory), "tickets");
+  let folders;
+  try {
+    folders = readdirSync37(ticketsDirectory);
+  } catch (error) {
+    if (error.code === "ENOENT")
+      return EMPTY_DETAILS;
+    throw error;
+  }
+  const matches = findTicketFolderMatches(folders, ticketId);
+  if (matches.length === 0)
+    return EMPTY_DETAILS;
+  if (matches.length > 1) {
+    throw new Error(`Ambiguous ticket ID "${ticketId}": ${matches.join(", ")}`);
+  }
+  const [match] = matches;
+  if (match === undefined)
+    return EMPTY_DETAILS;
+  const content = readFileSync96(nodePath146.join(ticketsDirectory, match, "ticket.md"), "utf8");
+  const slug = content.match(/^slug:\s*(\S+)/m)?.[1] ?? (match.startsWith(`${ticketId}-`) ? match.slice(ticketId.length + 1) : undefined);
+  return {
+    phase: content.match(/^phase:\s*(\S+)/m)?.[1],
+    status: content.match(/^status:\s*(\S+)/m)?.[1],
+    type: content.match(/^type:\s*(\S+)/m)?.[1],
+    folder: match,
+    slug
+  };
 }
 function findTicketFolderMatches(folders, ticketId) {
   const upperId = ticketId.toUpperCase();

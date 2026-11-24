@@ -5,7 +5,12 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
-import { DONE_GATED_TICKET_TYPES, getTicketInfo, type TicketDetails } from './active-ticket.js';
+import {
+  DONE_GATED_TICKET_TYPES,
+  getTicketInfo,
+  readTicketInfo,
+  type TicketDetails,
+} from './active-ticket.js';
 import { canonicalPathForGate, resolveNamespaceRoot } from './namespace-root.js';
 import { getRunStorageKey, resolveRunIdentity, type RunIdentity } from './run-identity.js';
 import { captureGateEscalation } from './self-report.js';
@@ -302,10 +307,18 @@ export function nextOwedDoneGate(
   projectDirectory: string,
   sessionId: string | RunIdentity | undefined,
   owedTickets: string[] | undefined,
-): OwedDoneGate | undefined {
+): OwedDoneGate | { blockReason: string } | undefined {
   const owed = owedTickets ?? [];
   for (const [index, ticketId] of owed.entries()) {
-    const { status, type, folder } = getTicketInfo(projectDirectory, ticketId);
+    let ticket: TicketDetails;
+    try {
+      ticket = readTicketInfo(projectDirectory, ticketId);
+    } catch (error) {
+      return {
+        blockReason: `Done gate for ${ticketId}: cannot read ticket details (${error instanceof Error ? error.message : String(error)}). Restore the ticket, then stop again.`,
+      };
+    }
+    const { status, type, folder } = ticket;
     if (status === 'done' && type && DONE_GATED_TICKET_TYPES.has(type) && folder) {
       return { ticketId, type, folder, later: owed.slice(index + 1) };
     }

@@ -263,6 +263,29 @@ describe.each(Object.entries(RUNS))(
       expect(testRunCount(directory)).toBe(baseline + 2);
     });
 
+    it('retains the gate when ticket.md cannot be read and retries after repair', () => {
+      const directory = fixture.projectDirectory;
+      const run = makeRun('thread-ticket-read');
+      const ticketFile = commitTaskTicket(directory, '5639');
+      closeThroughCodexPostToolUse(directory, run, ticketFile);
+      const closed = readFileSync(ticketFile, 'utf8');
+      setTestExitCode(directory, 1);
+      const baseline = testRunCount(directory);
+      rmSync(ticketFile);
+      mkdirSync(ticketFile);
+
+      expect(runCodexStop(directory, run)).toMatchObject({
+        decision: 'block',
+        reason: expect.stringContaining('5639'),
+      });
+      expect(testRunCount(directory)).toBe(baseline);
+
+      rmSync(ticketFile, { recursive: true });
+      writeFileSync(ticketFile, closed);
+      expect(runCodexStop(directory, run, true).reason).toContain('Tests failed');
+      expect(testRunCount(directory)).toBe(baseline + 1);
+    });
+
     it('blocks rather than allowing the Stop when the evidence cannot be read', () => {
       const directory = fixture.projectDirectory;
       const run = makeRun('thread-unreadable');

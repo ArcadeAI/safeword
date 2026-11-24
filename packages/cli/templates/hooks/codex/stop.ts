@@ -101,6 +101,7 @@ function runOwedDoneGate(projectDirectory: string, runIdentity: RunIdentity): st
   const owed = readSessionState(projectDirectory, runIdentity)?.doneGateOwedTickets;
   const gate = nextOwedDoneGate(projectDirectory, runIdentity, owed);
   if (!gate) return undefined;
+  if ('blockReason' in gate) return gate.blockReason;
 
   let verdict: ReturnType<typeof evaluateDoneEvidence>;
   try {
