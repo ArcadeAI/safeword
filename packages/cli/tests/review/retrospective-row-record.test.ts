@@ -21,6 +21,7 @@ import {
   RETROSPECTIVE_FEATURE,
   RETROSPECTIVE_LEDGER,
 } from '../../src/review/retrospective-history.js';
+import { SOULLESS_RETROSPECTIVE_POLICY as electronPolicy } from '../../src/review/retrospective-policy.js';
 import type * as Proof from '../../src/review/retrospective-proof.js';
 import { scenarioBodyDigest } from '../../src/review/retrospective-scenario-body.js';
 
@@ -170,6 +171,27 @@ describe('retrospective row replay record', () => {
   it('accepts approved absolute targets inside the project', () => {
     replay.absoluteTargets = true;
     expect(attestRetrospectiveRow(root, claim).state).toBe('changed');
+    expect(retrospectiveGate(root, claim).state).toBe('healthy');
+  });
+
+  it('rejects SGWMBS eligibility identity against an otherwise authorized CKWE2D row', () => {
+    expect(attestRetrospectiveRow(root, claim).state).toBe('changed');
+    expect(retrospectiveGate(root, claim).state).toBe('healthy');
+    const original = readFileSync(path.join(root, 'eligibility.json'), 'utf8');
+    put(
+      'eligibility.json',
+      JSON.stringify({
+        ...JSON.parse(original),
+        ticketId: electronPolicy.ticketId,
+        ledgerPath: electronPolicy.ledger,
+        featurePath: electronPolicy.feature,
+        cutoff: electronPolicy.cutoff,
+      }),
+    );
+    const denied = retrospectiveGate(root, claim);
+    expect(denied.state).toBe('action_required');
+    expect(denied.findings[0]?.message).toContain('Historical eligibility no longer matches');
+    put('eligibility.json', original);
     expect(retrospectiveGate(root, claim).state).toBe('healthy');
   });
 

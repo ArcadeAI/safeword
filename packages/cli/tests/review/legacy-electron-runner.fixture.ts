@@ -84,11 +84,19 @@ if (fs.readFileSync(path.join(root, 'node_modules/installed-for'), 'utf8') !== r
 if (fs.readFileSync('out/main/index.js', 'utf8') !== source) process.exit(72);
 if (fs.existsSync(path.join(root, 'untracked-poison'))) process.exit(73);
 if (!args.includes('--workers=1') || !args.includes('--retries=0') || !args.includes('--repeat-each=1') || !args.includes('--no-deps') || !args.includes('--forbid-only')) process.exit(74);
-fs.appendFileSync(process.env.SAFEWORD_ELECTRON_FIXTURE_LOG, JSON.stringify({event:'test', root, source, scenario:request.scenario, port:process.env.SOULLESS_ELECTRON_TEST_PORT, profile:process.env.TMPDIR})+'\n');
+if (process.env.SAFEWORD_ELECTRON_FIXTURE_MODE === 'process-crash') process.kill(process.pid, 'SIGTERM');
+if (process.env.SAFEWORD_ELECTRON_FIXTURE_MODE === 'malformed-report') {
+  fs.writeFileSync(process.env.PLAYWRIGHT_JSON_OUTPUT_FILE, '{invalid');
+  process.exit(1);
+}
 const mutated = process.env.SAFEWORD_ELECTRON_FIXTURE_MODE !== 'surviving-mutation' && source.includes('behavior = false');
 const failure = 'Error: expect(received).toEqual(expected)\nExpected: '+request.mutation.expectedFailure+'\nReceived: missing package behavior\n    at '+request.mutation.assertionLocation+':3';
-const result = {status:mutated?'failed':'passed',retry:0,annotations:[],errors:mutated?[{message:failure,location:{file:path.join(root,request.testFile),line:39,column:3}}]:[]};
-const report = {config:{projects:[{id:'',name:'',repeatEach:1,retries:0}]},suites:[{title:path.basename(request.testFile),specs:[{title:request.scenario,file:path.basename(request.testFile),line:request.testLine,tests:[{projectId:'',projectName:'',expectedStatus:'passed',status:mutated?'unexpected':'expected',annotations:[],results:[result]}]}],suites:[]}],errors:[],stats:{expected:mutated?0:1,unexpected:mutated?1:0,flaky:0,skipped:0}};
+const failed = mutated || process.env.SAFEWORD_ELECTRON_FIXTURE_MODE === 'failing-original';
+const result = {status:failed?'failed':'passed',retry:0,annotations:[],errors:failed?[{message:failure,location:{file:path.join(root,request.testFile),line:Number(request.mutation.assertionLocation.split(':').at(-1)),column:3}}]:[]};
+const report = {config:{projects:[{id:'',name:'',repeatEach:1,retries:0}]},suites:[{title:path.basename(request.testFile),specs:[{title:request.scenario,file:path.basename(request.testFile),line:request.testLine,tests:[{projectId:'',projectName:'',expectedStatus:'passed',status:failed?'unexpected':'expected',annotations:[],results:[result]}]}],suites:[]}],errors:[],stats:{expected:failed?0:1,unexpected:failed?1:0,flaky:0,skipped:0}};
+if (mutated && process.env.SAFEWORD_ELECTRON_FIXTURE_MODE === 'different-assertion') result.errors[0].location.line=40;
+if (process.env.SAFEWORD_ELECTRON_FIXTURE_MODE === 'retry-recovery') result.retry=1;
+if (process.env.SAFEWORD_ELECTRON_FIXTURE_MODE === 'setup-failure') report.errors=[{message:'Controlled global setup failure'}];
 if (process.env.SAFEWORD_ELECTRON_FIXTURE_MODE === 'occupied-port') {
   const net = require('node:net');
   const owner = net.createServer();
@@ -104,8 +112,9 @@ if (process.env.SAFEWORD_ELECTRON_FIXTURE_MODE === 'occupied-port') {
     renderer.listen(Number(process.env.SOULLESS_ELECTRON_TEST_PORT),'127.0.0.1');
   });
 } else {
+  fs.appendFileSync(process.env.SAFEWORD_ELECTRON_FIXTURE_LOG, JSON.stringify({event:'test', root, source, scenario:request.scenario, port:process.env.SOULLESS_ELECTRON_TEST_PORT, profile:process.env.TMPDIR})+'\n');
   fs.writeFileSync(process.env.PLAYWRIGHT_JSON_OUTPUT_FILE, JSON.stringify(report));
-  process.exit(mutated?1:0);
+  process.exit(failed?1:0);
 }
 `;
   const pnpm = String.raw`#!${process.execPath}
