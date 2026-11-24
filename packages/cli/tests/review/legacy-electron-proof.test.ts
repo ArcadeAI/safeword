@@ -32,6 +32,49 @@ it('accepts the typed request for one enrolled historical Electron scenario', ()
   expect(parseElectronProofRequest(request)).toEqual(request);
 });
 
+it.each<[string, unknown]>([
+  ['another ticket', { ...request, ticketId: 'OTHER1' }],
+  ['an unenrolled scenario', { ...request, scenario: 'New unreviewed behavior' }],
+  ['an arbitrary command', { ...request, argv: ['sh', '-c', 'true'] }],
+  ['an arbitrary working directory', { ...request, cwd: '/tmp' }],
+  ['an author-selected runner', { ...request, runner: 'custom' }],
+  ['a live build request', { ...request, build: '/live/dist' }],
+  ['source traversal', { ...request, implementationPath: 'packages/desktop/src/../outside.ts' }],
+  ['an absolute source path', { ...request, implementationPath: '/tmp/source.ts' }],
+  ['a non-production mutation', { ...request, implementationPath: request.testFile }],
+  ['a different test kind', { ...request, testFile: 'packages/desktop/tests/unit.test.ts' }],
+  ['an ambiguous test declaration', { ...request, testLine: 0 }],
+  ['a string test declaration', { ...request, testLine: '8' }],
+  [
+    'a foreign assertion',
+    { ...request, mutation: { ...request.mutation, assertionLocation: 'other.ts:39' } },
+  ],
+  [
+    'an unchanged mutation',
+    { ...request, mutation: { ...request.mutation, after: request.mutation.before } },
+  ],
+  ['an empty mutation anchor', { ...request, mutation: { ...request.mutation, before: '' } }],
+  [
+    'an empty failure expectation',
+    { ...request, mutation: { ...request.mutation, expectedFailure: ' ' } },
+  ],
+  ['an extra mutation command', { ...request, mutation: { ...request.mutation, command: 'true' } }],
+  ['missing support inputs', { ...request, supportFiles: [] }],
+  [
+    'duplicate support inputs',
+    { ...request, supportFiles: [...request.supportFiles, ...request.supportFiles] },
+  ],
+  ['an escaping support input', { ...request, supportFiles: ['../outside'] }],
+  [
+    'a control character in a support path',
+    { ...request, supportFiles: ['packages/desktop/config\n.ts'] },
+  ],
+  // eslint-disable-next-line unicorn/no-null -- JSON null is an actual untyped request input.
+  ['an untyped request', null],
+])('refuses %s before preparing executable snapshots', (_name, input) => {
+  expect(() => parseElectronProofRequest(input)).toThrow(/Electron/u);
+});
+
 function report() {
   return {
     config: { projects: [{ id: '', name: '', repeatEach: 1, retries: 0 }] },
