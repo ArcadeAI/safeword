@@ -72,11 +72,7 @@ export function readReviewReceipt(
     }
 
     const receipt = reviewReceiptFromStatus(id, data);
-    if (receipt === undefined) continue;
-    // A legacy CLI may know the id but not expose the provenance fields this
-    // gate requires. Let a later current, distribution-owned route answer.
-    if (receipt.status === 'approved' && (!receipt.kind || !receipt.targets?.length)) continue;
-    return receipt;
+    if (receipt !== undefined) return receipt;
   }
   return undefined;
 }
@@ -101,7 +97,7 @@ export function reviewReceiptFromStatus(
       data.review_excluded_targets.some(target => typeof target !== 'string'))
   )
     return undefined;
-  return {
+  const receipt = {
     reviewId: id,
     status: text('status'),
     kind: text('review_kind'),
@@ -114,6 +110,10 @@ export function reviewReceiptFromStatus(
     actualReviewer: text('actual_reviewer'),
     reviewerModel: text('reviewer_model'),
   };
+  // Legacy approvals without review provenance do not establish authorization.
+  if (receipt.status === 'approved' && (!receipt.kind || receipt.targets.length === 0))
+    return undefined;
+  return receipt;
 }
 
 /**

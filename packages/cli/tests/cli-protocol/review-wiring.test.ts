@@ -130,7 +130,7 @@ dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\
 if [ "$delay_agent" = "${agent}" ]; then /bin/sleep 1; fi
 if { [ -z "$failure_agent" ] || [ "$failure_agent" = "${agent}" ]; } && { [ -z "$failure_path" ] || printf '%s' "$0" | /usr/bin/grep -q "$failure_path"; }; then
   if [ "$failure" = "process" ]; then printf 'review crashed\n' >&2; exit 7; fi
-  if [ "$failure" = "timeout" ]; then /bin/sleep 1; fi
+  if [ "$failure" = "timeout" ]; then /bin/sleep 4; fi
   if [ "$failure" = "invalid" ]; then printf 'not-json\n'; exit 0; fi
   if [ "$failure" = "oversized" ]; then /usr/bin/yes x | /usr/bin/head -c 1100000; exit 0; fi
 fi
@@ -826,6 +826,14 @@ describe('cross-agent review public-command wiring', () => {
     expect(JSON.parse(missing.stdout)).toMatchObject({ state: 'action_required', changed: false });
     expect(readFileSync(ticket, 'utf8')).toBe(original);
 
+    writeFileSync(
+      ledger,
+      `2026-11-23T00:00:00Z fixture review:${folder}:phase@scenario-gate author:codex reviewer:claude independence:cross-agent review-id:not-real\n`,
+    );
+    const unknown = await resume();
+    expect(JSON.parse(unknown.stdout)).toMatchObject({ state: 'action_required', changed: false });
+    expect(readFileSync(ticket, 'utf8')).toBe(original);
+
     const ran = await runCli(
       [
         'review',
@@ -848,6 +856,19 @@ describe('cross-agent review public-command wiring', () => {
       ledger,
       `2026-11-23T00:00:00Z fixture review:${folder}:phase@scenario-gate author:codex reviewer:claude independence:cross-agent review-id:${review.review_id}\n`,
     );
+
+    const expectWaiting = async () => {
+      const result = await resume();
+      expect(JSON.parse(result.stdout)).toMatchObject({ state: 'action_required', changed: false });
+      expect(readFileSync(ticket, 'utf8')).toBe(original);
+    };
+    await expectWaiting();
+    const definitions = nodePath.join(directory, 'test-definitions.md');
+    const other = nodePath.join(directory, 'other.feature');
+    writeFileSync(other, behavior);
+    writeFileSync(definitions, `Feature source: \`${nodePath.relative(cwd, other)}\`\n`);
+    await expectWaiting();
+    writeFileSync(definitions, `Feature source: \`${nodePath.relative(cwd, scenario)}\`\n`);
 
     writeFileSync(scenario, `${behavior}# Changed since review\n`);
     const stale = await resume();
@@ -3180,7 +3201,7 @@ describe('cross-agent review public-command wiring', () => {
           SAFEWORD_AGENT_RUNTIME: 'claude',
           SAFEWORD_REVIEW_FAKE_FAILURE_CODEX: 'process',
           SAFEWORD_REVIEW_FAKE_FAILURE_OPENCODE: routeFailure,
-          ...(routeFailure === 'timeout' && { SAFEWORD_REVIEW_TIMEOUT_MS: '500' }),
+          ...(routeFailure === 'timeout' && { SAFEWORD_REVIEW_TIMEOUT_MS: '1800' }),
           SAFEWORD_REVIEW_LOG: log,
           SAFEWORD_NO_UPDATE_CHECK: '1',
         },

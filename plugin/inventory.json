@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "185b7ef1bb18e61a5c03220978cd1ccd278791aa5d6393256bc48b04ef26e013"
+      "sha256": "f2d615c892c95b3e56b2d5a0743187d5802cf8139be21dd842b87a688204bf69"
     },
     {
       "path": "runtime/dispatch.js",
@@ -363,7 +363,7 @@
     },
     {
       "path": "runtime/hooks/lib/read-receipt.ts",
-      "sha256": "a0dc53d33f3d97f57e7aa0a38d75556771ad24f3cf05d39c1f427f1ee11fff9f"
+      "sha256": "1e3c230daefa999dcb3cd015a4980814329fb11fb86436e8c0211bd787eb9bbf"
     },
     {
       "path": "runtime/hooks/lib/readiness-pointer.ts",
@@ -455,7 +455,7 @@
     },
     {
       "path": "runtime/hooks/lib/small-work-admission.ts",
-      "sha256": "f864f7727a3aa2aeb7faec0f28610a81ddeaa5efacfe07be907e3d7047043da1"
+      "sha256": "ac4aa600e3d85742fab9030cbbc944ebd05d515c5957cea5c2e6576bfee572c1"
     },
     {
       "path": "runtime/hooks/lib/small-work-classification.ts",
@@ -483,7 +483,7 @@
     },
     {
       "path": "runtime/hooks/lib/verify-stamp-claims.ts",
-      "sha256": "52c1f73757cf33f20eb71cfa65bb13cdc4ac8e7fabe5ed25227460ef6d8c663a"
+      "sha256": "cbc5b5ee2359caa5b38c892071bbdda8ca222a7afe3573f85cb4e22bd44e892b"
     },
     {
       "path": "runtime/hooks/lib/version.ts",
@@ -1371,7 +1371,7 @@
     },
     {
       "path": "templates/hooks/lib/read-receipt.ts",
-      "sha256": "a0dc53d33f3d97f57e7aa0a38d75556771ad24f3cf05d39c1f427f1ee11fff9f"
+      "sha256": "1e3c230daefa999dcb3cd015a4980814329fb11fb86436e8c0211bd787eb9bbf"
     },
     {
       "path": "templates/hooks/lib/readiness-pointer.ts",
@@ -1463,7 +1463,7 @@
     },
     {
       "path": "templates/hooks/lib/small-work-admission.ts",
-      "sha256": "f864f7727a3aa2aeb7faec0f28610a81ddeaa5efacfe07be907e3d7047043da1"
+      "sha256": "ac4aa600e3d85742fab9030cbbc944ebd05d515c5957cea5c2e6576bfee572c1"
     },
     {
       "path": "templates/hooks/lib/small-work-classification.ts",
@@ -1491,7 +1491,7 @@
     },
     {
       "path": "templates/hooks/lib/verify-stamp-claims.ts",
-      "sha256": "52c1f73757cf33f20eb71cfa65bb13cdc4ac8e7fabe5ed25227460ef6d8c663a"
+      "sha256": "cbc5b5ee2359caa5b38c892071bbdda8ca222a7afe3573f85cb4e22bd44e892b"
     },
     {
       "path": "templates/hooks/lib/version.ts",

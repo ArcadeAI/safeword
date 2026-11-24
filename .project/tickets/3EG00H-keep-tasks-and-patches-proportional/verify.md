@@ -228,3 +228,11 @@ Two fresh sessions on candidate `4056c04f1` started in installed disposable proj
 Claude Code session `0e26dc97-535f-447f-9914-321697e80cf6` reported native Edit success. Codex CLI session `01a20acd-8c9a-7641-803e-d8b38ae9e25b` reported a `bunx` dependency-resolution error and treated the patch as unconfirmed. Its Git diff independently confirms the edit landed. A direct invocation of the bundled Codex PreToolUse adapter against the no-ticket fixture also returned no denial.
 
 The attachment gate checks for an in-progress ticket carrying small-work facts. It cannot require first classification when no such ticket exists. The earlier planning-only classification sessions establish that both hosts can classify the requests. This source-edit check establishes that the current cold-start path does not enforce classification.
+
+### PR #8197 closeout review
+
+The failed CLI contract and Node matrix jobs reported the same missing command inventory entry and stale generated reference for `ticket resume`. Both were corrected, and the local CLI contract command passed. The diff audit against `origin/main` found no dependency-boundary violations. This audit mode skips repository-wide dead-code, duplication, and dependency-freshness discovery.
+
+Independent review `0de49140-23ab-40e6-8334-b886bb5713cf` found that missing scenario declarations could let an unrelated receipt advance a pending ticket. The gate now requires the declared scenario to be a reviewed target. The CLI and hooks share the same legacy-receipt validation, and the approval lookup uses the canonical ticket path. The public CLI regression tests missing declarations, mismatched declarations, unknown receipts, stale receipts, and the current receipt. Re-review `28d5447c-93bd-4deb-992e-fca2bea80815` approved the corrected gate. A fresh source CLI run advanced a disposable ticket with current Codex-authored, Claude-reviewed receipt `e066ba11-fc76-4e46-89e0-1924bc02562f`.
+
+The approval is for the exact declared scenario. Different tickets can still cite the same approved scenario file when they intentionally share behavior. Ticket-specific approval context for a shared scenario file remains a follow-up. Cold first-edit enforcement and the unchecked verification obligations above remain open.

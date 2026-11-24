@@ -84285,11 +84285,8 @@ function readReviewReceipt(id, projectDirectory, deadline = Date.now() + TOTAL_B
       continue;
     }
     const receipt = reviewReceiptFromStatus(id, data);
-    if (receipt === undefined)
-      continue;
-    if (receipt.status === "approved" && (!receipt.kind || !receipt.targets?.length))
-      continue;
-    return receipt;
+    if (receipt !== undefined)
+      return receipt;
   }
   return;
 }
@@ -84299,7 +84296,7 @@ function reviewReceiptFromStatus(id, data) {
   const text = (field) => typeof data[field] === "string" ? data[field] : undefined;
   if (data.review_excluded_targets !== undefined && (!Array.isArray(data.review_excluded_targets) || data.review_excluded_targets.some((target) => typeof target !== "string")))
     return;
-  return {
+  const receipt = {
     reviewId: id,
     status: text("status"),
     kind: text("review_kind"),
@@ -84310,6 +84307,9 @@ function reviewReceiptFromStatus(id, data) {
     actualReviewer: text("actual_reviewer"),
     reviewerModel: text("reviewer_model")
   };
+  if (receipt.status === "approved" && (!receipt.kind || receipt.targets.length === 0))
+    return;
+  return receipt;
 }
 function createReviewReceiptReader(projectDirectory, totalBudgetMs = TOTAL_BUDGET_MS) {
   const deadline = Date.now() + totalBudgetMs;
@@ -84873,7 +84873,7 @@ function verifiedStamps(stamps, projectDirectory, scope, {
     if (claim === undefined)
       return false;
     const receipt = readReceipt(stamp.reviewId);
-    if (requireDeclaredScenario && claim.scenarioArtifact !== undefined && !receipt?.targets?.some((target) => nodePath150.resolve(projectDirectory, target) === claim.scenarioArtifact))
+    if (requireDeclaredScenario && (claim.scenarioArtifact === undefined || !receipt?.targets?.some((target) => nodePath150.resolve(projectDirectory, target) === claim.scenarioArtifact)))
       return false;
     return receiptGateVerdict(claim, receipt).ok;
   });
@@ -84951,7 +84951,7 @@ function resumePendingSmallWork(projectRoot, ticketPath, readReceipt) {
   const frontmatter = opening?.[1];
   if (!hasSmallWorkFacts(ticket) || opening === null || frontmatter === undefined || !/^type:[ \t]*feature[ \t]*$/m.test(frontmatter) || !/^status:[ \t]*in_progress[ \t]*$/m.test(frontmatter) || !/^small_work_pending_phase:[ \t]*plan-implementation[ \t]*$/m.test(frontmatter))
     return { state: "unchanged" };
-  if (!/^phase:[ \t]*scenario-gate[ \t]*$/m.test(frontmatter) || !hasCurrentSmallWorkScenarioApproval(projectRoot, ticketPath, readReceipt)) {
+  if (!/^phase:[ \t]*scenario-gate[ \t]*$/m.test(frontmatter) || !hasCurrentSmallWorkScenarioApproval(projectRoot, canonical, readReceipt)) {
     return {
       state: "waiting",
       message: "Implementation Planning is waiting for current approval at the scenario gate."

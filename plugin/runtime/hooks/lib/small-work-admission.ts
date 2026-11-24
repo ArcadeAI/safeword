@@ -210,7 +210,7 @@ export function resumePendingSmallWork(
 
   if (
     !/^phase:[ \t]*scenario-gate[ \t]*$/m.test(frontmatter) ||
-    !hasCurrentSmallWorkScenarioApproval(projectRoot, ticketPath, readReceipt)
+    !hasCurrentSmallWorkScenarioApproval(projectRoot, canonical, readReceipt)
   ) {
     return {
       state: 'waiting',

@@ -237,10 +237,10 @@ export function verifiedStamps(
       const receipt = readReceipt(stamp.reviewId);
       if (
         requireDeclaredScenario &&
-        claim.scenarioArtifact !== undefined &&
-        !receipt?.targets?.some(
-          target => nodePath.resolve(projectDirectory, target) === claim.scenarioArtifact,
-        )
+        (claim.scenarioArtifact === undefined ||
+          !receipt?.targets?.some(
+            target => nodePath.resolve(projectDirectory, target) === claim.scenarioArtifact,
+          ))
       )
         return false;
       return receiptGateVerdict(claim, receipt).ok;

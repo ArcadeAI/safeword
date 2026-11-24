@@ -151,6 +151,7 @@ describe('CLI command catalog', () => {
       'ticket delivery-checklist',
       'ticket execution-prerequisite',
       'ticket coding-authorization',
+      'ticket resume',
       'ticket classify-small-work',
       'ticket observe-small-work-proof',
       'ticket verify-small-work-proof',
