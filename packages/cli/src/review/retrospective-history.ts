@@ -3,6 +3,11 @@ import {
   type RetrospectiveHistoryRequest,
   type RetrospectiveHistoryResult,
 } from './retrospective-history-core.js';
+import {
+  LEGACY_RETROSPECTIVE_POLICY,
+  matchesMigrationOrigin,
+  retrospectivePolicy,
+} from './retrospective-policy.js';
 
 export type {
   RetrospectiveHistoryRequest,
@@ -10,16 +15,24 @@ export type {
 } from './retrospective-history-core.js';
 export { RETROSPECTIVE_TICKET } from './retrospective-history-core.js';
 
-export const RETROSPECTIVE_CUTOFF = '690536ec56c07c2b042108d9c31d28bc3bc82619';
-export const RETROSPECTIVE_LEDGER =
-  '.project/tickets/CKWE2D-keep-reviews-focused-on-authored-inputs/test-definitions.md';
-export const RETROSPECTIVE_FEATURE =
-  'packages/cli/features/keep-reviews-focused-on-authored-inputs.feature';
+export const RETROSPECTIVE_CUTOFF = LEGACY_RETROSPECTIVE_POLICY.cutoff;
+export const RETROSPECTIVE_LEDGER = LEGACY_RETROSPECTIVE_POLICY.ledger;
+export const RETROSPECTIVE_FEATURE = LEGACY_RETROSPECTIVE_POLICY.feature;
 
 /** Historical eligibility is only a prerequisite; it never authorizes VERIFIED. */
 export function checkRetrospectiveHistory(
   projectRoot: string,
   request: RetrospectiveHistoryRequest,
 ): RetrospectiveHistoryResult {
+  const policy = retrospectivePolicy(request.ticketId);
+  if (policy?.runner === 'playwright-electron') {
+    if (!matchesMigrationOrigin(projectRoot, policy)) {
+      return {
+        eligibleForReview: false,
+        reason: 'The approved migration repository does not match.',
+      };
+    }
+    return checkHistoryAgainstTrustedCutoff(projectRoot, request, policy.cutoff, policy.ticketId);
+  }
   return checkHistoryAgainstTrustedCutoff(projectRoot, request, RETROSPECTIVE_CUTOFF);
 }
