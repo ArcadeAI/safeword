@@ -1,0 +1,162 @@
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
+import { expect, it, vi } from 'vitest';
+
+import {
+  hasPassedElectronReplay,
+  withElectronReplay,
+} from '../../src/review/retrospective-electron-journal.js';
+
+const identity = {
+  proofId: '22222222-2222-4222-8222-222222222222',
+  scenario: 'A differently cased soul suffix opens as a package',
+  inputSha256: 'a'.repeat(64),
+};
+const commit = 'b'.repeat(40);
+
+it('authorizes a completed replay only after its owned pending execution finishes', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'safeword-electron-journal-'));
+  vi.stubEnv('SAFEWORD_REVIEW_KEY_ROOT', path.join(root, 'profile'));
+  try {
+    expect(hasPassedElectronReplay(root, identity, commit)).toBe(false);
+    const result = await withElectronReplay(root, identity, commit, () => {
+      expect(hasPassedElectronReplay(root, identity, commit)).toBe(false);
+      return Promise.resolve('executed');
+    });
+    expect(result).toBe('executed');
+    expect(hasPassedElectronReplay(root, identity, commit)).toBe(true);
+    expect(hasPassedElectronReplay(root, identity, 'c'.repeat(40))).toBe(false);
+  } finally {
+    vi.unstubAllEnvs();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+it('requires a fresh proof review after failure even if the old row passed at the same HEAD', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'safeword-electron-journal-'));
+  vi.stubEnv('SAFEWORD_REVIEW_KEY_ROOT', path.join(root, 'profile'));
+  try {
+    await withElectronReplay(root, identity, commit, () => Promise.resolve('first pass'));
+    await expect(
+      withElectronReplay(root, identity, commit, () =>
+        Promise.reject(new Error('mutation no longer discriminates')),
+      ),
+    ).rejects.toThrow('mutation no longer discriminates');
+    expect(hasPassedElectronReplay(root, identity, commit)).toBe(false);
+    await expect(
+      withElectronReplay(root, identity, commit, () => Promise.resolve('later pass')),
+    ).rejects.toThrow('fresh proof review');
+    const renewed = { ...identity, proofId: '33333333-3333-4333-8333-333333333333' };
+    await withElectronReplay(root, renewed, commit, () => Promise.resolve('fresh reviewed pass'));
+    expect(hasPassedElectronReplay(root, renewed, commit)).toBe(true);
+    const records = path.join(root, '.safeword/state/reviews');
+    const retained = readdirSync(records)
+      .filter(file => file.endsWith('.json'))
+      .map(file => JSON.parse(readFileSync(path.join(records, file), 'utf8')));
+    expect(retained).toHaveLength(2);
+    expect(
+      retained.map(item => item.record.state).toSorted((left, right) => left.localeCompare(right)),
+    ).toEqual(['failed', 'passed']);
+  } finally {
+    vi.unstubAllEnvs();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+it('refuses a concurrent replay without taking ownership from the first invocation', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'safeword-electron-journal-'));
+  vi.stubEnv('SAFEWORD_REVIEW_KEY_ROOT', path.join(root, 'profile'));
+  const completion: { resolve?: (value: string) => void } = {};
+  const execution = new Promise<string>(resolve => {
+    completion.resolve = resolve;
+  });
+  try {
+    const first = withElectronReplay(root, identity, commit, () => execution);
+    await expect(
+      withElectronReplay(root, identity, commit, () => Promise.resolve('second')),
+    ).rejects.toMatchObject({ code: 'EEXIST' });
+    expect(hasPassedElectronReplay(root, identity, commit)).toBe(false);
+    completion.resolve?.('first');
+    await expect(first).resolves.toBe('first');
+    expect(hasPassedElectronReplay(root, identity, commit)).toBe(true);
+  } finally {
+    completion.resolve?.('cleanup');
+    vi.unstubAllEnvs();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+it('retains an interrupted pending execution and refuses the same proof review', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'safeword-electron-journal-'));
+  vi.stubEnv('SAFEWORD_REVIEW_KEY_ROOT', path.join(root, 'profile'));
+  const module = path.resolve(
+    import.meta.dirname,
+    '../../src/review/retrospective-electron-journal.ts',
+  );
+  const script = `
+    import { withElectronReplay } from ${JSON.stringify(module)};
+    await withElectronReplay(${JSON.stringify(root)}, ${JSON.stringify(identity)}, ${JSON.stringify(commit)}, async () => {
+      process.stdout.write('PENDING');
+      process.stdin.resume();
+      await new Promise(resolve => process.stdin.once('end', resolve));
+      return 'finished';
+    });
+  `;
+  const child = spawn('bun', ['--eval', script], { stdio: ['pipe', 'pipe', 'pipe'] });
+  const exited = once(child, 'exit');
+  try {
+    const ready = async () => {
+      const [bytes] = await once(child.stdout, 'data');
+      return String(bytes);
+    };
+    const prematureExit = async () => {
+      await exited;
+      return 'exited before writing pending';
+    };
+    await expect(Promise.race([ready(), prematureExit()])).resolves.toBe('PENDING');
+    expect(hasPassedElectronReplay(root, identity, commit)).toBe(false);
+    child.kill('SIGKILL');
+    await exited;
+    await expect(
+      withElectronReplay(root, identity, commit, () => Promise.resolve('retry')),
+    ).rejects.toMatchObject({ code: 'EEXIST' });
+    expect(hasPassedElectronReplay(root, identity, commit)).toBe(false);
+    const records = path.join(root, '.safeword/state/reviews');
+    const file = readdirSync(records).find(name => name.endsWith('.json'));
+    const envelope = JSON.parse(readFileSync(path.join(records, file ?? 'missing'), 'utf8'));
+    expect(envelope.record.state).toBe('pending');
+  } finally {
+    if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+    await exited;
+    vi.unstubAllEnvs();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+it('keeps authorization blocked if final durable publication fails', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'safeword-electron-journal-'));
+  vi.stubEnv('SAFEWORD_REVIEW_KEY_ROOT', path.join(root, 'profile'));
+  try {
+    await expect(
+      withElectronReplay(root, identity, commit, () => {
+        const records = path.join(root, '.safeword/state/reviews');
+        const file = readdirSync(records).find(name => name.endsWith('.json'));
+        const destination = path.join(records, file ?? 'missing');
+        rmSync(destination);
+        mkdirSync(destination);
+        return Promise.resolve('executed but cannot publish');
+      }),
+    ).rejects.toMatchObject({ code: 'EISDIR' });
+    expect(hasPassedElectronReplay(root, identity, commit)).toBe(false);
+    await expect(
+      withElectronReplay(root, identity, commit, () => Promise.resolve('retry')),
+    ).rejects.toMatchObject({ code: 'EEXIST' });
+  } finally {
+    vi.unstubAllEnvs();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
