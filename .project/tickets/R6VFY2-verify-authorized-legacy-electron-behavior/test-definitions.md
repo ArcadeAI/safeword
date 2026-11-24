@@ -159,3 +159,7 @@ example results; partial example execution cannot complete an outline.
 - [ ] GREEN
 - [ ] REFACTOR
 
+## Feature-level cross-scenario refactor
+
+- [ ] cross-scenario
+

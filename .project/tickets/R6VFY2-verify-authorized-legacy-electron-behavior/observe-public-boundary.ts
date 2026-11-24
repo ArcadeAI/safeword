@@ -24,7 +24,7 @@ const request = JSON.parse(requestBytes.toString('utf8')) as {
   testLine: number;
   testFullName: string;
   implementationPath: string;
-  mutation: { before: string; expectedFailure: string; assertionLocation: string };
+  mutation: { before: string; after: string; expectedFailure: string; assertionLocation: string };
   supportFiles: string[];
 };
 const implementation = readFileSync(path.join(project, request.implementationPath));
@@ -38,7 +38,26 @@ assert.equal(
 );
 for (const support of request.supportFiles) assert.equal(statSync(path.join(project, support)).isFile(), true);
 
-const runtime = path.join(homedir(), '.codex/plugins/cache/safeword/safeword/1.2.0/runtime/cli.js');
+const inventoryResult = spawnSync('codex', ['plugin', 'list', '--json'], { encoding: 'utf8' });
+assert.equal(inventoryResult.status, 0, inventoryResult.stderr);
+const inventory = JSON.parse(inventoryResult.stdout) as {
+  installed: { pluginId: string; version: string; installed: boolean; enabled: boolean;
+    source?: { source?: string; path?: string } }[];
+};
+const plugins = inventory.installed.filter(plugin =>
+  plugin.pluginId === 'safeword@safeword' && plugin.installed && plugin.enabled);
+assert.equal(plugins.length, 1, 'Exactly one enabled supported Safeword installation is required');
+const plugin = plugins[0]!;
+assert.match(plugin.version, /^[a-zA-Z0-9][a-zA-Z0-9.+-]*$/u);
+const codexHome = process.env.CODEX_HOME ?? path.join(homedir(), '.codex');
+const runtime = path.join(codexHome, 'plugins/cache/safeword/safeword', plugin.version, 'runtime/cli.js');
+assert.equal(plugin.source?.source, 'local', 'This proof uses the registered local development bundle');
+assert.equal(typeof plugin.source?.path, 'string');
+assert.equal(
+  digest(readFileSync(runtime)),
+  digest(readFileSync(path.join(plugin.source!.path!, 'runtime/cli.js'))),
+  'The installed runtime must match the generated supported marketplace bundle',
+);
 const result = spawnSync(
   process.execPath,
   [runtime, '--cwd', project, 'review', 'observe', 'retrospective', '--request', requestPath, '--json'],
@@ -53,6 +72,12 @@ const envelope = JSON.parse(result.stdout) as {
       commit: string;
       request: { ticketId: string; scenario: string };
       sourceSha256: string;
+      supportSha256: Record<string, string>;
+      mutatedSupportSha256: Record<string, string>;
+      isolation: {
+        original: { snapshot: string; build: string; profileRoot: string; rendererPort: number };
+        mutated: { snapshot: string; build: string; profileRoot: string; rendererPort: number };
+      };
       passing: { exitCode: number; test: string; passedTests: number; failedTests: number };
       mutated: { exitCode: number; test: string; passedTests: number; failedTests: number; failure: string };
     };
@@ -68,7 +93,33 @@ assert.equal(head.status, 0, head.stderr);
 assert.equal(observation?.commit, head.stdout.trim());
 assert.equal(observation?.request.ticketId, 'SGWMBS');
 assert.equal(observation?.request.scenario, request.scenario);
+assert.deepEqual(observation?.request, request);
 assert.equal(observation?.sourceSha256, digest(implementation));
+for (const input of [
+  requestPath, request.testFile, request.implementationPath, ...request.supportFiles,
+  'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'packages/desktop/package.json',
+]) {
+  assert.equal(observation?.supportSha256[input], digest(readFileSync(path.join(project, input))), input);
+}
+const mutant = implementation.toString('utf8').replace(request.mutation.before, () => request.mutation.after);
+assert.deepEqual(observation?.mutatedSupportSha256, {
+  ...observation?.supportSha256,
+  [request.implementationPath]: digest(Buffer.from(mutant)),
+});
+for (const key of ['snapshot', 'build', 'profileRoot'] as const) {
+  const original = observation?.isolation.original[key];
+  const mutated = observation?.isolation.mutated[key];
+  assert.equal(typeof original, 'string', key);
+  assert.equal(typeof mutated, 'string', key);
+  assert.equal(path.isAbsolute(original!), true, key);
+  assert.equal(path.isAbsolute(mutated!), true, key);
+  assert.notEqual(original, mutated, key);
+}
+const originalPort = observation?.isolation.original.rendererPort;
+const mutatedPort = observation?.isolation.mutated.rendererPort;
+assert.equal(Number.isInteger(originalPort), true);
+assert.equal(Number.isInteger(mutatedPort), true);
+assert.notEqual(originalPort, mutatedPort);
 assert.deepEqual(observation?.passing, {
   exitCode: 0,
   test: request.testFullName,
