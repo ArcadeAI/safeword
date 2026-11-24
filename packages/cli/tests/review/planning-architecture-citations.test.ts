@@ -43,11 +43,12 @@ function project() {
       '',
       'See [test notes](unrelated.md).',
       '## Architecture applicability',
-      'Follow [retention](../../../records/retention.md).',
+      'Follow [retention](../../../records/100%-retention.md).',
       '`[example](ignored.md)`',
       '![diagram](diagram.md)',
       '',
       '## Data applicability',
+      'See [data notes](unindexed-data.md).',
       'skip: No data changes.',
     ].join('\n'),
   );
@@ -61,21 +62,21 @@ afterEach(() => {
 describe('architecture records cited by an owned plan', () => {
   it('captures cited bytes once and binds record changes to review currency', () => {
     const { root, write } = project();
-    write('records/retention.md', 'Retain approvals.');
+    write('records/100%-retention.md', 'Retain approvals.');
     function capture(expected: string) {
       const prepared = prepareReviewPacket(
         root,
         'plan-implementation',
         [plan],
-        ['records/retention.md'],
+        ['records/100%-retention.md'],
       );
       try {
         expect(prepared.packet.context_files?.filter(file => file.path === record)).toEqual([
           { path: record, content: expected },
         ]);
         expect(
-          prepared.packet.context_files?.filter(file => file.path === 'records/retention.md'),
-        ).toEqual([{ path: 'records/retention.md', content: 'Retain approvals.' }]);
+          prepared.packet.context_files?.filter(file => file.path === 'records/100%-retention.md'),
+        ).toEqual([{ path: 'records/100%-retention.md', content: 'Retain approvals.' }]);
         return createPlanningReviewIdentity(prepared.packet)?.dependencies.find(
           dependency => dependency.path === record && dependency.role === 'architecture',
         )?.semantic_digest;
@@ -92,7 +93,7 @@ describe('architecture records cited by an owned plan', () => {
   it('includes citations from both plans in execution review', () => {
     const { root, write } = project();
     const execution = `${directory}/execution-plan.md`;
-    write('records/retention.md', 'Retain approvals.');
+    write('records/100%-retention.md', 'Retain approvals.');
     const sample = EXECUTION_PLAN_SAMPLES.find(value => value.id === 'one-coherent-change');
     if (!sample) throw new Error('Missing execution plan fixture');
     write(
@@ -121,7 +122,10 @@ describe('architecture records cited by an owned plan', () => {
   it('names the missing citation and its architecture role', () => {
     const { root } = project();
     expect(() => prepareReviewPacket(root, 'plan-implementation', [plan])).toThrow(
-      expect.objectContaining({ contextRole: 'architecture', contextPath: 'records/retention.md' }),
+      expect.objectContaining({
+        contextRole: 'architecture',
+        contextPath: 'records/100%-retention.md',
+      }),
     );
   });
 });

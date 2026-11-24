@@ -25,7 +25,7 @@ function recordPath(source: string, url: string): string | undefined {
   try {
     decoded = decodeURIComponent(path);
   } catch {
-    return undefined;
+    decoded = path;
   }
   if (nodePath.extname(decoded).toLowerCase() !== '.md') return undefined;
   return nodePath.normalize(nodePath.join(nodePath.dirname(source), decoded));
@@ -71,12 +71,8 @@ export function citedArchitectureRecords(
   overview?: ReviewPacketFile,
 ): string[] {
   const indexed = new Set(overview && citations(overview).map(citation => citation.path));
-  return [
-    ...new Set(
-      plans
-        .flatMap(plan => citations(plan))
-        .filter(citation => citation.inArchitectureSection || indexed.has(citation.path))
-        .map(citation => citation.path),
-    ),
-  ];
+  return plans
+    .flatMap(plan => citations(plan))
+    .filter(citation => citation.inArchitectureSection || indexed.has(citation.path))
+    .map(citation => citation.path);
 }

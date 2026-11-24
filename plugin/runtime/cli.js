@@ -61581,7 +61581,7 @@ function recordPath(source, url) {
   try {
     decoded = decodeURIComponent(path);
   } catch {
-    return;
+    decoded = path;
   }
   if (nodePath61.extname(decoded).toLowerCase() !== ".md")
     return;
@@ -61621,9 +61621,7 @@ function citations(file) {
 }
 function citedArchitectureRecords(plans, overview) {
   const indexed = new Set(overview && citations(overview).map((citation) => citation.path));
-  return [
-    ...new Set(plans.flatMap((plan) => citations(plan)).filter((citation) => citation.inArchitectureSection || indexed.has(citation.path)).map((citation) => citation.path))
-  ];
+  return plans.flatMap((plan) => citations(plan)).filter((citation) => citation.inArchitectureSection || indexed.has(citation.path)).map((citation) => citation.path);
 }
 var init_planning_architecture_citations = __esm(() => {
   init_dev15();
