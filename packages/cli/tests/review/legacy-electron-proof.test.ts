@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest';
 
 import { evaluateElectronReport } from '../../src/review/retrospective-electron-report.js';
+import { parseElectronProofRequest } from '../../src/review/retrospective-electron-request.js';
 
 const selection = {
   testFile: 'packages/desktop/tests/electron/89-soul-cased-suffix.electron.spec.ts',
@@ -12,6 +13,24 @@ const selection = {
     assertionLocation: 'packages/desktop/tests/electron/89-soul-cased-suffix.electron.spec.ts:39',
   },
 };
+
+const request = {
+  ...selection,
+  ticketId: 'SGWMBS',
+  scenario: 'A differently cased soul suffix opens as a package',
+  implementationPath: 'packages/desktop/src/renderer/src/services/tabLifecycle.ts',
+  mutation: {
+    ...selection.mutation,
+    before: "...(opened.kind === 'package' ? { package: packageTabState(opened) } : {}),",
+    after:
+      "...(opened.kind === 'package' && tabPath.endsWith('.soul') ? { package: packageTabState(opened) } : {}),",
+  },
+  supportFiles: ['packages/desktop/playwright-electron.config.ts'],
+};
+
+it('accepts the typed request for one enrolled historical Electron scenario', () => {
+  expect(parseElectronProofRequest(request)).toEqual(request);
+});
 
 function report() {
   return {
