@@ -103,10 +103,6 @@ process.exit(result.status??1);
     import {createResult} from ${JSON.stringify(path.join(source, 'cli-protocol/result.ts'))};
     completeReviewJob(process.cwd(), process.env.SAFEWORD_REVIEW_JOB_ID, createResult({state:'healthy',data:{command:'review run',status:'approved',author_agent:'codex',actual_reviewer:'claude',independence:'cross-agent',reviewer_output:{dispatch_id:'synthetic-external-review',reviewer_agent:'claude',verdict:'approve',summary:'Synthetic external review fixture',findings:[]}}}));
   `;
-    writeFileSync(
-      worker,
-      `const result=require('node:child_process').spawnSync('bun',['--eval',${JSON.stringify(complete)}],{cwd:process.cwd(),env:process.env,encoding:'utf8'});require('node:fs').writeFileSync(${JSON.stringify(diagnostic)},JSON.stringify(result));process.exit(result.status??1);`,
-    );
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker);
     const observe = await runElectronProof(fixture.root, electronRequest, fixture.requestPath);
     fixture.write(observationPath, JSON.stringify(observe));
