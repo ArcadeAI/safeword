@@ -1,6 +1,6 @@
 {
   "originMainCommit": "f22e2997ba8ef68d3d198ca2d937bfbf35fdab87",
-  "templatesSha256": "550617069f9f826ef942f1e6b5e28ecbc3e7a47a4fc31dd62847438bcdb395a0",
+  "templatesSha256": "4592f4cadcf3317f1eef45eb3b456516233dde9c5281637d4b3dc0c7a09f4da3",
   "fixtures": {
     "claude-install": "fcc7df0c2c5f4e95aae0b2d1881131cc93c717fb4213c99fbae63bf556962683",
     "claude-check": "176cfa5b7e6ec1fe18915af5a8a6ca6b4a66559483a48531c34d7975030c16b8",

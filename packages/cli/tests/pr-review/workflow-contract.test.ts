@@ -466,7 +466,12 @@ describe('advisory PR review workflow contract', () => {
         },
         'event-review': {
           if: "github.event_name == 'pull_request_target' && github.event.action != 'edited'",
-          permissions: { contents: 'read', issues: 'write', 'pull-requests': 'write' },
+          permissions: {
+            actions: 'read',
+            contents: 'read',
+            issues: 'write',
+            'pull-requests': 'write',
+          },
           secrets: 'inherit',
           uses: './.github/workflows/safeword-pr-review-worker.yml',
           with: {
@@ -475,7 +480,12 @@ describe('advisory PR review workflow contract', () => {
           },
         },
         'scheduled-review': {
-          permissions: { contents: 'read', issues: 'write', 'pull-requests': 'write' },
+          permissions: {
+            actions: 'read',
+            contents: 'read',
+            issues: 'write',
+            'pull-requests': 'write',
+          },
           secrets: 'inherit',
           uses: './.github/workflows/safeword-pr-review-worker.yml',
           with: { inspect_requested: true, write_requested: true },

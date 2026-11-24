@@ -1823,7 +1823,7 @@
     },
     {
       "path": "templates/workflows/pr-review.yml",
-      "sha256": "c2d7b7b36ae72b255104cd0b2720c8708b4d4e01348d912622431041d643d881"
+      "sha256": "f3c00e2ee4b4e01500cb05652287c7ffc225afa486b89addeab32d1c4995f652"
     },
     {
       "path": "templates/workflows/remote-tests.yml",
