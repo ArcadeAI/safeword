@@ -3,9 +3,15 @@
 // Requires user approval before modifying quality config files
 
 import { existsSync } from 'node:fs';
+import {
+  canonicalEditTarget,
+  resolveLaunchDirectory,
+  resolveToolProjectDirectory,
+} from './lib/project-directory.ts';
 
 interface HookInput {
   tool_name?: string;
+  cwd?: string;
   tool_input?: {
     file_path?: string;
     notebook_path?: string;
@@ -46,14 +52,6 @@ const PROTECTED_PATTERNS: Array<{ pattern: RegExp; category: string }> = [
   { pattern: /\.gitlab-ci\.ya?ml$/, category: 'CI config' },
 ];
 
-const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-const safewordDir = `${projectDir}/.safeword`;
-
-// Not a safeword project, skip silently
-if (!existsSync(safewordDir)) {
-  process.exit(0);
-}
-
 // Read hook input from stdin
 let input: HookInput;
 try {
@@ -63,15 +61,28 @@ try {
 }
 
 const filePath = input.tool_input?.file_path ?? input.tool_input?.notebook_path;
+const launchDirectory = resolveLaunchDirectory();
+const projectDir = resolveToolProjectDirectory(launchDirectory, {
+  tool: input.tool_name ?? '',
+  editedFile: filePath ?? '',
+  cwd: input.cwd,
+});
+
+// Not a safeword project, skip silently
+if (!existsSync(`${projectDir}/.safeword`)) {
+  process.exit(0);
+}
 
 // No file path, allow
 if (!filePath) {
   process.exit(0);
 }
 
-// Check if file matches any protected pattern
+// Check both the path as given and where it really lands: an innocuously named
+// symlink to a protected config must not slip past the guard.
+const editTarget = canonicalEditTarget(launchDirectory, filePath, input.cwd);
 for (const { pattern, category } of PROTECTED_PATTERNS) {
-  if (pattern.test(filePath)) {
+  if (pattern.test(filePath) || pattern.test(editTarget)) {
     const output: HookOutput = {
       hookSpecificOutput: {
         hookEventName: 'PreToolUse',

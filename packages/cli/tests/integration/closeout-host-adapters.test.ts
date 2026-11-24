@@ -22,6 +22,7 @@ import { VERSION } from '../../src/version.js';
 import { readFreshCloseoutBinding } from '../../templates/hooks/lib/closeout-binding.ts';
 import {
   draftSpoolPath,
+  durableDraftSpoolPath,
   readSpooledDrafts,
   recordFiledAck,
   spoolDrafts,
@@ -421,6 +422,92 @@ describe('closeout production host adapters (93C14D TBU1.R4)', () => {
     });
   }, 30_000);
 
+  it.each([
+    { transcriptSession: 'claude-launched-in-primary', adopted: true },
+    { transcriptSession: 'some-other-session', adopted: false },
+  ])(
+    'adopts the session launched in the primary checkout when closeout runs in its worktree (transcript names $transcriptSession, #5467)',
+    ({ transcriptSession, adopted }) => {
+      const fixture = deliveryFixture();
+      installBoundaryFakes(fixture);
+      const sandbox = nodePath.dirname(fixture.bare);
+      const id = 'claude-launched-in-primary';
+      const transcript = nodePath.join(sandbox, `${id}.jsonl`);
+      const retroLog = nodePath.join(sandbox, 'retro-runs.log');
+      const cli = nodePath.join(fixture.bin, 'recording-safeword.ts');
+      writeFileSync(
+        transcript,
+        `${JSON.stringify({ session_id: transcriptSession, cwd: fixture.topic })}\n`,
+      );
+      executable(
+        cli,
+        String.raw`#!/usr/bin/env bun
+import { appendFileSync } from 'node:fs';
+const args = process.argv.slice(2);
+if (args[0] === 'project' && args[1] === 'test-plan') {
+  console.log(JSON.stringify([{ cwd: process.cwd(), command: 'true', available: true }]));
+} else if (args[0] === 'retro' && args[1] === 'run') {
+  appendFileSync(process.env.SAFEWORD_RETRO_LOG, args.join(' ') + '\n');
+  console.log(JSON.stringify({ state: 'healthy', data: { agent_filing_needed: false } }));
+} else process.exit(1);
+`,
+      );
+      const environment = {
+        ...codexHostEnvironment(process.env),
+        PATH: `${fixture.bin}:${process.env.PATH ?? ''}`,
+        GIT_SSH_COMMAND: nodePath.join(fixture.bin, 'ssh'),
+        SAFEWORD_TEST_BARE: fixture.bare,
+        SAFEWORD_CLI: cli,
+        SAFEWORD_RETRO_LOG: retroLog,
+      };
+
+      // The host keeps the session's launch checkout as its project; only the
+      // shell is in the worktree, where the skill runs closeout by relative path.
+      const hook = spawnSync(
+        'bun',
+        [nodePath.join(repoRoot, 'packages/cli/templates/hooks/pre-tool-quality.ts')],
+        {
+          cwd: fixture.main,
+          env: { ...environment, CLAUDE_PROJECT_DIR: fixture.main },
+          input: JSON.stringify({
+            session_id: id,
+            transcript_path: transcript,
+            hook_event_name: 'PreToolUse',
+            cwd: fixture.topic,
+            tool_name: 'Bash',
+            tool_input: { command: 'bun .safeword/scripts/closeout-cleanup.ts --pr 42' },
+          }),
+          encoding: 'utf8',
+        },
+      );
+      expect(hook.status, hook.stderr).toBe(0);
+
+      const preview = spawnSync(
+        'bun',
+        [nodePath.join(fixture.topic, '.safeword/scripts/closeout-cleanup.ts'), '--pr', '42'],
+        {
+          cwd: fixture.topic,
+          env: { ...environment, CLAUDE_PROJECT_DIR: fixture.main },
+          encoding: 'utf8',
+        },
+      );
+
+      const plan = (JSON.parse(preview.stdout) as { plan: { advisories: string[] } }).plan;
+      const retroRuns = existsSync(retroLog) ? readFileSync(retroLog, 'utf8') : '';
+      if (adopted) {
+        expect(preview.status, `${preview.stderr}\n${preview.stdout}`).toBe(0);
+        expect(retroRuns).toContain(`--session-id ${id}`);
+        expect(plan.advisories).not.toContain(
+          'the current host session binding is missing or expired',
+        );
+      } else {
+        expect(retroRuns).toBe('');
+        expect(plan.advisories).toContain('the current host session binding is missing or expired');
+      }
+    },
+    30_000,
+  );
+
   it('reports a post-preview fallback spool without blocking cleanup', () => {
     const fixture = deliveryFixture();
     installBoundaryFakes(fixture);
@@ -471,7 +558,8 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
     });
     spoolDrafts(fixture.topic, id, [draft]);
     spoolDrafts(fixture.topic, unrelatedId, [unrelated]);
-    const unrelatedPath = draftSpoolPath(fixture.topic, unrelatedId);
+    // Another session's draft lives in the shared git directory (#5467), which closeout never removes.
+    const unrelatedPath = durableDraftSpoolPath(fixture.topic, unrelatedId);
     const unrelatedBefore = readFileSync(unrelatedPath);
     bindHostSession({
       runtime: 'claude',
@@ -538,12 +626,7 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
     expect(existsSync(fixture.topic)).toBe(false);
     expect(existsSync(durableContinuation)).toBe(true);
     expect(runOrThrow('git', ['status', '--porcelain'], fixture.main, environment)).toBe('');
-    const durableUnrelatedPath = nodePath.join(
-      fixture.main,
-      '.safeword/retro-drafts',
-      nodePath.basename(unrelatedPath),
-    );
-    expect(readFileSync(durableUnrelatedPath)).toEqual(unrelatedBefore);
+    expect(readFileSync(unrelatedPath)).toEqual(unrelatedBefore);
 
     const validation = spawnSync(
       'bun',

@@ -89,5 +89,18 @@ For a legacy non-planning supplemental review, omit `schema_version`,
 Use `request_changes` when any error requires action. Use `approve` when no
 error remains; warnings and information may still be present. Return an empty
 `findings` array when the rubric finds nothing—never invent a finding.
+For planning reviews (product-plan, scenario-gate, plan-implementation and
+plan-execution), both verdicts require an `evidence_records` object with
+`schema_version` 1 and a `records` array. When no source evidence records
+apply, return `"evidence_records": {"schema_version": 1, "records": []}`.
+Preserve applicable records using the planning evidence schema.
 For Execution Plan review, include the `planning_destination` and
 `execution_plan_record` fields required by the supplied coordinator instructions.
+
+For an execution approval the record keys are `slicing_decision`, `rationale`,
+`slices`, `obligation_owners`, `decision_statuses`, `accepted_scenarios_covered`,
+`accepted_approach_preserved`, `normalized_plan_digest`, and `delivery_definition`.
+Each slice contains `name`, `purpose`, `boundary`, `prerequisites` (earlier slice
+names), `proof`, `completion_signal`, and `relies_on_unmerged_successor`.
+Each obligation contains `obligation` and `slices` (slice names). Each decision
+contains `decision` and `status`. Apply the sealed instructions to determine the values.

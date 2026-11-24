@@ -156,6 +156,7 @@ interface PlanWorld extends SafewordWorld {
   schemaSource?: string;
   cursorWrapperSource?: string;
   architectureRecord?: string;
+  planningDecisionPath?: string;
   architectureEditTarget?: string;
   stop?: { decision?: string; reason: string; exitCode: number };
   promptOutput?: string;
@@ -2995,16 +2996,43 @@ Then(
   },
 );
 
+function resolveDecisionLink(
+  markdown: string | undefined,
+  pattern: RegExp,
+  directory: string,
+  missingLinkMessage: string,
+): string {
+  const target = markdown?.match(pattern)?.[1];
+  assert.ok(target, missingLinkMessage);
+  return nodePath.resolve(directory, target);
+}
+
 Then('an accepted ADR records the plan-implementation phase', function (this: PlanWorld) {
-  const text = this.architectureRecord ?? '';
-  const headingIndex = text.indexOf('### plan-implementation: a gated planning phase');
-  assert.ok(headingIndex !== -1, 'ARCHITECTURE.md must record the plan-implementation ADR');
-  const section = text.slice(headingIndex, headingIndex + 400);
-  assert.match(section, /\*\*Status:\*\* Accepted/);
+  this.planningDecisionPath = resolveDecisionLink(
+    this.architectureRecord,
+    /\[plan-implementation: a gated planning phase[^\]]*\]\(([^)]+)\)/u,
+    PROJECT_ROOT,
+    'The overview must link to the planning-phase decision',
+  );
+  const decision = readFileSync(this.planningDecisionPath, 'utf8');
+  assert.match(decision, /^# plan-implementation: a gated planning phase/mu);
+  assert.match(decision, /^\*\*Status:\*\* Accepted\b/mu);
 });
 
 Then('the decomposition-retirement ADR is marked superseded by it', function (this: PlanWorld) {
-  const text = this.architectureRecord ?? '';
-  assert.match(text, /retire `decomposition` phase/);
-  assert.match(text, /superseded by "plan-implementation: a gated planning phase"/);
+  const olderPath = resolveDecisionLink(
+    this.architectureRecord,
+    /\[[^\]]*retire `decomposition` phase[^\]]*\]\(([^)]+)\)/u,
+    PROJECT_ROOT,
+    'The overview must link to the decomposition-retirement decision',
+  );
+  const olderDecision = readFileSync(olderPath, 'utf8');
+  assert.match(olderDecision, /^# .*retire `decomposition` phase/mu);
+  const replacementPath = resolveDecisionLink(
+    olderDecision,
+    /^\*\*Status:\*\* .*superseded by \[[^\]]+\]\(([^)]+)\)/mu,
+    nodePath.dirname(olderPath),
+    'The status must link to the superseding decision',
+  );
+  assert.equal(replacementPath, this.planningDecisionPath);
 });

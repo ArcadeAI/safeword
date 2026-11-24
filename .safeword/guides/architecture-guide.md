@@ -39,6 +39,33 @@ affected consumers, and reversal condition in the plan. Record the lasting
 shared constraint in the configured durable record, and resolve its link before
 requesting plan review. Do not maintain two competing versions of the rule.
 
+## When to split a decision into its own record
+
+Give a lasting choice its own architecture decision record (ADR) when a
+maintainer might cite, reverse, or replace it independently. Keep the rationale
+and tradeoffs for that choice together. Update the overview when a system
+relationship changes or readers need a new entry point. When moving detail,
+preserve headings that existing links use.
+
+## Cite a record in a ticket-owned plan
+
+In an implementation or execution plan, put the link under a Markdown heading
+named `Architecture applicability`. An inline label does not open that section.
+For example, a plan in `.project/tickets/ABC123-change/` can cite an existing
+record in `.project/architecture/` like this:
+
+```markdown
+## Architecture applicability
+
+Follow the [retention decision](../../architecture/retention.md).
+```
+
+Use a relative link to a Markdown (`.md`) file. A cited file that is missing
+or resolves outside the project blocks the review. With a configured overview file, a citation elsewhere
+in the plan also qualifies if the overview links directly to that same record.
+With a configured directory, review already includes its top-level `.md` files
+except `README.md`; use the heading to cite an additional nested record.
+
 ## Compare the ideal with the existing system
 
 Frame hard constraints and derive candidate approaches before surveying local

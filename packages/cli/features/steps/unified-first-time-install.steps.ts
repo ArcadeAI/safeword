@@ -546,7 +546,7 @@ function assertScopedInstallCompatibility(world: UnifiedInstallWorld, alias: str
   const project = requiredValue(world.projectRoot, 'project root');
   // The retained scoped spellings install the profile plugin only; reconciling
   // the repository is the canonical `install --agents=<agent>` route.
-  assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), false);
+  assert.equal(existsSync(nodePath.join(project, '.safeword/enrolled')), false);
   const selected = alias.startsWith('claude') ? 'claude' : 'codex';
   assert.equal(
     readFileSync(requiredValue(world.claudeState, 'Claude state'), 'utf8'),
@@ -605,7 +605,7 @@ Then(
   function (this: UnifiedInstallWorld) {
     assertCommandDidNotFail(this);
     const project = requiredValue(this.projectRoot, 'project root');
-    assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
+    assert.equal(existsSync(nodePath.join(project, '.safeword/enrolled')), true);
     assert.equal(readFileSync(requiredValue(this.claudeState, 'Claude state'), 'utf8'), 'enabled');
     assert.equal(readFileSync(requiredValue(this.codexState, 'Codex state'), 'utf8'), 'enabled');
   },
@@ -658,7 +658,7 @@ When(
 Then('core project configuration is installed', function (this: UnifiedInstallWorld) {
   assertCommandDidNotFail(this);
   const project = requiredValue(this.projectRoot, 'project root');
-  assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
+  assert.equal(existsSync(nodePath.join(project, '.safeword/enrolled')), true);
 });
 
 Then(
@@ -700,7 +700,7 @@ Then(
   function (this: UnifiedInstallWorld) {
     assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
     const project = requiredValue(this.projectRoot, 'project root');
-    assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
+    assert.equal(existsSync(nodePath.join(project, '.safeword/enrolled')), true);
     assert.notEqual(directoryDigest(nodePath.join(project, '.cursor')), this.cursorBefore);
     const result = JSON.parse(this.result.stdout) as { effects?: { network?: unknown[] } };
     assert.deepEqual(result.effects?.network, []);
@@ -832,7 +832,7 @@ When('the user confirms that exact plan', function (this: UnifiedInstallWorld) {
 Then('only recognized Safeword-owned state is removed', function (this: UnifiedInstallWorld) {
   assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
   const project = requiredValue(this.projectRoot, 'project root');
-  assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), false);
+  assert.equal(existsSync(nodePath.join(project, '.safeword/enrolled')), false);
   assert.equal(readFileSync(requiredValue(this.claudeState, 'Claude state'), 'utf8'), 'absent');
   assert.equal(readFileSync(requiredValue(this.codexState, 'Codex state'), 'utf8'), 'absent');
   assert.equal(
@@ -1000,7 +1000,7 @@ Then(
   'core project configuration and Claude are installed once',
   function (this: UnifiedInstallWorld) {
     const project = requiredValue(this.projectRoot, 'project root');
-    assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
+    assert.equal(existsSync(nodePath.join(project, '.safeword/enrolled')), true);
     assert.equal(readFileSync(requiredValue(this.claudeState, 'Claude state'), 'utf8'), 'enabled');
     const envelope = JSON.parse(this.result.stdout) as { data?: { selected_agents?: string[] } };
     assert.deepEqual(envelope.data?.selected_agents, ['claude']);
@@ -1024,7 +1024,7 @@ Then(
   'core project configuration is installed without a network effect',
   function (this: UnifiedInstallWorld) {
     const project = requiredValue(this.projectRoot, 'project root');
-    assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
+    assert.equal(existsSync(nodePath.join(project, '.safeword/enrolled')), true);
     const envelope = JSON.parse(this.result.stdout) as { effects?: { network?: unknown[] } };
     assert.deepEqual(envelope.effects?.network, []);
   },
@@ -1086,7 +1086,7 @@ Then(
   'core project configuration and Safeword-owned Cursor assets are installed',
   function (this: UnifiedInstallWorld) {
     const project = requiredValue(this.projectRoot, 'project root');
-    assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
+    assert.equal(existsSync(nodePath.join(project, '.safeword/enrolled')), true);
     assert.equal(existsSync(nodePath.join(project, '.cursor')), true);
   },
 );
@@ -1369,7 +1369,7 @@ Given('compatibility route {string}', function (this: UnifiedInstallWorld, alias
 function assertUnifiedInstallAlias(world: UnifiedInstallWorld, alias: string): void {
   assert.ok(alias === 'setup' || alias === 'upgrade');
   const project = requiredValue(world.projectRoot, 'project root');
-  assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
+  assert.equal(existsSync(nodePath.join(project, '.safeword/enrolled')), true);
   assert.equal(readFileSync(requiredValue(world.claudeState, 'Claude state'), 'utf8'), 'enabled');
   assert.equal(readFileSync(requiredValue(world.codexState, 'Codex state'), 'utf8'), 'enabled');
   assert.equal(directoryDigest(nodePath.join(project, '.cursor')), world.cursorBefore);
@@ -1909,7 +1909,7 @@ Given(
     const finalization = JSON.parse(this.result.stdout) as { state?: string };
     assert.equal(finalization.state, 'changed', this.result.stdout);
     const project = requiredValue(this.projectRoot, 'project root');
-    this.projectBefore = readFileSync(nodePath.join(project, '.safeword/SAFEWORD.md'), 'utf8');
+    this.projectBefore = readFileSync(nodePath.join(project, '.safeword/enrolled'), 'utf8');
     writeFileSync(requiredValue(this.claudeLog, 'Claude log'), '');
     writeFileSync(requiredValue(this.codexLog, 'Codex log'), '');
   },
@@ -1930,7 +1930,7 @@ Then(
     };
     const project = requiredValue(this.projectRoot, 'project root');
     assert.equal(
-      readFileSync(nodePath.join(project, '.safeword/SAFEWORD.md'), 'utf8'),
+      readFileSync(nodePath.join(project, '.safeword/enrolled'), 'utf8'),
       this.projectBefore,
     );
     assert.equal(
@@ -1964,7 +1964,7 @@ Given(
     runInstall(this, []);
     assertCommandDidNotFail(this);
     const project = requiredValue(this.projectRoot, 'project root');
-    rmSync(nodePath.join(project, '.safeword/SAFEWORD.md'));
+    rmSync(nodePath.join(project, '.safeword/enrolled'));
     writeFileSync(requiredValue(this.codexState, 'Codex state'), 'absent');
     writeFileSync(requiredValue(this.claudeLog, 'Claude log'), '');
     writeFileSync(requiredValue(this.codexLog, 'Codex log'), '');
@@ -1973,7 +1973,7 @@ Given(
 
 Then('core drift is reconciled and Codex is installed', function (this: UnifiedInstallWorld) {
   const project = requiredValue(this.projectRoot, 'project root');
-  assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
+  assert.equal(existsSync(nodePath.join(project, '.safeword/enrolled')), true);
   assert.equal(readFileSync(requiredValue(this.codexState, 'Codex state'), 'utf8'), 'enabled');
 });
 
@@ -2026,7 +2026,7 @@ When('the user runs the default install', function (this: UnifiedInstallWorld) {
 Then('successful core and Codex effects remain recorded', function (this: UnifiedInstallWorld) {
   assert.equal(this.result.exitCode, 1);
   const project = requiredValue(this.projectRoot, 'project root');
-  assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
+  assert.equal(existsSync(nodePath.join(project, '.safeword/enrolled')), true);
   assert.equal(readFileSync(requiredValue(this.codexState, 'Codex state'), 'utf8'), 'enabled');
   const envelope = JSON.parse(this.result.stdout) as {
     effects?: { configuration?: { target?: string }[] };

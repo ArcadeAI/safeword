@@ -9,6 +9,7 @@ phase_skips:
   - "define-behavior: partitioned the accepted 82T411 Rule and scenario packet at Safeword's documented split restart point"
 phase_anchors:
   - scenario-gate: features/keep-tasks-and-patches-proportional.feature
+  - plan-implementation: features/keep-tasks-and-patches-proportional.feature
 scope:
   - classify patch, feature, and task work with one explicit precedence order
   - carry Delivery Checklist concerns proportionally in task and patch inline work records without introducing feature planning artifacts
@@ -16,6 +17,7 @@ scope:
   - keep patches on targeted existing proof and tasks on inline test contracts with TDD
   - promote consequential in-scope decisions to the feature phase that owns them while preserving evidence
 out_of_scope:
+  - OpenCode delivery and proof, excluded from #4200 on November 14 and tracked by #7491
   - formal Implementation Plans, Execution Plans, and independent planning reviews for tasks or patches
 done_when:
   - classification is total and patch routing cannot hide a feature signal
@@ -28,8 +30,8 @@ parent: 82T411
 parent_job: plan-implementability.TBU3
 milestone: M3
 created: 2026-09-08T17:36:35.884Z
-last_modified: 2026-09-10T06:40:00.000Z
-parent_contract_digest: 4eb5badb7878b61e68e1840164e79a12e0f13dbf6c9a60c3295c84215d3fe514
+last_modified: 2026-11-20T02:02:26Z
+parent_contract_digest: 52fdd2a185cea51953494482470a0e9912f7a23d5fdb3c58dbee1efac8707b0b
 ---
 
 # Keep tasks and patches proportional
@@ -39,6 +41,14 @@ parent_contract_digest: 4eb5badb7878b61e68e1840164e79a12e0f13dbf6c9a60c3295c8421
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-11-20T02:02:26Z Advanced from scenario-gate to plan-implementation after installed Safeword 1.2.0 verified current approved receipt `76bd72db-8ea2-4c9a-8048-828def5da5bc` for 3EG00H and successfully stamped its exact provenance: author `codex`, reviewer `claude`, model `opus`, independence `cross-agent`. Six warnings remain non-blocking; no review errors. Gherkin and Markdown checks already passed. No build-only kill-risk identified requiring a spike. Existing Implementation Plan remains unchanged and unapproved.
+
+- 2026-11-20T01:43:47Z Returned to scenario-gate for fresh review of the user's design-only promotion decision. Current applicable behavior approval allows immediate Implementation Planning. Otherwise the same ticket retains its evidence, uses task notes for only the behavior still owed to the existing gate, and carries the pending Implementation Planning destination across restart. Ask only for missing decisions. Earlier receipts remain historical evidence, and the existing Implementation Plan remains a draft.
+
+- 2026-11-19T20:20:51Z Advanced from scenario-gate to plan-implementation after confirming and recording independent scenario approval `7960fbfc-a3be-4837-b1ad-0798130f4188`.
+
+- 2026-11-19 Reconciled the accepted parent terms. The TBU3 comment clarifies ownership of feature TDD sequencing. The M3 outcome, M3 non-goals and success threshold are unchanged. Parent non-goals clarify headless waiting and accurately labelled review fallback. Updated the scenarios to require reviews of both feature plans under #6786 and removed OpenCode delivery examples under the November 14 decision. Returned for fresh review of the revised scenario packet. Ledger and historical approvals remain intact.
 
 - 2026-09-10T06:40:00.000Z Scenario gate approved: Claude Opus independently approved the exact current feature and ledger bytes with cross-agent provenance (review `5f3bb9d1-c189-4fd1-8876-aa04f67c046d`) after the packet proved below-threshold proportionality, per-host classification outcomes, promotion evidence, meaningful RED, and cloud handoff behavior. The files contain 38 matched scenario headings; the review narrative's 34-scenario count is a nonbinding counting error. Stamped the exact reviewed bytes and advanced to Implementation Planning.
 

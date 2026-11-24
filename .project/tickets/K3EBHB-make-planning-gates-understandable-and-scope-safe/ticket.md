@@ -2,18 +2,20 @@
 id: K3EBHB
 slug: make-planning-gates-understandable-and-scope-safe
 type: feature
-phase: plan-implementation
+phase: plan-execution
 status: in_progress
 phase_skips:
   - "intake: originally inherited the 2026-09-08 approval of 82T411; after material parent changes, 82T411 was freshly approved and this child was reconciled before scenario review resumed"
   - "define-behavior: partitioned the accepted 82T411 Rule and scenario packet at Safeword's documented split restart point"
 phase_anchors:
   - scenario-gate: features/make-planning-gates-understandable-and-scope-safe.feature
+  - plan-implementation: features/make-planning-gates-understandable-and-scope-safe.feature
 scope:
   - give every planning block one plain recovery action
   - explain stale reviews and work-type promotion in user-visible terms while preserving completed evidence
   - explain pending human design approval and pending user-owned scope or dispute decisions with one concrete next action
 out_of_scope:
+  - OpenCode delivery and proof, excluded from #4200 on November 14 and tracked by #7491
   - changing who owns scope or human design approval, plan contract identity, execution decomposition, guide migration, and task classification
 done_when:
   - each block, invalidation, fallback, promotion, pending human design-approval, and pending user-owned scope or dispute message passes a non-technical recovery walkthrough
@@ -23,8 +25,8 @@ blocked_on: [82T411]
 parent_job: plan-implementability.NTB1
 milestone: M2
 created: 2026-09-08T17:36:34.880Z
-last_modified: 2026-09-10T03:50:03.000Z
-parent_contract_digest: 43e44db2a34389ceddd58bbd7d29a56c56cc11e8adb8342ce200d46ced9c5a7f
+last_modified: 2026-11-19T20:20:51Z
+parent_contract_digest: 90d6ebe8b14999efd3b25d603c353bce95fc3462d9da437ce2a4081242d61a39
 ---
 
 # Make planning gates understandable
@@ -34,6 +36,10 @@ parent_contract_digest: 43e44db2a34389ceddd58bbd7d29a56c56cc11e8adb8342ce200d46c
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-11-19T20:20:51Z Advanced from scenario-gate to plan-implementation after confirming and recording independent scenario approval `983229fa-cd01-456e-b9e5-0c9c7f6ed917`.
+
+- 2026-11-19 Reconciled the accepted parent terms. Review recovery also names a changed planning contract, and M2 now explicitly includes dispute routing. This ticket owns the messages and keeps disposition authority in its existing owner. Updated fallback examples to #6786 and excluded OpenCode proofs under the November 14 decision. The removed Desktop case and unchecked ledger rows remain in main at bf2837631. Reopened scenario review for the changed packet.
 
 - 2026-09-10T03:50:03.000Z Scenario gate approved: Independent Claude Opus review `2d7d9ede-69ef-45c4-a117-21bc8941205f` approved the final 11-scenario plain-language recovery contract with cross-agent independence. Advanced to Implementation Plan drafting; no plan anchor exists yet.
 

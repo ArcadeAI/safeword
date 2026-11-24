@@ -34,6 +34,7 @@ jobs:
   event-review:
     if: github.event_name == 'pull_request_target' && github.event.action != 'edited'
     permissions:
+      actions: read
       contents: read
       issues: write
       pull-requests: write
@@ -76,6 +77,7 @@ jobs:
       matrix:
         pull_number: ${{ fromJSON(needs.discover-ready-pull-requests.outputs.pull_numbers) }}
     permissions:
+      actions: read
       contents: read
       issues: write
       pull-requests: write

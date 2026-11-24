@@ -224,7 +224,9 @@ Then they see the dashboard
 - [x] REFACTOR skip: no structural improvement needed
 ```
 
-**Annotation rule (enforced by hook):** every `[x]` transition must carry either a commit SHA (proving which commit did that step) or `skip: <non-empty reason>` (a deliberate, auditable omission). Bare `[x]` without an annotation is blocked at the write-time hook. Pre-existing bare `[x]` from before this rule shipped is silently allowed — the validation is forward-looking only.
+**Annotation rule (enforced by hook):** every `[x]` transition must carry either a commit SHA (proving which commit did that step) or `skip: <non-empty reason>` (a deliberate, auditable omission). The SHA must name a commit that exists in the repository — copy it from `git log --oneline`; a mistyped SHA is blocked when you check the box. Bare `[x]` without an annotation is blocked at the write-time hook. Pre-existing bare `[x]` from before this rule shipped is silently allowed — the validation is forward-looking only.
+
+**Correcting a mistyped SHA:** a checked row is otherwise locked, but if its SHA names no commit, edit that row in place to the real SHA — same step, same scenario. Unchecking it, removing it, changing it to a skip, or moving it to another scenario stays blocked.
 
 **Uncommittable RED states:** Prefer a real RED commit. For the uncommittable-partial-state reason below, use this escape hatch only when a partial RED state cannot pass structural commit gates because the repo rejects incomplete code. Manual/live evidence uses the separate path above. Examples of uncommittable partial states include:
 

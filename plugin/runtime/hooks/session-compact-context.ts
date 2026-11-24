@@ -8,15 +8,12 @@ import nodePath from 'node:path';
 import { getTicketInfo } from './lib/active-ticket.ts';
 import { readSessionState } from './lib/quality-state.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
+import { resolveSessionProjectDirectory } from './lib/project-directory.ts';
 
 interface HookInput {
   session_id?: string;
+  cwd?: string;
 }
-
-const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-const namespaceRoot = resolveNamespaceRoot(projectDir);
-const namespaceLabel = nodePath.relative(projectDir, namespaceRoot);
-const ticketsDir = `${namespaceRoot}/tickets`;
 
 // Read hook input from stdin for session_id
 let input: HookInput;
@@ -25,6 +22,11 @@ try {
 } catch {
   input = {};
 }
+
+const projectDir = resolveSessionProjectDirectory({ sessionId: input.session_id, cwd: input.cwd });
+const namespaceRoot = resolveNamespaceRoot(projectDir);
+const namespaceLabel = nodePath.relative(projectDir, namespaceRoot);
+const ticketsDir = `${namespaceRoot}/tickets`;
 
 // Belt-and-suspenders for ticket #130: re-inject the learnings pointer after
 // compaction. session-safeword-context.ts re-injects the standing bootstrap;

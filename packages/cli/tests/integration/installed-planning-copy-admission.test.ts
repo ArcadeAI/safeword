@@ -1,10 +1,13 @@
 import { spawnSync } from 'node:child_process';
 import {
+  copyFileSync,
   cpSync,
   existsSync,
+  linkSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -22,6 +25,11 @@ import {
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '../..');
 const roots: string[] = [];
+
+/** The Bun binary on PATH, which runs the installed hooks. */
+function bunBinary(): string {
+  return spawnSync('which', ['bun'], { encoding: 'utf8' }).stdout.trim();
+}
 const folder = 'CPY123-canonical-planning';
 const plan =
   '# Impl Plan\n\n**Status:** planned\n\n## Approach\n\nPreserve accepted behavior through one implementation.\n\n## Decisions\n\nKeep the existing authority boundary.\n\n## Design alignment\n\nskip: no configured project principles\n\n## Known deviations\n\nskip: none\n\n## Doc impact\n\nskip: fixture has no customer documentation change\n\n## Assessment triggers\n\nRevisit if the authority boundary changes.\n';
@@ -271,6 +279,78 @@ console.log(JSON.stringify({ state: 'healthy', data: {
       expect(readFileSync(installed.ticketPath, 'utf8')).toContain('phase: plan-execution');
     },
   );
+
+  // Issue #7501: an installed project with no trusted planning checker (a configured
+  // plugin whose CLI is gone, or a project-writable runtime) must deny the phase
+  // change: not skip the check, and not hand it to another build of the version.
+  it.each([
+    {
+      refusal: 'the configured plugin CLI is missing',
+      setUp: (installed: ReturnType<typeof fixture>) => {
+        const version = readFileSync(
+          nodePath.join(installed.project, '.safeword/version'),
+          'utf8',
+        ).trim();
+        const cacheHome = nodePath.join(installed.root, 'owned-cache');
+        const versionRoot = nodePath.join(cacheHome, 'plugins/cache/safeword/safeword', version);
+        mkdirSync(nodePath.dirname(versionRoot), { recursive: true });
+        symlinkSync(installed.distribution, versionRoot, 'dir');
+        return {
+          runtime: 'bun',
+          environment: {
+            CODEX_HOME: cacheHome,
+            SAFEWORD_PLUGIN_CLI: nodePath.join(installed.root, 'gone/runtime/cli.js'),
+          },
+        };
+      },
+    },
+    {
+      refusal: 'the only runtime is project-writable',
+      setUp: (installed: ReturnType<typeof fixture>) => {
+        const projectBun = nodePath.join(installed.project, 'bin/bun');
+        mkdirSync(nodePath.dirname(projectBun), { recursive: true });
+        try {
+          linkSync(realpathSync(bunBinary()), projectBun);
+        } catch {
+          copyFileSync(realpathSync(bunBinary()), projectBun);
+        }
+        return { runtime: projectBun, environment: {} };
+      },
+    },
+  ])('fails closed when $refusal', { timeout: 90_000 }, ({ setUp }) => {
+    const installed = fixture();
+    const { runtime, environment: overrides } = setUp(installed);
+    // Only what each case configures names a plugin; nothing else does.
+    const environment: NodeJS.ProcessEnv = { ...installed.environment };
+    delete environment.SAFEWORD_AGENT_RUNTIME;
+    delete environment.CLAUDE_PLUGIN_ROOT;
+    delete environment.SAFEWORD_PLUGIN_CLI;
+    Object.assign(environment, overrides);
+
+    const checked = spawnSync(
+      runtime,
+      [nodePath.join(installed.project, '.safeword/hooks/pre-tool-quality.ts')],
+      {
+        cwd: installed.project,
+        encoding: 'utf8',
+        timeout: 15_000,
+        env: environment,
+        input: JSON.stringify({
+          session_id: 'refused-planning-checker',
+          tool_name: 'Edit',
+          tool_input: {
+            file_path: installed.ticketPath,
+            old_string: 'phase: plan-implementation',
+            new_string: 'phase: plan-execution',
+          },
+        }),
+      },
+    );
+
+    expect(checked.status, `${checked.stdout}\n${checked.stderr}`).toBe(0);
+    expect(JSON.parse(checked.stdout).hookSpecificOutput.permissionDecision).toBe('deny');
+    expect(checked.stdout).toContain('could not validate its trusted planning contract checker');
+  });
 
   it.each([
     { state: 'canonical', permission: 'allow' },

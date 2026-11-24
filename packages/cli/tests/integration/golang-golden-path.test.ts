@@ -19,6 +19,7 @@ import nodePath from 'node:path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  assertLintHookSucceeded,
   createGoProject,
   createTemporaryDirectory,
   fileExists,
@@ -167,7 +168,7 @@ func main(){println("no spaces")}`,
     expect(formatted).toContain('func main() {');
   });
 
-  it.skipIf(!IS_GOLANGCI_LINT_AVAILABLE)('post-tool-lint hook processes Go files', () => {
+  it.skipIf(!IS_GOLANGCI_LINT_AVAILABLE)('post-tool-lint preserves unfinished Go files', () => {
     const filePath = nodePath.join(projectDirectory, 'hook-test.go');
     // Intentionally badly formatted
     writeTestFile(
@@ -177,12 +178,11 @@ func main(){println("no spaces")}`,
 func hookTest(){println("test")}`,
     );
 
-    // Run the lint hook
-    runLintHook(projectDirectory, filePath, GO_HOOK_ENV);
-
-    // File should be formatted by golangci-lint fmt
+    const before = readTestFile(projectDirectory, 'hook-test.go');
+    const feedback = assertLintHookSucceeded(runLintHook(projectDirectory, filePath, GO_HOOK_ENV));
     const result = readTestFile(projectDirectory, 'hook-test.go');
-    expect(result).toContain('func hookTest() {');
+    expect(result).toBe(before);
+    expect(feedback).toContain('diff ');
   });
 
   describe('Lint Hook Graceful Handling', () => {
@@ -296,20 +296,24 @@ describe('E2E: Go Lint Hook Fallback', () => {
     }
   });
 
-  it.skipIf(!IS_GOLANGCI_LINT_AVAILABLE)('lint hook formats files without safeword config', () => {
-    writeTestFile(
-      projectDirectory,
-      'fallback.go',
-      `package main
+  it.skipIf(!IS_GOLANGCI_LINT_AVAILABLE)(
+    'lint hook preserves files without safeword config',
+    () => {
+      writeTestFile(
+        projectDirectory,
+        'fallback.go',
+        `package main
 func fallback(){println("test")}`,
-    );
-    const filePath = nodePath.join(projectDirectory, 'fallback.go');
+      );
+      const filePath = nodePath.join(projectDirectory, 'fallback.go');
 
-    // The hook resolves the customer config while using the CLI under test.
-    runLintHook(projectDirectory, filePath, GO_HOOK_ENV);
-
-    // File should still be formatted by golangci-lint fmt
-    const result = readTestFile(projectDirectory, 'fallback.go');
-    expect(result).toContain('func fallback() {');
-  });
+      const before = readTestFile(projectDirectory, 'fallback.go');
+      const feedback = assertLintHookSucceeded(
+        runLintHook(projectDirectory, filePath, GO_HOOK_ENV),
+      );
+      const result = readTestFile(projectDirectory, 'fallback.go');
+      expect(result).toBe(before);
+      expect(feedback).toContain('diff ');
+    },
+  );
 });

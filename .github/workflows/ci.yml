@@ -32,6 +32,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Check architecture overview size
+        run: sh scripts/check-architecture-size.sh
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -116,10 +119,16 @@ jobs:
         #   lint config.
         # - GHSA-ch52-4w7c-c8xp: http-cache-semantics <=4.2.0. Docs website build
         #   only (astro); never shipped.
+        # - GHSA-fc5q-39xc-vjpf: picomatch <=4.0.7 (latest release), ReDoS via
+        #   repeated extglobs. Reaches the published CLI via typescript-eslint →
+        #   tinyglobby and @next/eslint-plugin-next → fast-glob → micromatch;
+        #   exploiting it needs attacker-controlled glob patterns, which come
+        #   from the project's own lint and TypeScript config.
         run: >-
           bun audit --audit-level high
           --ignore GHSA-vfj7-8cjw-p6xm
           --ignore GHSA-ch52-4w7c-c8xp
+          --ignore GHSA-fc5q-39xc-vjpf
 
   go-lint-context:
     name: Go lint context (${{ matrix.linter }})
@@ -160,9 +169,9 @@ jobs:
   test:
     name: test (node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
-    # 30 (was 20): headroom for the growing suite + setup. The suite runs
-    # parallel (vitest maxWorkers:3 on the 4-vCPU runner); sequential timed out.
-    timeout-minutes: 30
+    # Package tests can take 26 minutes before the acceptance and release lanes.
+    # Keep those lanes within one bounded job without truncating their assertions.
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:

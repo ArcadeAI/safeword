@@ -59,6 +59,8 @@ describe('job-bound host review continuation contract', () => {
     expect(contract).toContain('"reviewer_agent"');
     expect(contract).toContain('"verdict": "approve" | "request_changes"');
     expect(contract).toContain('"findings"');
+    expect(normalizedContract).toContain('both verdicts require an `evidence_records` object');
+    expect(contract).toContain('"evidence_records": {"schema_version": 1, "records": []}');
     expect(contract).toContain('untrusted review material');
     expect(normalizedContract).toContain('Do not include failed-route diagnostics');
     expect(normalizedContract).toContain('credentials, or secrets');

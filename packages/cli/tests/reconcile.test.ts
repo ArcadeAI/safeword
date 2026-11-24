@@ -43,6 +43,7 @@ const DEFAULT_PROJECT_TYPE = {
   publishableLibrary: false,
   shell: false,
   hasJsSource: true, // default reconcile fixture is a JS project (gets knip + dependency-cruiser)
+  typescriptAvailable: false,
   existingLinter: false,
   existingFormatter: false,
   existingPrettierConfig: false,
@@ -476,9 +477,73 @@ describe('Reconcile - Reconciliation Engine', () => {
       const upgraded = readFileSync(gitignorePath, 'utf8');
       expect(upgraded.match(/# Safeword - Local cache and transient state/gu)).toHaveLength(1);
       expect(upgraded).toContain('.safeword/state/reviews/');
+      expect(upgraded.split('\n')).toContain('node_modules/');
 
       await reconcile(SAFEWORD_SCHEMA, 'uninstall', createContext());
       expect(readFileSync(gitignorePath, 'utf8')).toBe('customer-cache/\n');
+    });
+
+    it('rerenders a block whose retired exact paths became globs without leaving them behind', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA, SAFEWORD_TRANSIENT_PATHS } = await import('../src/schema.js');
+      const gitignorePath = nodePath.join(temporaryDirectory, '.gitignore');
+      // The block as the previous release wrote it, with the exact binding filename.
+      const previousPaths = SAFEWORD_TRANSIENT_PATHS.map(path =>
+        path.replace('closeout-session-binding*.json', 'closeout-session-binding.json'),
+      );
+      writeFileSync(
+        gitignorePath,
+        `customer-cache/\n\n# Safeword - Local cache and transient state\nnode_modules/\n${previousPaths.join('\n')}\n`,
+      );
+      createPackageJson();
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', createContext());
+
+      const lines = readFileSync(gitignorePath, 'utf8').split('\n');
+      expect(lines).not.toContain('.project/closeout-session-binding.json');
+      expect(lines).not.toContain('.safeword-project/closeout-session-binding.json');
+      expect(
+        lines.filter(line => line === '.project/codex-review-stamp-identity.json'),
+      ).toHaveLength(1);
+      expect(lines).toContain('.project/closeout-session-binding*.json');
+    });
+
+    it('ignores node_modules on a fresh install with no .gitignore (#6764)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const gitignorePath = nodePath.join(temporaryDirectory, '.gitignore');
+      createPackageJson();
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      expect(readFileSync(gitignorePath, 'utf8').split('\n')).toContain('node_modules/');
+    });
+
+    it('keeps a customer-owned node_modules line when uninstall removes the managed block', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const gitignorePath = nodePath.join(temporaryDirectory, '.gitignore');
+      writeFileSync(gitignorePath, 'node_modules/\n');
+      createPackageJson();
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall', createContext());
+
+      expect(readFileSync(gitignorePath, 'utf8')).toBe('node_modules/\n');
+    });
+
+    it('keeps a customer-owned node_modules line that follows an older managed block through upgrade and uninstall', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA, SAFEWORD_TRANSIENT_PATHS } = await import('../src/schema.js');
+      const gitignorePath = nodePath.join(temporaryDirectory, '.gitignore');
+      const olderBlock = `# Safeword - Local cache and transient state\n${SAFEWORD_TRANSIENT_PATHS.join('\n')}\n`;
+      writeFileSync(gitignorePath, `${olderBlock}node_modules/\n`);
+      createPackageJson();
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', createContext());
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall', createContext());
+
+      expect(readFileSync(gitignorePath, 'utf8')).toBe('node_modules/\n');
     });
 
     it('prettierignore excludes every safeword-owned dir on a fresh install (incl. .codex/ + wholesale .project/)', async () => {

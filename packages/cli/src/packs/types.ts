@@ -46,6 +46,12 @@ export interface ProjectType {
    * so a pure Python/Go/Rust project doesn't receive it. (ticket BE7C7B)
    */
   hasJsSource: boolean;
+  /**
+   * True if `typescript` is declared at the root or already resolvable from it
+   * (e.g. hoisted from monorepo workspaces). Safeword installs its own compiler
+   * for the TypeScript BDD lane only when this is false (#6966).
+   */
+  typescriptAvailable: boolean;
   /** True if project has existing lint script or linter config */
   existingLinter: boolean;
   /** True if project has existing format script or formatter config */

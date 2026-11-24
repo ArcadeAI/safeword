@@ -13,6 +13,14 @@ const CONFIG_PATH = '.safeword/config.json';
 
 interface SafewordConfig {
   installedPacks?: string[];
+  /**
+   * Packages Safeword added whose install condition stops holding once they are
+   * present (e.g. `typescript`), mapped to the version range package.json had
+   * when Safeword added them. A package stays Safeword's only while package.json
+   * still has that range; once the project changes it, the package is the
+   * project's (full uninstall keeps it, lint treats the app by its own stack).
+   */
+  ownedPackages?: Record<string, string>;
   architectureDocEnforcement?: boolean;
   autoUpgrade?: boolean;
   /** SQL pack options — `fix: true` opts in to edit-time `sqlfluff fix` (#638). */
@@ -97,4 +105,60 @@ export function addInstalledPack(cwd: string, packId: string): void {
     config.installedPacks = [...installedPacks, packId];
     writeConfig(cwd, config);
   }
+}
+
+/** The project's declared dependencies (dev and runtime) with their ranges. */
+function readDeclaredDependencies(cwd: string): Record<string, string> {
+  const manifest = readFileSafe(nodePath.join(cwd, 'package.json'));
+  if (!manifest) return {};
+  const { dependencies = {}, devDependencies = {} } = JSON.parse(manifest) as {
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
+  };
+  return { ...dependencies, ...devDependencies };
+}
+
+/** The ownership record as written, ignoring anything malformed. */
+function readOwnershipRecord(cwd: string): Record<string, string> {
+  const owned = readConfig(cwd)?.ownedPackages;
+  if (typeof owned !== 'object' || owned === null || Array.isArray(owned)) return {};
+  return Object.fromEntries(Object.entries(owned).filter(([, range]) => typeof range === 'string'));
+}
+
+/**
+ * Packages that are still Safeword's: recorded, and still declared with the
+ * range Safeword added.
+ *
+ * @param cwd - Project root directory
+ * @returns Package names (no version specifiers)
+ */
+export function getOwnedPackages(cwd: string): string[] {
+  const declared = readDeclaredDependencies(cwd);
+  return Object.entries(readOwnershipRecord(cwd))
+    .filter(([name, range]) => declared[name] === range)
+    .map(([name]) => name);
+}
+
+/**
+ * Record, as Safeword-owned, each of `names` that package.json now declares,
+ * with the range it declares. Install only adds these packages when the project
+ * lacked them, so a declaration present after an install attempt is Safeword's,
+ * even when the package manager saved it and then failed. A name already in the
+ * record keeps its original range, so a project that changed the range keeps
+ * the package. Writes only when a name is new.
+ *
+ * @param cwd - Project root directory
+ * @param names - Package names (no version specifiers) install tried to add
+ */
+export function recordOwnedPackages(cwd: string, names: readonly string[]): void {
+  const declared = readDeclaredDependencies(cwd);
+  const record = readOwnershipRecord(cwd);
+  const added = names.flatMap(name => {
+    const range = declared[name];
+    return range === undefined || Object.hasOwn(record, name) ? [] : [[name, range] as const];
+  });
+  if (added.length === 0) return;
+  const config = readConfig(cwd) ?? { installedPacks: [] };
+  config.ownedPackages = { ...record, ...Object.fromEntries(added) };
+  writeConfig(cwd, config);
 }

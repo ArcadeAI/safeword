@@ -68,7 +68,11 @@ Specific to this playbook:
 The invisible retro mines the session transcript for qualitative friction and
 **spools** sanitized drafts before the code-owned filing attempt so anything left
 unfiled remains recoverable
-(`.safeword/retro-drafts/<session>.jsonl`). Two surfaces then point at that spool:
+(`.safeword/retro-drafts/<session>.jsonl`). In a git repository, each draft is
+also kept in `<git common dir>/safeword/retro-drafts/`, which every worktree
+shares, so deleting a worktree doesn't lose its unfiled drafts. Safeword copies
+them back into the project's spool before handing it over; the filer only ever
+works on the project's spool. Two surfaces then point at that spool:
 
 - A **stop-gate dispatch** (the primary path): at a turn end with unfiled drafts,
   a continuation asks for exactly one action — invoke the **`safeword-retro-filer`

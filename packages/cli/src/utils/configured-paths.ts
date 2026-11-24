@@ -68,7 +68,17 @@ interface SafewordConfigShape {
 }
 
 const CONFIG_SUBPATH = ['.safeword', 'config.json'];
-const SAFEWORD_PROJECT_MARKER_SUBPATH = ['.safeword', 'SAFEWORD.md'];
+/** Dedicated enrollment marker written by install and upgrade. */
+export const SAFEWORD_ENROLLMENT_MARKER = '.safeword/enrolled';
+/** Project copy of the handbook, read only by project-delivered hosts. */
+export const PROJECT_HANDBOOK_PATH = '.safeword/SAFEWORD.md';
+/**
+ * Pre-marker enrollment evidence. Older installs only carry the project
+ * handbook copy; plugin-mode upgrades replace it with the dedicated marker.
+ */
+export const LEGACY_SAFEWORD_ENROLLMENT_MARKER = PROJECT_HANDBOOK_PATH;
+export const SAFEWORD_ENROLLMENT_MARKER_CONTENT =
+  'This project is enrolled in Safeword. Safeword hooks only run in enrolled projects; uninstall Safeword rather than deleting this file.\n';
 
 /** Default namespace root for fresh contexts (epic AQJ95G). */
 const NAMESPACE_ROOT_DEFAULT = '.project';
@@ -78,7 +88,9 @@ export const NAMESPACE_ROOT_LEGACY = '.safeword-project';
 
 /** True after explicit Safeword setup has enrolled this repository. */
 export function hasSafewordProjectMarker(cwd: string): boolean {
-  return exists(nodePath.join(cwd, ...SAFEWORD_PROJECT_MARKER_SUBPATH));
+  return [SAFEWORD_ENROLLMENT_MARKER, LEGACY_SAFEWORD_ENROLLMENT_MARKER].some(marker =>
+    exists(nodePath.join(cwd, marker)),
+  );
 }
 
 function readSafewordConfig(cwd: string): SafewordConfigShape | undefined {

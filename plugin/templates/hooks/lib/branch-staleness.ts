@@ -36,6 +36,25 @@ export function parseCheckoutTarget(command: string): string | null {
   return null;
 }
 
+/**
+ * Whether the command changes directory (`cd`, `pushd`) before its checkout, so
+ * the checkout's repository is not the shell's starting one. The hook then
+ * cannot tell which repository to inspect and stays silent rather than guess.
+ */
+export function changesDirectoryBeforeCheckout(command: string): boolean {
+  for (const segment of splitShellSegments(command)) {
+    const words = commandWords(segment);
+    let index = 0;
+    while (words[index] === 'sudo') index += 1;
+    const word = words[index] ?? '';
+    if (word === 'cd' || word === 'pushd') return true;
+    if (nodePath.basename(word) === 'git' && /^(checkout|switch)$/.test(words[index + 1] ?? '')) {
+      return false;
+    }
+  }
+  return false;
+}
+
 export interface BranchDivergence {
   branch: string;
   /** Short upstream ref name, e.g. `origin/main`. */

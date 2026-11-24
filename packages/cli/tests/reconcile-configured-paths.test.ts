@@ -25,6 +25,7 @@ const DEFAULT_PROJECT_TYPE = {
   publishableLibrary: false,
   shell: false,
   hasJsSource: false,
+  typescriptAvailable: false,
   existingLinter: false,
   existingFormatter: false,
   existingPrettierConfig: false,

@@ -70,19 +70,24 @@ async function startCollector(
       SAFEWORD_PUBLIC_RETRO_DATABASE_PATH: databasePath,
       SAFEWORD_PUBLIC_RETRO_OPERATOR_CREDENTIAL: 'operator-fixture-credential',
     },
-    stdio: ['ignore', 'pipe', 'pipe'],
+    stdio: ['ignore', 'ignore', 'pipe'],
   });
   children.push(child);
+  const maxDiagnosticCharacters = 8192;
+  let stderrTail = '';
+  child.stderr.on('data', (chunk: Buffer) => {
+    stderrTail = `${stderrTail}${chunk.toString('utf8')}`.slice(-maxDiagnosticCharacters);
+  });
   const url = `http://127.0.0.1:${port}`;
   await expect
     .poll(
       async () => {
-        if (child.exitCode !== null) return `exited:${child.exitCode}`;
+        if (child.exitCode !== null) return `exited:${child.exitCode}; stderr:${stderrTail}`;
         try {
           await fetch(`${url}/ready`);
           return 'ready';
         } catch {
-          return 'waiting';
+          return `waiting; signal:${String(child.signalCode)}; stderr:${stderrTail}`;
         }
       },
       { interval: 25, timeout: 1000 },

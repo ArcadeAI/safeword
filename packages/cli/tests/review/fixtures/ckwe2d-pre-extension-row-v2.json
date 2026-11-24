@@ -1,0 +1,21 @@
+{
+  "provenance": {
+    "commit": "3f5353165447d6c5565dcc1c8b077f0c76d03c7f",
+    "gateBlob": "d81d7827477ee42ce0baf099d673755f459312ff",
+    "jobBlob": "f0a534f7911b7c7e97409ac90ac536aae921826d",
+    "scope": "Frozen pre-extension row-v2 format; public synthetic test key. Root-specific HMAC is computed independently of the current tag writer."
+  },
+  "claim": {
+    "ticketId": "CKWE2D",
+    "ledger": ".project/tickets/CKWE2D-keep-reviews-focused-on-authored-inputs/test-definitions.md",
+    "scenario": "Example",
+    "eligibilityId": "11111111-1111-4111-8111-111111111111",
+    "proofId": "22222222-2222-4222-8222-222222222222"
+  },
+  "cutoff": "690536ec56c07c2b042108d9c31d28bc3bc82619",
+  "feature": "packages/cli/features/keep-reviews-focused-on-authored-inputs.feature",
+  "keyHex": "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+  "hmacDomain": "\u0000retrospective-close\u0000",
+  "rowPayload": "retrospective-row-v2\u0000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\u0000[\"CKWE2D\",\".project/tickets/CKWE2D-keep-reviews-focused-on-authored-inputs/test-definitions.md\",\"Example\",\"11111111-1111-4111-8111-111111111111\",\"22222222-2222-4222-8222-222222222222\"]\u0000{\"request\":{\"ticketId\":\"CKWE2D\",\"scenario\":\"Example\",\"implementationPath\":\"packages/cli/src/example.ts\",\"testFile\":\"packages/cli/tests/example.test.ts\",\"testFullName\":\"selected test\",\"supportFiles\":[\"packages/cli/tests/example.test.ts\"]},\"argv\":[\"bun\",\"run\",\"test\"],\"cwd\":\"packages/cli\",\"sourceSha256\":\"08bf2418cca97fefbdf7f0d29719b005a6117989d84358de68bc57570ffbae36\",\"mutantSha256\":\"e1f79758cc42e6fe6037941205d1fbc37f5780f13aa077d0ba8287fd93cecd52\",\"supportSha256\":{\"packages/cli/src/example.ts\":\"08bf2418cca97fefbdf7f0d29719b005a6117989d84358de68bc57570ffbae36\",\"packages/cli/tests/example.test.ts\":\"9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08\"},\"mutatedSupportSha256\":{},\"passing\":{\"exitCode\":0,\"test\":\"selected test\",\"passedTests\":1,\"failedTests\":0},\"mutated\":{\"exitCode\":1,\"test\":\"selected test\",\"passedTests\":0,\"failedTests\":1,\"failure\":\"assertion\"}}",
+  "filename": "retrospective-row-4706c1d2c92b625d7ff7ec91d84a8bc4286d28a0a7afddafe7dfe7cc112705b1.tag"
+}

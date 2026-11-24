@@ -37,7 +37,7 @@ You use Claude Code, Codex, Cursor, or OpenCode the same way you always have. Ty
 
     **Your agent gets namespaced Safeword workflows.** Native skills use names such as `/safeword:bdd`, `/safeword:verify`, and `/safeword:explain` instead of project-local Safeword skill files.
 
-    **Every edit gets linted automatically.** After your agent writes or modifies a file, Safeword runs your linter. If there are issues, your agent sees them immediately and fixes them—before you even notice.
+    **Every edit gets linted automatically.** After your agent writes or modifies a file, Safeword runs the configured checker. Checks report problems without rewriting unfinished edits across supported languages. Claude Code sends those findings back to your agent to address.
 
     **Every phase exit gets an independent review.** When a ticket moves between phases, Safeword requires a review stamp from a fresh-context reviewer (another agent CLI when available) before the move lands. Catches things like missing error handling, security issues, or code that doesn't match the codebase style. An end-of-session review prompt is available as an opt-in (`stopQualityReview: true`).
 
@@ -53,7 +53,7 @@ You use Claude Code, Codex, Cursor, or OpenCode the same way you always have. Ty
   <TabItem label="Codex">
     **Your agent gets scoped safeword plugin skills.** The Safeword Codex plugin exposes names such as `safeword:bdd`, `safeword:verify`, and `safeword:explain` instead of installing Safeword workflow files into your repo.
 
-    **Install enrolls each repository.** Installing a profile plugin does not enroll every repository you open. Until `safeword install` creates `.safeword/SAFEWORD.md`, project gates fail open and plugin hooks do not create `.project/` or other project state.
+    **Install enrolls each repository.** Installing a profile plugin does not enroll every repository you open. Until `safeword install` creates `.safeword/enrolled`, project gates fail open and plugin hooks do not create `.project/` or other project state.
 
     **Native gates run through the plugin.** Project SessionStart hooks enroll each developer's profile and prepare missing dependencies in trusted fresh worktrees; `safeword install --agents=codex` is available when you want to enroll immediately. Review changed hooks in Desktop Settings > Hooks (or `/hooks` in the terminal TUI), fully restart Codex, then resume this task to load one coherent skills-and-hooks catalogue. Startup warnings remain advisory. Native plugin hooks use the CLI bundled with the installed plugin version, so hook dispatch does not depend on Bunx package resolution.
 
@@ -74,8 +74,8 @@ Open your project and ask your agent to build something real:
 
     1. Run `/reload-plugins` in Claude Code after the default install
     2. Your agent follows namespaced workflows such as `/safeword:bdd`
-    3. Lint runs automatically on new code, auto-fixing what it can
-    4. If there are issues, your agent fixes them before you even see the code
+    3. Lint checks new code automatically, preserving unfinished edits across supported languages
+    4. Your agent receives findings; apply formatting and fixes explicitly or through commit tooling
     5. When the ticket moves to its next phase, an independent review runs first
 
   </TabItem>
@@ -108,7 +108,7 @@ Safeword added a few folders to your project:
 
 | Folder / surface                                            | What's in it                                                                 |
 | ----------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `.safeword/`                                                | `SAFEWORD.md` and `config.json` — project enrollment and configuration       |
+| `.safeword/`                                                | `enrolled` and `config.json` — project enrollment and configuration          |
 | Safeword Claude plugin                                      | Skills, hooks, agents, guides, and templates; project-scoped by default      |
 | Safeword Codex plugin                                       | Project bootstrap plus profile-scoped workflow skills and hooks              |
 | Safeword OpenCode delivery                                  | Profile plugin, commands, agents, and skills (only with `--agents=opencode`) |
