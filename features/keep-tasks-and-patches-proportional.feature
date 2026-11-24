@@ -61,6 +61,12 @@ Feature: Keep tasks and patches proportional
         | changes a shared public response contract despite also correcting a typo | feature |
         | performs a mechanical multi-file update that also introduces new persistent state | feature |
 
+    @proof.vitest @surface.safeword-cli
+    Scenario: Native Claude Code and Codex classification requests replay through the CLI
+      Given live Claude Code and Codex sessions each sent patch, task, and feature requests to the classifier
+      When a fresh CLI process replays each captured request
+      Then it returns the corresponding route without creating a ticket
+
     @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed hosts route unclassified work through the shared classifier
       Given <installed_entry> receives unclassified work that <observable_shape>
@@ -72,15 +78,9 @@ Feature: Keep tasks and patches proportional
         | actual installed CLI dispatch | is a one-line non-behavioral correction with targeted proof | patch |
         | actual installed CLI dispatch | changes a shared public response contract | feature |
         | actual installed CLI dispatch | is bounded residual work requiring new regression proof | task |
-        | actual Claude Code lifecycle dispatch from installed project hooks | is a one-line non-behavioral correction with targeted proof | patch |
-        | actual Claude Code lifecycle dispatch from installed project hooks | changes a shared public response contract | feature |
-        | actual Claude Code lifecycle dispatch from installed project hooks | is bounded residual work requiring new regression proof | task |
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM | is a one-line non-behavioral correction with targeted proof | patch |
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM | changes a shared public response contract | feature |
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM | is bounded residual work requiring new regression proof | task |
-        | actual OpenAI Codex lifecycle dispatch from installed project hooks | is a one-line non-behavioral correction with targeted proof | patch |
-        | actual OpenAI Codex lifecycle dispatch from installed project hooks | changes a shared public response contract | feature |
-        | actual OpenAI Codex lifecycle dispatch from installed project hooks | is bounded residual work requiring new regression proof | task |
         | actual Cursor lifecycle dispatch from installed project hooks | is a one-line non-behavioral correction with targeted proof | patch |
         | actual Cursor lifecycle dispatch from installed project hooks | changes a shared public response contract | feature |
         | actual Cursor lifecycle dispatch from installed project hooks | is bounded residual work requiring new regression proof | task |

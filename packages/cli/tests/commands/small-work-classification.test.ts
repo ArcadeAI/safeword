@@ -71,6 +71,48 @@ describe('small-work classification', () => {
     expect(help.stdout).toContain('pendingScopeDecision');
   });
 
+  it('replays all six native classification requests through the installed CLI', async () => {
+    const fixture = nodePath.resolve(
+      import.meta.dirname,
+      '../fixtures/small-work-hosts/cold-classification.json',
+    );
+    const examples = JSON.parse(readFileSync(fixture, 'utf8')) as {
+      host: string;
+      route: string;
+      session: string;
+      facts: SmallWorkFacts;
+    }[];
+    expect(
+      examples
+        .map(({ host, route }) => `${host}/${route}`)
+        .toSorted((left, right) => left.localeCompare(right)),
+    ).toEqual([
+      'claude/feature',
+      'claude/patch',
+      'claude/task',
+      'codex/feature',
+      'codex/patch',
+      'codex/task',
+    ]);
+    const project = createTemporaryDirectory();
+    try {
+      for (const { route, session, facts } of examples) {
+        const classification = await runCli(
+          ['ticket', 'classify-small-work', JSON.stringify(facts), '--json'],
+          { cwd: project },
+        );
+        expect(classification.exitCode, session).toBe(0);
+        expect(JSON.parse(classification.stdout), session).toMatchObject({
+          changed: false,
+          data: { status: 'classified', route },
+        });
+      }
+      expect(existsSync(nodePath.join(project, '.project', 'tickets'))).toBe(false);
+    } finally {
+      removeTemporaryDirectory(project);
+    }
+  });
+
   it('routes established non-behavioral work with targeted verification to patch', () => {
     expect(classifySmallWork(settled)).toMatchObject({ status: 'classified', route: 'patch' });
   });

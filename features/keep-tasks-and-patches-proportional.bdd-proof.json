@@ -36,6 +36,10 @@
     "Unresolved product behavior returns to definition on Claude Code and Codex": [
       "packages/cli/tests/integration/small-work-red-admission.test.ts",
       "promotes unresolved product behavior on Claude and Codex before a source edit"
+    ],
+    "Native Claude Code and Codex classification requests replay through the CLI": [
+      "packages/cli/tests/commands/small-work-classification.test.ts",
+      "replays all six native classification requests through the installed CLI"
     ]
   }
 }

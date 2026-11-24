@@ -246,3 +246,9 @@ Live no-ticket sessions `18947a9d-0a34-4242-afdf-b330600e70e1` (Claude Code) and
 The local patch and product-behavior rows now use two executable tests. The product-behavior test verifies that each adapter independently promotes the same ticket, retains its investigation note, and blocks the next source edit. Earlier live sessions `4f4759f3-2e8b-4c2d-8fb2-0f1078ebdfa0` and `01a20b40-0858-7b43-83f2-c4af57bfd2ff` showed the same behavior with supplied classification facts.
 
 All 66 focused tests passed, and generated surfaces and TypeScript verified. Independent review `b3033753-02e0-4294-9f82-77fd0a0e2d3f` approved the change and noted limits in the pre-existing shell write inspection. The feature now has nine bound examples across 140 expanded cases. The acceptance dry run reports 131 undefined examples.
+
+### Replay cold classification requests
+
+The six successful local Rule 2 runs are paired with an executable replay of their exact classifier inputs. The fixture retains the host, session ID, supplied facts, and observed route. It excludes transcripts and environment details. The test starts a fresh CLI process per request, checks the patch, task, or feature route, and confirms the classifier creates no ticket. This check covers the CLI result. The earlier live observations establish that the local hosts supplied the inputs.
+
+The feature now has ten bound examples across 135 expanded cases. The acceptance dry run reports 125 undefined examples. Fourteen rows still explicitly name local Claude Code or Codex, covering planning ceremony, inline test specifications, positive RED, approved promotion, and settle-versus-ask behavior.
