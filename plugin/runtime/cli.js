@@ -20543,8 +20543,9 @@ import { execFileSync as execFileSync4 } from "child_process";
 import nodePath36 from "path";
 function resolveCodexProjectDirectory(cwd = process.cwd(), environment = process.env) {
   const configuredProject = environment.CLAUDE_PROJECT_DIR?.trim();
-  if (configuredProject)
-    return nodePath36.resolve(configuredProject);
+  if (configuredProject) {
+    return resolveProjectDirectory({ cwd, launchDirectory: nodePath36.resolve(configuredProject) });
+  }
   try {
     const root = execFileSync4("git", ["-C", cwd, "rev-parse", "--show-toplevel"], {
       encoding: "utf8",
@@ -20556,7 +20557,9 @@ function resolveCodexProjectDirectory(cwd = process.cwd(), environment = process
   } catch {}
   return nodePath36.resolve(cwd);
 }
-var init_project_directory2 = () => {};
+var init_project_directory2 = __esm(() => {
+  init_project_directory();
+});
 
 // src/commands/codex-bootstrap.ts
 function sessionStartFromInput(rawInput) {
