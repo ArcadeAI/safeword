@@ -1,4 +1,4 @@
-import { spawn, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import {
   chmodSync,
   cpSync,
@@ -314,6 +314,54 @@ describe('packagedNamespaceRootLabel', () => {
     expect(observeCodexSessionProof(projectDirectory, 'task-a', environment).status).toBe(
       'current',
     );
+  });
+
+  it('records native hook proof only for the enrolled checkout named by the host', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'codex-worktree-proof-'));
+    directories.push(root);
+    const primary = nodePath.join(root, 'primary');
+    const linked = nodePath.join(root, 'linked');
+    execFileSync('git', ['init', '--quiet', primary]);
+    markSafewordProject(primary);
+    execFileSync('git', ['add', '.safeword/SAFEWORD.md'], { cwd: primary });
+    execFileSync(
+      'git',
+      [
+        '-c',
+        'user.name=Fixture',
+        '-c',
+        'user.email=test@example.org',
+        '-c',
+        'commit.gpgsign=false',
+        'commit',
+        '-qm',
+        'Enroll checkout',
+      ],
+      { cwd: primary },
+    );
+    execFileSync('git', ['worktree', 'add', '--quiet', '--detach', linked], { cwd: primary });
+    const environment = { CODEX_HOME: nodePath.join(root, 'profile'), CLAUDE_PROJECT_DIR: primary };
+
+    for (const [cwd, other, session] of [
+      [linked, primary, 'linked-task'],
+      [primary, linked, 'primary-task'],
+    ] as const) {
+      const result = runCodexHook(
+        primary,
+        'session-start',
+        {
+          hook_event_name: 'SessionStart',
+          cwd,
+          session_id: session,
+          source: 'resume',
+        },
+        environment,
+        true,
+      );
+      expect(result.status, result.stderr).toBe(0);
+      expect(observeCodexSessionProof(cwd, session, environment).status).toBe('current');
+      expect(observeCodexSessionProof(other, session, environment).status).toBe('missing');
+    }
   });
 
   it('degrades a non-string session id to unbound hook proof', () => {
