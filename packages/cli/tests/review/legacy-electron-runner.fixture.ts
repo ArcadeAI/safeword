@@ -1,5 +1,13 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -38,6 +46,11 @@ export function electronRunnerFixture() {
   write('pnpm-workspace.yaml', 'packages: [packages/desktop]\n');
   write('packages/desktop/package.json', JSON.stringify({ name: '@soulless/desktop' }));
   write(electronRequest.implementationPath, 'export const behavior = true;\n');
+  if (process.platform !== 'win32') {
+    write('packages/desktop/src/renderer/src/stores/state.ts', 'export const state = {};\n');
+    symlinkSync('renderer/src/services', path.join(root, 'packages/desktop/src/services'));
+    symlinkSync('renderer/src/stores', path.join(root, 'packages/desktop/src/stores'));
+  }
   write(electronRequest.testFile, `${'\n'.repeat(7)}// selected fixture declaration\n`);
   write(electronRequest.supportFiles[0] ?? '', 'export default {};\n');
   write(requestPath, JSON.stringify(electronRequest));

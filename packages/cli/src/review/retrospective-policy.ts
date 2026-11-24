@@ -7,6 +7,7 @@ export interface RetrospectiveMigrationPolicy {
   readonly runner: 'bun-vitest' | 'playwright-electron';
   readonly repository?: string;
   readonly scenarios?: readonly string[];
+  readonly compatibilityAliases?: Readonly<Record<string, string>>;
 }
 
 export const LEGACY_RETROSPECTIVE_POLICY = {
@@ -26,6 +27,10 @@ export const SOULLESS_RETROSPECTIVE_POLICY = {
   feature: 'features/open-save-soul-electron.feature',
   runner: 'playwright-electron',
   repository: 'github.com/arcadeai/soulless-monorepo',
+  compatibilityAliases: {
+    'packages/desktop/src/services': 'renderer/src/services',
+    'packages/desktop/src/stores': 'renderer/src/stores',
+  },
   scenarios: [
     'Explorer presents package roots and aliases as documents',
     'Package path variants share one tab',

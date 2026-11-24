@@ -1,4 +1,13 @@
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readlinkSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -44,6 +53,41 @@ export interface ElectronProofObservation extends Omit<
 const DESKTOP = 'packages/desktop';
 const STAGE_TIMEOUT_MS = 180_000;
 
+/** Fixed structural metadata, never an allowance for requested symlink inputs. */
+function requireCompatibilityAliases(root: string, commit?: string): void {
+  for (const [relative, target] of Object.entries(
+    SOULLESS_RETROSPECTIVE_POLICY.compatibilityAliases,
+  )) {
+    const alias = path.join(root, relative);
+    const parent = path.dirname(alias);
+    if (
+      realpathSync.native(parent) !== parent ||
+      !lstatSync(alias).isSymbolicLink() ||
+      readlinkSync(alias) !== target ||
+      realpathSync.native(alias) !== path.resolve(parent, target)
+    )
+      throw new Error(`Electron compatibility alias changed: ${relative}`);
+    if (
+      commit !== undefined &&
+      proofGit(root, ['show', `${commit}:${relative}`]).toString('utf8') !== target
+    ) {
+      throw new Error(
+        `Electron compatibility alias differs from the committed policy: ${relative}`,
+      );
+    }
+  }
+}
+
+function requireSnapshotInputs(
+  copy: string,
+  inputs: readonly string[],
+  digests: Record<string, string>,
+  message: string,
+): void {
+  requireCompatibilityAliases(copy);
+  requireDigests(archiveDigests(copy, inputs), digests, message);
+}
+
 function executableInputs(
   root: string,
   commit: string,
@@ -54,7 +98,10 @@ function executableInputs(
     .toString('utf8')
     .split('\0')
     .filter(Boolean);
-  const mandatory = tracked.filter(
+  const regular = tracked.filter(
+    file => !Object.hasOwn(SOULLESS_RETROSPECTIVE_POLICY.compatibilityAliases, file),
+  );
+  const mandatory = regular.filter(
     file =>
       file.startsWith(`${DESKTOP}/`) ||
       file.startsWith('scripts/') ||
@@ -222,11 +269,7 @@ async function executeSnapshot(
   const copy = isolation.snapshot;
   const env = environment(node, isolation, reportPath);
   await setupCommand(copy, [pnpm, 'install', '--frozen-lockfile'], env, 'frozen install');
-  requireDigests(
-    archiveDigests(copy, inputs),
-    digests,
-    'Electron install changed committed proof inputs.',
-  );
+  requireSnapshotInputs(copy, inputs, digests, 'Electron install changed committed proof inputs.');
   rmSync(isolation.build, { recursive: true, force: true });
   await setupCommand(
     copy,
@@ -236,11 +279,7 @@ async function executeSnapshot(
   );
   for (const file of ['main/index.js', 'preload/index.js', 'renderer/index.html'])
     readProofInput(copy, `${DESKTOP}/out/${file}`);
-  requireDigests(
-    archiveDigests(copy, inputs),
-    digests,
-    'Electron build changed committed proof inputs.',
-  );
+  requireSnapshotInputs(copy, inputs, digests, 'Electron build changed committed proof inputs.');
   rmSync(reportPath, { force: true });
   const result = await executeNoShellCommand({
     projectRoot: copy,
@@ -256,8 +295,9 @@ async function executeSnapshot(
     expected,
     exitCode,
   );
-  requireDigests(
-    archiveDigests(copy, inputs),
+  requireSnapshotInputs(
+    copy,
+    inputs,
     digests,
     'Electron execution changed committed proof inputs.',
   );
@@ -299,6 +339,7 @@ export async function runElectronProof(
   if (JSON.stringify(stored) !== JSON.stringify(request))
     throw new Error('Electron request differs from its committed file.');
   const mutant = mutatedSource(canonical, request);
+  requireCompatibilityAliases(canonical, commit);
   const sourceSha256 = proofSha256(readProofInput(canonical, request.implementationPath));
   const node = proofExecutable(canonical, 'node', 'Node');
   const pnpm = proofExecutable(canonical, 'pnpm', 'pnpm');
@@ -309,6 +350,8 @@ export async function runElectronProof(
     const mutatedPort = await freePort(new Set([originalPort]));
     const original = prepareSnapshot(canonical, temporary, 'original', commit, originalPort);
     const mutated = prepareSnapshot(canonical, temporary, 'mutated', commit, mutatedPort);
+    requireCompatibilityAliases(original.snapshot);
+    requireCompatibilityAliases(mutated.snapshot);
     requireDigests(
       archiveDigests(original.snapshot, inputs),
       supportSha256,
@@ -351,6 +394,7 @@ export async function runElectronProof(
     });
     if (currentProofCommit(canonical) !== commit)
       throw new Error('Electron proof source HEAD changed during execution.');
+    requireCompatibilityAliases(canonical, commit);
     requireDigests(
       committedDigests(canonical, commit, inputs),
       supportSha256,

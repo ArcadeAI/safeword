@@ -60445,6 +60445,10 @@ var init_retrospective_policy = __esm(() => {
     feature: "features/open-save-soul-electron.feature",
     runner: "playwright-electron",
     repository: "github.com/arcadeai/soulless-monorepo",
+    compatibilityAliases: {
+      "packages/desktop/src/services": "renderer/src/services",
+      "packages/desktop/src/stores": "renderer/src/stores"
+    },
     scenarios: [
       "Explorer presents package roots and aliases as documents",
       "Package path variants share one tab",
@@ -61151,13 +61155,38 @@ function evaluateElectronReport(input, selection, expected, exitCode) {
 var init_retrospective_electron_report = () => {};
 
 // src/review/retrospective-electron-proof.ts
-import { mkdirSync as mkdirSync18, mkdtempSync as mkdtempSync9, readFileSync as readFileSync45, realpathSync as realpathSync14, rmSync as rmSync13, writeFileSync as writeFileSync17 } from "fs";
+import {
+  lstatSync as lstatSync16,
+  mkdirSync as mkdirSync18,
+  mkdtempSync as mkdtempSync9,
+  readFileSync as readFileSync45,
+  readlinkSync as readlinkSync3,
+  realpathSync as realpathSync14,
+  rmSync as rmSync13,
+  writeFileSync as writeFileSync17
+} from "fs";
 import { createServer } from "net";
 import { tmpdir as tmpdir7 } from "os";
 import path9 from "path";
+function requireCompatibilityAliases(root, commit) {
+  for (const [relative, target] of Object.entries(SOULLESS_RETROSPECTIVE_POLICY.compatibilityAliases)) {
+    const alias = path9.join(root, relative);
+    const parent = path9.dirname(alias);
+    if (realpathSync14.native(parent) !== parent || !lstatSync16(alias).isSymbolicLink() || readlinkSync3(alias) !== target || realpathSync14.native(alias) !== path9.resolve(parent, target))
+      throw new Error(`Electron compatibility alias changed: ${relative}`);
+    if (commit !== undefined && git2(root, ["show", `${commit}:${relative}`]).toString("utf8") !== target) {
+      throw new Error(`Electron compatibility alias differs from the committed policy: ${relative}`);
+    }
+  }
+}
+function requireSnapshotInputs(copy, inputs, digests, message) {
+  requireCompatibilityAliases(copy);
+  requireDigests(archiveDigests(copy, inputs), digests, message);
+}
 function executableInputs(root, commit, request, requestPath) {
   const tracked = git2(root, ["ls-tree", "-r", "--name-only", "-z", commit]).toString("utf8").split("\x00").filter(Boolean);
-  const mandatory = tracked.filter((file) => file.startsWith(`${DESKTOP}/`) || file.startsWith("scripts/") || /^packages\/[^/]+\/package\.json$/u.test(file) || !file.includes("/") && (/\.(?:[cm]?js|ts|json)$/u.test(file) || file === ".npmrc" || file === ".pnpmfile.cjs"));
+  const regular = tracked.filter((file) => !Object.hasOwn(SOULLESS_RETROSPECTIVE_POLICY.compatibilityAliases, file));
+  const mandatory = regular.filter((file) => file.startsWith(`${DESKTOP}/`) || file.startsWith("scripts/") || /^packages\/[^/]+\/package\.json$/u.test(file) || !file.includes("/") && (/\.(?:[cm]?js|ts|json)$/u.test(file) || file === ".npmrc" || file === ".pnpmfile.cjs"));
   return [
     ...new Set([
       ...mandatory,
@@ -61277,12 +61306,12 @@ async function executeSnapshot(input) {
   const copy = isolation.snapshot;
   const env = environment(node, isolation, reportPath);
   await setupCommand(copy, [pnpm, "install", "--frozen-lockfile"], env, "frozen install");
-  requireDigests(archiveDigests(copy, inputs), digests, "Electron install changed committed proof inputs.");
+  requireSnapshotInputs(copy, inputs, digests, "Electron install changed committed proof inputs.");
   rmSync13(isolation.build, { recursive: true, force: true });
   await setupCommand(copy, [pnpm, "--filter", "@soulless/desktop", "run", "build"], env, "full desktop build");
   for (const file of ["main/index.js", "preload/index.js", "renderer/index.html"])
     readProofInput(copy, `${DESKTOP}/out/${file}`);
-  requireDigests(archiveDigests(copy, inputs), digests, "Electron build changed committed proof inputs.");
+  requireSnapshotInputs(copy, inputs, digests, "Electron build changed committed proof inputs.");
   rmSync13(reportPath, { force: true });
   const result = await executeNoShellCommand({
     projectRoot: copy,
@@ -61293,7 +61322,7 @@ async function executeSnapshot(input) {
   });
   const exitCode = normalExit(result, "test");
   const evaluated = evaluateElectronReport(JSON.parse(readFileSync45(reportPath, "utf8")), request, expected, exitCode);
-  requireDigests(archiveDigests(copy, inputs), digests, "Electron execution changed committed proof inputs.");
+  requireSnapshotInputs(copy, inputs, digests, "Electron execution changed committed proof inputs.");
   return evaluated;
 }
 function prepareSnapshot(root, temporary, label, commit, rendererPort) {
@@ -61317,6 +61346,7 @@ async function runElectronProof(root, input, requestPath) {
   if (JSON.stringify(stored) !== JSON.stringify(request))
     throw new Error("Electron request differs from its committed file.");
   const mutant = mutatedSource(canonical, request);
+  requireCompatibilityAliases(canonical, commit);
   const sourceSha256 = sha2565(readProofInput(canonical, request.implementationPath));
   const node = proofExecutable(canonical, "node", "Node");
   const pnpm = proofExecutable(canonical, "pnpm", "pnpm");
@@ -61327,6 +61357,8 @@ async function runElectronProof(root, input, requestPath) {
     const mutatedPort = await freePort(new Set([originalPort]));
     const original = prepareSnapshot(canonical, temporary, "original", commit, originalPort);
     const mutated = prepareSnapshot(canonical, temporary, "mutated", commit, mutatedPort);
+    requireCompatibilityAliases(original.snapshot);
+    requireCompatibilityAliases(mutated.snapshot);
     requireDigests(archiveDigests(original.snapshot, inputs), supportSha256, "Original archive differs from committed inputs.");
     requireDigests(archiveDigests(mutated.snapshot, inputs), supportSha256, "Mutated archive differs before the declared mutation.");
     writeFileSync17(path9.join(mutated.snapshot, request.implementationPath), mutant);
@@ -61357,6 +61389,7 @@ async function runElectronProof(root, input, requestPath) {
     });
     if (currentProofCommit(canonical) !== commit)
       throw new Error("Electron proof source HEAD changed during execution.");
+    requireCompatibilityAliases(canonical, commit);
     requireDigests(committedDigests(canonical, commit, inputs), supportSha256, "Electron source inputs changed during execution.");
     return {
       commit,
@@ -62471,7 +62504,7 @@ var init_phase_provenance = __esm(() => {
 
 // src/review/retrospective-baseline.ts
 import { spawnSync as spawnSync13 } from "child_process";
-import { lstatSync as lstatSync16, readFileSync as readFileSync46, realpathSync as realpathSync15 } from "fs";
+import { lstatSync as lstatSync17, readFileSync as readFileSync46, realpathSync as realpathSync15 } from "fs";
 import nodePath68 from "path";
 function hasControlCharacter(value) {
   for (const character of value) {
@@ -62499,12 +62532,12 @@ function currentFileInside(root, relativePath) {
     let cursor = canonicalRoot;
     for (const component of relativePath.split("/")) {
       cursor = nodePath68.join(cursor, component);
-      if (lstatSync16(cursor).isSymbolicLink())
+      if (lstatSync17(cursor).isSymbolicLink())
         return false;
     }
     const canonicalFile = realpathSync15.native(cursor);
     const relative = nodePath68.relative(canonicalRoot, canonicalFile);
-    return relative !== ".." && !relative.startsWith(`..${nodePath68.sep}`) && !nodePath68.isAbsolute(relative) && lstatSync16(canonicalFile).isFile();
+    return relative !== ".." && !relative.startsWith(`..${nodePath68.sep}`) && !nodePath68.isAbsolute(relative) && lstatSync17(canonicalFile).isFile();
   } catch {
     return false;
   }
@@ -66665,7 +66698,7 @@ var init_python = __esm(() => {
 // src/packs/rust/setup.ts
 import {
   existsSync as existsSync41,
-  lstatSync as lstatSync17,
+  lstatSync as lstatSync18,
   readdirSync as readdirSync20,
   readFileSync as readFileSync62,
   realpathSync as realpathSync17,
@@ -66691,7 +66724,7 @@ function containedWorkspaceMember(cwd, member) {
 function isSafeCargoManifest(cwd, cargoPath) {
   if (!existsSync41(cargoPath))
     return false;
-  const stat = lstatSync17(cargoPath);
+  const stat = lstatSync18(cargoPath);
   return stat.isFile() && !stat.isSymbolicLink() && isContainedPath(realpathSync17(cwd), realpathSync17(cargoPath));
 }
 function detectWorkspaceType(cargoContent) {
@@ -67119,7 +67152,7 @@ var init_shared_clause_integrity = __esm(() => {
 });
 
 // src/reconcile.ts
-import { lstatSync as lstatSync18, readdirSync as readdirSync22, readlinkSync as readlinkSync3, unlinkSync as unlinkSync6 } from "fs";
+import { lstatSync as lstatSync19, readdirSync as readdirSync22, readlinkSync as readlinkSync4, unlinkSync as unlinkSync6 } from "fs";
 import nodePath87 from "path";
 function ownershipTrackedPackageNames(schema, packages) {
   const tracked = new Set(OWNERSHIP_TRACKED_GROUPS.flatMap((group) => schema.packages.conditional[group] ?? []));
@@ -67343,7 +67376,7 @@ function planExistingFilesRemoval(files, cwd) {
 }
 function lstatIfExists(path) {
   try {
-    return lstatSync18(path);
+    return lstatSync19(path);
   } catch (error) {
     const code = error.code;
     if (code === "ENOENT" || code === "ENOTDIR")
@@ -67743,9 +67776,9 @@ function executePlan(plan, ctx) {
 }
 function observePath(path) {
   try {
-    const stat = lstatSync18(path);
+    const stat = lstatSync19(path);
     if (stat.isSymbolicLink())
-      return `link:${stat.mode}:${readlinkSync3(path)}`;
+      return `link:${stat.mode}:${readlinkSync4(path)}`;
     if (stat.isDirectory())
       return `directory:${stat.mode}`;
     if (stat.isFile())
@@ -69560,7 +69593,7 @@ import {
   closeSync as closeSync10,
   cpSync as cpSync2,
   existsSync as existsSync45,
-  lstatSync as lstatSync19,
+  lstatSync as lstatSync20,
   mkdtempSync as mkdtempSync10,
   openSync as openSync10,
   readFileSync as readFileSync65,
@@ -69723,7 +69756,7 @@ function recordMarketplaceSafetyEffects(effects, scope, options) {
 }
 function enableMarketplaceAutoUpdate(cwd, scope, effects) {
   const path = scopedSettingsPath(cwd, scope);
-  const metadata = lstatSync19(path);
+  const metadata = lstatSync20(path);
   if (!metadata.isFile()) {
     invalidScopeSettings(scope, `settings are not a regular file: ${path}`);
   }
@@ -69943,7 +69976,7 @@ function readMarketplaceRegistry() {
   if (!existsSync45(path)) {
     throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", "Claude reported the Safeword marketplace but its marketplace registry is missing.");
   }
-  const metadata = lstatSync19(path);
+  const metadata = lstatSync20(path);
   if (!metadata.isFile()) {
     throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", "Claude marketplace registry is not a regular file.");
   }
@@ -69961,7 +69994,7 @@ function readMarketplaceRegistry() {
 function captureFile(path) {
   if (!existsSync45(path))
     return { path };
-  const metadata = lstatSync19(path);
+  const metadata = lstatSync20(path);
   if (!metadata.isFile()) {
     throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", `Claude profile metadata is not a regular file: ${path}`);
   }
@@ -69977,7 +70010,7 @@ function restoreFile(snapshot) {
 function replaceStaleMarketplace(cwd, scope, effects) {
   const effectStart = effects.length;
   const settingsPath = scopedSettingsPath(cwd, scope);
-  const settingsMetadata = lstatSync19(settingsPath);
+  const settingsMetadata = lstatSync20(settingsPath);
   if (!settingsMetadata.isFile()) {
     throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", `Claude ${scope}-scope settings are not a regular file.`);
   }
@@ -69989,7 +70022,7 @@ function replaceStaleMarketplace(cwd, scope, effects) {
   }
   const configDirectory = claudeConfigDirectory();
   const marketplacePath = nodePath93.join(configDirectory, "plugins/marketplaces", MARKETPLACE_NAME);
-  if (!existsSync45(marketplacePath) || canonicalDirectory(registryEntry.installLocation) !== canonicalDirectory(marketplacePath) || !lstatSync19(marketplacePath).isDirectory()) {
+  if (!existsSync45(marketplacePath) || canonicalDirectory(registryEntry.installLocation) !== canonicalDirectory(marketplacePath) || !lstatSync20(marketplacePath).isDirectory()) {
     throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", "Claude marketplace checkout is missing or outside the expected profile location.");
   }
   const installedPlugins = captureFile(nodePath93.join(configDirectory, "plugins/installed_plugins.json"));
@@ -70126,7 +70159,7 @@ function assertInstalledAsset(installPath, asset) {
     throw new TypeError("installed inventory contains an unsafe asset");
   }
   const path = nodePath93.join(installPath, asset.path);
-  if (!lstatSync19(path).isFile() || !claudeAssetMatches({ path: asset.path, sha256: asset.sha256, skill_sha256: asset.skill_sha256 }, readFileSync65(path))) {
+  if (!lstatSync20(path).isFile() || !claudeAssetMatches({ path: asset.path, sha256: asset.sha256, skill_sha256: asset.skill_sha256 }, readFileSync65(path))) {
     throw new TypeError(`installed asset failed integrity validation: ${asset.path}`);
   }
 }
@@ -70143,7 +70176,7 @@ function assertRequiredNativeAssets(assets) {
   }
 }
 function validateNativePayload(plugin, expectedVersion) {
-  if (typeof plugin.installPath !== "string" || !lstatSync19(plugin.installPath).isDirectory()) {
+  if (typeof plugin.installPath !== "string" || !lstatSync20(plugin.installPath).isDirectory()) {
     throw new TypeError("installed plugin path is missing");
   }
   const identityPath = nodePath93.join(plugin.installPath, "identity.json");
@@ -71697,7 +71730,7 @@ __export(exports_profile, {
 import { createHash as createHash37 } from "crypto";
 import {
   existsSync as existsSync48,
-  lstatSync as lstatSync20,
+  lstatSync as lstatSync21,
   readdirSync as readdirSync28,
   readFileSync as readFileSync68,
   realpathSync as realpathSync19,
@@ -71744,7 +71777,7 @@ function observeFile2(path) {
   if (!existsSync48(path))
     return { kind: "absent" };
   try {
-    if (!lstatSync20(path).isFile())
+    if (!lstatSync21(path).isFile())
       return { kind: "collision" };
     return { kind: "file", bytes: readFileSync68(path) };
   } catch {
@@ -72679,7 +72712,7 @@ __export(exports_conformance, {
 });
 import { spawnSync as spawnSync17 } from "child_process";
 import { createHash as createHash38 } from "crypto";
-import { accessSync as accessSync4, constants as constants6, lstatSync as lstatSync21, readFileSync as readFileSync70, realpathSync as realpathSync20, statSync as statSync11 } from "fs";
+import { accessSync as accessSync4, constants as constants6, lstatSync as lstatSync22, readFileSync as readFileSync70, realpathSync as realpathSync20, statSync as statSync11 } from "fs";
 import nodePath101 from "path";
 function resolveExecutable(environment) {
   const extensions = process.platform === "win32" ? (environment.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";") : [""];
@@ -72744,7 +72777,7 @@ function installedProfile(environment) {
     return;
   const paths = openCodeProfilePaths(root);
   try {
-    if (!lstatSync21(paths.plugin).isFile() || !lstatSync21(paths.identity).isFile())
+    if (!lstatSync22(paths.plugin).isFile() || !lstatSync22(paths.identity).isFile())
       return;
     const identity = parseOpenCodeIdentity(JSON.parse(readFileSync70(paths.identity, "utf8")));
     if (identity?.safeword_version !== VERSION)
@@ -73655,7 +73688,7 @@ var init_doctor = __esm(() => {
 
 // src/cli-protocol/reconciliation.ts
 import { createHash as createHash39 } from "crypto";
-import { lstatSync as lstatSync22, readdirSync as readdirSync29, readFileSync as readFileSync71, readlinkSync as readlinkSync4 } from "fs";
+import { lstatSync as lstatSync23, readdirSync as readdirSync29, readFileSync as readFileSync71, readlinkSync as readlinkSync5 } from "fs";
 import nodePath102 from "path";
 function actionTargets(action) {
   return action.type === "chmod" ? action.paths : [action.path];
@@ -73684,12 +73717,12 @@ function filesystemNodeType(stat) {
 }
 function hashPath(hash, absolutePath, relativePath, readFile) {
   try {
-    const stat = lstatSync22(absolutePath);
+    const stat = lstatSync23(absolutePath);
     hashField(hash, "node-type", filesystemNodeType(stat));
     hashField(hash, "relative-path", relativePath);
     hashField(hash, "mode", stat.mode.toString());
     if (stat.isSymbolicLink())
-      hashField(hash, "link-target", readlinkSync4(absolutePath));
+      hashField(hash, "link-target", readlinkSync5(absolutePath));
     if (stat.isDirectory()) {
       const entries = readdirSync29(absolutePath).toSorted((left, right) => left.localeCompare(right));
       for (const name of entries) {
@@ -74431,7 +74464,7 @@ import {
   cpSync as cpSync4,
   existsSync as existsSync51,
   fstatSync as fstatSync6,
-  lstatSync as lstatSync23,
+  lstatSync as lstatSync24,
   mkdirSync as mkdirSync24,
   openSync as openSync11,
   readdirSync as readdirSync31,
@@ -74443,7 +74476,7 @@ import {
 } from "fs";
 import nodePath109 from "path";
 function validateNamespaceTree(root, label) {
-  if (lstatSync23(root).isSymbolicLink()) {
+  if (lstatSync24(root).isSymbolicLink()) {
     throw new Error(`${label} is a symlink: ${root}`);
   }
   const visit = (directory) => {
@@ -74465,14 +74498,14 @@ function validateNamespaceTree(root, label) {
 function validateDirectoryRoot(path, label) {
   if (!existsSync51(path))
     return;
-  const metadata = lstatSync23(path);
+  const metadata = lstatSync24(path);
   if (metadata.isSymbolicLink())
     throw new Error(`${label} is a symlink: ${path}`);
   if (!metadata.isDirectory())
     throw new Error(`${label} is not a directory: ${path}`);
 }
 function conflictArchivePath(source, relative) {
-  const metadata = lstatSync23(source);
+  const metadata = lstatSync24(source);
   const digest = createHash40("sha256").update(`${metadata.mode.toString(8)}\x00`).update(readFileSync74(source)).digest("hex");
   return nodePath109.join(".safeword", "namespace-migration-conflicts-v1", digest, relative);
 }
@@ -74518,11 +74551,11 @@ function mergeLegacyDirectory(cwd, hooks) {
       const source = nodePath109.join(from, entry.name);
       const target = nodePath109.join(current, child);
       if (entry.isDirectory()) {
-        if (existsSync51(target) && !lstatSync23(target).isDirectory()) {
+        if (existsSync51(target) && !lstatSync24(target).isDirectory()) {
           throw new NamespaceStructuralCollisionError(`Cannot merge project namespaces: directory ${child} conflicts with a file.`);
         }
         validateMergeShape(source, child);
-      } else if (existsSync51(target) && !lstatSync23(target).isFile()) {
+      } else if (existsSync51(target) && !lstatSync24(target).isFile()) {
         throw new NamespaceStructuralCollisionError(`Cannot merge project namespaces: file ${child} conflicts with a directory.`);
       }
     }
@@ -74631,7 +74664,7 @@ function isGitTracked(cwd) {
 function readSafeNamespaceConfig(path) {
   let descriptor;
   try {
-    const before = lstatSync23(path);
+    const before = lstatSync24(path);
     if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1 || before.size > MAX_NAMESPACE_CONFIG_BYTES) {
       return;
     }
@@ -75191,11 +75224,11 @@ import {
   constants as fsConstants4,
   existsSync as existsSync53,
   fstatSync as fstatSync7,
-  lstatSync as lstatSync24,
+  lstatSync as lstatSync25,
   openSync as openSync12,
   readdirSync as readdirSync34,
   readFileSync as readFileSync78,
-  readlinkSync as readlinkSync5,
+  readlinkSync as readlinkSync6,
   readSync as readSync5
 } from "fs";
 import nodePath115 from "path";
@@ -75503,7 +75536,7 @@ function plannedVersionMarkerEffects(cwd, repair) {
     return [];
   const target = ".safeword/version";
   const path = nodePath115.join(cwd, target);
-  const metadata = lstatSync24(path, { throwIfNoEntry: false });
+  const metadata = lstatSync25(path, { throwIfNoEntry: false });
   if (metadata?.isFile() !== true || metadata.isSymbolicLink())
     return [];
   const version = readFileSync78(path, "utf8").trim();
@@ -75766,12 +75799,12 @@ function readProjectVersionDescriptor(descriptor) {
 function readProjectVersionFile(path, allowMultipleLinks) {
   let descriptor;
   try {
-    const before = lstatSync24(path);
+    const before = lstatSync25(path);
     if (!isSafeProjectVersionMetadata(before, allowMultipleLinks))
       return;
     descriptor = openSync12(path, fsConstants4.O_RDONLY | fsConstants4.O_NONBLOCK | (fsConstants4.O_NOFOLLOW ?? 0));
     const opened = fstatSync7(descriptor);
-    const after = lstatSync24(path);
+    const after = lstatSync25(path);
     if (!isSameProjectVersionFile(before, opened, after) || !isSafeProjectVersionMetadata(opened, allowMultipleLinks)) {
       return;
     }
@@ -75784,7 +75817,7 @@ function readProjectVersionFile(path, allowMultipleLinks) {
   }
 }
 function readProjectVersionMarker(cwd, projectVersionPath, repairVersionMarker) {
-  const metadata = lstatSync24(projectVersionPath, { throwIfNoEntry: false });
+  const metadata = lstatSync25(projectVersionPath, { throwIfNoEntry: false });
   if (metadata === undefined) {
     return { kind: "version", value: "0.0.0", replaceEntry: false };
   }
@@ -75839,7 +75872,7 @@ function readProjectVersionMarker(cwd, projectVersionPath, repairVersionMarker) 
 }
 function checkProjectVersion(cwd, repairVersionMarker) {
   const safewordDirectoryPath = nodePath115.join(cwd, ".safeword");
-  const safewordDirectoryMetadata = lstatSync24(safewordDirectoryPath, {
+  const safewordDirectoryMetadata = lstatSync25(safewordDirectoryPath, {
     throwIfNoEntry: false
   });
   if (safewordDirectoryMetadata?.isDirectory() !== true) {
@@ -75969,10 +76002,10 @@ function snapshotFiles(cwd, targets) {
   const visit = (absolutePath) => {
     if (!existsSync53(absolutePath))
       return;
-    const stat = lstatSync24(absolutePath);
+    const stat = lstatSync25(absolutePath);
     const relativePath = nodePath115.relative(cwd, absolutePath);
     if (stat.isSymbolicLink()) {
-      snapshot.set(relativePath, `link:${readlinkSync5(absolutePath)}`);
+      snapshot.set(relativePath, `link:${readlinkSync6(absolutePath)}`);
       return;
     }
     if (stat.isDirectory()) {
@@ -77036,7 +77069,7 @@ import {
   fstatSync as fstatSync8,
   fsyncSync as fsyncSync3,
   ftruncateSync,
-  lstatSync as lstatSync25,
+  lstatSync as lstatSync26,
   mkdirSync as mkdirSync25,
   openSync as openSync13,
   readFileSync as readFileSync79,
@@ -77132,7 +77165,7 @@ function entryFor(cwd, mutation) {
   const path = assertSafeClaudeCleanupTarget(cwd, mutation.path);
   const before = readFileSync79(path);
   const after = mutation.content === null ? null : Buffer.from(mutation.content);
-  const mode = lstatSync25(path).mode & 511;
+  const mode = lstatSync26(path).mode & 511;
   return {
     path: mutation.path,
     before_sha256: sha2569(before),
@@ -77159,14 +77192,14 @@ function isValidOpenCleanupTarget(snapshot) {
 function openCleanupTarget(root, relative, flags) {
   const path = assertSafeClaudeCleanupTarget(root, relative);
   const parentPath = nodePath116.dirname(path);
-  const targetBefore = lstatSync25(path);
-  const parentBefore = lstatSync25(parentPath);
+  const targetBefore = lstatSync26(path);
+  const parentBefore = lstatSync26(parentPath);
   const parentDescriptor = openSync13(parentPath, fsConstants5.O_RDONLY | (fsConstants5.O_DIRECTORY ?? 0) | (fsConstants5.O_NOFOLLOW ?? 0));
   let descriptor;
   try {
     descriptor = openSync13(path, flags | (fsConstants5.O_NOFOLLOW ?? 0));
-    const targetAfter = lstatSync25(path);
-    const parentAfter = lstatSync25(parentPath);
+    const targetAfter = lstatSync26(path);
+    const parentAfter = lstatSync26(parentPath);
     const opened = fstatSync8(descriptor);
     const openedParent = fstatSync8(parentDescriptor);
     if (!isValidOpenCleanupTarget({
@@ -77196,7 +77229,7 @@ function quarantineOpenTarget(root, opened, quarantinePath, beforeQuarantine) {
   mkdirSync25(quarantineDirectory, { recursive: true, mode: 448 });
   beforeQuarantine?.();
   renameSync14(opened.path, safeQuarantinePath);
-  const quarantined = lstatSync25(safeQuarantinePath);
+  const quarantined = lstatSync26(safeQuarantinePath);
   const descriptor = fstatSync8(opened.descriptor);
   if (!sameFile(quarantined, descriptor) || descriptor.size !== opened.target.size) {
     throw new Error("Claude cleanup quarantined a replacement target; retained it for recovery.");
@@ -77207,8 +77240,8 @@ function quarantineOpenTarget(root, opened, quarantinePath, beforeQuarantine) {
 }
 function revalidateOpenTarget(root, relative, opened) {
   const path = assertSafeClaudeCleanupTarget(root, relative);
-  const target = lstatSync25(path);
-  const parent = lstatSync25(nodePath116.dirname(path));
+  const target = lstatSync26(path);
+  const parent = lstatSync26(nodePath116.dirname(path));
   const descriptor = fstatSync8(opened.descriptor);
   if (path !== opened.path || !sameFile(opened.target, descriptor) || !sameFile(descriptor, target) || !sameFile(opened.parent, parent) || descriptor.size !== opened.target.size || descriptor.nlink !== 1) {
     throw new Error(`Claude cleanup target changed before mutation: ${relative}`);
@@ -77516,10 +77549,10 @@ function isSafeTransactionMetadata(metadata) {
 function readTransactionBytes(path) {
   let descriptor;
   try {
-    const before = lstatSync25(path);
+    const before = lstatSync26(path);
     descriptor = openSync13(path, fsConstants5.O_RDONLY | fsConstants5.O_NONBLOCK | (fsConstants5.O_NOFOLLOW ?? 0));
     const opened = fstatSync8(descriptor);
-    const after = lstatSync25(path);
+    const after = lstatSync26(path);
     if (!isTransactionFile(before, opened, after))
       throw new Error("Unsafe transaction file.");
     const buffer = Buffer.alloc(MAX_CLAUDE_TRANSACTION_BYTES + 1);
@@ -77531,7 +77564,7 @@ function readTransactionBytes(path) {
       offset += count;
     }
     const final = fstatSync8(descriptor);
-    if (offset > MAX_CLAUDE_TRANSACTION_BYTES || !isTransactionFile(before, final, lstatSync25(path))) {
+    if (offset > MAX_CLAUDE_TRANSACTION_BYTES || !isTransactionFile(before, final, lstatSync26(path))) {
       throw new Error("Unsafe transaction file.");
     }
     return buffer.subarray(0, offset);
@@ -77705,7 +77738,7 @@ function pendingRecoveryEntries(projectRoot, transaction) {
   for (const entry of transaction.entries) {
     if (entry.quarantine_path !== undefined) {
       const quarantine = assertSafeClaudeCleanupTarget(projectRoot, entry.quarantine_path);
-      if (existsSync54(quarantine) && lstatSync25(quarantine).size > 0) {
+      if (existsSync54(quarantine) && lstatSync26(quarantine).size > 0) {
         throw new Error(`Claude recovery preserved unverified bytes at ${entry.quarantine_path}; inspect and move or remove that file before retrying recovery`);
       }
     }
@@ -77918,7 +77951,7 @@ import {
   closeSync as closeSync14,
   constants as constants7,
   fstatSync as fstatSync9,
-  lstatSync as lstatSync26,
+  lstatSync as lstatSync27,
   openSync as openSync14,
   readFileSync as readFileSync80,
   realpathSync as realpathSync21
@@ -78034,7 +78067,7 @@ function parsePersonalPreference(content, path) {
 function readPersonalExecutionPreference(cwd) {
   const path = personalPath(cwd);
   try {
-    const metadata = lstatSync26(path, { throwIfNoEntry: false });
+    const metadata = lstatSync27(path, { throwIfNoEntry: false });
     if (metadata === undefined)
       return { path };
     const fileError = validatePersonalFile(metadata, path);
@@ -78317,7 +78350,7 @@ import {
   fstatSync as fstatSync10,
   fsyncSync as fsyncSync4,
   linkSync as linkSync3,
-  lstatSync as lstatSync27,
+  lstatSync as lstatSync28,
   mkdirSync as mkdirSync26,
   openSync as openSync15,
   readFileSync as readFileSync81,
@@ -78466,7 +78499,7 @@ var nodeRemoteWorkflowFs;
 var init_remote_workflow_fs = __esm(() => {
   nodeRemoteWorkflowFs = {
     privatePath: (directory) => nodePath118.join(directory, `.safeword-${randomUUID15()}`),
-    lstat: (path) => lstatSync27(path, { throwIfNoEntry: false }),
+    lstat: (path) => lstatSync28(path, { throwIfNoEntry: false }),
     mkdir: mkdirSync26,
     openRead: (path) => openSync15(path, constants8.O_RDONLY | constants8.O_NONBLOCK | (constants8.O_NOFOLLOW ?? 0)),
     openPrivate: (path) => openSync15(path, "wx", 420),
@@ -79068,13 +79101,13 @@ var init_shell_segments = __esm(() => {
 
 // src/test-plan/resolve.ts
 import { spawnSync as spawnSync19 } from "child_process";
-import { existsSync as existsSync55, lstatSync as lstatSync28, readFileSync as readFileSync82 } from "fs";
+import { existsSync as existsSync55, lstatSync as lstatSync29, readFileSync as readFileSync82 } from "fs";
 import nodePath122 from "path";
 import process17 from "process";
 function directManifestIndex(directory) {
   return new Map([...TREE_MANIFESTS].filter((name) => {
     try {
-      return lstatSync28(nodePath122.join(directory, name)).isFile();
+      return lstatSync29(nodePath122.join(directory, name)).isFile();
     } catch {
       return false;
     }
@@ -84849,7 +84882,7 @@ var init_public_retros = __esm(() => {
 });
 
 // templates/hooks/lib/drain-retro-spool.ts
-import { existsSync as existsSync72, lstatSync as lstatSync29, realpathSync as realpathSync24 } from "fs";
+import { existsSync as existsSync72, lstatSync as lstatSync30, realpathSync as realpathSync24 } from "fs";
 import nodePath149 from "path";
 function drainRetroSpool(inputPath, mode = "drain") {
   const spoolPath = nodePath149.resolve(inputPath);
@@ -84865,7 +84898,7 @@ function drainRetroSpool(inputPath, mode = "drain") {
   const sessionId = nodePath149.basename(spoolPath, ".jsonl");
   const ackPath = ackFilePath(projectDirectory, sessionId);
   const protectedPaths = [safewordDirectory, draftsDirectory, spoolPath, ackPath];
-  if (protectedPaths.some((path) => existsSync72(path) && lstatSync29(path).isSymbolicLink())) {
+  if (protectedPaths.some((path) => existsSync72(path) && lstatSync30(path).isSymbolicLink())) {
     return {
       state: "refused",
       message: "Refusing a symlinked retro spool or acknowledgement path"
