@@ -1,8 +1,10 @@
 # Design: one rule for choosing the project directory (#5467)
 
-Status: approved; parts 1, 2a and 2b implemented (#5655, #5656, #5664). Parts 3 and 4 revised 2026-11-17 (see Durable state). Base: origin/main 53398c672 (includes #5571).
+Parts 1–3 shipped. Part 4 remains open under #5467 and #5395.
 
-## Problem
+## Original problem
+
+The following observations motivated the work. The delivery record below gives the current status.
 
 Claude Code keeps `CLAUDE_PROJECT_DIR` at the launch checkout after a session
 enters `.claude/worktrees/<name>`; the hook input `cwd` follows the session
@@ -54,131 +56,55 @@ Comparisons use real paths. Bash cwd keeps today's lexical-vs-real handling.
 This is the only place allowed to read `CLAUDE_PROJECT_DIR` as a project root.
 Existing resolvers in `namespace-root.ts` become wrappers, then are removed.
 
-## Durable state (parts 3 and 4)
+## Worktree state on main (part 3)
 
-Revised 2026-11-17 after part 2b. The durable-home resolver listed for part 1
-was never built; this section replaces it.
+### Closeout session binding
 
-### What the user sees
+Claude, Codex and Cursor record a short-lived binding in the working tree where
+the closeout command will run. The hook resolves the shell cwd or a leading
+literal `cd <absolute path> &&`. A worktree-specific filename keeps bindings
+separate even when two trees share one configured namespace root. If the hook
+cannot resolve the command, it denies the invocation and returns a runnable
+retry. The retry preserves quoting for plugin paths. The worktree and host
+adapter integration tests cover the writer and closeout reader.
+See [#7768](https://github.com/ArcadeAI/safeword/pull/7768) and
+[#7837](https://github.com/ArcadeAI/safeword/pull/7837).
 
-Nothing new: no command, no config, nothing in `git status`. Safeword acts on
-the folder the agent is working in. A `safeword` command acts on the folder it
-runs in. A session's retro findings are still filed by that session after its
-worktree is deleted. When
-Safeword cannot proceed, the message names the folder and the one command to
-run. The parts that follow serve this contract.
+### Retro findings after worktree removal
 
-### Retro spool: the repository's shared git directory
+The writer keeps a durable copy in `<git common dir>/safeword/retro-drafts/`.
+At handoff, `stageRetroSpool` stages pending findings into the checkout’s
+`.safeword/retro-drafts/`, where the filer can acknowledge and drain them
+without needing write access to a protected Git directory. Removal records
+and acknowledgments keep previously filed findings from being staged again.
+Closeout merges outstanding records into the surviving checkout. Outside Git,
+the project-local spool remains the home. Filing abandoned sessions’ drafts
+is outside #5467. See the implementation and worktree-removal tests in
+[#7869](https://github.com/ArcadeAI/safeword/pull/7869).
 
-Drafts move to `<git common dir>/safeword/retro-drafts/`. The common dir is
-what every worktree of a repository shares (`git worktree`, "DETAILS"), so it
-survives any way a worktree disappears: `git worktree remove`, a deleted folder
-plus `git worktree prune`, or a host archiving its worktrees. It needs no
-gitignore entry and no enrolled primary checkout, and bare repositories and
-submodules have one too. Outside git, the project's `.safeword/retro-drafts/`
-stays the home.
+## Remaining work (part 4)
 
-- The common dir comes from git itself:
-  `git -C <project> rev-parse --path-format=absolute --git-common-dir`. This
-  is one subprocess, and it tracks git's own formats, such as relative
-  worktree links (`worktree.useRelativePaths`) and `GIT_COMMON_DIR`. A
-  hand-parsed gitfile and `commondir` chain would have to follow those
-  formats forever.
-- One function, `retroSpoolDirectory(projectDirectory)` in
-  `lib/retro-draft-spool.ts`, builds the path. Every reader and writer uses it:
-  `retro run`, the retro CLI protocol handlers, `relay-delivery`,
-  `drain-retro-spool`, `retro-filing-gate`, `retro-nudge`, `stop-retro`,
-  `stop-retro-filing`, the Codex and Cursor stops, and closeout. The parity
-  guard rejects the `retro-drafts` literal anywhere else, so a missed consumer
-  fails a test instead of filing from an empty folder.
-- Transition, for one release, with no migration step: writers write only to
-  the shared folder, and nothing is moved. The filer is handed one spool path
-  and reads, acknowledges and drains that file, as today. So the gate treats
-  the two locations as two spools for the same session. While the session's
-  legacy spool in the resolved project's `.safeword/retro-drafts/` holds
-  unfiled drafts, the gate dispatches that path, and the filer runs unchanged.
-  Once the legacy spool is empty, the gate first removes from the shared spool
-  every draft whose signature the legacy `.acks.jsonl` acknowledges, using the
-  existing `markDraftsFiled` atomic rewrite. Only then does it dispatch the
-  shared path, and only if drafts remain. So the filer reads only unfiled
-  drafts, and a finding spooled once before and once after the upgrade is
-  filed once. The closeout rescue step (`closeout-cleanup.ts:2088`) stays
-  for this release, so a legacy spool in a removed worktree lands in the
-  primary's legacy folder, where the gate still looks. The next release
-  deletes the legacy branch and the rescue step.
-- Out of scope: filing drafts whose session ended before they were filed.
-  Today a session files only its own spool, and that stays true. Recovering
-  another session's spool needs a single-filer rule across sessions, plus a
-  retry budget the recovering session owns. That is its own ticket, not a
-  piece of #5467. Part 3 makes the shared folder the place such a sweep would
-  read.
+Apply the shared resolution rule to the CLI and host adapters. Both
+`canonicalClaudeProjectRoot` and `resolveCodexProjectDirectory` currently
+prefer an inherited `CLAUDE_PROJECT_DIR` even when the command runs in an
+enrolled linked worktree. Keep the launch checkout as the fallback when the
+cwd has no enrolled owner.
 
-### Closeout binding: the working tree it runs in
+**First regression test.** Create a real primary checkout and an enrolled
+linked worktree with an isolated Claude profile. Put a pending Claude
+transaction only in the primary checkout. Invoke `safeword claude status --json`
+from each tree with `CLAUDE_PROJECT_DIR` set to the primary checkout and no
+plugin installed. The primary must report `recovery-required`; the linked
+worktree must report `missing`. Today both resolve to the primary. This
+command exercises the affected resolver through a read-only public entry
+point. The original `project test-plan` example uses the supplied cwd directly
+and cannot detect a regression in that resolver.
 
-Today the writer stamps the launch checkout (`pre-tool-quality.ts:624`), and
-closeout reads from the git root of its own cwd (`closeout-cleanup.ts:2129`). So
-closeout run inside a worktree finds no binding. The binding is short-lived
-and consumed before the worktree is removed, so it needs no durable home.
-
-- The writer and the reader derive the same directory: the git toplevel where
-  the closeout command actually runs. The writer takes the reported cwd and
-  follows a leading literal `cd <path> &&`. The binding is written to that
-  tree's namespace root as
-  `closeout-session-binding-<first 16 hex of sha256(real path of the tree)>.json`.
-  The name matters, because worktrees can share one absolute configured
-  namespace root, and the reader claims and deletes its whole file
-  (`closeout-binding.ts:398-428`). A fixed name would let one worktree's
-  closeout destroy another's binding. The pattern is registered in
-  `NAMESPACE_TRANSIENT_BASENAMES`, so it stays out of `git status`.
-- If the writer cannot tell where closeout will run (for example
-  `cd "$DIR" && bun …/closeout-cleanup.ts`), the pre-tool hook denies that one
-  Bash call. Closeout never starts, so it cannot consume a leftover binding.
-  The denial says, plainly, to change into the worktree first and run closeout
-  as its own command, and gives the exact command. The agent retries in the
-  next step without the user doing anything.
-- All three writers (Claude `pre-tool-quality`, Codex `pre-tool-quality`,
-  Cursor `before-shell-execution`) move in the same PR. A writer that
-  disagrees with the reader breaks closeout on that host.
-
-### CLI and adapters (part 4)
-
-The CLI applies the same rule as the hooks, using its own cwd. Its enrolled
-working tree (step 2) wins over `CLAUDE_PROJECT_DIR` (step 3). This matters
-because a `safeword` command the agent runs through Bash inherits the launch
-checkout's `CLAUDE_PROJECT_DIR`. Today that command acts on the launch
-checkout even when the agent is in a worktree. `canonicalClaudeProjectRoot`
-and `resolveCodexProjectDirectory` delegate to the shared resolver. The hooks'
-`projectEnvironment` overrides (part 2b) then become redundant and are
-removed. The part 2b tests that prove each child acts on the worktree stay as
-the regression net.
-
-### Required proof (real `git worktree` fixtures, real writers and readers)
-
-- Retro, for each removal path (`git worktree remove`, deleting the folder
-  plus `git worktree prune`, and a worktree created with `--relative-paths`):
-  spool a draft with the real `safeword retro run` from the linked worktree,
-  remove the worktree, then run the real Stop filer gate with the same
-  session id and a cwd in the primary checkout. It dispatches the draft.
-- Retro transition, through the real gate and the real filer flow (read,
-  file against a stubbed tracker, acknowledge, drain): a session with one
-  draft only in its legacy spool, one only in the shared spool, and one
-  finding in both. Across consecutive Stops, the stubbed tracker records
-  exactly one create per finding. Both spool files end with no drafts, and
-  each finding is acknowledged. A variant where the only shared draft is
-  already legacy-acknowledged dispatches nothing and leaves the shared spool
-  empty.
-- Closeout: produce bindings for two linked worktrees through the real
-  pre-tool hook. One uses a Bash `cwd` of the worktree; the other runs
-  `cd <worktree> && bun .safeword/scripts/closeout-cleanup.ts` from the primary
-  checkout. Each real closeout reader run from its worktree gets its own
-  binding, and the other worktree's binding survives. Run it once with each
-  worktree's own namespace root and once with both sharing one absolute
-  configured namespace root. Repeat for the Codex and Cursor writers.
-- Closeout, unresolvable `cd`: with a fresh binding already present for the
-  worktree, the real pre-tool hook denies `cd "$DIR" && bun …/closeout-cleanup.ts`
-  with the recovery message, and the binding file is unchanged.
-- CLI: `safeword project test-plan --json` run from a worktree with
-  `CLAUDE_PROJECT_DIR` set to the launch checkout plans the worktree.
+Cover the Codex adapter through its public hook command with distinguishable
+state in each checkout. Retain the part 2b child-process tests. Remove each
+`projectEnvironment` override only after its caller passes those tests without
+it, then narrow the parity allowlist. Verify the executable-RED receipt lookup
+in #5395 before closing that issue.
 
 ## Session state at Stop
 
@@ -224,14 +150,9 @@ nearest git root of the host cwd. They already follow the session into a
 worktree and work in unenrolled repositories by design, so they keep their
 own walk.
 
-## Delivery (epic, four Draft PRs referencing #5467)
+## Delivery
 
-1. Module + guard; existing resolvers delegate. Behavior change: non-edit
-   tools use step 2. (#5655)
-2. Stop/session hooks + session pointer (2a, #5656, closes #5256, #5346); the
-   remaining per-tool and SessionStart hooks and `lib/lint` (2b, #5664).
-3. Retro spool to the shared git directory, with migration; closeout binding
-   to the tree closeout runs in, for all three hosts.
-4. CLI resolvers and the Codex/Cursor adapters follow the rule; the
-   `projectEnvironment` overrides are removed; final allowlist (closes #5395,
-   #5467).
+1. Shared resolver and parity guard shipped in #5655.
+2. Session routing and per-tool hooks shipped in #5656 and #5664.
+3. Closeout binding and recovery shipped in #7768 and #7837. Durable retro findings shipped in #7869.
+4. CLI and adapter resolution, receipt lookup, and the final parity allowlist remain open.
