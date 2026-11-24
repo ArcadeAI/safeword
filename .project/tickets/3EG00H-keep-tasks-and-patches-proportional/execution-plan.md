@@ -258,11 +258,11 @@ result alongside the capture provenance in the delivery evidence.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | outcome-scope | outcome and scope | Demonstrate proportional task and patch delivery | contributor | handoff | complete | current_revision_real_boundary | 167142c7192689db0208d347ffaa54427fb6dbcd | receipt:feff6dca-d456-497c-befd-14bb24030fef |
 | resolved-decisions | resolved decisions | Check host interpretation against accepted routes | contributor | interpretation | open | missing | | |
-| pr-decomposition | dependency and pull-request decomposition | Prove the matched PR can reach contributor handoff | contributor | handoff | open | missing | | |
-| testing | testing | Prove solo RED admission and rejection at the real boundary | contributor | red | open | missing | | |
+| pr-decomposition | dependency and pull-request decomposition | Prove the matched PR can reach contributor handoff | contributor | handoff | complete | current_revision_real_boundary | 2d6f736b927c83b416c38e9f226747fe5d9bfd0b | receipt:76d003da-3f37-4008-956d-f4f6ffedc18a |
+| testing | testing | Prove solo RED admission and rejection at the real boundary | contributor | red | complete | current_revision_real_boundary | 2d6f736b927c83b416c38e9f226747fe5d9bfd0b | receipt:dd7592c8-0221-4f81-aa44-1adc547dc87c |
 | data-compatibility | data and compatibility | Preserve ticket evidence across retry and rollback | contributor | compat | open | missing | | |
 | monitoring | monitoring and failure signals | Observe typed refusal and recovery on installed hosts | contributor | hosts | open | missing | | |
-| security-privacy | security and privacy | Reject stale and unrelated proof at admission | contributor | red | open | missing | | |
+| security-privacy | security and privacy | Reject stale and unrelated proof at admission | contributor | red | complete | current_revision_real_boundary | 2d6f736b927c83b416c38e9f226747fe5d9bfd0b | receipt:d18afb0f-739c-40b8-a597-b4bf290cf68a |
 | rollout-rollback | rollout and rollback | Verify matched installation and safe rollback | contributor | compat | open | missing | | |
 | documentation | documentation | Check delivered routing and proof guidance against installed examples | contributor | guidance | open | missing | | |
 | completion-evidence | completion evidence | Verify completed Claude Code Cloud and Cursor Cloud Agents jobs at the candidate revision | contributor | cloud | open | missing | | |
