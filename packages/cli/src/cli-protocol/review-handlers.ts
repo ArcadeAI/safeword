@@ -139,6 +139,71 @@ export async function executableRedGateHandler(invocation: CommandInvocation): P
   return executableRedGate(invocation.cwd, scenario, ledger);
 }
 
+export async function retrospectiveObserveHandler(
+  invocation: CommandInvocation,
+): Promise<CliResult> {
+  const command = 'review observe retrospective';
+  if (invocation.offline) return onlineRequired(command);
+  const requestPath = invocation.options.request;
+  if (typeof requestPath !== 'string' || requestPath.trim() === '') {
+    return invalidOperand(command, 'A committed proof request path is required.');
+  }
+  try {
+    const { readProofInput } = await import('../review/retrospective-proof.js');
+    const { parseElectronProofRequest } =
+      await import('../review/retrospective-electron-request.js');
+    const { SOULLESS_RETROSPECTIVE_POLICY: policy } =
+      await import('../review/retrospective-policy.js');
+    const { checkRetrospectiveHistory } = await import('../review/retrospective-history.js');
+    const { runElectronProof } = await import('../review/retrospective-electron-proof.js');
+    const request = parseElectronProofRequest(
+      JSON.parse(readProofInput(invocation.cwd, requestPath).toString('utf8')),
+    );
+    const history = checkRetrospectiveHistory(invocation.cwd, {
+      ticketId: policy.ticketId,
+      cutoff: policy.cutoff,
+      baseline: policy.cutoff,
+      rationale:
+        'Observe only the source-enrolled migration; historical eligibility is reviewed separately.',
+    });
+    if (!history.eligibleForReview)
+      throw new Error(history.reason ?? 'Migration history is unavailable.');
+    const observation = await runElectronProof(invocation.cwd, request, requestPath);
+    return createResult({
+      state: 'healthy',
+      effects: {
+        packages: [
+          {
+            kind: 'temporary-proof-dependencies',
+            target: 'independent original and mutant snapshots',
+            operation: 'frozen-install',
+          },
+        ],
+        network: [
+          {
+            kind: 'dependency-registry',
+            target: 'pnpm frozen dependency resolution',
+            operation: 'read',
+          },
+        ],
+      },
+      data: { command, status: 'observed', observation },
+    });
+  } catch (error: unknown) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'RETROSPECTIVE_OBSERVATION_FAILED',
+          message: error instanceof Error ? error.message : String(error),
+          retryable: false,
+        },
+      ],
+      data: { command, status: 'blocked' },
+    });
+  }
+}
+
 export async function retrospectiveGateHandler(invocation: CommandInvocation): Promise<CliResult> {
   return retrospectiveHandler(invocation, false);
 }

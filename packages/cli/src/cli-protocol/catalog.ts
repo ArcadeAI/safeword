@@ -770,6 +770,22 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       environment: MACHINE_ENVIRONMENT,
     },
   }),
+  command(
+    'review observe retrospective',
+    'Observe isolated historical Electron proof without granting credit',
+    'mutate',
+    {
+      syntax: 'retrospective',
+      networkPolicy: 'declared',
+      commandOptions: [
+        { flags: '--request <path>', description: 'Contained committed typed proof request' },
+      ],
+      fixture: {
+        argv: ['review', 'observe', 'retrospective', '--request', 'missing.request.json'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
   command('review gate retrospective', 'Check CKWE2D retrospective receipts', 'observe', {
     syntax: 'retrospective',
     commandOptions: [
@@ -1212,6 +1228,11 @@ export const commandFamilies = [
   { route: 'claude', description: 'Manage the Safeword Claude plugin', visibility: 'public' },
   { route: 'ticket', description: 'Manage project tickets', visibility: 'public' },
   { route: 'review', description: 'Run independent adversarial reviews', visibility: 'public' },
+  {
+    route: 'review observe',
+    description: 'Observe scoped executable evidence',
+    visibility: 'public',
+  },
   { route: 'review attest', description: 'Attest reviewed evidence', visibility: 'public' },
   { route: 'review gate', description: 'Check review admission gates', visibility: 'public' },
   { route: 'review routes', description: 'Manage ranked review routes', visibility: 'public' },
