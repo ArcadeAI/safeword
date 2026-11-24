@@ -10,6 +10,8 @@ import {
   consequentialDecisions,
   readSmallWorkFacts,
   replaceSmallWorkFacts,
+  smallWorkContractDigest,
+  type SmallWorkFacts,
 } from '../../templates/hooks/lib/small-work-classification.js';
 import {
   createTemporaryDirectory,
@@ -35,8 +37,11 @@ describe('installed small-work RED admission', () => {
     removeTemporaryDirectory(fixture);
   });
 
-  function exerciseInstalledEdits(route: 'missing-red' | 'patch' | 'product-behavior') {
+  function exerciseInstalledEdits(
+    route: 'missing-red' | 'patch' | 'product-behavior' | 'inline-spec' | 'positive-red',
+  ) {
     const cli = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
+    const codexCli = nodePath.resolve(import.meta.dirname, '../../codex-plugin/runtime/cli.js');
     const setup = nodePath.resolve(
       import.meta.dirname,
       '../fixtures/small-work-hosts/response-contract.ts',
@@ -60,7 +65,15 @@ describe('installed small-work RED admission', () => {
           ? before.replace(';', '; // Existing readiness response.')
           : before.replace('ready: true', 'ready: false');
       const original = readFileSync(ticketPath, 'utf8');
-      const facts = readSmallWorkFacts(original) as { decisions: Record<string, string> };
+      const facts = readSmallWorkFacts(original) as SmallWorkFacts & {
+        evaluation: { base: string; surfacePaths: { path: string; surfaces: string[] }[] };
+      };
+      const inline = [
+        '## Inline test specification',
+        'Expected behavior: the caller returns false when status is not ready.',
+        'Proof boundary: exercise the existing ready export in src/caller.ts.',
+        'Test command: bun test ./status.test.ts',
+      ].join('\n');
       if (route === 'patch') {
         writeFileSync(
           ticketPath,
@@ -75,7 +88,75 @@ describe('installed small-work RED admission', () => {
         const promotedInput = replaceSmallWorkFacts(original, revised);
         writeFileSync(ticketPath, `${promotedInput}\nInvestigation: preserve this observation.\n`);
       }
-      const env = { ...process.env, CLAUDE_PROJECT_DIR: project };
+      const env = {
+        ...process.env,
+        NODE_ENV: 'test',
+        CLAUDE_PROJECT_DIR: project,
+        SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(fixture, 'review-keys'),
+      };
+      const recordPositiveRed = (host: 'claude' | 'codex') => {
+        const target = './status.test.ts';
+        const expectedFailure = 'expected ready to be false';
+        writeFileSync(
+          nodePath.join(project, target),
+          `import { test } from 'bun:test';
+import { ready } from './src/caller';
+test('the caller observes the false readiness state', () => {
+  if (ready !== false) throw new Error('${expectedFailure}');
+});
+`,
+        );
+        const revised = {
+          ...facts,
+          scope: 'Correct the readiness value through the existing caller',
+          outcome: 'The existing caller observes a false readiness state',
+          evaluation: {
+            ...facts.evaluation,
+            surfacePaths: [
+              ...facts.evaluation.surfacePaths,
+              { path: 'status.test.ts', surfaces: ['CLI'] },
+            ],
+          },
+        };
+        const request = {
+          ticket: ticketId,
+          contractDigest: smallWorkContractDigest(revised),
+          argv: ['bun', 'test', target],
+          cwd: '.',
+          target,
+          entryPoint: 'src/status.ts',
+          baselineRevision: facts.evaluation.base,
+          inputs: ['src/caller.ts'],
+          expectedFailure,
+        };
+        const result = spawnSync(
+          'bun',
+          [
+            host === 'claude' ? cli : codexCli,
+            'ticket',
+            'observe-small-work-proof',
+            JSON.stringify(request),
+            '--json',
+          ],
+          { cwd: project, encoding: 'utf8', env, timeout: 15_000 },
+        );
+        expect(result.status, result.stdout || result.stderr).toBe(0);
+        const {
+          data: { observation },
+        } = JSON.parse(result.stdout);
+        expect(observation.expectedFailureObserved).toBe(true);
+        const proof = {
+          request,
+          observation,
+          relevance: {
+            observationTag: observation.tag,
+            relevant: true,
+            explanation: 'The existing caller returns readiness and the assertion verifies false.',
+          },
+        };
+        const saved = replaceSmallWorkFacts(original, { ...revised, proof });
+        writeFileSync(ticketPath, `${saved}\n${inline}\n`);
+      };
       const hook = (host: 'claude' | 'codex', post: boolean) => {
         const event = post ? 'PostToolUse' : 'PreToolUse';
         const tool =
@@ -104,20 +185,14 @@ describe('installed small-work RED admission', () => {
                   post ? 'post-tool-quality.ts' : 'pre-tool-quality.ts',
                 ),
               ]
-            : [
-                nodePath.resolve(import.meta.dirname, '../../codex-plugin/runtime/cli.js'),
-                'hook',
-                'codex',
-                post ? 'post-tool-use' : 'pre-tool-use',
-                '--plugin-hook',
-              ];
+            : [codexCli, 'hook', 'codex', post ? 'post-tool-use' : 'pre-tool-use', '--plugin-hook'];
         const result = spawnSync('bun', args, {
           cwd: project,
           encoding: 'utf8',
-          env,
+          env: { ...env, SAFEWORD_PLUGIN_CLI: host === 'claude' ? cli : codexCli },
           input: JSON.stringify({
             cwd: project,
-            session_id: `missing-red-${host}`,
+            session_id: `${route}-${host}`,
             hook_event_name: event,
             ...tool,
           }),
@@ -141,8 +216,23 @@ describe('installed small-work RED admission', () => {
           expectHookDeny(hook(host, false), 'Classify this work before changing production files');
         }
         writeFileSync(ticketPath, preparedTicket);
-        if (route === 'missing-red') {
-          expectHookDeny(hook(host, false), 'Attach this session to the ticket');
+        switch (route) {
+          case 'positive-red': {
+            recordPositiveRed(host);
+            break;
+          }
+          case 'inline-spec': {
+            writeFileSync(ticketPath, `${preparedTicket}\n${inline}\n`);
+            break;
+          }
+          case 'missing-red': {
+            expectHookDeny(hook(host, false), 'Attach this session to the ticket');
+            break;
+          }
+          case 'patch':
+          case 'product-behavior': {
+            break;
+          }
         }
         hook(host, true);
         const decision = hook(host, false);
@@ -181,6 +271,31 @@ describe('installed small-work RED admission', () => {
       expect(status).toMatch(/^phase: define-behavior$/m);
       expect(status).toContain('Investigation: preserve this observation.');
       expect(status).not.toContain('small_work_pending_phase');
+    }
+  });
+
+  it('preserves inline behavior and proof boundaries through Claude and Codex ticket dispatch', () => {
+    for (const { status, plans } of exerciseInstalledEdits('inline-spec')) {
+      expect(status).toMatch(/^type: task$/m);
+      expect(status).toContain('Expected behavior: the caller returns false');
+      expect(status).toContain(
+        'Proof boundary: exercise the existing ready export in src/caller.ts.',
+      );
+      expect(status).toContain('Test command: bun test ./status.test.ts');
+      expect(plans).toEqual([]);
+    }
+  });
+
+  it('admits observed RED through the installed Claude and Codex edit gates', () => {
+    for (const { decision, status } of exerciseInstalledEdits('positive-red')) {
+      expectHookAllow(decision);
+      expect(readSmallWorkFacts(status)).toMatchObject({
+        proof: {
+          request: { entryPoint: 'src/status.ts', target: './status.test.ts' },
+          observation: { expectedFailureObserved: true },
+          relevance: { relevant: true },
+        },
+      });
     }
   });
 

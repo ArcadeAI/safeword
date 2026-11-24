@@ -252,3 +252,11 @@ All 66 focused tests passed, and generated surfaces and TypeScript verified. Ind
 The six successful local Rule 2 runs are paired with an executable replay of their exact classifier inputs. The fixture retains the host, session ID, supplied facts, and observed route. It excludes transcripts and environment details. The test starts a fresh CLI process per request, checks the patch, task, or feature route, and confirms the classifier creates no ticket. This check covers the CLI result. The earlier live observations establish that the local hosts supplied the inputs.
 
 The feature now has ten bound examples across 135 expanded cases. The acceptance dry run reports 125 undefined examples. Fourteen rows still explicitly name local Claude Code or Codex, covering planning ceremony, inline test specifications, positive RED, approved promotion, and settle-versus-ask behavior.
+
+### Inline test specifications and positive RED on both local hosts
+
+Four local Rule 7 and Rule 8 rows now have executable bindings. The installed ticket handlers preserve an authored inline test specification with its expected behavior, existing caller, and test command. The fixture supplies the text. The earlier native retry sessions recorded above show the hosts authoring their own inline specifications.
+
+For positive RED, each host's CLI build runs the failing test through the existing caller and authenticates the observation. The installed edit gate then permits the production edit with the linked proof intact. The earlier native retry sessions also proved that the change could proceed to GREEN.
+
+All 59 focused tests passed. Twelve of 133 expanded examples now have executable proof links. The acceptance dry run reports 121 undefined examples. Ten rows still explicitly name local Claude Code or Codex.

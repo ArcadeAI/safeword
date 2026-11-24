@@ -40,6 +40,14 @@
     "Native Claude Code and Codex classification requests replay through the CLI": [
       "packages/cli/tests/commands/small-work-classification.test.ts",
       "replays all six native classification requests through the installed CLI"
+    ],
+    "Local Claude Code and Codex retain the inline task test specification": [
+      "packages/cli/tests/integration/small-work-red-admission.test.ts",
+      "preserves inline behavior and proof boundaries through Claude and Codex ticket dispatch"
+    ],
+    "Claude Code and Codex admit a production edit after meaningful RED": [
+      "packages/cli/tests/integration/small-work-red-admission.test.ts",
+      "admits observed RED through the installed Claude and Codex edit gates"
     ]
   }
 }
