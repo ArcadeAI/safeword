@@ -31,7 +31,7 @@ function text(value: unknown): value is string {
   return true;
 }
 
-export function containedElectronInput(value: unknown): value is string {
+function containedElectronInput(value: unknown): value is string {
   return (
     text(value) &&
     !path.isAbsolute(value) &&

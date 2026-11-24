@@ -23,7 +23,7 @@ interface EligibilityClaim {
   readonly blobs: readonly BaselineBlobClaim[];
 }
 
-export function requireElectronRow(request: RetrospectiveGateRequest): void {
+function requireElectronRow(request: RetrospectiveGateRequest): void {
   if (
     request.ticketId !== policy.ticketId ||
     request.ledger !== policy.ledger ||
@@ -41,7 +41,7 @@ export function committedElectronInput(root: string, relative: string): Buffer {
   return bytes;
 }
 
-export function electronReviewTargets(
+function electronReviewTargets(
   root: string,
   id: string,
   kind: 'retrospective-eligibility' | 'retrospective-proof',
