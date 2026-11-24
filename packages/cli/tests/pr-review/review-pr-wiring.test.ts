@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import YAML from 'yaml';
 
 import { type InspectionHandoff, inspectPullRequestCommand } from '../../src/commands/review-pr.js';
 import type { ModelFinding } from '../../src/pr-review/providers/openai.js';
@@ -379,6 +380,30 @@ describe('review-pr inspect command wiring', () => {
       ]),
     });
     expect(receipt).not.toMatchObject({ runState: 'incomplete' });
+  });
+
+  // The audit is what the publisher trusts about the inspection's authority, so it must declare
+  // exactly the permissions the installed worker's inspect job grants.
+  it('declares the GitHub permissions the installed inspect job grants', async () => {
+    const worker = YAML.parse(
+      readFileSync(
+        nodePath.join(import.meta.dirname, '../../templates/workflows/pr-review-worker.yml'),
+        'utf8',
+      ),
+    ) as { jobs: { inspect: { permissions: Record<string, string> } } };
+    const granted = Object.fromEntries(
+      Object.entries(worker.jobs.inspect.permissions).map(([scope, level]) => [
+        scope.replaceAll(/-(\w)/gu, (_match, letter: string) => letter.toUpperCase()),
+        level,
+      ]),
+    );
+    const { result } = inspectLintRuns([
+      { conclusion: 'success', name: 'lint', status: 'completed' },
+    ]);
+
+    const handoff = await result;
+
+    expect(handoff.inspectionAudit.githubPermissions).toEqual(granted);
   });
 
   it.each([
