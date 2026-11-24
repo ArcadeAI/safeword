@@ -114,7 +114,7 @@ Plugin migrations expand support, prove activation, then retire legacy protectio
 
 The records below explain design decisions and their rationale. The project-local review ledger records plan approvals and declines. Human approvals bind the ticket, phase, and plan digest. Review evidence records the context used to judge that plan. The ledger retains decision history across host handoffs.
 
-When requesting plan review, pass the relevant decision records as explicit context so the reviewer receives them with the overview.
+In a ticket-owned implementation or execution plan, link to the relevant records. Review includes Markdown records linked from the Architecture applicability section, plus records cited elsewhere in the plan that the configured overview also links to. Resolve links relative to the document containing them. Linked records must exist inside the project. Use plain text for a record the plan proposes to create.
 
 ### [Collector-to-relay ownership transfer](.project/architecture/collector-to-relay-ownership-transfer.md)
 
