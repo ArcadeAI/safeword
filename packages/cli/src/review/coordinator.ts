@@ -1030,7 +1030,7 @@ function hostContinuationResult(input: {
         instructions: [
           reviewerPromptInstructions(packet.kind, input.author, packet.planning_phase),
           'Return an object matching this JSON Schema:',
-          reviewOutputSchema(packet.kind, packet.planning_phase, packet.dispatch_id),
+          reviewOutputSchema(packet.kind, packet.planning_phase, packet.dispatch_id, input.author),
         ].join('\n'),
         packet,
       },

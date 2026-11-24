@@ -63708,14 +63708,15 @@ import nodePath64 from "path";
 function isPlanningReview(kind, planningPhase) {
   return planningPhase === "product-plan" || kind === "scenario-gate" || kind === "plan-implementation" || kind === "plan-execution";
 }
-function reviewOutputSchema(kind, planningPhase, dispatchId) {
+function reviewOutputSchema(kind, planningPhase, dispatchId, hostAuthor) {
   const planningSchema = isPlanningReview(kind, planningPhase) ? PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE : REVIEW_OUTPUT_SCHEMA_SHAPE;
   const schema = kind === "plan-execution" ? EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE : planningSchema;
-  return JSON.stringify(dispatchId === undefined ? schema : {
+  return JSON.stringify({
     ...schema,
     properties: {
       ...schema.properties,
-      dispatch_id: { type: "string", enum: [dispatchId] }
+      ...dispatchId !== undefined && { dispatch_id: { type: "string", enum: [dispatchId] } },
+      ...hostAuthor !== undefined && { reviewer_agent: { type: "string", enum: [hostAuthor] } }
     }
   });
 }
@@ -65725,7 +65726,7 @@ function hostContinuationResult(input) {
         instructions: [
           reviewerPromptInstructions(packet.kind, input.author, packet.planning_phase),
           "Return an object matching this JSON Schema:",
-          reviewOutputSchema(packet.kind, packet.planning_phase, packet.dispatch_id)
+          reviewOutputSchema(packet.kind, packet.planning_phase, packet.dispatch_id, input.author)
         ].join(`
 `),
         packet
@@ -70698,10 +70699,16 @@ function parseInput(inputPath) {
     throw new Error("review-pr: pull request artifact count is incomplete or invalid");
   }
   const checks = raw.checks.map((check) => {
-    if (!isRecord10(check) || typeof check.name !== "string" || typeof check.status !== "string" || check.conclusion !== null && typeof check.conclusion !== "string") {
+    if (!isRecord10(check) || typeof check.name !== "string" || typeof check.status !== "string" || check.conclusion !== null && typeof check.conclusion !== "string" || !hasValidRunProvenance(check)) {
       throw new Error("review-pr: invalid check-run sample");
     }
-    return { conclusion: check.conclusion, name: check.name, status: check.status };
+    return {
+      conclusion: check.conclusion,
+      name: check.name,
+      ...typeof check.runNumber === "number" && { runNumber: check.runNumber },
+      status: check.status,
+      ...typeof check.workflow === "string" && { workflow: check.workflow }
+    };
   });
   const statuses = raw.statuses.map((status) => {
     if (!isRecord10(status) || typeof status.context !== "string" || typeof status.state !== "string") {
@@ -70751,8 +70758,31 @@ function evaluateCheckRun(check) {
     return "failed";
   return PASSING_CHECK_CONCLUSIONS.has(check.conclusion) ? "passed" : "pending";
 }
+function hasValidRunProvenance(check) {
+  const { runNumber, workflow } = check;
+  return (runNumber === undefined || typeof runNumber === "number" && Number.isSafeInteger(runNumber) && runNumber > 0) && (workflow === undefined || typeof workflow === "string" && workflow.length > 0);
+}
+function currentCheckRuns(input, name) {
+  const checks = input.checks.filter((check) => check.name === name);
+  const byWorkflow = new Map;
+  for (const { workflow, runNumber } of checks) {
+    if (workflow === undefined || runNumber === undefined)
+      continue;
+    const counts = byWorkflow.get(workflow) ?? new Map;
+    counts.set(runNumber, (counts.get(runNumber) ?? 0) + 1);
+    byWorkflow.set(workflow, counts);
+  }
+  return checks.filter(({ conclusion, workflow, runNumber }) => {
+    if (conclusion !== "cancelled" || workflow === undefined || runNumber === undefined)
+      return true;
+    const counts = byWorkflow.get(workflow);
+    if (counts?.get(runNumber) !== 1)
+      return true;
+    return [...counts].every(([later, count]) => later <= runNumber || count !== 1);
+  });
+}
 function evaluatePrerequisite(context, input) {
-  const checks = input.checks.filter((candidate) => candidate.name === context);
+  const checks = currentCheckRuns(input, context);
   if (checks.length > 0) {
     const states = checks.map((check) => evaluateCheckRun(check));
     if (states.includes("failed"))
@@ -70847,7 +70877,8 @@ async function inspectPullRequestCommand(options) {
     return { ...artifact, path: sanitizedPath.value };
   });
   const prerequisite = resolvePrerequisiteState(config, input);
-  const generatedCheckPassed = config.generatedFilesCheck !== undefined && input.checks.some((check) => check.name === config.generatedFilesCheck) && input.checks.filter((check) => check.name === config.generatedFilesCheck).every((check) => check.status === "completed" && check.conclusion === "success");
+  const generatedRuns = config.generatedFilesCheck === undefined ? [] : currentCheckRuns(input, config.generatedFilesCheck);
+  const generatedCheckPassed = generatedRuns.length > 0 && generatedRuns.every((check) => check.status === "completed" && check.conclusion === "success");
   let published;
   await reviewPullRequest({
     inspect: async () => {
@@ -70961,7 +70992,7 @@ var init_review_pr = __esm(() => {
   INSPECTION_AUDIT = {
     checkout: false,
     customerCodeExecution: false,
-    githubPermissions: { contents: "read", issues: "read", pullRequests: "read" },
+    githubPermissions: { actions: "read", contents: "read", issues: "read", pullRequests: "read" },
     githubWriteCredential: false
   };
   PULL_STATES = new Set(["closed", "draft", "merged", "ready"]);

@@ -34,6 +34,7 @@ import type {
   ReviewFailure,
   ReviewKind,
   ReviewPacket,
+  SupportedReviewAuthor,
   UnverifiedReviewerOutput,
 } from './contract.js';
 import { reviewerEnvironment, reviewerProbeEnvironment } from './environment.js';
@@ -323,23 +324,21 @@ export function reviewOutputSchema(
   kind: ReviewKind,
   planningPhase?: ReviewPacket['planning_phase'],
   dispatchId?: string,
+  hostAuthor?: SupportedReviewAuthor,
 ): string {
   const planningSchema = isPlanningReview(kind, planningPhase)
     ? PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE
     : REVIEW_OUTPUT_SCHEMA_SHAPE;
   const schema =
     kind === 'plan-execution' ? EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE : planningSchema;
-  return JSON.stringify(
-    dispatchId === undefined
-      ? schema
-      : {
-          ...schema,
-          properties: {
-            ...schema.properties,
-            dispatch_id: { type: 'string', enum: [dispatchId] },
-          },
-        },
-  );
+  return JSON.stringify({
+    ...schema,
+    properties: {
+      ...schema.properties,
+      ...(dispatchId !== undefined && { dispatch_id: { type: 'string', enum: [dispatchId] } }),
+      ...(hostAuthor !== undefined && { reviewer_agent: { type: 'string', enum: [hostAuthor] } }),
+    },
+  });
 }
 const CLAUDE_EFFORT_LEVELS = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
 
