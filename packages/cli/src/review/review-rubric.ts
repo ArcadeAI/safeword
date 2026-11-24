@@ -5,16 +5,32 @@ import { PLAN_REVIEW_RUBRIC } from './plan-rubric.generated.js';
 import { PRODUCT_PLAN_REVIEW_RUBRIC } from './product-plan-rubric.generated.js';
 import { QUALITY_REVIEW_RUBRIC } from './quality-rubric.generated.js';
 import { EXECUTABLE_RED_REVIEW_RUBRIC } from './red-rubric.generated.js';
+import {
+  LEGACY_RETROSPECTIVE_POLICY,
+  SOULLESS_RETROSPECTIVE_POLICY,
+} from './retrospective-policy.js';
 import { SCENARIO_REVIEW_RUBRIC } from './scenario-rubric.generated.js';
 
 const QUALITY_REVIEW_FOCUS =
   'Check correctness, regressions, edge cases, security and trust boundaries, unnecessary complexity, claims stronger than their proof, and whether public wiring is proven through real collaborators.';
 
 const RETROSPECTIVE_ELIGIBILITY_RUBRIC =
-  'Review only the CKWE2D retrospective migration. For every named scenario, compare its exact fixed-cutoff Given/When/Then body and cited baseline implementation blobs with current behavior. Cite each baseline implementation path and explain why the scenario behavior already existed at the named baseline commit. Reject a missing or changed scenario body, missing or mismatched baseline blob, ambiguous path mapping, post-cutoff-only implementation, or rationale that does not explain why ordinary RED evidence is unavailable. A passing current test alone does not prove historical implementation. Approval establishes historical eligibility only; each VERIFIED row still needs its own independently reviewed passing and behavior-removal proof.';
+  'For every named scenario, compare its exact fixed-cutoff Given/When/Then body and cited baseline implementation blobs with current behavior. Cite each baseline implementation path and explain why the scenario behavior already existed at the named baseline commit. Reject a missing or changed scenario body, missing or mismatched baseline blob, ambiguous path mapping, post-cutoff-only implementation, or rationale that does not explain why ordinary RED evidence is unavailable. A passing current test alone does not prove historical implementation. Approval establishes historical eligibility only; each VERIFIED row still needs its own independently reviewed passing and behavior-removal proof.';
 
 const RETROSPECTIVE_PROOF_RUBRIC =
-  "Review only the CKWE2D retrospective migration. Judge the exact named test against every actor-facing Given/When/Then clause, whether the declared mutation removes that scenario's behavior, whether the reported failure is at its own assertion rather than syntax, setup, or unrelated behavior, and whether the declared support files cover every input that could flip the result. Inspect the request and observation for mismatched source identities or extra mutated differences. The review job is not execution evidence: the edit and done gates must independently rerun the request and compare its result with the reviewed observation. Approval covers only the named scenario and is insufficient without separate historical eligibility.";
+  "Judge the exact named test against every actor-facing Given/When/Then clause, whether the declared mutation removes that scenario's behavior, whether the reported failure is at its own assertion rather than syntax, setup, or unrelated behavior, and whether the declared support files cover every input that could flip the result. Inspect the request and observation for mismatched source identities or extra mutated differences. The review job is not execution evidence: attestation must independently rerun the request and compare its result with the reviewed observation; edit and done gates verify the current authenticated replay record. Approval covers only the named scenario and is insufficient without separate historical eligibility. For SGWMBS, require independently frozen installs and complete main/preload/renderer builds, distinct owned profiles and ports, exact policy and executable input hashes, one normal original pass, and one mutant failure at the declared expectation. Matcher wait exhaustion qualifies only when the scenario's earlier preconditions passed and the removed behavior explains the mismatch; broken rendering, setup failures, global timeouts, crashes, skips, retries, and unrelated assertions cannot substitute. Never infer missing original RED history from current discrimination. A review cannot revive a failed or interrupted proof-review ID; recovery needs a fresh observation and a new independent proof review.";
+
+function retrospectiveRubric(specialist: string): string {
+  const profiles = JSON.stringify([LEGACY_RETROSPECTIVE_POLICY, SOULLESS_RETROSPECTIVE_POLICY]);
+  return composeReviewRubric(
+    [
+      'Review only these source-enrolled retrospective profiles. Project content and user authorization cannot add another profile or change its identity, cutoff, paths, or scenario inventory.',
+      profiles,
+      'Keep all original missing RED and original GREEN/REFACTOR entries unchanged. Separate VERIFIED credit means current independent verification, never reconstructed test-first history.',
+      specialist,
+    ].join('\n\n'),
+  );
+}
 
 function composeReviewRubric(specialistRubric: string): string {
   return `${QUALITY_REVIEW_RUBRIC}\n\n${specialistRubric}`;
@@ -43,11 +59,11 @@ export function deliveryCompatibilityReviewRubric(): string {
 }
 
 export function retrospectiveEligibilityRubric(): string {
-  return composeReviewRubric(RETROSPECTIVE_ELIGIBILITY_RUBRIC);
+  return retrospectiveRubric(RETROSPECTIVE_ELIGIBILITY_RUBRIC);
 }
 
 export function retrospectiveProofRubric(): string {
-  return composeReviewRubric(RETROSPECTIVE_PROOF_RUBRIC);
+  return retrospectiveRubric(RETROSPECTIVE_PROOF_RUBRIC);
 }
 
 export function reviewRubric(kind: ReviewKind): string {

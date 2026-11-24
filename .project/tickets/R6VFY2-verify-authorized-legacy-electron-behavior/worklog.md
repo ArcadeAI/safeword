@@ -91,6 +91,39 @@ additional diagnostics must identify the remaining mismatch before any credit.
 
 ## Remaining delivery
 
+Review ee5add6c-a2dc-4c91-967b-7cf8644eec0c approved the canonical public row
+identity and enrolled review instructions, while noting a final-publication
+recovery gap. A new real-filesystem test reproduced it: after row-tag publication
+failed, the same proof ID could later succeed. Publication now happens inside
+the pending replay owner's callback; the tag is unusable until the journal
+passes, and any publication error records failure before returning. This is a
+deliberate safe ordering correction to reconcile in the final implementation
+plan: durable tag first under the lock, then the journal's authorizing transition.
+All 31 authorization, journal, and delivery-driver tests passed afterward.
+
+The read-only delivery script had a genuine missing-module RED, then passed its
+installed-transport fixture and refusal cases. It checks the exact 17 rows and
+closing through the supported external Codex cache; it never attests or edits a
+ledger. Those fixtures are transport checks, not authentic delivery receipts.
+Current merged Soulless c446674a now has all five CI checks green in run
+45328380450. Its real all-17 proof delivery is still outstanding.
+
+Independent review 887c4db8-c0c9-418e-b832-f002fc67ef2f approved the previous
+complete replay packet with nonblocking robustness notes. A subsequent stronger
+positive public row test exposed a field-order defect the packet missed: the
+CLI builds ticket/scenario/ledger while closing builds ticket/ledger/scenario.
+Signing raw object JSON gave them different row filenames and content. The real
+public test failed with a missing row tag; canonical explicit identity fields
+then passed all 23 authorization/legacy-row tests. A fresh review is required
+for that changed gate. The review instruction tests also genuinely failed for
+the former CKWE2D-only text, then passed with both source-defined profiles:
+72 runtime/contract tests passed, with 2 existing skips.
+
+Soulless merged the new origin/main commit 69a30570 without conflicts as
+c446674a and pushed that current head. CI run 45328380450 is in progress.
+The incoming desktop test change is a bound executable input, so the first
+historical observation is retained but must be freshly observed before delivery.
+
 The positive public closing check and same-HEAD failed-replay invalidation both
 passed: 3 closing tests in 227.59 seconds. The old aggregate bytes remained
 unchanged while its failed journal made them non-authorizing; a same-proof retry

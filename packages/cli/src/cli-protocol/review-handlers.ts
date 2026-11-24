@@ -26,6 +26,7 @@ import type {
 } from '../review/packet.js';
 import { reviewRoutePlan } from '../review/policy.js';
 import { ReviewConfigReadError, ReviewUserConfigPathError } from '../review/preferences.js';
+import { SOULLESS_RETROSPECTIVE_POLICY } from '../review/retrospective-policy.js';
 import { ReviewRouteConfigError } from '../review/route-config.js';
 import { resolveTicketsDirectory } from '../utils/configured-paths.js';
 import type { CommandInvocation } from './handler.js';
@@ -236,7 +237,7 @@ async function retrospectiveHandler(
     eligibilityId: eligibility as string,
     proofId: proof as string,
   };
-  if (ticket === 'SGWMBS') {
+  if (ticket === SOULLESS_RETROSPECTIVE_POLICY.ticketId) {
     const { electronRetrospectiveGate, attestElectronRetrospectiveRow } =
       await import('../review/retrospective-electron-gate.js');
     return replay
@@ -256,7 +257,7 @@ export async function retrospectiveCloseAttestHandler(
   const { ticket, ledger } = invocation.options;
   if (typeof ticket !== 'string' || typeof ledger !== 'string')
     return invalidOperand('review attest retrospective-close', 'Ticket and ledger are required.');
-  if (ticket === 'SGWMBS') {
+  if (ticket === SOULLESS_RETROSPECTIVE_POLICY.ticketId) {
     const { attestElectronRetrospectiveClose } =
       await import('../review/retrospective-electron-close.js');
     return attestElectronRetrospectiveClose(invocation.cwd, ticket, ledger);
@@ -271,7 +272,7 @@ export async function retrospectiveCloseGateHandler(
   const { ticket, ledger } = invocation.options;
   if (typeof ticket !== 'string' || typeof ledger !== 'string')
     return invalidOperand('review gate retrospective-close', 'Ticket and ledger are required.');
-  if (ticket === 'SGWMBS') {
+  if (ticket === SOULLESS_RETROSPECTIVE_POLICY.ticketId) {
     const { electronRetrospectiveCloseGate } =
       await import('../review/retrospective-electron-close.js');
     return electronRetrospectiveCloseGate(invocation.cwd, ticket, ledger);

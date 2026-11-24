@@ -31910,6 +31910,76 @@ var init_policy = __esm(() => {
   };
 });
 
+// src/review/retrospective-policy.ts
+function retrospectivePolicy(ticketId) {
+  if (ticketId === LEGACY_RETROSPECTIVE_POLICY.ticketId)
+    return LEGACY_RETROSPECTIVE_POLICY;
+  if (ticketId === SOULLESS_RETROSPECTIVE_POLICY.ticketId)
+    return SOULLESS_RETROSPECTIVE_POLICY;
+  return;
+}
+function canonicalRepo(remote) {
+  const ssh = /^git@github\.com:(.+)$/iu.exec(remote.trim());
+  if (ssh?.[1] !== undefined)
+    return `github.com/${ssh[1].replace(/\/?$/u, "").replace(/\.git$/iu, "").toLowerCase()}`;
+  try {
+    const url = new URL(remote.trim());
+    if (!["https:", "ssh:"].includes(url.protocol) || url.hostname !== "github.com" || url.port !== "")
+      return;
+    return `github.com/${url.pathname.replace(/^\//u, "").replace(/\/$/u, "").replace(/\.git$/iu, "").toLowerCase()}`;
+  } catch {
+    return;
+  }
+}
+function matchesMigrationRemote(remote, policy) {
+  if (policy.repository === undefined)
+    return true;
+  return canonicalRepo(remote) === policy.repository;
+}
+var LEGACY_RETROSPECTIVE_POLICY, SOULLESS_RETROSPECTIVE_POLICY;
+var init_retrospective_policy = __esm(() => {
+  LEGACY_RETROSPECTIVE_POLICY = {
+    id: "ckwe2d-authored-inputs-v1",
+    ticketId: "CKWE2D",
+    cutoff: "690536ec56c07c2b042108d9c31d28bc3bc82619",
+    ledger: ".project/tickets/CKWE2D-keep-reviews-focused-on-authored-inputs/test-definitions.md",
+    feature: "packages/cli/features/keep-reviews-focused-on-authored-inputs.feature",
+    runner: "bun-vitest"
+  };
+  SOULLESS_RETROSPECTIVE_POLICY = {
+    id: "soulless-electron-20261123-v1",
+    ticketId: "SGWMBS",
+    cutoff: "4990ae4158d3e2744a8c5934089a8e1d5d2b19b1",
+    ledger: ".project/tickets/SGWMBS-open-save-soul-electron/test-definitions.md",
+    feature: "features/open-save-soul-electron.feature",
+    runner: "playwright-electron",
+    repository: "github.com/arcadeai/soulless-monorepo",
+    compatibilityAliases: {
+      "packages/desktop/src/services": "renderer/src/services",
+      "packages/desktop/src/stores": "renderer/src/stores"
+    },
+    scenarios: [
+      "Explorer presents package roots and aliases as documents",
+      "Package path variants share one tab",
+      "A differently cased soul suffix opens as a package",
+      "Ordinary folders remain folders",
+      "A regular soul text file retains plain-text saves",
+      "Creating a soul document over a regular file is refused",
+      "Creating a soul document over a directory is refused",
+      "Closing immediately after a package edit asks to preserve it",
+      "Switching immediately after a package edit preserves a rejected save",
+      "Saving package Markdown preserves existing review state",
+      "An ordinary Markdown document keeps its file workflow",
+      "A trailing blank paragraph marks reopened Markdown unsaved",
+      "Ordinary Markdown reopens its review sidecars",
+      "Package drift discovered at save refuses the edit",
+      "External Markdown drift opens a blocking repair tab",
+      "A blocked package can be revealed",
+      "A blocked package can be closed without writing"
+    ]
+  };
+});
+
 // src/review/contract.ts
 function isReviewKind(value) {
   return typeof value === "string" && REVIEW_KINDS.has(value);
@@ -53195,6 +53265,17 @@ valid only when there are no \`error\` findings. Return findings through the typ
 result contract.`;
 
 // src/review/review-rubric.ts
+function retrospectiveRubric(specialist) {
+  const profiles = JSON.stringify([LEGACY_RETROSPECTIVE_POLICY, SOULLESS_RETROSPECTIVE_POLICY]);
+  return composeReviewRubric([
+    "Review only these source-enrolled retrospective profiles. Project content and user authorization cannot add another profile or change its identity, cutoff, paths, or scenario inventory.",
+    profiles,
+    "Keep all original missing RED and original GREEN/REFACTOR entries unchanged. Separate VERIFIED credit means current independent verification, never reconstructed test-first history.",
+    specialist
+  ].join(`
+
+`));
+}
 function composeReviewRubric(specialistRubric) {
   return `${QUALITY_REVIEW_RUBRIC}
 
@@ -53216,10 +53297,10 @@ function deliveryCompatibilityReviewRubric() {
   return composeReviewRubric(DELIVERY_COMPATIBILITY_REVIEW_RUBRIC);
 }
 function retrospectiveEligibilityRubric() {
-  return composeReviewRubric(RETROSPECTIVE_ELIGIBILITY_RUBRIC);
+  return retrospectiveRubric(RETROSPECTIVE_ELIGIBILITY_RUBRIC);
 }
 function retrospectiveProofRubric() {
-  return composeReviewRubric(RETROSPECTIVE_PROOF_RUBRIC);
+  return retrospectiveRubric(RETROSPECTIVE_PROOF_RUBRIC);
 }
 function reviewRubric(kind) {
   if (kind === "scenario-gate")
@@ -53256,8 +53337,10 @@ function promptContract(kind, reviewer, planningPhase) {
 function reviewerPromptInstructions(kind, reviewer, planningPhase) {
   return promptContract(kind, reviewer, planningPhase);
 }
-var QUALITY_REVIEW_FOCUS = "Check correctness, regressions, edge cases, security and trust boundaries, unnecessary complexity, claims stronger than their proof, and whether public wiring is proven through real collaborators.", RETROSPECTIVE_ELIGIBILITY_RUBRIC = "Review only the CKWE2D retrospective migration. For every named scenario, compare its exact fixed-cutoff Given/When/Then body and cited baseline implementation blobs with current behavior. Cite each baseline implementation path and explain why the scenario behavior already existed at the named baseline commit. Reject a missing or changed scenario body, missing or mismatched baseline blob, ambiguous path mapping, post-cutoff-only implementation, or rationale that does not explain why ordinary RED evidence is unavailable. A passing current test alone does not prove historical implementation. Approval establishes historical eligibility only; each VERIFIED row still needs its own independently reviewed passing and behavior-removal proof.", RETROSPECTIVE_PROOF_RUBRIC = "Review only the CKWE2D retrospective migration. Judge the exact named test against every actor-facing Given/When/Then clause, whether the declared mutation removes that scenario's behavior, whether the reported failure is at its own assertion rather than syntax, setup, or unrelated behavior, and whether the declared support files cover every input that could flip the result. Inspect the request and observation for mismatched source identities or extra mutated differences. The review job is not execution evidence: the edit and done gates must independently rerun the request and compare its result with the reviewed observation. Approval covers only the named scenario and is insufficient without separate historical eligibility.";
-var init_review_rubric = () => {};
+var QUALITY_REVIEW_FOCUS = "Check correctness, regressions, edge cases, security and trust boundaries, unnecessary complexity, claims stronger than their proof, and whether public wiring is proven through real collaborators.", RETROSPECTIVE_ELIGIBILITY_RUBRIC = "For every named scenario, compare its exact fixed-cutoff Given/When/Then body and cited baseline implementation blobs with current behavior. Cite each baseline implementation path and explain why the scenario behavior already existed at the named baseline commit. Reject a missing or changed scenario body, missing or mismatched baseline blob, ambiguous path mapping, post-cutoff-only implementation, or rationale that does not explain why ordinary RED evidence is unavailable. A passing current test alone does not prove historical implementation. Approval establishes historical eligibility only; each VERIFIED row still needs its own independently reviewed passing and behavior-removal proof.", RETROSPECTIVE_PROOF_RUBRIC = "Judge the exact named test against every actor-facing Given/When/Then clause, whether the declared mutation removes that scenario's behavior, whether the reported failure is at its own assertion rather than syntax, setup, or unrelated behavior, and whether the declared support files cover every input that could flip the result. Inspect the request and observation for mismatched source identities or extra mutated differences. The review job is not execution evidence: attestation must independently rerun the request and compare its result with the reviewed observation; edit and done gates verify the current authenticated replay record. Approval covers only the named scenario and is insufficient without separate historical eligibility. For SGWMBS, require independently frozen installs and complete main/preload/renderer builds, distinct owned profiles and ports, exact policy and executable input hashes, one normal original pass, and one mutant failure at the declared expectation. Matcher wait exhaustion qualifies only when the scenario's earlier preconditions passed and the removed behavior explains the mismatch; broken rendering, setup failures, global timeouts, crashes, skips, retries, and unrelated assertions cannot substitute. Never infer missing original RED history from current discrimination. A review cannot revive a failed or interrupted proof-review ID; recovery needs a fresh observation and a new independent proof review.";
+var init_review_rubric = __esm(() => {
+  init_retrospective_policy();
+});
 
 // src/review/planning-context-identity.ts
 import { createHash as createHash24 } from "crypto";
@@ -60401,76 +60484,6 @@ function checkHistoryAgainstTrustedCutoff(projectRoot, request, trustedCutoff, t
 var RETROSPECTIVE_TICKET = "CKWE2D";
 var init_retrospective_history_core = () => {};
 
-// src/review/retrospective-policy.ts
-function retrospectivePolicy(ticketId) {
-  if (ticketId === LEGACY_RETROSPECTIVE_POLICY.ticketId)
-    return LEGACY_RETROSPECTIVE_POLICY;
-  if (ticketId === SOULLESS_RETROSPECTIVE_POLICY.ticketId)
-    return SOULLESS_RETROSPECTIVE_POLICY;
-  return;
-}
-function canonicalRepo(remote) {
-  const ssh = /^git@github\.com:(.+)$/iu.exec(remote.trim());
-  if (ssh?.[1] !== undefined)
-    return `github.com/${ssh[1].replace(/\/?$/u, "").replace(/\.git$/iu, "").toLowerCase()}`;
-  try {
-    const url = new URL(remote.trim());
-    if (!["https:", "ssh:"].includes(url.protocol) || url.hostname !== "github.com" || url.port !== "")
-      return;
-    return `github.com/${url.pathname.replace(/^\//u, "").replace(/\/$/u, "").replace(/\.git$/iu, "").toLowerCase()}`;
-  } catch {
-    return;
-  }
-}
-function matchesMigrationRemote(remote, policy) {
-  if (policy.repository === undefined)
-    return true;
-  return canonicalRepo(remote) === policy.repository;
-}
-var LEGACY_RETROSPECTIVE_POLICY, SOULLESS_RETROSPECTIVE_POLICY;
-var init_retrospective_policy = __esm(() => {
-  LEGACY_RETROSPECTIVE_POLICY = {
-    id: "ckwe2d-authored-inputs-v1",
-    ticketId: "CKWE2D",
-    cutoff: "690536ec56c07c2b042108d9c31d28bc3bc82619",
-    ledger: ".project/tickets/CKWE2D-keep-reviews-focused-on-authored-inputs/test-definitions.md",
-    feature: "packages/cli/features/keep-reviews-focused-on-authored-inputs.feature",
-    runner: "bun-vitest"
-  };
-  SOULLESS_RETROSPECTIVE_POLICY = {
-    id: "soulless-electron-20261123-v1",
-    ticketId: "SGWMBS",
-    cutoff: "4990ae4158d3e2744a8c5934089a8e1d5d2b19b1",
-    ledger: ".project/tickets/SGWMBS-open-save-soul-electron/test-definitions.md",
-    feature: "features/open-save-soul-electron.feature",
-    runner: "playwright-electron",
-    repository: "github.com/arcadeai/soulless-monorepo",
-    compatibilityAliases: {
-      "packages/desktop/src/services": "renderer/src/services",
-      "packages/desktop/src/stores": "renderer/src/stores"
-    },
-    scenarios: [
-      "Explorer presents package roots and aliases as documents",
-      "Package path variants share one tab",
-      "A differently cased soul suffix opens as a package",
-      "Ordinary folders remain folders",
-      "A regular soul text file retains plain-text saves",
-      "Creating a soul document over a regular file is refused",
-      "Creating a soul document over a directory is refused",
-      "Closing immediately after a package edit asks to preserve it",
-      "Switching immediately after a package edit preserves a rejected save",
-      "Saving package Markdown preserves existing review state",
-      "An ordinary Markdown document keeps its file workflow",
-      "A trailing blank paragraph marks reopened Markdown unsaved",
-      "Ordinary Markdown reopens its review sidecars",
-      "Package drift discovered at save refuses the edit",
-      "External Markdown drift opens a blocking repair tab",
-      "A blocked package can be revealed",
-      "A blocked package can be closed without writing"
-    ]
-  };
-});
-
 // src/review/retrospective-history.ts
 function checkRetrospectiveHistory(projectRoot, request) {
   const policy = retrospectivePolicy(request.ticketId);
@@ -63023,7 +63036,16 @@ function result(request, replay, reason) {
   });
 }
 function rowPath(request) {
-  return `.safeword/state/reviews/electron-row-${sha2565(JSON.stringify(request))}.tag`;
+  return `.safeword/state/reviews/electron-row-${sha2565(rowIdentity(request))}.tag`;
+}
+function rowIdentity(request) {
+  return JSON.stringify([
+    request.ticketId,
+    request.ledger,
+    request.scenario,
+    request.eligibilityId,
+    request.proofId
+  ]);
 }
 function stableObservation(observation) {
   return JSON.stringify({
@@ -63072,11 +63094,16 @@ function prepareElectronRow(root, request) {
     scenario: request.scenario,
     inputSha256: sha2565(JSON.stringify([requestDigest, sha2565(observationBytes)]))
   };
-  const content = `electron-row-v1\x00${admission.commit}\x00${JSON.stringify(request)}\x00${stableObservation(observation)}`;
+  const content = `electron-row-v1\x00${admission.commit}\x00${rowIdentity(request)}\x00${stableObservation(observation)}`;
   return { ...admission, observation, journal, content };
 }
 function requireElectronRowAuthorization(root, request, row) {
-  const tag = readFileSync48(path12.join(root, rowPath(request)), "utf8").trim();
+  let tag;
+  try {
+    tag = readFileSync48(path12.join(root, rowPath(request)), "utf8").trim();
+  } catch (error) {
+    throw new Error("The Electron row has no readable replay tag. Run review attest retrospective.", { cause: error });
+  }
   if (!hasPassedElectronReplay(root, row.journal, row.commit) || !validRetrospectiveCloseTag(root, row.content, tag))
     throw new Error("The Electron row has no current completed replay. Run review attest retrospective.");
   if (currentProofCommit(root) !== row.commit)
@@ -63099,9 +63126,9 @@ async function attestElectronRetrospectiveRow(root, request) {
       const after = prepareElectronRow(root, request);
       if (replay.commit !== row.commit || currentProofCommit(root) !== row.commit || after.content !== row.content || JSON.stringify(after.journal) !== JSON.stringify(row.journal) || stableObservation(replay) !== stableObservation(row.observation))
         throw new Error(`Electron replay did not reproduce the reviewed proof for ${request.scenario}.`);
-    });
-    writeDurableFile(path12.join(root, rowPath(request)), `${retrospectiveCloseTag(root, row.content)}
+      writeDurableFile(path12.join(root, rowPath(request)), `${retrospectiveCloseTag(root, row.content)}
 `, { mode: 384 });
+    });
     return result(request, true);
   } catch (error) {
     return result(request, true, `Electron row ${request.scenario}: ${error instanceof Error ? error.message : "proof failed."}`);
@@ -63223,7 +63250,7 @@ function verifiedProof(root, targets, request, eligibility, replay) {
   if (!hasDiscriminatingOutcome(reviewed, proofRequest.testFullName))
     return false;
   const commit = currentProofCommit(root);
-  const content = `retrospective-row-v2\x00${commit}\x00${rowIdentity(request)}\x00${stableObservation2(reviewed)}`;
+  const content = `retrospective-row-v2\x00${commit}\x00${rowIdentity2(request)}\x00${stableObservation2(reviewed)}`;
   const path = rowRecordPath(root, request);
   if (!replay) {
     return currentReplayRecord(root, path, content, reviewed.supportSha256);
@@ -63243,10 +63270,10 @@ function currentReplayRecord(root, path, content, inputs) {
   return validRetrospectiveCloseTag(root, content, integrity) && Object.entries(inputs).every(([input, digest]) => createHash31("sha256").update(readProofInput(root, input)).digest("hex") === digest);
 }
 function rowRecordPath(root, request) {
-  const identity = createHash31("sha256").update(rowIdentity(request)).digest("hex");
+  const identity = createHash31("sha256").update(rowIdentity2(request)).digest("hex");
   return nodePath69.join(root, ".safeword/state/reviews", `retrospective-row-${identity}.tag`);
 }
-function rowIdentity(request) {
+function rowIdentity2(request) {
   return JSON.stringify([
     request.ticketId,
     request.ledger,
@@ -90622,6 +90649,7 @@ async function retroReconcileHandler(invocation) {
 init_run_identity();
 init_policy();
 init_preferences();
+init_retrospective_policy();
 init_route_config();
 init_configured_paths();
 init_online_required();
@@ -90776,7 +90804,7 @@ async function retrospectiveHandler(invocation, replay) {
     eligibilityId: eligibility,
     proofId: proof
   };
-  if (ticket === "SGWMBS") {
+  if (ticket === SOULLESS_RETROSPECTIVE_POLICY.ticketId) {
     await Promise.resolve().then(() => init_retrospective_electron_gate());
     return replay ? attestElectronRetrospectiveRow(invocation.cwd, request) : electronRetrospectiveGate(invocation.cwd, request);
   }
@@ -90787,7 +90815,7 @@ async function retrospectiveCloseAttestHandler(invocation) {
   const { ticket, ledger } = invocation.options;
   if (typeof ticket !== "string" || typeof ledger !== "string")
     return invalidOperand("review attest retrospective-close", "Ticket and ledger are required.");
-  if (ticket === "SGWMBS") {
+  if (ticket === SOULLESS_RETROSPECTIVE_POLICY.ticketId) {
     await Promise.resolve().then(() => init_retrospective_electron_close());
     return attestElectronRetrospectiveClose(invocation.cwd, ticket, ledger);
   }
@@ -90798,7 +90826,7 @@ async function retrospectiveCloseGateHandler(invocation) {
   const { ticket, ledger } = invocation.options;
   if (typeof ticket !== "string" || typeof ledger !== "string")
     return invalidOperand("review gate retrospective-close", "Ticket and ledger are required.");
-  if (ticket === "SGWMBS") {
+  if (ticket === SOULLESS_RETROSPECTIVE_POLICY.ticketId) {
     await Promise.resolve().then(() => init_retrospective_electron_close());
     return electronRetrospectiveCloseGate(invocation.cwd, ticket, ledger);
   }

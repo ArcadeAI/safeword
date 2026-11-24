@@ -30,7 +30,13 @@ and proof reviews and a fresh signed replay remain required. Keep missing origin
 records and original GREEN/REFACTOR entries unchanged. Closing additionally
 requires a fresh replay of every required row at the final committed view.
 Ordinary work still requires its original test-first evidence; existing CKWE2D
-authorization retains its original contract.
+receipts retain their original authorization and format.
+
+For SGWMBS, failed or interrupted replay records cannot be retried under the same
+proof-review ID. Recovery requires a fresh observation and a new independent
+proof review; retain the previous failure as audit evidence. Every later commit,
+including metadata changes, requires current execution again. Closing accepts
+only the exact 17 enrolled VERIFIED rows at the final committed view.
 
 ## Stable command model
 

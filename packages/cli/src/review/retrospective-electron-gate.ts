@@ -45,7 +45,17 @@ function result(request: RetrospectiveGateRequest, replay: boolean, reason?: str
 }
 
 function rowPath(request: RetrospectiveGateRequest): string {
-  return `.safeword/state/reviews/electron-row-${proofSha256(JSON.stringify(request))}.tag`;
+  return `.safeword/state/reviews/electron-row-${proofSha256(rowIdentity(request))}.tag`;
+}
+
+function rowIdentity(request: RetrospectiveGateRequest): string {
+  return JSON.stringify([
+    request.ticketId,
+    request.ledger,
+    request.scenario,
+    request.eligibilityId,
+    request.proofId,
+  ]);
 }
 
 /** Ignore only execution-specific directories/ports and the truthful producing HEAD. */
@@ -120,7 +130,7 @@ export function prepareElectronRow(root: string, request: RetrospectiveGateReque
     scenario: request.scenario,
     inputSha256: proofSha256(JSON.stringify([requestDigest, proofSha256(observationBytes)])),
   };
-  const content = `electron-row-v1\0${admission.commit}\0${JSON.stringify(request)}\0${stableObservation(observation)}`;
+  const content = `electron-row-v1\0${admission.commit}\0${rowIdentity(request)}\0${stableObservation(observation)}`;
   return { ...admission, observation, journal, content };
 }
 
@@ -130,7 +140,15 @@ export function requireElectronRowAuthorization(
   request: RetrospectiveGateRequest,
   row: ReturnType<typeof prepareElectronRow>,
 ): void {
-  const tag = readFileSync(path.join(root, rowPath(request)), 'utf8').trim();
+  let tag: string;
+  try {
+    tag = readFileSync(path.join(root, rowPath(request)), 'utf8').trim();
+  } catch (error: unknown) {
+    throw new Error(
+      'The Electron row has no readable replay tag. Run review attest retrospective.',
+      { cause: error },
+    );
+  }
   if (
     !hasPassedElectronReplay(root, row.journal, row.commit) ||
     !validRetrospectiveCloseTag(root, row.content, tag)
@@ -180,13 +198,14 @@ export async function attestElectronRetrospectiveRow(
         throw new Error(
           `Electron replay did not reproduce the reviewed proof for ${request.scenario}.`,
         );
+      // Keep publication inside the pending owner's lock. A tag is unusable
+      // until the journal passes; failed publication consumes this proof ID.
+      writeDurableFile(
+        path.join(root, rowPath(request)),
+        `${retrospectiveCloseTag(root, row.content)}\n`,
+        { mode: 0o600 },
+      );
     });
-    // A journal success alone never authorizes a row; publication is separate.
-    writeDurableFile(
-      path.join(root, rowPath(request)),
-      `${retrospectiveCloseTag(root, row.content)}\n`,
-      { mode: 0o600 },
-    );
     return result(request, true);
   } catch (error: unknown) {
     return result(

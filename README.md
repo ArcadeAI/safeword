@@ -162,6 +162,13 @@ eligibility and proof reviews plus fresh signed replay. Preserve every missing o
 record and the original GREEN/REFACTOR entries; current discrimination cannot
 reconstruct historical test-first evidence. Enrollment is fixed in trusted source
 to the approved repository, cutoff, ticket, ledger, feature, and 17 scenarios.
+
+For this migration, each row needs a fresh signed replay at the current committed
+view, including after metadata changes. Closing replays all 17 required rows at
+the final committed view. A failed or interrupted replay permanently blocks that
+proof-review ID; recovery requires a fresh observation and a new independent
+proof review. Keep the failed record as audit evidence. Existing CKWE2D receipts
+retain their original meaning and record format.
 Project configuration cannot enroll another migration or weaken its reviews.
 Existing CKWE2D receipts and ordinary test-first requirements retain their meaning.
 
