@@ -2,7 +2,7 @@
 id: GCKB2Z
 slug: prove-source-repo-install-at-cli-boundary
 type: task
-phase: implement
+phase: done
 external_prs:
   - https://github.com/ArcadeAI/safeword/pull/6258
 scope:
@@ -16,9 +16,9 @@ done_when:
   - bun run --cwd packages/cli test:bdd passes.
   - check-generated-surfaces.ts reports every surface current.
   - A draft PR is open against claude/intelligent-matsumoto-f06641.
-status: in_progress
+status: done
 created: 2026-11-23T17:58:40.686Z
-last_modified: 2026-11-23T17:58:40.686Z
+last_modified: 2026-11-24T01:30:00.000Z
 ---
 
 # Prove maintainers can install Safeword from the source repo while the CLI is unreleased
@@ -38,3 +38,8 @@ last_modified: 2026-11-23T17:58:40.686Z
   - Exception applied outside the source repo → consumer scenario fails: install exits 0 with `CLAUDE_PLUGIN_DOGFOOD_RELEASED`.
   - GREEN on the unmodified #6258 code: all three scenarios pass.
 - 2026-11-23T18:12:00Z Decision: assert `claude status` classification `unproven` for the source repo. Status reaches `unproven` only after accepting the plugin version; the remaining runtime proof needs a real `/reload-plugins`, which no fixture can supply.
+- 2026-11-23T21:20:00Z #6258 merged (`3f5353165`); PR #8210 retargeted to `main`, so the draft-PR criterion is met against `main` instead.
+- 2026-11-23T23:20:00Z Scenario-quality pass: downgrade guard disabled → downgrade scenario fails (RED); added the consumer "asks Claude to update" assertion and made the `When` step persona-neutral (`845cd84df`).
+- 2026-11-24T00:10:00Z `/verify` and `/audit` recorded in `verify.md` (`ee4299c75`); CI 15/15 green. Closed.
+- 2026-11-24T01:28:38.843Z Phase: implement → done
+- 2026-11-24T01:28:38.920Z Phase: implement → done
