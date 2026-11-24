@@ -94,6 +94,12 @@ if (process.env.SAFEWORD_ELECTRON_FIXTURE_MODE === 'malformed-report') {
 const mutated = process.env.SAFEWORD_ELECTRON_FIXTURE_MODE !== 'surviving-mutation' && source.includes('behavior = false');
 const failure = 'Error: expect(received).toEqual(expected)\nExpected: '+request.mutation.expectedFailure+'\nReceived: missing package behavior\n    at '+request.mutation.assertionLocation+':3';
 if (process.env.SAFEWORD_ELECTRON_FIXTURE_MODE === 'unreported-renderer-error') app.context().emit('weberror', {error: () => new Error('controlled renderer exception after readiness')});
+if (process.env.SAFEWORD_ELECTRON_FIXTURE_MODE === 'renderer-crash') app.windows()[0].emit('crash');
+if (process.env.SAFEWORD_ELECTRON_FIXTURE_MODE === 'future-window-crash') {
+  const page = new (require('node:events').EventEmitter)();
+  app.context().emit('page', page);
+  page.emit('crash');
+}
 const failed = mutated || process.env.SAFEWORD_ELECTRON_FIXTURE_MODE === 'failing-original';
 const result = {status:failed?'failed':'passed',retry:0,annotations:[],errors:failed?[{message:failure,location:{file:path.join(root,request.testFile),line:Number(request.mutation.assertionLocation.split(':').at(-1)),column:3}}]:[]};
 const report = {config:{projects:[{id:'',name:'',repeatEach:1,retries:0}]},suites:[{title:path.basename(request.testFile),specs:[{title:request.scenario,file:path.basename(request.testFile),line:request.testLine,tests:[{projectId:'',projectName:'',expectedStatus:'passed',status:failed?'unexpected':'expected',annotations:[],results:[result]}]}],suites:[]}],errors:[],stats:{expected:failed?0:1,unexpected:failed?1:0,flaky:0,skipped:0}};
@@ -128,7 +134,7 @@ const { spawnSync } = require('node:child_process');
 exports._electron = { async launch(options) {
   const context = new EventEmitter();
   const page = new EventEmitter();
-  page.pageErrors = async () => [];
+  page.pageErrors = async () => process.env.SAFEWORD_ELECTRON_FIXTURE_MODE === 'buffered-renderer-error' ? [new Error('controlled buffered renderer exception')] : [];
   let pid = process.pid;
   const preload = options.args?.[options.args.indexOf('-r') + 1];
   if (preload) {

@@ -23,6 +23,22 @@ it('refuses an unreported renderer exception despite an otherwise qualifying mat
   }
 });
 
+it.each(['buffered-renderer-error', 'renderer-crash', 'future-window-crash'])(
+  'refuses %s even when the selected test report qualifies',
+  async mode => {
+    const fixture = electronRunnerFixture();
+    for (const [name, value] of Object.entries(fixture.environment)) vi.stubEnv(name, value);
+    vi.stubEnv('SAFEWORD_ELECTRON_FIXTURE_MODE', mode);
+    try {
+      await expect(
+        runElectronProof(fixture.root, electronRequest, fixture.requestPath),
+      ).rejects.toThrow(/uncaught exception|renderer crash/u);
+    } finally {
+      fixture.cleanup();
+    }
+  },
+);
+
 it('identifies an untracked declared support input before installation', async () => {
   const fixture = electronRunnerFixture();
   const support = 'packages/desktop/untracked-support.ts';

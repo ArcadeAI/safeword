@@ -13,6 +13,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { executeNoShellCommand, type NoShellExecutionResult } from './red-execution.js';
+import {
+  prepareElectronMonitor,
+  requireElectronMonitor,
+} from './retrospective-electron-monitor.js';
 import { evaluateElectronReport } from './retrospective-electron-report.js';
 import {
   type ElectronProofRequest,
@@ -282,11 +286,12 @@ async function executeSnapshot(
     readProofInput(copy, `${DESKTOP}/out/${file}`);
   requireSnapshotInputs(copy, inputs, digests, 'Electron build changed committed proof inputs.');
   rmSync(reportPath, { force: true });
+  const monitor = prepareElectronMonitor(copy, reportPath);
   const result = await executeNoShellCommand({
     projectRoot: copy,
     cwd: DESKTOP,
     argv: [node, path.join(copy, 'node_modules/playwright/cli.js'), ...selectionArguments(request)],
-    environment: env,
+    environment: { ...env, NODE_OPTIONS: monitor.nodeOptions },
     timeoutMs: STAGE_TIMEOUT_MS,
   });
   const exitCode = normalExit(result, 'test');
@@ -296,6 +301,7 @@ async function executeSnapshot(
     expected,
     exitCode,
   );
+  requireElectronMonitor(monitor.events);
   requireSnapshotInputs(
     copy,
     inputs,
