@@ -3,7 +3,7 @@ id: R6VFY2
 slug: verify-authorized-legacy-electron-behavior
 type: feature
 product_plan_contract: v1
-phase: plan-execution
+phase: implement
 phase_anchors:
   - define-behavior: packages/cli/features/verify-authorized-legacy-electron-behavior.feature
   - scenario-gate: packages/cli/features/verify-authorized-legacy-electron-behavior.feature
