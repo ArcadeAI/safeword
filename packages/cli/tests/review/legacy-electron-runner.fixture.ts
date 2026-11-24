@@ -1,0 +1,130 @@
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
+export const electronRequest = {
+  ticketId: 'SGWMBS',
+  scenario: 'A differently cased soul suffix opens as a package',
+  testFile: 'packages/desktop/tests/electron/89-soul-cased-suffix.electron.spec.ts',
+  testLine: 8,
+  testFullName:
+    ' 89-soul-cased-suffix.electron.spec.ts A differently cased soul suffix opens as a package',
+  implementationPath: 'packages/desktop/src/renderer/src/services/tabLifecycle.ts',
+  mutation: {
+    before: 'behavior = true',
+    after: 'behavior = false',
+    expectedFailure: 'expected retained package behavior',
+    assertionLocation: 'packages/desktop/tests/electron/89-soul-cased-suffix.electron.spec.ts:39',
+  },
+  supportFiles: ['packages/desktop/playwright-electron.config.ts'],
+};
+
+/** Controlled external tools exercise archive/process wiring; these are not Electron acceptance evidence. */
+export function electronRunnerFixture() {
+  const temporaryPath = mkdtempSync(path.join(tmpdir(), 'safeword-electron-runner-'));
+  const temporary = realpathSync.native(temporaryPath);
+  const root = path.join(temporary, 'repository');
+  const bin = path.join(temporary, 'tools');
+  const log = path.join(temporary, 'processes.jsonl');
+  const requestPath = '.project/tickets/SGWMBS-open-save-soul-electron/proof.request.json';
+  const write = (relative: string, contents: string) => {
+    const target = path.join(root, relative);
+    mkdirSync(path.dirname(target), { recursive: true });
+    writeFileSync(target, contents);
+  };
+  write('package.json', JSON.stringify({ packageManager: 'pnpm@11.7.0' }));
+  write('pnpm-lock.yaml', 'lockfileVersion: 9.0\n');
+  write('pnpm-workspace.yaml', 'packages: [packages/desktop]\n');
+  write('packages/desktop/package.json', JSON.stringify({ name: '@soulless/desktop' }));
+  write(electronRequest.implementationPath, 'export const behavior = true;\n');
+  write(electronRequest.testFile, `${'\n'.repeat(7)}// selected fixture declaration\n`);
+  write(electronRequest.supportFiles[0] ?? '', 'export default {};\n');
+  write(requestPath, JSON.stringify(electronRequest));
+  const git = (...args: string[]) =>
+    execFileSync('git', ['-C', root, ...args], {
+      encoding: 'utf8',
+      env: Object.fromEntries(
+        Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_')),
+      ),
+    }).trim();
+  git('init', '-q');
+  git('config', 'user.name', 'Test');
+  git('config', 'user.email', 'test@example.com');
+  git('config', 'commit.gpgsign', 'false');
+  git('add', '.');
+  git('commit', '-qm', 'committed Electron fixture');
+  mkdirSync(bin);
+  const playwright = String.raw`
+const fs = require('node:fs');
+const path = require('node:path');
+const request = ${JSON.stringify(electronRequest)};
+const root = path.resolve(process.cwd(), '../..');
+const source = fs.readFileSync(path.join(root, request.implementationPath), 'utf8');
+if (fs.readFileSync(path.join(root, 'node_modules/installed-for'), 'utf8') !== root) process.exit(71);
+if (fs.readFileSync('out/main/index.js', 'utf8') !== source) process.exit(72);
+if (fs.existsSync(path.join(root, 'untracked-poison'))) process.exit(73);
+const args = process.argv.slice(2);
+if (!args.includes('--workers=1') || !args.includes('--retries=0') || !args.includes('--repeat-each=1') || !args.includes('--no-deps') || !args.includes('--forbid-only')) process.exit(74);
+fs.appendFileSync(process.env.SAFEWORD_ELECTRON_FIXTURE_LOG, JSON.stringify({event:'test', root, source, port:process.env.SOULLESS_ELECTRON_TEST_PORT, profile:process.env.TMPDIR})+'\n');
+const mutated = source.includes('behavior = false');
+const failure = 'Error: expect(received).toEqual(expected)\nExpected: '+request.mutation.expectedFailure+'\nReceived: missing package behavior\n    at '+request.mutation.assertionLocation+':3';
+const result = {status:mutated?'failed':'passed',retry:0,annotations:[],errors:mutated?[{message:failure,location:{file:path.join(root,request.testFile),line:39,column:3}}]:[]};
+const report = {config:{projects:[{id:'',name:'',repeatEach:1,retries:0}]},suites:[{title:path.basename(request.testFile),specs:[{title:request.scenario,file:path.basename(request.testFile),line:request.testLine,tests:[{projectId:'',projectName:'',expectedStatus:'passed',status:mutated?'unexpected':'expected',annotations:[],results:[result]}]}],suites:[]}],errors:[],stats:{expected:mutated?0:1,unexpected:mutated?1:0,flaky:0,skipped:0}};
+fs.writeFileSync(process.env.PLAYWRIGHT_JSON_OUTPUT_FILE, JSON.stringify(report));
+process.exit(mutated?1:0);
+`;
+  const pnpm = String.raw`#!${process.execPath}
+const fs = require('node:fs');
+const path = require('node:path');
+const args = process.argv.slice(2);
+if (args.length === 1 && args[0] === '--version') { console.log('11.7.0'); process.exit(0); }
+const root = process.cwd();
+const event = args[0] === 'install' ? 'install' : 'build';
+fs.appendFileSync(process.env.SAFEWORD_ELECTRON_FIXTURE_LOG, JSON.stringify({event,root,args})+'\n');
+if (event === 'install') {
+  if (JSON.stringify(args) !== JSON.stringify(['install','--frozen-lockfile'])) process.exit(75);
+  fs.mkdirSync('node_modules/playwright', {recursive:true});
+  fs.writeFileSync('node_modules/installed-for', root);
+  fs.writeFileSync('node_modules/playwright/cli.js', ${JSON.stringify(playwright)});
+  process.exit(0);
+}
+if (JSON.stringify(args) !== JSON.stringify(['--filter','@soulless/desktop','run','build'])) process.exit(76);
+const source = fs.readFileSync(${JSON.stringify(electronRequest.implementationPath)}, 'utf8');
+for (const file of ['main/index.js','preload/index.js','renderer/index.html']) {
+  const target = path.join('packages/desktop/out',file);
+  fs.mkdirSync(path.dirname(target), {recursive:true}); fs.writeFileSync(target,source);
+}
+`;
+  writeFileSync(path.join(bin, 'pnpm'), pnpm, { mode: 0o755 });
+  return {
+    temporary,
+    root,
+    bin,
+    requestPath,
+    git,
+    write,
+    events: () =>
+      readFileSync(log, 'utf8')
+        .trim()
+        .split('\n')
+        .map(
+          line =>
+            JSON.parse(line) as {
+              event: string;
+              root: string;
+              args?: string[];
+              source?: string;
+              port?: string;
+              profile?: string;
+            },
+        ),
+    environment: {
+      PATH: `${bin}${path.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_ELECTRON_FIXTURE_LOG: log,
+    },
+    cleanup: () => {
+      rmSync(temporary, { force: true, recursive: true });
+    },
+  };
+}
