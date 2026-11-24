@@ -60,8 +60,8 @@ record in `.project/architecture/` like this:
 Follow the [retention decision](../../architecture/retention.md).
 ```
 
-Resolve links relative to the plan. A missing record or a path outside the
-project blocks the review. With a configured overview file, a citation elsewhere
+Use a relative link to a Markdown (`.md`) file. A cited file that is missing
+or resolves outside the project blocks the review. With a configured overview file, a citation elsewhere
 in the plan also qualifies if the overview links directly to that same record.
 With a configured directory, review already includes its top-level `.md` files
 except `README.md`; use the heading to cite an additional nested record.

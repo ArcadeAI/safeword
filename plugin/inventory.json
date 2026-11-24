@@ -23,7 +23,7 @@
     },
     {
       "path": "resources/guides/architecture-guide.md",
-      "sha256": "7f7c9cc9f7ca4413186aa12af77b63fc0deb74312b7cd672af3d67931975174c"
+      "sha256": "db4378d366ee1c92d0f9910645dc93f30dc8848e622c442141a30d026e9aa98b"
     },
     {
       "path": "resources/guides/cold-start-check.md",
@@ -1047,7 +1047,7 @@
     },
     {
       "path": "templates/guides/architecture-guide.md",
-      "sha256": "7f7c9cc9f7ca4413186aa12af77b63fc0deb74312b7cd672af3d67931975174c"
+      "sha256": "db4378d366ee1c92d0f9910645dc93f30dc8848e622c442141a30d026e9aa98b"
     },
     {
       "path": "templates/guides/cold-start-check.md",
