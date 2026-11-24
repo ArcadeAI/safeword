@@ -98664,6 +98664,8 @@ async function retrospectiveAttestHandler(invocation) {
 }
 async function retrospectiveHandler(invocation, replay) {
   const command = replay ? "review attest retrospective" : "review gate retrospective";
+  if (replay && invocation.offline)
+    return onlineRequired(command);
   const { ticket, scenario, ledger, eligibility, proof } = invocation.options;
   if ([ticket, scenario, ledger, eligibility, proof].some((value) => typeof value !== "string" || value.trim() === ""))
     return invalidOperand(command, "Ticket, scenario, ledger, eligibility, and proof are required.");
@@ -98682,6 +98684,8 @@ async function retrospectiveHandler(invocation, replay) {
   return replay ? attestRetrospectiveRow(invocation.cwd, request) : retrospectiveGate(invocation.cwd, request);
 }
 async function retrospectiveCloseAttestHandler(invocation) {
+  if (invocation.offline)
+    return onlineRequired("review attest retrospective-close");
   const { ticket, ledger } = invocation.options;
   if (typeof ticket !== "string" || typeof ledger !== "string")
     return invalidOperand("review attest retrospective-close", "Ticket and ledger are required.");
@@ -100616,6 +100620,7 @@ var CANONICAL_COMMANDS = [
     }
   }),
   command2("review attest retrospective", "Replay one approved legacy proof before checking its row", "mutate", {
+    networkPolicy: "declared",
     syntax: "retrospective",
     commandOptions: [
       { flags: "--ticket <id>", description: "Ticket claiming retrospective completion" },
@@ -100644,6 +100649,7 @@ var CANONICAL_COMMANDS = [
     }
   }),
   command2("review attest retrospective-close", "Replay approved legacy proofs for closing", "mutate", {
+    networkPolicy: "declared",
     syntax: "retrospective-close",
     commandOptions: [
       { flags: "--ticket <id>", description: "Ticket claiming retrospective completion" },

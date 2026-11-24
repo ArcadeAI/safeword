@@ -819,6 +819,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     'Replay one approved legacy proof before checking its row',
     'mutate',
     {
+      networkPolicy: 'declared',
       syntax: 'retrospective',
       commandOptions: [
         { flags: '--ticket <id>', description: 'Ticket claiming retrospective completion' },
@@ -852,6 +853,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     'Replay approved legacy proofs for closing',
     'mutate',
     {
+      networkPolicy: 'declared',
       syntax: 'retrospective-close',
       commandOptions: [
         { flags: '--ticket <id>', description: 'Ticket claiming retrospective completion' },

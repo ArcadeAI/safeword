@@ -218,6 +218,7 @@ async function retrospectiveHandler(
   replay: boolean,
 ): Promise<CliResult> {
   const command = replay ? 'review attest retrospective' : 'review gate retrospective';
+  if (replay && invocation.offline) return onlineRequired(command);
   const { ticket, scenario, ledger, eligibility, proof } = invocation.options;
   if (
     [ticket, scenario, ledger, eligibility, proof].some(
@@ -252,6 +253,7 @@ async function retrospectiveHandler(
 export async function retrospectiveCloseAttestHandler(
   invocation: CommandInvocation,
 ): Promise<CliResult> {
+  if (invocation.offline) return onlineRequired('review attest retrospective-close');
   const { ticket, ledger } = invocation.options;
   if (typeof ticket !== 'string' || typeof ledger !== 'string')
     return invalidOperand('review attest retrospective-close', 'Ticket and ledger are required.');
