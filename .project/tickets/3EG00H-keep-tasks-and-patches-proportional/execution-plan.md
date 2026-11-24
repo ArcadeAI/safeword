@@ -256,7 +256,7 @@ result alongside the capture provenance in the delivery evidence.
 
 | ID | Category | Obligation | Owner | Required proof | Disposition | Evidence class | Revision | Evidence, reason, or dependency |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| outcome-scope | outcome and scope | Demonstrate proportional task and patch delivery | contributor | handoff | open | missing | | |
+| outcome-scope | outcome and scope | Demonstrate proportional task and patch delivery | contributor | handoff | complete | current_revision_real_boundary | 167142c7192689db0208d347ffaa54427fb6dbcd | receipt:feff6dca-d456-497c-befd-14bb24030fef |
 | resolved-decisions | resolved decisions | Check host interpretation against accepted routes | contributor | interpretation | open | missing | | |
 | pr-decomposition | dependency and pull-request decomposition | Prove the matched PR can reach contributor handoff | contributor | handoff | open | missing | | |
 | testing | testing | Prove solo RED admission and rejection at the real boundary | contributor | red | open | missing | | |
