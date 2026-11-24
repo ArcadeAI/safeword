@@ -71,9 +71,3 @@ test-definitions.md is the R/G/R ledger.
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
-
-### Scenario: OpenCode Desktop states its advisory limitation
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
