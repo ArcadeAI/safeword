@@ -1,6 +1,7 @@
+import { consequentialDecisions } from '../../templates/hooks/lib/small-work-classification.js';
 import { AGENT_SELECTION_DESCRIPTION } from './agent-selection.js';
 import type { CommandHandler } from './handler.js';
-import { publicHandler } from './public-handlers.js';
+import { publicHandler, SMALL_WORK_PROOF_HELP } from './public-handlers.js';
 import { type CliResult, createResult } from './result.js';
 
 type EffectClass = 'observe' | 'plan' | 'mutate' | 'destructive' | 'hook';
@@ -37,6 +38,7 @@ export interface CommandDefinition {
   readonly handler: CommandHandler;
   readonly registration: {
     readonly syntax: string;
+    readonly helpText?: string;
     readonly options: readonly {
       readonly flags: string;
       readonly description: string;
@@ -68,6 +70,7 @@ function command(
   options: Partial<
     Pick<CommandDefinition, 'promptPolicy' | 'networkPolicy' | 'fixture'> & {
       syntax: string;
+      helpText: string;
       commandOptions: CommandDefinition['registration']['options'];
       handler: CommandHandler;
       exitPolicy: NonNullable<CommandDefinition['exitPolicy']>;
@@ -87,6 +90,7 @@ function command(
     handler: options.handler ?? publicHandler(name),
     registration: {
       syntax: options.syntax ?? name.split(' ').at(-1) ?? name,
+      helpText: options.helpText,
       options: options.commandOptions ?? [],
     },
     fixture: options.fixture ?? {
@@ -549,6 +553,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
         description: 'patch, task, feature, or epic',
         defaultValue: 'task',
       },
+      {
+        flags: '--small-work-facts <json>',
+        description: 'Classify current work from versioned facts',
+      },
       { flags: '--title <title>', description: 'Ticket title' },
       { flags: '--goal <goal>', description: 'One-line goal' },
       { flags: '--why <why>', description: 'One-line rationale' },
@@ -608,7 +616,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       },
     },
   ),
-  command('ticket delivery-checklist', 'Report feature delivery readiness', 'observe', {
+  command('ticket delivery-checklist', 'Report delivery readiness for a ticket', 'observe', {
     syntax: 'delivery-checklist <ticketId>',
     fixture: {
       argv: ['ticket', 'delivery-checklist', 'fixture'],
@@ -635,6 +643,68 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       syntax: 'coding-authorization <ticketId>',
       fixture: {
         argv: ['ticket', 'coding-authorization', 'fixture'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
+  command('ticket resume', 'Resume a ticket from its saved small-work destination', 'mutate', {
+    syntax: 'resume <ticketId>',
+    fixture: {
+      argv: ['ticket', 'resume', 'fixture'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command('ticket classify-small-work', 'Classify versioned small-work facts', 'observe', {
+    syntax: 'classify-small-work <factsJson>',
+    helpText: `Pass one JSON object with these fields:
+  schemaVersion: 1
+  scope, outcome: non-empty strings describing the change and expected result
+  decisions: an object with each key below set to settled or unresolved
+    ${consequentialDecisions.join(', ')}
+  introducesUserFlow, multipleUserFlows, newPersistentState,
+  changesSharedContract, changesBehavior: JSON booleans
+  verification: existing, targeted, or new-regression
+  pendingScopeDecision: optional non-empty string naming a decision the user still owns
+
+Use the facts of the proposed work. The command returns the route and the reasons for it.`,
+    fixture: {
+      argv: ['ticket', 'classify-small-work', '{}'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command('ticket observe-small-work-proof', 'Observe a declared small-work test', 'mutate', {
+    syntax: 'observe-small-work-proof <proofJsonOrFile>',
+    helpText: SMALL_WORK_PROOF_HELP,
+    networkPolicy: 'declared',
+    fixture: {
+      argv: ['ticket', 'observe-small-work-proof', '{}'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command(
+    'ticket verify-small-work-proof',
+    'Verify a current small-work test observation',
+    'observe',
+    {
+      syntax: 'verify-small-work-proof <proofJson> <observationJson> [previousAdmission]',
+      fixture: {
+        argv: ['ticket', 'verify-small-work-proof', '{}', '{}'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
+  command(
+    'ticket observe-small-work-green',
+    'Rerun the saved RED test and record GREEN',
+    'mutate',
+    {
+      syntax: 'observe-small-work-green <ticketId>',
+      commandOptions: [
+        { flags: '--check', description: 'Check the saved GREEN without running tests' },
+      ],
+      networkPolicy: 'declared',
+      fixture: {
+        argv: ['ticket', 'observe-small-work-green', 'fixture'],
         environment: MACHINE_ENVIRONMENT,
       },
     },

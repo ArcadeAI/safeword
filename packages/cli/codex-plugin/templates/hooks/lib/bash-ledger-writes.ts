@@ -414,3 +414,16 @@ export function detectInspirationArtifactWrite(
 ): ProtectedWriteDetection | undefined {
   return detectProtectedWrite(command, INSPIRATION_DESCRIPTOR);
 }
+
+/** Detect literal shell destinations that must go through a native edit tool. */
+export function detectProjectFileWrite(
+  command: string,
+  isPath: (token: string) => boolean,
+): ProtectedWriteDetection | undefined {
+  return detectProtectedWrite(command, {
+    isPath,
+    isBasename: () => false,
+    embeddedPath: () => undefined,
+    inlineSubject: 'project file',
+  });
+}

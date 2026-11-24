@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "07eeabc1929e6b7821a34a379a53607d76ea758aafe243cf1aacdde1784506d5"
+      "sha256": "58e942499293ebed3666445559c5eb7746ad4cd2f3b268cf60afbfc01cf745df"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "38f54eb1a68a1f8f97e935c8a95ee451cf89b400229b0720c77dd36de5648761"
+      "sha256": "f65497c4b33671fe37a3d2ba393af406b2429af638ab1c8dc8f5e0b8dd3440b6"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "e48ca25183d4850a33b19211118c7a43284b09d9ced231363c7b330d6b47db77"
+      "sha256": "4f8712934e52bd41c4626d045151872678aaab22af54256196b25f3f2c6ce367"
     },
     {
       "path": "runtime/event-groups.json",
@@ -199,7 +199,7 @@
     },
     {
       "path": "runtime/hooks/lib/bash-ledger-writes.ts",
-      "sha256": "1d31c735a8902f02d73f77f92d1b1eac36a468fec30be09aa5c23e4b71628bbc"
+      "sha256": "a4c7fe35be80e578de6d62a4386661c146584383f617c75d0a09b379956b1d58"
     },
     {
       "path": "runtime/hooks/lib/blocked-on-gate.ts",
@@ -363,7 +363,7 @@
     },
     {
       "path": "runtime/hooks/lib/read-receipt.ts",
-      "sha256": "e023a6344081a026561e64599dfdaa3b5c65c855e9438d4c8847a078811415aa"
+      "sha256": "1e3c230daefa999dcb3cd015a4980814329fb11fb86436e8c0211bd787eb9bbf"
     },
     {
       "path": "runtime/hooks/lib/readiness-pointer.ts",
@@ -454,6 +454,18 @@
       "sha256": "c76abdaec17cb18a3ea6893849db5e87cf3616fd259bd787e3f7d7eccaf34ad8"
     },
     {
+      "path": "runtime/hooks/lib/small-work-admission.ts",
+      "sha256": "6a71e4b79ea84cbd85521f7b930dc8515dba7e6ea75fda58d11ec6475b17bbaa"
+    },
+    {
+      "path": "runtime/hooks/lib/small-work-classification.ts",
+      "sha256": "ec0cc18c1e519fb8b67d4c3502f2a695e8fe858328b1f1da0088b23c7f90b133"
+    },
+    {
+      "path": "runtime/hooks/lib/small-work-footprint.ts",
+      "sha256": "0cc51eebbb91af28ca742dd0324b05ae332d340e330c81544aff44ff7a6f4950"
+    },
+    {
       "path": "runtime/hooks/lib/test-runner.ts",
       "sha256": "67e9ae33fe24cad88a53b935f478de843c1707c0aaa37134db31e38364a03f69"
     },
@@ -471,7 +483,7 @@
     },
     {
       "path": "runtime/hooks/lib/verify-stamp-claims.ts",
-      "sha256": "da118d2db9fa938c16629c2c72451d48b0d6be22144e04ac7d78d4d718ffefa9"
+      "sha256": "cbc5b5ee2359caa5b38c892071bbdda8ca222a7afe3573f85cb4e22bd44e892b"
     },
     {
       "path": "runtime/hooks/lib/version.ts",
@@ -495,7 +507,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-quality.ts",
-      "sha256": "27162fc9d5b74d2f1964b83a50acd652f3a4689583ebaa514639a38d9ee46e40"
+      "sha256": "9031720df4f37c05f242353f9c53d44e7b3889a7b5be3186c01d80575dd8a271"
     },
     {
       "path": "runtime/hooks/post-tool-skill-nudge.ts",
@@ -527,7 +539,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "bd4f55da91700574d8f5c647fb6879a5cc60df32b70a2485165917e163ed979a"
+      "sha256": "4787e21661d890645be2e7bffdddd117a9817069dd97d0b55b9bf0f15e07f752"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -664,7 +676,7 @@
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
-      "sha256": "1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb"
+      "sha256": "e012b2e4a973cd2cebfc0a5551d8fce583f7dd05328b5a943d6c814917f20d80"
     },
     {
       "path": "skills/bdd/SKILL.md",
@@ -794,8 +806,8 @@
     },
     {
       "path": "skills/verify/SKILL.md",
-      "sha256": "66c518f856c3f07aaaedda93cdd70540de562fe70a463e26a1d5ee2d9c4f2d78",
-      "skill_sha256": "ea56a94ee007a241bd93a8a77bb9e68ed57c7056fbca5afc9b53caee752ab6d1"
+      "sha256": "cde516e617a12eda0cf2665879f2c9f77144d58b41d6931ecc5d15a7989fdd69",
+      "skill_sha256": "2317a59dd5eb3551bf099f0c5da53f394a909516feef08e1cac4e4ec348434bc"
     },
     {
       "path": "templates/.jscpd.json",
@@ -1199,7 +1211,7 @@
     },
     {
       "path": "templates/hooks/lib/bash-ledger-writes.ts",
-      "sha256": "1d31c735a8902f02d73f77f92d1b1eac36a468fec30be09aa5c23e4b71628bbc"
+      "sha256": "a4c7fe35be80e578de6d62a4386661c146584383f617c75d0a09b379956b1d58"
     },
     {
       "path": "templates/hooks/lib/blocked-on-gate.ts",
@@ -1359,7 +1371,7 @@
     },
     {
       "path": "templates/hooks/lib/read-receipt.ts",
-      "sha256": "e023a6344081a026561e64599dfdaa3b5c65c855e9438d4c8847a078811415aa"
+      "sha256": "1e3c230daefa999dcb3cd015a4980814329fb11fb86436e8c0211bd787eb9bbf"
     },
     {
       "path": "templates/hooks/lib/readiness-pointer.ts",
@@ -1450,6 +1462,18 @@
       "sha256": "b2d0d95cde0d3441586f305d0f623b67ff7169b5b797903787870f128143a13f"
     },
     {
+      "path": "templates/hooks/lib/small-work-admission.ts",
+      "sha256": "6a71e4b79ea84cbd85521f7b930dc8515dba7e6ea75fda58d11ec6475b17bbaa"
+    },
+    {
+      "path": "templates/hooks/lib/small-work-classification.ts",
+      "sha256": "ec0cc18c1e519fb8b67d4c3502f2a695e8fe858328b1f1da0088b23c7f90b133"
+    },
+    {
+      "path": "templates/hooks/lib/small-work-footprint.ts",
+      "sha256": "0cc51eebbb91af28ca742dd0324b05ae332d340e330c81544aff44ff7a6f4950"
+    },
+    {
       "path": "templates/hooks/lib/test-runner.ts",
       "sha256": "67e9ae33fe24cad88a53b935f478de843c1707c0aaa37134db31e38364a03f69"
     },
@@ -1467,7 +1491,7 @@
     },
     {
       "path": "templates/hooks/lib/verify-stamp-claims.ts",
-      "sha256": "da118d2db9fa938c16629c2c72451d48b0d6be22144e04ac7d78d4d718ffefa9"
+      "sha256": "cbc5b5ee2359caa5b38c892071bbdda8ca222a7afe3573f85cb4e22bd44e892b"
     },
     {
       "path": "templates/hooks/lib/version.ts",
@@ -1491,7 +1515,7 @@
     },
     {
       "path": "templates/hooks/post-tool-quality.ts",
-      "sha256": "27162fc9d5b74d2f1964b83a50acd652f3a4689583ebaa514639a38d9ee46e40"
+      "sha256": "9031720df4f37c05f242353f9c53d44e7b3889a7b5be3186c01d80575dd8a271"
     },
     {
       "path": "templates/hooks/post-tool-skill-nudge.ts",
@@ -1523,7 +1547,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "aa1c7f33bf24f75deaba6c8a60f6659a884ba18314c55da6d277fab9b063ec25"
+      "sha256": "03e6111f42f45e09af9edb20bb5976379a48df7d76881b959c2278d0ba8fea8a"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",
@@ -1651,7 +1675,7 @@
     },
     {
       "path": "templates/SAFEWORD.md",
-      "sha256": "5dae1e973d253518209009015044ba4774d4a591dfa7eb1476754cea9e106753"
+      "sha256": "7103dfaca8319f80796513edd36bbf5ac40317b0091e29d854b6819cc5c71e0a"
     },
     {
       "path": "templates/scripts/bisect-test-pollution.sh",
@@ -1691,7 +1715,7 @@
     },
     {
       "path": "templates/skills/bdd/SCENARIOS.md",
-      "sha256": "1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb"
+      "sha256": "e012b2e4a973cd2cebfc0a5551d8fce583f7dd05328b5a943d6c814917f20d80"
     },
     {
       "path": "templates/skills/bdd/SKILL.md",
@@ -1799,7 +1823,7 @@
     },
     {
       "path": "templates/skills/verify/SKILL.md",
-      "sha256": "440496033f496153e5514028643123b5603bde3ba540750f91aaf8849e8b2675"
+      "sha256": "8f650cd280406b116951792825693113692ab4de4abd4aa355a44fa6725d5e4a"
     },
     {
       "path": "templates/spec-template.md",

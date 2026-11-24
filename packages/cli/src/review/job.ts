@@ -159,6 +159,26 @@ function withRecordIntegrity(cwd: string, record: ReviewJobRecord): ReviewJobRec
   return { ...unsigned, integrity: recordIntegrity(cwd, unsigned) };
 }
 
+export function smallWorkObservationTag(cwd: string, content: string): string {
+  return createHmac('sha256', readOrCreateIntegrityKey())
+    .update(realpathSync.native(cwd))
+    .update('\0small-work-observation-v1\0')
+    .update(content)
+    .digest('hex');
+}
+
+export function validSmallWorkObservationTag(cwd: string, content: string, tag: string): boolean {
+  if (!reviewIntegrityKeyExists() || !/^[a-f\d]{64}$/u.test(tag)) return false;
+  try {
+    return timingSafeEqual(
+      Buffer.from(tag, 'hex'),
+      Buffer.from(smallWorkObservationTag(cwd, content), 'hex'),
+    );
+  } catch {
+    return false;
+  }
+}
+
 /** Bind a completed CKWE2D replay to the same profile-owned review key. */
 export function retrospectiveCloseTag(cwd: string, content: string): string {
   return createHmac('sha256', readOrCreateIntegrityKey())

@@ -11,10 +11,15 @@ import {
   executionPlanContractProvenance,
   evaluateFeatureTicketReadiness,
   formatFeatureTicketReadiness,
+  getInProgressTicketFolders,
   getTicketInfo,
   parseTddStep,
 } from './lib/active-ticket.ts';
-import { detectInspirationArtifactWrite, detectLedgerWrite } from './lib/bash-ledger-writes.ts';
+import {
+  detectInspirationArtifactWrite,
+  detectLedgerWrite,
+  detectProjectFileWrite,
+} from './lib/bash-ledger-writes.ts';
 import { retrospectiveGateDenial } from './lib/retrospective-gate.ts';
 import {
   askTrustedSafeword,
@@ -81,6 +86,15 @@ import {
 } from './lib/plan-gate.ts';
 import { evaluateParentContract } from './lib/product-plan-contract.ts';
 import { installCrashCapture } from './lib/self-report.ts';
+import {
+  hasCurrentSmallWorkScenarioApproval,
+  smallWorkRoutingDenial,
+} from './lib/small-work-admission.ts';
+import {
+  classifySmallWork,
+  hasSmallWorkFacts,
+  readSmallWorkFacts,
+} from './lib/small-work-classification.ts';
 
 const crashCapture = installCrashCapture('pre-tool-quality');
 
@@ -123,6 +137,62 @@ function isTestFile(path: string): boolean {
     path.includes('/tests/') ||
     path.startsWith('tests/') ||
     path.includes('/__tests__/')
+  );
+}
+
+function enrolledTicketNeedsBinding(projectDirectory: string): boolean {
+  const tickets = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets');
+  return getInProgressTicketFolders(projectDirectory).some(folder => {
+    try {
+      return hasSmallWorkFacts(readFileSync(nodePath.join(tickets, folder, 'ticket.md'), 'utf8'));
+    } catch {
+      return false;
+    }
+  });
+}
+
+function checkFirstEditClassification(projectDirectory: string, activeTicket?: string): void {
+  const runtime = process.env.SAFEWORD_AGENT_RUNTIME;
+  if (runtime !== undefined && runtime !== 'claude' && runtime !== 'codex') return;
+
+  const config = nodePath.join(projectDirectory, '.safeword', 'config.json');
+  try {
+    if (JSON.parse(readFileSync(config, 'utf8'))?.requireSmallWorkClassification !== true) return;
+  } catch {
+    return;
+  }
+
+  if (activeTicket) {
+    const ticket = getTicketInfo(projectDirectory, activeTicket);
+    if (ticket.folder !== undefined && ticket.status === 'in_progress') {
+      const path = nodePath.join(
+        resolveNamespaceRoot(projectDirectory),
+        'tickets',
+        ticket.folder,
+        'ticket.md',
+      );
+      try {
+        if (
+          classifySmallWork(readSmallWorkFacts(readFileSync(path, 'utf8'))).status === 'classified'
+        )
+          return;
+      } catch {
+        // An unreadable ticket cannot satisfy a required classification.
+      }
+    }
+  }
+  deny(
+    'Classify this work before changing production files.',
+    'Use safeword ticket classify-small-work, record the facts on an in-progress ticket, and attach it with a native ticket edit. A patch only needs its inline record.',
+    true,
+  );
+}
+
+function denyUnboundSmallWork(): never {
+  return deny(
+    'Attach this session to the ticket before changing production files.',
+    'Use the native edit tool to save your scope or test plan in the ticket you are working on. Record the required proof before retrying the source edit.',
+    true,
   );
 }
 
@@ -604,6 +674,34 @@ if (tool === 'Bash') {
       `Shell commands can't change ${inspirationWrite.path} (${inspirationWrite.shape}), because Safeword can't check what a shell command writes to a ticket file.`,
       `Make the change with the Edit or Write tool (apply_patch in Codex). To only read the file, use cat, grep, or the Read tool.`,
     );
+  }
+  const activeTicket = readSessionState(projectDirectory, input.session_id)?.activeTicket;
+  const write = detectProjectFileWrite(command, target => {
+    if (target === '' || /[$*?{}\x60]/u.test(target)) return false;
+    const file = canonicalEditTarget(launchProjectDirectory, target, input.cwd);
+    return (
+      !isMetaPath(file, canonicalProjectDirectory) &&
+      !isTestFile(file) &&
+      nodePath.extname(file) !== '.feature'
+    );
+  });
+  if (write !== undefined) {
+    checkFirstEditClassification(projectDirectory, activeTicket ?? undefined);
+    if (!activeTicket && enrolledTicketNeedsBinding(projectDirectory)) denyUnboundSmallWork();
+    if (activeTicket) {
+      const { folder } = getTicketInfo(projectDirectory, activeTicket);
+      const tickets = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets');
+      if (
+        folder !== undefined &&
+        hasSmallWorkFacts(readFileSync(nodePath.join(tickets, folder, 'ticket.md'), 'utf8'))
+      ) {
+        deny(
+          `Use the native file edit tool for ${write.path}. Safeword checks whether this work can proceed before changing production files.`,
+          undefined,
+          true,
+        );
+      }
+    }
   }
   const processKill = detectBroadProcessKill(command);
   if (processKill) {
@@ -1149,6 +1247,18 @@ if (isCanonicalTicketEdit) {
 if (isCanonicalTicketEdit) {
   const context = canonicalTicketEditContext();
   const exitedPhase = detectPhaseAdvance(context.priorContent, context.proposedContent);
+  if (
+    exitedPhase !== undefined &&
+    frontmatterScalar(context.priorMeta, 'small_work_pending_phase') === 'plan-implementation' &&
+    frontmatterScalar(context.proposedMeta, 'phase') === 'plan-implementation' &&
+    (exitedPhase !== 'scenario-gate' ||
+      !hasCurrentSmallWorkScenarioApproval(projectDirectory, editedFile))
+  ) {
+    deny(
+      'Implementation Planning is waiting for current approval of the applicable feature behavior.',
+      'Complete the existing scenario gate and record its current approved review before advancing.',
+    );
+  }
   // Phase first, then the flag: selective enforcement needs to know WHICH exit this
   // is before it can decide whether the gate applies to it.
   if (exitedPhase !== undefined && reviewGateAppliesTo(exitedPhase)) {
@@ -1372,6 +1482,11 @@ if (isMetaPath(editedFile, canonicalProjectDirectory)) {
 
 const state = readSessionState(projectDirectory, input.session_id);
 
+if (!isTestFile(editedFile) && nodePath.extname(editedFile) !== '.feature') {
+  checkFirstEditClassification(projectDirectory, state?.activeTicket ?? undefined);
+  if (!state?.activeTicket && enrolledTicketNeedsBinding(projectDirectory)) denyUnboundSmallWork();
+}
+
 if (!state) {
   process.exit(0);
 }
@@ -1388,6 +1503,19 @@ if (state.activeTicket) {
     ticketInfo.folder === undefined
       ? undefined
       : nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets', ticketInfo.folder);
+  if (
+    ticketDirectory !== undefined &&
+    !isTestFile(editedFile) &&
+    nodePath.extname(editedFile) !== '.feature'
+  ) {
+    const routingDenial = smallWorkRoutingDenial(
+      projectDirectory,
+      nodePath.join(ticketDirectory, 'ticket.md'),
+      state.activeTicket,
+      editedFile,
+    );
+    if (routingDenial !== undefined) deny(routingDenial, undefined, true);
+  }
   const isBehaviorDefinitionEdit =
     (ticketInfo.phase === 'define-behavior' || ticketInfo.phase === 'scenario-gate') &&
     nodePath.extname(editedFile) === '.feature';

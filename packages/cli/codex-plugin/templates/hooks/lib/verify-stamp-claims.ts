@@ -25,6 +25,7 @@ import {
   claimFromScope,
   claimsCoordinatorVerdict,
   receiptGateVerdict,
+  type ReviewReceipt,
   type StampClaim,
 } from './review-receipt.js';
 import type { ReviewStamp } from './review-ledger.js';
@@ -202,8 +203,14 @@ export function verifiedStamps(
   stamps: readonly ReviewStamp[],
   projectDirectory: string,
   scope: string,
+  {
+    requireDeclaredScenario = false,
+    readReceipt = createReviewReceiptReader(projectDirectory),
+  }: {
+    requireDeclaredScenario?: boolean;
+    readReceipt?: (id: string) => ReviewReceipt | undefined;
+  } = {},
 ): ReviewStamp[] {
-  const readReceipt = createReviewReceiptReader(projectDirectory);
   let claimContext: ReturnType<typeof reviewClaimContext> | undefined;
   return stamps
     .filter(stamp => stamp.scope === scope)
@@ -227,6 +234,15 @@ export function verifiedStamps(
       });
       if (claim === undefined) return false;
 
-      return receiptGateVerdict(claim, readReceipt(stamp.reviewId)).ok;
+      const receipt = readReceipt(stamp.reviewId);
+      if (
+        requireDeclaredScenario &&
+        (claim.scenarioArtifact === undefined ||
+          !receipt?.targets?.some(
+            target => nodePath.resolve(projectDirectory, target) === claim.scenarioArtifact,
+          ))
+      )
+        return false;
+      return receiptGateVerdict(claim, receipt).ok;
     });
 }

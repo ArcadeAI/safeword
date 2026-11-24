@@ -122,16 +122,9 @@ In a ticket-owned implementation or execution plan, link to the relevant records
 
 Supported workflow entry points supply versioned project and decision facts to one deterministic CLI policy at routing and reevaluation boundaries. Missing or incompatible prerequisites stop capable adapters through the typed CLI contract. File and surface counts prompt reevaluation. Semantic precedence decides the route. Host-local classification rules and size-only routing would diverge or miss consequential choices.
 
-Production admission for a behavior-changing task consumes current cross-agent executable RED evidence bound to the inline task, proof inputs and established actor boundary. Reuse the existing attestation and receipt boundary with a task subject. Author-declared matches alone cannot establish relevance. Planning fallback policy and feature RED rules keep their existing scope.
+Production admission for a behavior-changing task consumes a current, validated failing run bound to the inline task and its proof inputs. The task record links the test command and failing assertion to the established actor entry point, expected outcome and observed outcome. The working agent checks relevance against the pre-edit caller, contract or installed entry point. Feature RED review and planning fallback policy retain their existing scope.
 
-Cursor desktop and Cloud Agents need a new task-RED author pairing. Use run
-identity from the installed Cursor dispatch through the trusted resolver and
-bind it to the task proof. Standalone CLI calls preserve the attributed
-originating workflow. Caller labels and unattributed terminal calls cannot
-establish independence. The proposed Cursor route uses a configured, eligible
-Claude reviewer. When attribution or a cross-agent result is unavailable,
-retain the failing run and return a pending handoff. Activate only after both
-Cursor surfaces prove actual receipt acquisition.
+The same proof contract applies to the installed CLI and supported local and cloud hooks. Admission validates the run and the linked evidence. The relevance finding relies on the working agent’s reading of those sources.
 
 An authorized writer promotes the same ticket by publishing type, owning phase and preserved proof references together. Prior proof retains its original meaning. A replacement ticket splits identity and retry history. CLI, installed hooks, ticket writers and downstream recovery consume this contract. YCFFNC coordinates matched activation. Older hosts can miss the gate. Reassess if a supported boundary cannot enforce admission, authenticate relevant proof or preserve identity across a retry.
 

@@ -1,0 +1,158 @@
+[
+  {
+    "host": "claude",
+    "route": "patch",
+    "session": "58e8606d-d5c2-4dbd-a594-b5db8bae2a42",
+    "facts": {
+      "schemaVersion": 1,
+      "scope": "Correct the spelling of \"availble\" to \"available\" in README.md line 3; no other text, code, or public JSON field (ready) changes.",
+      "outcome": "README.md reads \"Outputs an available status.\"; public behavior unchanged.",
+      "decisions": {
+        "behavior": "settled",
+        "shared-contract": "settled",
+        "architecture": "settled",
+        "data-ownership": "settled",
+        "retention": "settled",
+        "migration": "settled",
+        "compatibility": "settled",
+        "proof-boundary": "settled"
+      },
+      "introducesUserFlow": false,
+      "multipleUserFlows": false,
+      "newPersistentState": false,
+      "changesSharedContract": false,
+      "changesBehavior": false,
+      "verification": "targeted"
+    }
+  },
+  {
+    "host": "claude",
+    "route": "feature",
+    "session": "87a91834-9e59-46e9-824b-b18a96d87cea",
+    "facts": {
+      "schemaVersion": 1,
+      "scope": "Rename the public JSON response field ready to available in src/status.ts with no compatibility alias; README updated to match. Monitoring client untouched.",
+      "outcome": "status() returns { available: true } and no longer emits ready.",
+      "decisions": {
+        "behavior": "settled",
+        "shared-contract": "settled",
+        "architecture": "settled",
+        "data-ownership": "settled",
+        "retention": "settled",
+        "migration": "settled",
+        "compatibility": "settled",
+        "proof-boundary": "settled"
+      },
+      "introducesUserFlow": false,
+      "multipleUserFlows": false,
+      "newPersistentState": false,
+      "changesSharedContract": true,
+      "changesBehavior": true,
+      "verification": "targeted"
+    }
+  },
+  {
+    "host": "claude",
+    "route": "task",
+    "session": "f5860cbe-b85d-4dc1-b6fa-54c83a1a5988",
+    "facts": {
+      "schemaVersion": 1,
+      "scope": "Change the internal retry helper attempts() in src/retry.ts to return 2 instead of 1 for its single existing caller (src/caller.ts run()), and add a regression test for that internal behavior.",
+      "outcome": "attempts() returns 2, so run() returns 2; a new regression test asserts the two-attempt result.",
+      "decisions": {
+        "behavior": "settled",
+        "shared-contract": "settled",
+        "architecture": "settled",
+        "data-ownership": "settled",
+        "retention": "settled",
+        "migration": "settled",
+        "compatibility": "settled",
+        "proof-boundary": "settled"
+      },
+      "introducesUserFlow": false,
+      "multipleUserFlows": false,
+      "newPersistentState": false,
+      "changesSharedContract": false,
+      "changesBehavior": true,
+      "verification": "new-regression"
+    }
+  },
+  {
+    "host": "codex",
+    "route": "patch",
+    "session": "01a20aa0-6ce1-7571-91c3-133ca1e6b566",
+    "facts": {
+      "schemaVersion": 1,
+      "scope": "Correct availble to available in README.md only",
+      "outcome": "The README status description spells available correctly and public behavior is unchanged",
+      "decisions": {
+        "behavior": "settled",
+        "shared-contract": "settled",
+        "architecture": "settled",
+        "data-ownership": "settled",
+        "retention": "settled",
+        "migration": "settled",
+        "compatibility": "settled",
+        "proof-boundary": "settled"
+      },
+      "introducesUserFlow": false,
+      "multipleUserFlows": false,
+      "newPersistentState": false,
+      "changesSharedContract": false,
+      "changesBehavior": false,
+      "verification": "targeted"
+    }
+  },
+  {
+    "host": "codex",
+    "route": "task",
+    "session": "01a20aa0-6cd5-7460-9ac5-9a53d51263cd",
+    "facts": {
+      "schemaVersion": 1,
+      "scope": "Update the CLI's private retry helper for its existing caller and add a regression test for the private behavior.",
+      "outcome": "The helper returns two attempts for the existing caller, and a regression test asserts the two-attempt result.",
+      "decisions": {
+        "behavior": "settled",
+        "shared-contract": "settled",
+        "architecture": "settled",
+        "data-ownership": "settled",
+        "retention": "settled",
+        "migration": "settled",
+        "compatibility": "settled",
+        "proof-boundary": "settled"
+      },
+      "introducesUserFlow": false,
+      "multipleUserFlows": false,
+      "newPersistentState": false,
+      "changesSharedContract": false,
+      "changesBehavior": true,
+      "verification": "new-regression"
+    }
+  },
+  {
+    "host": "codex",
+    "route": "feature",
+    "session": "01a20aa0-6ce2-7b32-82a0-891e43a3a031",
+    "facts": {
+      "schemaVersion": 1,
+      "scope": "Rename the public JSON response field ready to available without a compatibility alias. A separately released monitoring client consumes ready and is outside the scope of this change. The break is intentional.",
+      "outcome": "At the public response entry point, available carries the former ready value and ready is absent. Verify both assertions with a targeted response contract check.",
+      "decisions": {
+        "behavior": "settled",
+        "shared-contract": "settled",
+        "architecture": "settled",
+        "data-ownership": "settled",
+        "retention": "settled",
+        "migration": "settled",
+        "compatibility": "settled",
+        "proof-boundary": "settled"
+      },
+      "introducesUserFlow": false,
+      "multipleUserFlows": false,
+      "newPersistentState": false,
+      "changesSharedContract": true,
+      "changesBehavior": true,
+      "verification": "targeted"
+    }
+  }
+]

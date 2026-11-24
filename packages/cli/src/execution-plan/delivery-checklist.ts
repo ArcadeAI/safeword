@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 
 import type { ExecutionPlanDeliveryDefinition } from '../review/contract.js';
+import { readFrontmatterScalar } from '../utils/frontmatter.js';
 
 export { normalizedExecutionPlanDigest } from './review-identity.js';
 
@@ -515,7 +516,11 @@ function validProofHeader(lines: readonly string[], start: number): boolean {
   );
 }
 
-function parseItems(lines: readonly string[], start: number): DeliveryChecklistResult {
+function parseItems(
+  lines: readonly string[],
+  start: number,
+  requireAllCategories: boolean,
+): DeliveryChecklistResult {
   const items: DeliveryChecklistItem[] = [];
   const identifiers = new Set<string>();
   const candidates = lines.slice(start + 2);
@@ -542,6 +547,12 @@ function parseItems(lines: readonly string[], start: number): DeliveryChecklistR
   if (items.length === 0) {
     return invalid('invalid_delivery_checklist', 'The Delivery Checklist has no items.');
   }
+  return requireAllCategories ? requireChecklistCategories(items) : { ok: true, items };
+}
+
+function requireChecklistCategories(
+  items: readonly DeliveryChecklistItem[],
+): DeliveryChecklistResult {
   const present = new Set(items.map(item => item.category));
   const missingCategories = DELIVERY_CHECKLIST_CATEGORIES.filter(
     category => !present.has(category),
@@ -557,20 +568,41 @@ function parseItems(lines: readonly string[], start: number): DeliveryChecklistR
   return { ok: true, items };
 }
 
-export function parseDeliveryChecklist(content: string): DeliveryChecklistResult {
+export function parseDeliveryChecklist(
+  content: string,
+  options: { readonly requireAllCategories?: boolean } = {},
+): DeliveryChecklistResult {
   const lines = content.split(/\r?\n/u);
   const markerIndex = lines.findIndex(line => line.trim() === MARKER);
   if (markerIndex === -1) {
     return invalid(
       'missing_delivery_checklist',
-      'execution-plan.md is missing the Delivery Checklist.',
+      options.requireAllCategories === false
+        ? 'Add the inline Delivery Checklist to ticket.md, then check delivery readiness again.'
+        : 'execution-plan.md is missing the Delivery Checklist.',
     );
   }
   const start = tableStart(lines, markerIndex);
   if (start === -1 || !validHeader(lines, start)) {
     return invalid('invalid_delivery_checklist', 'The Delivery Checklist table header is invalid.');
   }
-  return parseItems(lines, start);
+  return parseItems(lines, start, options.requireAllCategories ?? true);
+}
+
+export function renderInitialSmallWorkChecklist(): string {
+  const header = HEADERS.join(' | ');
+  const separator = HEADERS.map(() => '---').join(' | ');
+  return [
+    '',
+    '## Delivery Checklist',
+    '',
+    MARKER,
+    '',
+    `| ${header} |`,
+    `| ${separator} |`,
+    '| verification | testing | Verify the agreed outcome at its existing boundary | contributor | targeted-verification | open | missing | | |',
+    '',
+  ].join('\n');
 }
 
 function parseProofRows(
@@ -610,14 +642,20 @@ function parseProofRows(
   return { ok: true, specifications };
 }
 
-export function parseProofSpecifications(content: string): DeliveryProofSpecificationsResult {
+export function parseProofSpecifications(
+  content: string,
+  path: 'ticket.md' | 'execution-plan.md' = 'execution-plan.md',
+): DeliveryProofSpecificationsResult {
   const lines = content.split(/\r?\n/u);
   const headingIndex = lines.findIndex(line => line.trim() === '## Proof specifications');
   if (headingIndex === -1) {
     return {
       ok: false,
       code: 'missing_proof_specifications',
-      message: 'execution-plan.md is missing Proof specifications.',
+      message:
+        path === 'ticket.md'
+          ? 'Add a Proof specifications table before the Delivery Checklist in ticket.md. See the inline example in the verify skill.'
+          : 'execution-plan.md is missing Proof specifications.',
     };
   }
   const start = tableStart(lines, headingIndex);
@@ -631,10 +669,14 @@ export function parseProofSpecifications(content: string): DeliveryProofSpecific
   return parseProofRows(lines, start);
 }
 
-export function parseDeliveryPlanContract(content: string): DeliveryPlanContractResult {
-  const proofs = parseProofSpecifications(content);
+export function parseDeliveryPlanContract(
+  content: string,
+  options: { readonly requireAllCategories?: boolean } = {},
+): DeliveryPlanContractResult {
+  const path = options.requireAllCategories === false ? 'ticket.md' : 'execution-plan.md';
+  const proofs = parseProofSpecifications(content, path);
   if (!proofs.ok) return proofs;
-  const checklist = parseDeliveryChecklist(content);
+  const checklist = parseDeliveryChecklist(content, options);
   if (!checklist.ok) return checklist;
   const lines = content.split(/\r?\n/u);
   const proofHeading = lines.findIndex(line => line.trim() === '## Proof specifications');
@@ -660,9 +702,11 @@ export function parseDeliveryPlanContract(content: string): DeliveryPlanContract
       message: `Delivery Checklist item ${unsupported.id} requires ${unsupported.requiredProof}, which is not a real-boundary proof.`,
     };
   }
-  const hasExecutableTestingProof = checklist.items.some(item => {
+  const inlinePatch =
+    options.requireAllCategories === false && readFrontmatterScalar(content, 'type') === 'patch';
+  const hasExecutableVerification = checklist.items.some(item => {
     if (
-      item.category !== 'testing' ||
+      (inlinePatch ? item.id !== 'verification' : item.category !== 'testing') ||
       item.owner !== 'contributor' ||
       item.disposition === 'not_applicable'
     ) {
@@ -671,12 +715,13 @@ export function parseDeliveryPlanContract(content: string): DeliveryPlanContract
     const proof = specificationsById.get(item.requiredProof);
     return proof?.method === 'command' && proof.qualifiesAs === 'real_boundary';
   });
-  if (!hasExecutableTestingProof) {
+  if (!hasExecutableVerification) {
     return {
       ok: false,
       code: 'testing_proof_not_executable',
-      message:
-        'The Delivery Checklist testing category needs a contributor-owned real-boundary command proof.',
+      message: inlinePatch
+        ? 'The inline patch verification item needs a contributor-owned real-boundary command proof.'
+        : 'The Delivery Checklist testing category needs a contributor-owned real-boundary command proof.',
     };
   }
   return {
@@ -821,8 +866,11 @@ interface DeliveryChecklistUpdateInput {
 
 function validateChecklistUpdate(
   input: DeliveryChecklistUpdateInput,
+  inline: boolean,
 ): DeliveryChecklistUpdateResult {
-  const contract = parseDeliveryPlanContract(input.expectedContent);
+  const contract = parseDeliveryPlanContract(input.expectedContent, {
+    requireAllCategories: !inline,
+  });
   if (!contract.ok) return updateFailure(contract.code, contract.message);
   const item = contract.items.find(candidate => candidate.id === input.itemId);
   if (item === undefined) {
@@ -926,8 +974,9 @@ function replaceExactPlanSnapshot(
 /** Replace only one checklist row's mutable progress cells from an exact plan snapshot. */
 export function updateDeliveryChecklistFile(
   input: DeliveryChecklistUpdateInput,
+  options: { readonly inline?: boolean } = {},
 ): DeliveryChecklistUpdateResult {
-  const validation = validateChecklistUpdate(input);
+  const validation = validateChecklistUpdate(input, options.inline === true);
   if (!validation.ok) return validation;
   const updated = updatedChecklistContent(input);
   if (!updated.ok) return updated;

@@ -9282,7 +9282,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
         'da25a09d6caa34f1e1f7ff3e33c64c5c4a59797145a0c6346b5efec46193f62b',
       '.claude/skills/bdd/SCENARIOS.md':
-        '1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb',
+        'e012b2e4a973cd2cebfc0a5551d8fce583f7dd05328b5a943d6c814917f20d80',
       '.claude/skills/bdd/SKILL.md':
         '898e21405b0735f13087e3c986df79b2a6428309536cb43d77f5c57777f1bd90',
       '.claude/skills/bdd/SPLITTING.md':
@@ -9336,7 +9336,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/ticket-system/SKILL.md':
         '5a8ce171c60dc7ab07d641dc66d43ae3730d1a2401df86a02250ce82cf53a800',
       '.claude/skills/verify/SKILL.md':
-        '440496033f496153e5514028643123b5603bde3ba540750f91aaf8849e8b2675',
+        '8f650cd280406b116951792825693113692ab4de4abd4aa355a44fa6725d5e4a',
     },
     hook_files: {
       '.safeword/hooks/post-tool-bypass-warn.ts':
@@ -9346,7 +9346,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/post-tool-lint.ts':
         'a1779513108c3f0dc6296bb765752507c65f3ff9c29af35e1e28878ace079f06',
       '.safeword/hooks/post-tool-quality.ts':
-        '27162fc9d5b74d2f1964b83a50acd652f3a4689583ebaa514639a38d9ee46e40',
+        '9031720df4f37c05f242353f9c53d44e7b3889a7b5be3186c01d80575dd8a271',
       '.safeword/hooks/post-tool-skill-nudge.ts':
         'd71158796facccdd5cbf7b64f460b36ebef0b92c41ee3a2f2a09625483e7af39',
       '.safeword/hooks/post-tool-sync-learnings.ts':
@@ -9362,7 +9362,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/pre-tool-git-bare-fix.sh':
         '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
       '.safeword/hooks/pre-tool-quality.ts':
-        'aa1c7f33bf24f75deaba6c8a60f6659a884ba18314c55da6d277fab9b063ec25',
+        '03e6111f42f45e09af9edb20bb5976379a48df7d76881b959c2278d0ba8fea8a',
       '.safeword/hooks/pre-tool-stale-main.ts':
         '6a7c2d75a9955f661f620ee20f4210bec09fa206625d84363cd0376fc56fdf5d',
       '.safeword/hooks/prompt-questions.ts':

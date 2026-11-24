@@ -16,6 +16,25 @@ Feature: Keep tasks and patches proportional
         | task | no Implementation Plan, Execution Plan, or independent planning review is created |
         | feature | an Implementation Plan and Execution Plan are required, with a semantic review of each plan |
 
+    @proof.vitest @surface.claude-code @surface.openai-codex
+    Scenario: Classified patches stay lightweight on Claude Code and Codex
+      Given an attached patch has settled behavior and targeted proof
+      When the installed Claude Code and Codex edit gates receive its bounded edit
+      Then both allow the edit and keep the ticket a patch without creating feature plans
+
+    @proof.vitest @surface.claude-code @surface.openai-codex
+    Scenario: Classified tasks stay on inline TDD in Claude Code and Codex
+      Given a classified task has an inline test specification and still needs its failing test
+      When the installed Claude Code and Codex gates start the task workflow
+      Then both ask for RED on the same task without creating or requiring feature plans
+
+    @proof.vitest @surface.claude-code @surface.openai-codex
+    Scenario: Claude Code and Codex require both reviewed feature plans before implementation
+      Given a feature has Implementation and Execution Plans
+      When the installed Claude Code and Codex gates evaluate entry into implementation
+      Then both deny entry until both plan reviews are current
+      And both admit the phase transition once the plans and their reviews satisfy the gates
+
     @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed hosts apply feature ceremony by work type
       Given <host> receives work already classified as <work_type>
@@ -27,15 +46,9 @@ Feature: Keep tasks and patches proportional
         | Safeword CLI | actual installed CLI dispatch | task | no feature planning artifact or planning review is created |
         | Safeword CLI | actual installed CLI dispatch | patch | no feature planning artifact or planning review is created |
         | Safeword CLI | actual installed CLI dispatch | feature | both feature plans and their semantic reviews are required |
-        | Claude Code | actual lifecycle dispatch from installed project hooks | feature | both feature plans and their semantic reviews are required |
-        | Claude Code | actual lifecycle dispatch from installed project hooks | task | no feature planning artifact or planning review is created |
-        | Claude Code | actual lifecycle dispatch from installed project hooks | patch | no feature planning artifact or planning review is created |
         | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM | task | no feature planning artifact or planning review is created |
         | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM | patch | no feature planning artifact or planning review is created |
         | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM | feature | both feature plans and their semantic reviews are required |
-        | OpenAI Codex | actual lifecycle dispatch from installed project hooks | feature | both feature plans and their semantic reviews are required |
-        | OpenAI Codex | actual lifecycle dispatch from installed project hooks | task | no feature planning artifact or planning review is created |
-        | OpenAI Codex | actual lifecycle dispatch from installed project hooks | patch | no feature planning artifact or planning review is created |
         | Cursor | actual lifecycle dispatch from installed project hooks | feature | both feature plans and their semantic reviews are required |
         | Cursor | actual lifecycle dispatch from installed project hooks | task | no feature planning artifact or planning review is created |
         | Cursor | actual lifecycle dispatch from installed project hooks | patch | no feature planning artifact or planning review is created |
@@ -57,6 +70,12 @@ Feature: Keep tasks and patches proportional
         | changes a shared public response contract despite also correcting a typo | feature |
         | performs a mechanical multi-file update that also introduces new persistent state | feature |
 
+    @proof.vitest @surface.safeword-cli
+    Scenario: Native Claude Code and Codex classification requests replay through the CLI
+      Given live Claude Code and Codex sessions each sent patch, task, and feature requests to the classifier
+      When a fresh CLI process replays each captured request
+      Then it returns the corresponding route without creating a ticket
+
     @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed hosts route unclassified work through the shared classifier
       Given <installed_entry> receives unclassified work that <observable_shape>
@@ -68,15 +87,9 @@ Feature: Keep tasks and patches proportional
         | actual installed CLI dispatch | is a one-line non-behavioral correction with targeted proof | patch |
         | actual installed CLI dispatch | changes a shared public response contract | feature |
         | actual installed CLI dispatch | is bounded residual work requiring new regression proof | task |
-        | actual Claude Code lifecycle dispatch from installed project hooks | is a one-line non-behavioral correction with targeted proof | patch |
-        | actual Claude Code lifecycle dispatch from installed project hooks | changes a shared public response contract | feature |
-        | actual Claude Code lifecycle dispatch from installed project hooks | is bounded residual work requiring new regression proof | task |
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM | is a one-line non-behavioral correction with targeted proof | patch |
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM | changes a shared public response contract | feature |
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM | is bounded residual work requiring new regression proof | task |
-        | actual OpenAI Codex lifecycle dispatch from installed project hooks | is a one-line non-behavioral correction with targeted proof | patch |
-        | actual OpenAI Codex lifecycle dispatch from installed project hooks | changes a shared public response contract | feature |
-        | actual OpenAI Codex lifecycle dispatch from installed project hooks | is bounded residual work requiring new regression proof | task |
         | actual Cursor lifecycle dispatch from installed project hooks | is a one-line non-behavioral correction with targeted proof | patch |
         | actual Cursor lifecycle dispatch from installed project hooks | changes a shared public response contract | feature |
         | actual Cursor lifecycle dispatch from installed project hooks | is bounded residual work requiring new regression proof | task |
@@ -87,7 +100,7 @@ Feature: Keep tasks and patches proportional
   @plan-implementability.TBU3.3EG00H.R3
   Rule: plan-implementability.TBU3.3EG00H.R3 — Patches exclude feature triggers
 
-    @rejection
+    @rejection @proof.vitest
     Scenario: A tiny public-contract change cannot be labeled a patch
       Given a one-line edit changes a shared public response contract
       When the narrow patch contract is evaluated
@@ -159,6 +172,13 @@ Feature: Keep tasks and patches proportional
         | every configured installed host surface | only mechanical parity with settled behavior | task |
         | two public surfaces | a newly divergent user flow | feature |
 
+    @proof.vitest @surface.claude-code @surface.openai-codex
+    Scenario: Claude Code and Codex check file and surface growth before editing
+      Given a bound task has current test evidence and its file and affected surface limits are recorded
+      When the installed Claude Code and Codex edit gates check the proposed changes
+      Then both permit a change within the limits without reclassifying the task
+      And both require reevaluation when a change crosses either limit alone
+
     @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed hosts enforce reevaluation only after a configured signal is crossed
       Given <installed_entry> is running task work whose size and affected surfaces <signal_state>
@@ -170,12 +190,8 @@ Feature: Keep tasks and patches proportional
         | actual installed CLI dispatch | remain within configured signals | production continues without a classification reevaluation |
         | actual installed CLI dispatch | cross the configured surface signal | production pauses until semantic reevaluation is recorded |
         | actual installed CLI dispatch | cross only the configured size signal | production pauses until semantic reevaluation is recorded |
-        | actual Claude Code lifecycle dispatch from installed project hooks | remain within configured signals | production continues without a classification reevaluation |
-        | actual Claude Code lifecycle dispatch from installed project hooks | cross the configured surface signal | production pauses until semantic reevaluation is recorded |
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM | remain within configured signals | production continues without a classification reevaluation |
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM | cross the configured surface signal | production pauses until semantic reevaluation is recorded |
-        | actual OpenAI Codex lifecycle dispatch from installed project hooks | remain within configured signals | production continues without a classification reevaluation |
-        | actual OpenAI Codex lifecycle dispatch from installed project hooks | cross the configured surface signal | production pauses until semantic reevaluation is recorded |
         | actual Cursor lifecycle dispatch from installed project hooks | remain within configured signals | production continues without a classification reevaluation |
         | actual Cursor lifecycle dispatch from installed project hooks | cross the configured surface signal | production pauses until semantic reevaluation is recorded |
         | actual Cursor Cloud Agents lifecycle dispatch from project hooks in a fresh runner | remain within configured signals | production continues without a classification reevaluation |
@@ -183,6 +199,12 @@ Feature: Keep tasks and patches proportional
 
   @plan-implementability.TBU3.3EG00H.R7
   Rule: plan-implementability.TBU3.3EG00H.R7 — Tasks use inline test specifications
+
+    @proof.vitest @surface.claude-code @surface.openai-codex
+    Scenario: Local Claude Code and Codex retain the inline task test specification
+      Given a task has a settled expected behavior and a test command through its existing caller
+      When the Claude Code and Codex ticket-edit hooks process the inline specification
+      Then each keeps the behavior and proof boundary on the task without creating feature plans
 
     @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed task planning writes inline test specifications
@@ -193,9 +215,7 @@ Feature: Keep tasks and patches proportional
       Examples:
         | installed_entry |
         | actual installed CLI dispatch |
-        | actual Claude Code lifecycle dispatch from installed project hooks |
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM |
-        | actual OpenAI Codex lifecycle dispatch from installed project hooks |
         | actual Cursor lifecycle dispatch from installed project hooks |
         | actual Cursor Cloud Agents lifecycle dispatch from project hooks in a fresh runner |
 
@@ -214,6 +234,7 @@ Feature: Keep tasks and patches proportional
       When production code modification is attempted
       Then the modification is blocked because no meaningful failing test through an existing boundary has been observed
 
+    @proof.vitest
     Scenario: Meaningful RED permits the production change
       Given a technical builder has a behavior-changing task with one observed meaningful failing test through an existing boundary and the failing evidence linked
       When production code modification is attempted
@@ -230,6 +251,19 @@ Feature: Keep tasks and patches proportional
         | fails only through a newly invented boundary |
         | fails for a reason unrelated to the settled expected behavior |
 
+    @rejection @proof.vitest @surface.claude-code @surface.openai-codex
+    Scenario: Claude Code and Codex block a bound task edit when RED is missing
+      Given a behavior-changing task has settled expected behavior and a saved footprint within its thresholds
+      And a ticket edit binds the task to the active session
+      When the installed Claude Code and Codex edit gates receive a production edit without observed RED
+      Then each gate denies the edit because the failing test has not been observed
+
+    @proof.vitest @surface.claude-code @surface.openai-codex
+    Scenario: Claude Code and Codex admit a production edit after meaningful RED
+      Given a bound task links a relevant observed failure through an existing caller
+      When the installed Claude Code and Codex gates receive its production edit
+      Then each permits the edit and preserves the linked RED evidence
+
     @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed lifecycle dispatch enforces meaningful RED
       Given a technical builder has a behavior-changing task with settled expected behavior and <red_state>
@@ -240,12 +274,8 @@ Feature: Keep tasks and patches proportional
         | installed_entry | red_state | gate_result |
         | actual installed CLI dispatch | no observed failing test | the modification is blocked because meaningful RED is missing |
         | actual installed CLI dispatch | an observed meaningful failing test through an existing boundary with linked evidence | the modification is permitted to proceed to GREEN with the linked evidence preserved |
-        | actual Claude Code lifecycle dispatch from installed project hooks | no observed failing test | the modification is blocked because meaningful RED is missing |
-        | actual Claude Code lifecycle dispatch from installed project hooks | an observed meaningful failing test through an existing boundary with linked evidence | the modification is permitted to proceed to GREEN with the linked evidence preserved |
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM | no observed failing test | the modification is blocked because meaningful RED is missing |
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM | an observed meaningful failing test through an existing boundary with linked evidence | the modification is permitted to proceed to GREEN with the linked evidence preserved |
-        | actual OpenAI Codex lifecycle dispatch from installed project hooks | no observed failing test | the modification is blocked because meaningful RED is missing |
-        | actual OpenAI Codex lifecycle dispatch from installed project hooks | an observed meaningful failing test through an existing boundary with linked evidence | the modification is permitted to proceed to GREEN with the linked evidence preserved |
         | actual Cursor lifecycle dispatch from installed project hooks | no observed failing test | the modification is blocked because meaningful RED is missing |
         | actual Cursor lifecycle dispatch from installed project hooks | an observed meaningful failing test through an existing boundary with linked evidence | the modification is permitted to proceed to GREEN with the linked evidence preserved |
         | actual Cursor Cloud Agents lifecycle dispatch from project hooks in a fresh runner | no observed failing test | the modification is blocked because meaningful RED is missing |
@@ -309,6 +339,13 @@ Feature: Keep tasks and patches proportional
       When implementation would otherwise begin
       Then production work stops, the recorded investigation findings survive the promotion, and the promoted work resumes at Implementation Planning with the decision open and no test evidence claimed
 
+    @rejection @proof.vitest @surface.claude-code @surface.openai-codex
+    Scenario: Claude Code and Codex retain RED when approved behavior moves to planning
+      Given a task has linked failing evidence and discovers a public-contract design decision
+      And the applicable scenarios have current approval
+      When the installed Claude Code and Codex hooks process the ticket and the next production edit
+      Then both retain the linked evidence, move the same ticket to Implementation Planning, and block the source edit
+
     @rejection @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed hosts promote a task when TDD exposes a feature decision
       Given task TDD has produced linked test evidence and then exposes an unresolved in-scope public-contract design decision
@@ -319,9 +356,7 @@ Feature: Keep tasks and patches proportional
       Examples:
         | installed_entry |
         | actual installed CLI dispatch |
-        | actual Claude Code lifecycle dispatch from installed project hooks |
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM |
-        | actual OpenAI Codex lifecycle dispatch from installed project hooks |
         | actual Cursor lifecycle dispatch from installed project hooks |
         | actual Cursor Cloud Agents lifecycle dispatch from project hooks in a fresh runner |
 
@@ -336,8 +371,21 @@ Feature: Keep tasks and patches proportional
       Examples:
         | new_choice | return_path |
         | an in-scope product-behavior decision | behavior definition resumes with existing evidence preserved |
-        | an in-scope public-contract design decision with current approval for the applicable feature behavior | the same ticket enters Implementation Planning immediately with existing evidence preserved and without reopening behavior review |
         | an in-scope implementation-design decision with current approval for the applicable feature behavior | the same ticket enters Implementation Planning immediately with existing evidence preserved and without reopening behavior review |
+
+    @proof.vitest
+    Scenario: Current behavior approval sends public-contract design straight to Implementation Planning
+      Given a task records an in-scope public-contract design change and has current approval for the applicable behavior
+      When the installed ticket-edit hook promotes the task
+      Then the same ticket enters Implementation Planning and retains its investigation notes
+
+    @proof.vitest
+    Scenario: A resumed ticket edit follows the saved design destination after current approval
+      Given design-only promotion saved Implementation Planning as the destination on the same ticket
+      And the ticket is at the scenario gate with its investigation notes intact
+      When the installed ticket-edit hook sees the ticket in a fresh session
+      Then missing, stale, or unrelated approval leaves the destination pending
+      And current approval lets the same ticket enter Implementation Planning with its investigation notes intact
 
     @rejection @surface.safeword-cli @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario Outline: Design-only promotion defers Implementation Planning when behavior approval is missing
@@ -373,22 +421,23 @@ Feature: Keep tasks and patches proportional
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM |
         | actual Cursor Cloud Agents lifecycle dispatch from project hooks in a fresh runner |
 
-    @surface.safeword-cli
-    Scenario Outline: Restart follows the saved design destination only after behavior approval
-      Given a promoted ticket is at the existing scenario gate with Implementation Planning saved as its destination and its original evidence linked
-      And the gate has <approval> for the applicable feature behavior
-      When a fresh installed CLI invocation resumes the ticket from disk
-      Then the same ticket retains its original evidence links and <resume_outcome>
-
-      Examples:
-        | approval | resume_outcome |
-        | no current approval | stays at the scenario gate with Implementation Planning still pending |
-        | current approval | enters Implementation Planning from the saved destination |
+    @surface.safeword-cli @proof.vitest
+    Scenario: Restart follows the saved design destination only after behavior approval
+      Given a promoted ticket is at the scenario gate with Implementation Planning saved and its original evidence linked
+      When a fresh Safeword CLI invocation resumes the ticket
+      Then missing or stale approval leaves the ticket and its saved destination in place
+      And a fresh invocation with current approval advances the same ticket to Implementation Planning with its original evidence intact
 
     Scenario: Work already promoted to a feature routes a sequencing-only change to Execution Planning
       Given a task was already promoted to a feature for a feature-triggering decision and has an accepted Implementation Plan
       When the promoted feature discovers a sequencing-only change
       Then Execution Planning resumes with existing evidence preserved
+
+    @rejection @proof.vitest @surface.claude-code @surface.openai-codex
+    Scenario: Unresolved product behavior returns to definition on Claude Code and Codex
+      Given task investigation recorded evidence and exposed an unresolved product-behavior decision
+      When the installed Claude Code and Codex edit hooks process the same ticket and the next production edit
+      Then both preserve the evidence, send the ticket to behavior definition, and block the production edit
 
     @rejection @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed hosts return a promoted product decision to behavior definition
@@ -399,9 +448,7 @@ Feature: Keep tasks and patches proportional
       Examples:
         | installed_entry |
         | actual installed CLI dispatch |
-        | actual Claude Code lifecycle dispatch from installed project hooks |
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM |
-        | actual OpenAI Codex lifecycle dispatch from installed project hooks |
         | actual Cursor lifecycle dispatch from installed project hooks |
         | actual Cursor Cloud Agents lifecycle dispatch from project hooks in a fresh runner |
 

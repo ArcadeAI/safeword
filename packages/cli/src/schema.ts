@@ -360,6 +360,7 @@ export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   // dirty tree, and quarantined bytes are recovery material, not source.
   '.safeword/claude-plugin/',
   '.safeword/state/reviews/',
+  '.safeword/state/small-work/',
   ...['.project', '.safeword-project'].flatMap(root =>
     NAMESPACE_TRANSIENT_BASENAMES.map(name => `${root}/${name}`),
   ),
@@ -885,6 +886,15 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/lib/done-gate.ts': { template: 'hooks/lib/done-gate.ts' },
     '.safeword/hooks/lib/ticket-close.ts': { template: 'hooks/lib/ticket-close.ts' },
+    '.safeword/hooks/lib/small-work-classification.ts': {
+      template: 'hooks/lib/small-work-classification.ts',
+    },
+    '.safeword/hooks/lib/small-work-footprint.ts': {
+      template: 'hooks/lib/small-work-footprint.ts',
+    },
+    '.safeword/hooks/lib/small-work-admission.ts': {
+      template: 'hooks/lib/small-work-admission.ts',
+    },
     '.safeword/hooks/lib/jsonl-spool.ts': { template: 'hooks/lib/jsonl-spool.ts' },
     '.safeword/hooks/lib/namespace-root.ts': { template: 'hooks/lib/namespace-root.ts' },
     '.safeword/hooks/lib/project-directory.ts': { template: 'hooks/lib/project-directory.ts' },

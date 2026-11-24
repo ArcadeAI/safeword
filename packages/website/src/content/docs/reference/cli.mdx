@@ -58,9 +58,14 @@ canonical commands below.
 | `ticket approve-plan`                   | mutate      | Record human authority for the current reviewed Implementation Plan                                                                              |
 | `ticket record-review-disposition`      | mutate      | Decline one optional reviewed suggestion                                                                                                         |
 | `ticket planning-contract-check`        | observe     | Check active planning author-copy integrity                                                                                                      |
-| `ticket delivery-checklist`             | observe     | Report feature delivery readiness                                                                                                                |
+| `ticket delivery-checklist`             | observe     | Report delivery readiness for a ticket                                                                                                           |
 | `ticket execution-prerequisite`         | observe     | Check whether feature execution planning is admitted                                                                                             |
 | `ticket coding-authorization`           | observe     | Check whether current reviewed plans authorize coding                                                                                            |
+| `ticket resume`                         | mutate      | Resume a ticket from its saved small-work destination                                                                                            |
+| `ticket classify-small-work`            | observe     | Classify versioned small-work facts                                                                                                              |
+| `ticket observe-small-work-proof`       | mutate      | Observe a declared small-work test                                                                                                               |
+| `ticket verify-small-work-proof`        | observe     | Verify a current small-work test observation                                                                                                     |
+| `ticket observe-small-work-green`       | mutate      | Rerun the saved RED test and record GREEN                                                                                                        |
 | `ticket record-delivery-proof`          | mutate      | Run and retain one reviewed delivery proof                                                                                                       |
 | `review run`                            | mutate      | Run an independent adversarial review; report data.excluded_targets and REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE or REVIEW_NO_ELIGIBLE_TARGETS errors |
 | `review status`                         | mutate      | Collect a durable independent review                                                                                                             |

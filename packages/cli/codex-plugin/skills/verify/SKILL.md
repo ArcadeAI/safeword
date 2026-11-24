@@ -309,10 +309,32 @@ If PR scope fails, do not collapse to "Ready to mark done." Put the concrete spl
 
 ### 7. Write verify.md (skip if no ticket)
 
-For a feature whose Execution Plan uses the versioned Delivery Checklist, run
+For an enrolled task or patch, use the inline Delivery Checklist and Proof
+specifications in `ticket.md`. If enrollment did not scaffold the checklist,
+add it to the existing ticket. Use the saved task test or focused patch check
+as the executable verification proof and give concrete reasons for inapplicable
+items. Name any pending human dependency and its owner.
+
+For example, put this section **above** the inline Delivery Checklist. Keep
+the checklist's Required proof ID equal to the Proof ID below. Replace the
+example command with the task's saved test or the patch's focused check.
+
+```markdown
+## Proof specifications
+
+| Proof ID              | Method  | Scope       | Boundary exercised                             | Qualifies as  | Currency         | Invocation                                                             |
+| --------------------- | ------- | ----------- | ---------------------------------------------- | ------------- | ---------------- | ---------------------------------------------------------------------- |
+| targeted-verification | command | integration | Retry helper through its saved regression test | real_boundary | current_required | {"type":"command","cwd":".","argv":["bun","test","src/retry.test.ts"]} |
+```
+
+For the default inline verification row, run
+`safeword ticket record-delivery-proof <ticket-id> verification targeted-verification`
+after committing the contribution. Commit the ticket's recorded receipt before handoff.
+
+For enrolled tasks and patches, and features with a versioned Delivery Checklist, run
 `safeword ticket delivery-checklist <ticket-id> --json` with the CLI resolved
-above. Read `data.readiness_state` and the findings. If the current plan cannot
-be admitted, follow the reported recovery action. For an open contributor row,
+above. Read `data.readiness_state` and the findings. Follow the reported
+recovery action if the checklist cannot be evaluated. For an open contributor row,
 complete its reviewed obligation and use
 `safeword ticket record-delivery-proof <ticket-id> <item-id> <proof-id>` when
 its reviewed proof is an executable command. Resolve stale or partial proof at

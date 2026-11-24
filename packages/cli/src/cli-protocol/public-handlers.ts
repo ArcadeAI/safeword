@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { type AgentSelectionError, parseAgentSelection } from './agent-selection.js';
@@ -14,6 +14,7 @@ import { withLegacyRawJsonGuidance } from './legacy-raw-json.js';
 import { onlineRequired } from './online-required.js';
 import { stringOption } from './option-values.js';
 import { isPlanIdentity, malformedPlanIdentity } from './plan.js';
+import { shellQuote } from './replay-command.js';
 import { type CliResult, createResult, invalidOperand } from './result.js';
 import {
   retroReconcileHandler,
@@ -425,6 +426,206 @@ async function codingAuthorizationHandler(invocation: CommandInvocation): Promis
   return evaluateCodingAuthorization(invocation.cwd, ticket);
 }
 
+async function classifySmallWorkHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const operand = invocation.operands[0];
+  let facts: unknown;
+  if (typeof operand === 'string') {
+    try {
+      facts = JSON.parse(operand) as unknown;
+    } catch {
+      return invalidOperand('ticket classify-small-work', 'Expected a valid JSON object.');
+    }
+  }
+  const { smallWorkThresholds } = await import('../../templates/hooks/lib/small-work-footprint.js');
+  try {
+    smallWorkThresholds(invocation.cwd);
+  } catch (error) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'INVALID_SMALL_WORK_THRESHOLDS',
+          message: error instanceof Error ? error.message : String(error),
+          retryable: false,
+        },
+      ],
+    });
+  }
+  const { classifySmallWork } =
+    await import('../../templates/hooks/lib/small-work-classification.js');
+  const result = classifySmallWork(facts);
+  const state = result.status === 'classified' ? 'healthy' : result.status;
+  return createResult({
+    state,
+    ...(state === 'failed' && {
+      errors: [
+        { code: 'INVALID_SMALL_WORK_FACTS', message: result.reasons.join(', '), retryable: false },
+      ],
+    }),
+    findings: result.reasons.map(message => ({
+      code: 'SMALL_WORK_CLASSIFICATION',
+      message,
+      severity: state === 'healthy' ? 'info' : 'warning',
+    })),
+    data: { command: 'ticket classify-small-work', ...result },
+  });
+}
+
+const smallWorkProofFields =
+  'Required JSON fields: ticket, argv, cwd, target, entryPoint, ' +
+  'baselineRevision (full Git commit), inputs, and expectedFailure. ' +
+  'Optional expectation: failure (default) or pass. Omit contractDigest to derive it from the ticket.';
+
+export const SMALL_WORK_PROOF_HELP = [
+  smallWorkProofFields,
+  '',
+  'Supply inline JSON or @path to a JSON file. Example: safeword ticket observe-small-work-proof @.project/retry-proof.json --json',
+  'Keep a temporary request file under the project ticket namespace so it is excluded from the task footprint.',
+  'ticket: the ticket ID.',
+  'contractDigest: lowercase SHA-256 of JSON.stringify(small-work facts without proof or evaluation).',
+  'argv: the test command as an array of strings, including target. The command runs without a shell.',
+  'cwd, target, entryPoint: working directory, test file, and existing source file, relative to the project.',
+  'baselineRevision: use the full output of git rev-parse HEAD at task entry, before editing source.',
+  'inputs: additional project-relative proof files, or [].',
+  'expectedFailure: text from the failing assertion, or an empty string when expectation is pass.',
+  '',
+  'Use --json and save data.request and data.observation as proof.request and proof.observation in the ticket facts.',
+  'Set proof.relevance to { observationTag: observation.tag, relevant: true, explanation } when the test proves the task.',
+  'After the source fix, run safeword ticket observe-small-work-green <ticketId> to rerun the same test and save GREEN.',
+].join('\n');
+
+async function observeSmallWorkProofHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const command = 'ticket observe-small-work-proof';
+  const operand = invocation.operands[0];
+  if (typeof operand !== 'string') return invalidOperand(command, smallWorkProofFields);
+  const { completeSmallWorkProofRequest, isSmallWorkProofRequest, observeSmallWorkProof } =
+    await import('../small-work/proof-observation.js');
+  let request: unknown;
+  try {
+    const json = operand.startsWith('@')
+      ? readFileSync(nodePath.resolve(invocation.cwd, operand.slice(1)), 'utf8')
+      : operand;
+    request = completeSmallWorkProofRequest(invocation.cwd, JSON.parse(json) as unknown);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    return invalidOperand(
+      command,
+      `Could not load the proof request. ${reason} ${smallWorkProofFields}`,
+    );
+  }
+  if (!isSmallWorkProofRequest(request)) {
+    return invalidOperand(command, smallWorkProofFields);
+  }
+  try {
+    const observed = await observeSmallWorkProof(invocation.cwd, request);
+    return createResult({
+      state: 'healthy',
+      data: { command, request, ...observed },
+    });
+  } catch (error) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'SMALL_WORK_PROOF_FAILED',
+          message: error instanceof Error ? error.message : String(error),
+          retryable: false,
+        },
+      ],
+    });
+  }
+}
+
+async function resumeTicketHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const command = 'ticket resume';
+  const ticket = invocation.operands[0];
+  if (typeof ticket !== 'string') return invalidOperand(command, 'Supply the ticket ID.');
+  const { resumeTicket } = await import('../small-work/resume-ticket.js');
+  return resumeTicket(invocation.cwd, ticket);
+}
+
+async function observeSmallWorkGreenHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const command = 'ticket observe-small-work-green';
+  const ticket = invocation.operands[0];
+  if (typeof ticket !== 'string') return invalidOperand(command, 'Supply the task ticket ID.');
+  const { observeSmallWorkGreen } = await import('../small-work/green-observation.js');
+  try {
+    const result = await observeSmallWorkGreen(
+      invocation.cwd,
+      ticket,
+      invocation.options.check === true,
+    );
+    if (result.path !== undefined) {
+      return createResult({
+        state: 'changed',
+        effects: {
+          files: [
+            {
+              kind: 'update',
+              target: nodePath.relative(invocation.cwd, result.path),
+              operation: 'write',
+            },
+          ],
+        },
+        nextActions: [
+          {
+            command: `safeword ticket delivery-checklist ${shellQuote(ticket)} --json --cwd ${shellQuote(invocation.cwd)}`,
+            mutates: false,
+            requiresHuman: false,
+          },
+        ],
+        data: { command, current: true, receipt: result.receipt },
+      });
+    }
+    return createResult({
+      state: result.current ? 'healthy' : 'action_required',
+      data: { command, current: result.current },
+    });
+  } catch (error) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'SMALL_WORK_GREEN_FAILED',
+          message: error instanceof Error ? error.message : String(error),
+          retryable: false,
+        },
+      ],
+      data: { command },
+    });
+  }
+}
+
+async function verifySmallWorkProofHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const command = 'ticket verify-small-work-proof';
+  const [proofJson, observationJson, previousAdmission] = invocation.operands;
+  let request: unknown;
+  let observation: unknown;
+  try {
+    if (typeof proofJson === 'string') request = JSON.parse(proofJson) as unknown;
+    if (typeof observationJson === 'string') observation = JSON.parse(observationJson) as unknown;
+  } catch {
+    return invalidOperand(command, 'Expected valid proof and observation JSON.');
+  }
+  const { isSmallWorkProofRequest, verifySmallWorkProof, smallWorkAdmissionToken } =
+    await import('../small-work/proof-observation.js');
+  if (!isSmallWorkProofRequest(request)) return invalidOperand(command, 'Invalid proof request.');
+  const current = verifySmallWorkProof(
+    invocation.cwd,
+    request,
+    observation,
+    typeof previousAdmission === 'string' ? previousAdmission : undefined,
+  );
+  return createResult({
+    state: current ? 'healthy' : 'action_required',
+    data: {
+      command,
+      current,
+      ...(current && { admissionToken: smallWorkAdmissionToken(invocation.cwd, observation) }),
+    },
+  });
+}
+
 async function recordDeliveryProofHandler(invocation: CommandInvocation): Promise<CliResult> {
   const [ticket, item, proof] = invocation.operands;
   if ([ticket, item, proof].some(value => typeof value !== 'string' || value === '')) {
@@ -610,6 +811,11 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'ticket delivery-checklist': deliveryChecklistHandler,
   'ticket execution-prerequisite': executionPrerequisiteHandler,
   'ticket coding-authorization': codingAuthorizationHandler,
+  'ticket resume': resumeTicketHandler,
+  'ticket classify-small-work': classifySmallWorkHandler,
+  'ticket observe-small-work-proof': observeSmallWorkProofHandler,
+  'ticket verify-small-work-proof': verifySmallWorkProofHandler,
+  'ticket observe-small-work-green': observeSmallWorkGreenHandler,
   'ticket record-delivery-proof': recordDeliveryProofHandler,
   'review run': reviewRunHandler,
   'review gate executable-red': executableRedGateHandler,

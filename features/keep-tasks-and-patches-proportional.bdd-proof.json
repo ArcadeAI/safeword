@@ -1,0 +1,65 @@
+{
+  "feature": "features/keep-tasks-and-patches-proportional.feature",
+  "scenarios": {
+    "A tiny public-contract change cannot be labeled a patch": [
+      "packages/cli/tests/commands/small-work-classification.test.ts",
+      "uses feature precedence over a declared patch at the built CLI entry point"
+    ],
+    "Meaningful RED permits the production change": [
+      "packages/cli/tests/integration/small-work-red-admission.test.ts",
+      "requires the current observed failure and matching relevance before the first edit"
+    ],
+    "Current behavior approval sends public-contract design straight to Implementation Planning": [
+      "packages/cli/tests/integration/small-work-routing.test.ts",
+      "promotes public-contract design immediately with current behavior approval"
+    ],
+    "A resumed ticket edit follows the saved design destination after current approval": [
+      "packages/cli/tests/integration/small-work-routing.test.ts",
+      "resumes the saved design destination only after current behavior approval"
+    ],
+    "Restart follows the saved design destination only after behavior approval": [
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "resumes the saved small-work destination from a current receipt in a fresh CLI"
+    ],
+    "Claude Code and Codex block a bound task edit when RED is missing": [
+      "packages/cli/tests/integration/small-work-red-admission.test.ts",
+      "denies native Claude and Codex production edits after ticket binding when RED is missing"
+    ],
+    "Claude Code and Codex check file and surface growth before editing": [
+      "packages/cli/tests/integration/small-work-routing.test.ts",
+      "admits bounded %s edits and blocks file-only and surface-only crossings"
+    ],
+    "Classified patches stay lightweight on Claude Code and Codex": [
+      "packages/cli/tests/integration/small-work-red-admission.test.ts",
+      "allows a classified patch on Claude and Codex without feature planning"
+    ],
+    "Unresolved product behavior returns to definition on Claude Code and Codex": [
+      "packages/cli/tests/integration/small-work-red-admission.test.ts",
+      "promotes unresolved product behavior on Claude and Codex before a source edit"
+    ],
+    "Native Claude Code and Codex classification requests replay through the CLI": [
+      "packages/cli/tests/commands/small-work-classification.test.ts",
+      "replays all six native classification requests through the installed CLI"
+    ],
+    "Local Claude Code and Codex retain the inline task test specification": [
+      "packages/cli/tests/integration/small-work-red-admission.test.ts",
+      "preserves inline behavior and proof boundaries through Claude and Codex ticket dispatch"
+    ],
+    "Claude Code and Codex admit a production edit after meaningful RED": [
+      "packages/cli/tests/integration/small-work-red-admission.test.ts",
+      "admits observed RED through the installed Claude and Codex edit gates"
+    ],
+    "Claude Code and Codex retain RED when approved behavior moves to planning": [
+      "packages/cli/tests/integration/small-work-red-admission.test.ts",
+      "preserves linked RED when Claude and Codex promote currently approved behavior"
+    ],
+    "Classified tasks stay on inline TDD in Claude Code and Codex": [
+      "packages/cli/tests/integration/small-work-red-admission.test.ts",
+      "keeps a classified Claude and Codex task in the inline TDD workflow"
+    ],
+    "Claude Code and Codex require both reviewed feature plans before implementation": [
+      "packages/cli/tests/integration/plan-execution-journey.test.ts",
+      "rejects an unstartable fourth step through the installed CLI, then reaches the named RED"
+    ]
+  }
+}

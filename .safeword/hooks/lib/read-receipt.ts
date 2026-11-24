@@ -71,41 +71,49 @@ export function readReviewReceipt(
       continue;
     }
 
-    // An id the coordinator does not know reports no review_id back, and a
-    // record that answers about a *different* review is no witness for this
-    // one — so the reported id has to be the one that was asked about.
-    if (data.review_id !== id) continue;
-
-    const text = (field: string): string | undefined =>
-      typeof data[field] === 'string' ? (data[field] as string) : undefined;
-    // Only status provenance may waive coverage. Legacy raw excluded_targets
-    // describe packet output without this verification contract. Never salvage
-    // a partially malformed verified list: it is authorization scope.
-    if (
-      data.review_excluded_targets !== undefined &&
-      (!Array.isArray(data.review_excluded_targets) ||
-        data.review_excluded_targets.some(target => typeof target !== 'string'))
-    )
-      continue;
-    const receipt = {
-      reviewId: id,
-      status: text('status'),
-      kind: text('review_kind'),
-      targets: Array.isArray(data.review_targets)
-        ? data.review_targets.filter(target => typeof target === 'string')
-        : [],
-      excludedTargets: data.review_excluded_targets as string[] | undefined,
-      independence: text('independence'),
-      authorAgent: text('author_agent'),
-      actualReviewer: text('actual_reviewer'),
-      reviewerModel: text('reviewer_model'),
-    };
-    // A legacy CLI may know the id but not expose the provenance fields this
-    // gate requires. Let a later current, distribution-owned route answer.
-    if (receipt.status === 'approved' && (!receipt.kind || receipt.targets.length === 0)) continue;
-    return receipt;
+    const receipt = reviewReceiptFromStatus(id, data);
+    if (receipt !== undefined) return receipt;
   }
   return undefined;
+}
+
+export function reviewReceiptFromStatus(
+  id: string,
+  data: Record<string, unknown>,
+): ReviewReceipt | undefined {
+  // An id the coordinator does not know reports no review_id back, and a
+  // record that answers about a *different* review is no witness for this
+  // one — so the reported id has to be the one that was asked about.
+  if (data.review_id !== id) return undefined;
+
+  const text = (field: string): string | undefined =>
+    typeof data[field] === 'string' ? (data[field] as string) : undefined;
+  // Only status provenance may waive coverage. Legacy raw excluded_targets
+  // describe packet output without this verification contract. Never salvage
+  // a partially malformed verified list: it is authorization scope.
+  if (
+    data.review_excluded_targets !== undefined &&
+    (!Array.isArray(data.review_excluded_targets) ||
+      data.review_excluded_targets.some(target => typeof target !== 'string'))
+  )
+    return undefined;
+  const receipt = {
+    reviewId: id,
+    status: text('status'),
+    kind: text('review_kind'),
+    targets: Array.isArray(data.review_targets)
+      ? data.review_targets.filter(target => typeof target === 'string')
+      : [],
+    excludedTargets: data.review_excluded_targets as string[] | undefined,
+    independence: text('independence'),
+    authorAgent: text('author_agent'),
+    actualReviewer: text('actual_reviewer'),
+    reviewerModel: text('reviewer_model'),
+  };
+  // Legacy approvals without review provenance do not establish authorization.
+  if (receipt.status === 'approved' && (!receipt.kind || receipt.targets.length === 0))
+    return undefined;
+  return receipt;
 }
 
 /**

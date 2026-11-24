@@ -21,6 +21,8 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { renderSmallWorkFacts } from '../../templates/hooks/lib/small-work-classification.js';
+import { renderInitialSmallWorkChecklist } from '../execution-plan/delivery-checklist.js';
 import type { TrackerReference } from '../tracker-sync/types.js';
 import { resolveTicketsDirectory } from './configured-paths.js';
 import { getTemplatesDirectory } from './fs.js';
@@ -46,6 +48,7 @@ export interface NewTicketOptions {
   milestone?: string;
   /** Stable parent JTBD id declared by the parent Product Plan. */
   parentJob?: string;
+  smallWorkFacts?: unknown;
   /** Override `new Date()` for tests. */
   now?: () => Date;
 }
@@ -164,7 +167,10 @@ function writeTicketContents(
   options: NewTicketOptions,
 ): { ticketPath: string } {
   const ticketPath = nodePath.join(folderPath, 'ticket.md');
-  writeFileSync(ticketPath, renderTicketMarkdown(id, options));
+  const facts =
+    options.smallWorkFacts === undefined ? '' : renderSmallWorkFacts(options.smallWorkFacts);
+  const checklist = facts === '' ? '' : renderInitialSmallWorkChecklist();
+  writeFileSync(ticketPath, renderTicketMarkdown(id, options) + facts + checklist);
 
   // Epics and features own Product Plan context. Child features receive only
   // their contribution and Rules; their parent remains the intent owner.
