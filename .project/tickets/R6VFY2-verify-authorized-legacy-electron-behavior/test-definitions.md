@@ -41,7 +41,7 @@ example results; partial example execution cannot complete an outline.
 
 ### Scenario: The public command observes independently rebuilt original and mutant Electron snapshots
 
-- [ ] RED
+- [x] RED 21aca3867
 - [ ] GREEN
 - [ ] REFACTOR
 

@@ -9,6 +9,7 @@ phase_anchors:
   - scenario-gate: packages/cli/features/verify-authorized-legacy-electron-behavior.feature
   - plan-implementation: .project/tickets/R6VFY2-verify-authorized-legacy-electron-behavior/impl-plan.md
   - plan-execution: .project/tickets/R6VFY2-verify-authorized-legacy-electron-behavior/execution-plan.md
+  - implement: .project/tickets/R6VFY2-verify-authorized-legacy-electron-behavior/execution-plan.md
 status: in_progress
 created: 2026-11-23T23:00:00Z
 scope:
