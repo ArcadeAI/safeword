@@ -8,6 +8,7 @@ export interface RetrospectiveMigrationPolicy {
   readonly feature: string;
   readonly runner: 'bun-vitest' | 'playwright-electron';
   readonly repository?: string;
+  readonly scenarios?: readonly string[];
 }
 
 export const LEGACY_RETROSPECTIVE_POLICY = {
@@ -27,6 +28,25 @@ export const SOULLESS_RETROSPECTIVE_POLICY = {
   feature: 'features/open-save-soul-electron.feature',
   runner: 'playwright-electron',
   repository: 'github.com/arcadeai/soulless-monorepo',
+  scenarios: [
+    'Explorer presents package roots and aliases as documents',
+    'Package path variants share one tab',
+    'A differently cased soul suffix opens as a package',
+    'Ordinary folders remain folders',
+    'A regular soul text file retains plain-text saves',
+    'Creating a soul document over a regular file is refused',
+    'Creating a soul document over a directory is refused',
+    'Closing immediately after a package edit asks to preserve it',
+    'Switching immediately after a package edit preserves a rejected save',
+    'Saving package Markdown preserves existing review state',
+    'An ordinary Markdown document keeps its file workflow',
+    'A trailing blank paragraph marks reopened Markdown unsaved',
+    'Ordinary Markdown reopens its review sidecars',
+    'Package drift discovered at save refuses the edit',
+    'External Markdown drift opens a blocking repair tab',
+    'A blocked package can be revealed',
+    'A blocked package can be closed without writing',
+  ],
 } as const satisfies RetrospectiveMigrationPolicy;
 
 /** Enrollment is compiled source; project configuration cannot add a policy. */

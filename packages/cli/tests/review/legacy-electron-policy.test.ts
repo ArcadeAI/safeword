@@ -14,6 +14,7 @@ vi.mock('node:child_process', () => ({
 }));
 
 import { checkRetrospectiveHistory } from '../../src/review/retrospective-history.js';
+import { retrospectivePolicy } from '../../src/review/retrospective-policy.js';
 
 const cutoff = '4990ae4158d3e2744a8c5934089a8e1d5d2b19b1';
 
@@ -28,4 +29,28 @@ it('admits the authorized Soulless history only after its real Git prerequisites
       rationale: 'The behavior existed at this cutoff; its original failing run is unavailable.',
     }),
   ).toEqual({ eligibleForReview: true });
+});
+
+it('limits Soulless migration credit to its exact disclosed historical scenarios', () => {
+  expect(retrospectivePolicy('SGWMBS')).toMatchObject({
+    scenarios: [
+      'Explorer presents package roots and aliases as documents',
+      'Package path variants share one tab',
+      'A differently cased soul suffix opens as a package',
+      'Ordinary folders remain folders',
+      'A regular soul text file retains plain-text saves',
+      'Creating a soul document over a regular file is refused',
+      'Creating a soul document over a directory is refused',
+      'Closing immediately after a package edit asks to preserve it',
+      'Switching immediately after a package edit preserves a rejected save',
+      'Saving package Markdown preserves existing review state',
+      'An ordinary Markdown document keeps its file workflow',
+      'A trailing blank paragraph marks reopened Markdown unsaved',
+      'Ordinary Markdown reopens its review sidecars',
+      'Package drift discovered at save refuses the edit',
+      'External Markdown drift opens a blocking repair tab',
+      'A blocked package can be revealed',
+      'A blocked package can be closed without writing',
+    ],
+  });
 });
