@@ -48,6 +48,18 @@
     "Claude Code and Codex admit a production edit after meaningful RED": [
       "packages/cli/tests/integration/small-work-red-admission.test.ts",
       "admits observed RED through the installed Claude and Codex edit gates"
+    ],
+    "Claude Code and Codex retain RED when approved behavior moves to planning": [
+      "packages/cli/tests/integration/small-work-red-admission.test.ts",
+      "preserves linked RED when Claude and Codex promote currently approved behavior"
+    ],
+    "Classified tasks stay on inline TDD in Claude Code and Codex": [
+      "packages/cli/tests/integration/small-work-red-admission.test.ts",
+      "keeps a classified Claude and Codex task in the inline TDD workflow"
+    ],
+    "Claude Code and Codex require both reviewed feature plans before implementation": [
+      "packages/cli/tests/integration/plan-execution-journey.test.ts",
+      "rejects an unstartable fourth step through the installed CLI, then reaches the named RED"
     ]
   }
 }

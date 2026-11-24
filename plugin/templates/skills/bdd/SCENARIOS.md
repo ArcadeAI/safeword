@@ -15,11 +15,21 @@
 3. **Partition and place proof** — identify equivalence classes and boundaries, then mark each as a distinct externally meaningful behavior or recovery path, a lower-level variation of an already covered behavior, or excluded by scope. Record the placement in `dimensions.md`. A long input matrix is not a long scenario list.
 4. **Generate scenarios** — choose the smallest representative set that distinguishes each Rule's user-visible outcomes, important boundaries, and independently meaningful failures. Do not generate one scenario per input partition or boundary by default. Put repeated schema fields, format variants, arithmetic cases, and malformed-input permutations in table-driven lower-level tests; name their planned proof in `dimensions.md` for the Execution Plan to carry forward. Each scenario proves a specific **Rule** (or legacy Acceptance Criterion) from intake (`spec.md`); if it does not, drop an implementation-only case or return to intake for a missing criterion. A real Rule does not override `out_of_scope` or project and milestone Non-goals; name a crossing and let the user decide whether to amend scope or drop the scenario.
 5. **Organize and compress under Gherkin `Rule:` blocks**. Every Rule needs a falsifiable example, and no scenario is an orphan. Ask: would dropping this scenario let a real defect ship? Cases that prove the same Rule over the same partition and outcome are one scenario with a better name; merge by shared obligation, never by their sharing a failure cause today. Keep useful input variations in the lower-level test plan. Trim duplicate lower-level cases before presenting the set, and update the R/G/R ledger when editing a saved feature.
-6. **Present to user** (decider) — user accepts, tweaks, or adds
+6. **Check completeness** using the rule below. Present to the user when a decision remains.
 
 Save the dimension table to `dimensions.md` in the ticket folder before writing test-definitions.md (the pre-tool hook enforces this for features). For tiny features with one obvious behavioral dimension and no partitioning to enumerate, dimensions.md may instead be a single line `skip: <non-empty reason>`.
 
 ### Are the scenarios complete?
+
+When the ticket has `small_work_pending_phase: plan-implementation`, use the
+task's saved notes as the source of settled behavior. Prepare scenarios directly
+from those decisions without requesting another confirmation. If one behavior
+choice is still open, use elicit to ask
+only about that choice and hold scenario review until it is answered. When
+the notes settle all decisions, continue to the existing scenario review.
+Keep the pending destination and original evidence until the review passes.
+
+For other feature work, continue with the completeness questions below.
 
 Ask the user both halves. Gaps: **Do these scenarios fully describe the intended behavior and important boundaries, or is anything missing?** Then the edge: **Does any of these go past what we agreed not to build?** If their feedback adds scenarios, revise the set and ask again; if it flags an overshoot, drop those scenarios or amend `out_of_scope` on their call. When nothing is missing and nothing crosses the line, proceed to scenario-gate.
 
@@ -245,9 +255,14 @@ Run this completeness check only if review edits scenarios or surfaces an unreso
    to `plan-implementation`, and do not invoke the spike automatically. Wait for
    the user's explicit choice. If invoked, continue only after its evidence is
    ready to distill. If the user declines, proceed directly to the next item.
-   If no eligible risk exists, continue without offering `/spike` and update
-   frontmatter directly to `phase: plan-implementation` in the next item.
-6. **Update frontmatter:** `phase: plan-implementation` — implementation design (the accepted approach, proof boundaries, and any durable architecture records) happens there; see `PLAN_IMPLEMENTATION.md`. Execution Planning owns concrete build and proof order.
+   If no eligible risk exists, continue without offering `/spike`.
+6. **Advance to Implementation Planning.** If the ticket has
+   `small_work_pending_phase: plan-implementation`, run
+   `safeword ticket resume <ticketId>` so the existing approval check advances
+   the ticket and clears the saved destination. Otherwise update the phase to
+   `plan-implementation`. See `PLAN_IMPLEMENTATION.md` for the implementation
+   approach, proof boundaries, and architecture decisions. Execution Planning
+   owns concrete build and proof order.
 7. **Work log:** the phase hook stamps the transition with real time (Claude Code — on other harnesses add a short transition entry yourself); optionally add a narrative entry (validation outcome, proof-plan highlights).
 
 ### Optional: codify the scenarios

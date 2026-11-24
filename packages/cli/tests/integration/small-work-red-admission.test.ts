@@ -23,6 +23,7 @@ import {
   ticketFolderBySlug,
   ticketIdBySlug,
 } from '../helpers.js';
+import { claudeReviewerShellPrelude, createTrustedReviewerDirectory } from '../review-fixtures.js';
 
 describe('installed small-work RED admission', () => {
   const slug = 'retry-after-timeout';
@@ -38,7 +39,14 @@ describe('installed small-work RED admission', () => {
   });
 
   function exerciseInstalledEdits(
-    route: 'missing-red' | 'patch' | 'product-behavior' | 'inline-spec' | 'positive-red',
+    route:
+      | 'missing-red'
+      | 'patch'
+      | 'product-behavior'
+      | 'inline-spec'
+      | 'positive-red'
+      | 'approved-promotion'
+      | 'task-ceremony',
   ) {
     const cli = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
     const codexCli = nodePath.resolve(import.meta.dirname, '../../codex-plugin/runtime/cli.js');
@@ -157,6 +165,71 @@ test('the caller observes the false readiness state', () => {
         const saved = replaceSmallWorkFacts(original, { ...revised, proof });
         writeFileSync(ticketPath, `${saved}\n${inline}\n`);
       };
+      const approveDiscoveredContract = (host: 'claude' | 'codex') => {
+        const currentTicket = readFileSync(ticketPath, 'utf8');
+        const currentFacts = readSmallWorkFacts(currentTicket) as SmallWorkFacts;
+        const updated = replaceSmallWorkFacts(currentTicket, {
+          ...currentFacts,
+          changesSharedContract: true,
+          decisions: { ...currentFacts.decisions, 'shared-contract': 'unresolved' },
+        });
+        writeFileSync(ticketPath, updated);
+        const directory = nodePath.dirname(ticketPath);
+        const scenario = nodePath.join(directory, 'behavior.feature');
+        const spec = nodePath.join(directory, 'spec.md');
+        writeFileSync(
+          scenario,
+          'Feature: Status response\n  Scenario: Existing caller\n    Then the caller receives the status value\n',
+        );
+        writeFileSync(spec, '# Keep the caller behavior\n');
+        writeFileSync(
+          nodePath.join(directory, 'test-definitions.md'),
+          `Feature source: \`${nodePath.relative(project, scenario)}\`\n`,
+        );
+        const reviewers = createTrustedReviewerDirectory('small-work-promotion-');
+        try {
+          writeFileSync(
+            nodePath.join(reviewers, 'claude'),
+            String.raw`${claudeReviewerShellPrelude()}
+printf '{"schema_version":1,"evidence_records":{"schema_version":1,"records":[]},"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"Fixture approval","findings":[]}\n' "$dispatch_id"
+`,
+            { mode: 0o755 },
+          );
+          const result = spawnSync(
+            'bun',
+            [
+              host === 'claude' ? cli : codexCli,
+              'review',
+              'run',
+              'scenario-gate',
+              nodePath.relative(project, scenario),
+              '--context',
+              nodePath.relative(project, spec),
+              nodePath.relative(project, ticketPath),
+              '--json',
+            ],
+            {
+              cwd: project,
+              encoding: 'utf8',
+              env: {
+                ...env,
+                SAFEWORD_AGENT_RUNTIME: 'codex',
+                PATH: `${reviewers}:${process.env.PATH}`,
+              },
+              timeout: 30_000,
+            },
+          );
+          expect(result.status, result.stdout || result.stderr).toBe(0);
+          const { data: review } = JSON.parse(result.stdout);
+          expect(review).toMatchObject({ status: 'approved', independence: 'cross-agent' });
+          writeFileSync(
+            nodePath.join(project, '.project/skill-invocations.log'),
+            `2026-11-23T00:00:00Z fixture review:${nodePath.basename(directory)}:phase@scenario-gate author:codex reviewer:claude independence:cross-agent review-id:${review.review_id}\n`,
+          );
+        } finally {
+          removeTemporaryDirectory(reviewers);
+        }
+      };
       const hook = (host: 'claude' | 'codex', post: boolean) => {
         const event = post ? 'PostToolUse' : 'PreToolUse';
         const tool =
@@ -216,11 +289,14 @@ test('the caller observes the false readiness state', () => {
           expectHookDeny(hook(host, false), 'Classify this work before changing production files');
         }
         writeFileSync(ticketPath, preparedTicket);
+        const reviewRoute = route === 'approved-promotion';
         switch (route) {
+          case 'approved-promotion':
           case 'positive-red': {
             recordPositiveRed(host);
             break;
           }
+          case 'task-ceremony':
           case 'inline-spec': {
             writeFileSync(ticketPath, `${preparedTicket}\n${inline}\n`);
             break;
@@ -234,6 +310,8 @@ test('the caller observes the false readiness state', () => {
             break;
           }
         }
+        if (reviewRoute) approveDiscoveredContract(host);
+        const beforePromotion = readSmallWorkFacts(readFileSync(ticketPath, 'utf8'));
         hook(host, true);
         const decision = hook(host, false);
         const status = readFileSync(ticketPath, 'utf8');
@@ -242,7 +320,7 @@ test('the caller observes the false readiness state', () => {
         );
         expect(readFileSync(filePath, 'utf8')).toBe(before);
         expect(status).toContain(`id: ${ticketId}\n`);
-        return { decision, status, plans };
+        return { decision, status, plans, beforePromotion };
       });
     } finally {
       removeTemporaryDirectory(project);
@@ -295,6 +373,29 @@ test('the caller observes the false readiness state', () => {
           observation: { expectedFailureObserved: true },
           relevance: { relevant: true },
         },
+      });
+    }
+  });
+
+  it('keeps a classified Claude and Codex task in the inline TDD workflow', () => {
+    for (const { decision, status, plans } of exerciseInstalledEdits('task-ceremony')) {
+      expectHookDeny(decision, 'Record the observed failing test');
+      expect(status).toMatch(/^type: task$/m);
+      expect(status).toMatch(/^phase: intake$/m);
+      expect(plans).toEqual([]);
+    }
+  });
+
+  it('preserves linked RED when Claude and Codex promote currently approved behavior', () => {
+    for (const { decision, status, beforePromotion } of exerciseInstalledEdits(
+      'approved-promotion',
+    )) {
+      expectHookDeny(decision, 'application code stays untouched while planning');
+      expect(status).toMatch(/^type: feature$/m);
+      expect(status).toMatch(/^phase: plan-implementation$/m);
+      expect(readSmallWorkFacts(status)).toEqual(beforePromotion);
+      expect(beforePromotion).toMatchObject({
+        proof: { observation: { expectedFailureObserved: true }, relevance: { relevant: true } },
       });
     }
   });

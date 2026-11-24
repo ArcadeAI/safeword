@@ -353,5 +353,11 @@ function reconcileSmallWork(
   if (failure !== undefined) return failure;
   const nextStep = approved ? 'Implementation Planning' : 'behavior definition';
   const message = `The active ticket now needs feature planning: ${decision.reasons.join(', ')}. Continue on the same ticket from ${nextStep}.`;
-  return proposed === undefined ? `${message} Reread the ticket before editing it again.` : message;
+  const guidance =
+    !behaviorDecision && !approved
+      ? ' Use the saved task notes to prepare scenarios for the existing review. Continue with settled behavior without asking for confirmation again. Ask only about an unresolved behavior decision, and wait for its answer before review.'
+      : '';
+  return proposed === undefined
+    ? `${message}${guidance} Reread the ticket before editing it again.`
+    : message + guidance;
 }

@@ -471,6 +471,38 @@ describe('Execution Plan cold-start journey', () => {
       );
       writeFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), plan);
 
+      const featureTicket = nodePath.join(ticketDirectory, 'ticket.md');
+      const advanceInput = {
+        tool_name: 'Edit',
+        tool_input: {
+          file_path: featureTicket,
+          old_string: 'phase: plan-execution',
+          new_string: 'phase: implement',
+        },
+      };
+      const runClaudeAdvance = () =>
+        spawnSync(
+          'bun',
+          [nodePath.resolve(import.meta.dirname, '../../templates/hooks/pre-tool-quality.ts')],
+          {
+            cwd: root,
+            encoding: 'utf8',
+            input: JSON.stringify({ cwd: root, session_id: SESSION_ID, ...advanceInput }),
+            env: {
+              ...process.env,
+              SAFEWORD_AGENT_RUNTIME: 'claude',
+              SAFEWORD_PLUGIN_CLI: PACKAGED_CLI,
+              CLAUDE_PROJECT_DIR: root,
+              NODE_ENV: 'test',
+              SAFEWORD_REVIEW_KEY_ROOT: reviewKeyRoot,
+            },
+          },
+        );
+      const runCodexAdvance = () =>
+        runPreTool(root, advanceInput, reviewKeyRoot, receiptPluginRoot);
+      expectHookDeny(runClaudeAdvance(), 'review');
+      expectHookDeny(runCodexAdvance(), 'review');
+
       const reviews = [
         {
           kind: 'scenario-gate',
@@ -551,6 +583,10 @@ describe('Execution Plan cold-start journey', () => {
           },
         );
         expect(stamped.status, `${stamped.stdout}\n${stamped.stderr}`).toBe(0);
+        if (request.kind === 'plan-implementation') {
+          expectHookDeny(runClaudeAdvance(), 'review');
+          expectHookDeny(runCodexAdvance(), 'review');
+        }
       }
       const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
       const advance = runPreTool(
@@ -567,6 +603,7 @@ describe('Execution Plan cold-start journey', () => {
         receiptPluginRoot,
       );
       expectHookAllow(advance);
+      expectHookAllow(runClaudeAdvance());
       writeFileSync(
         ticketPath,
         readFileSync(ticketPath, 'utf8').replace('phase: plan-execution', 'phase: implement'),

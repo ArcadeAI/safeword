@@ -239,6 +239,7 @@ test('public status stays ready', () => {
       expect(promoted, first.stderr || first.stdout).toMatch(/^type: feature$/m);
       expect(first.stdout).toContain('shared public contract changes');
       expect(first.stdout).toContain('Reread the ticket before editing it again.');
+      expect(first.stdout).toContain('Ask only about an unresolved behavior decision');
       if (type === 'feature') expect(promoted.replaceAll('\r\n', '')).not.toContain('\n');
       expect(promoted).toMatch(/^phase: define-behavior$/m);
       expect(promoted).toMatch(/^small_work_pending_phase: plan-implementation$/m);

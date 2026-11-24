@@ -22,6 +22,19 @@ Feature: Keep tasks and patches proportional
       When the installed Claude Code and Codex edit gates receive its bounded edit
       Then both allow the edit and keep the ticket a patch without creating feature plans
 
+    @proof.vitest @surface.claude-code @surface.openai-codex
+    Scenario: Classified tasks stay on inline TDD in Claude Code and Codex
+      Given a classified task has an inline test specification and still needs its failing test
+      When the installed Claude Code and Codex gates start the task workflow
+      Then both ask for RED on the same task without creating or requiring feature plans
+
+    @proof.vitest @surface.claude-code @surface.openai-codex
+    Scenario: Claude Code and Codex require both reviewed feature plans before implementation
+      Given a feature has Implementation and Execution Plans
+      When the installed Claude Code and Codex gates evaluate entry into implementation
+      Then both deny entry until both plan reviews are current
+      And both admit the phase transition once the plans and their reviews satisfy the gates
+
     @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed hosts apply feature ceremony by work type
       Given <host> receives work already classified as <work_type>
@@ -33,13 +46,9 @@ Feature: Keep tasks and patches proportional
         | Safeword CLI | actual installed CLI dispatch | task | no feature planning artifact or planning review is created |
         | Safeword CLI | actual installed CLI dispatch | patch | no feature planning artifact or planning review is created |
         | Safeword CLI | actual installed CLI dispatch | feature | both feature plans and their semantic reviews are required |
-        | Claude Code | actual lifecycle dispatch from installed project hooks | feature | both feature plans and their semantic reviews are required |
-        | Claude Code | actual lifecycle dispatch from installed project hooks | task | no feature planning artifact or planning review is created |
         | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM | task | no feature planning artifact or planning review is created |
         | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM | patch | no feature planning artifact or planning review is created |
         | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM | feature | both feature plans and their semantic reviews are required |
-        | OpenAI Codex | actual lifecycle dispatch from installed project hooks | feature | both feature plans and their semantic reviews are required |
-        | OpenAI Codex | actual lifecycle dispatch from installed project hooks | task | no feature planning artifact or planning review is created |
         | Cursor | actual lifecycle dispatch from installed project hooks | feature | both feature plans and their semantic reviews are required |
         | Cursor | actual lifecycle dispatch from installed project hooks | task | no feature planning artifact or planning review is created |
         | Cursor | actual lifecycle dispatch from installed project hooks | patch | no feature planning artifact or planning review is created |
@@ -330,6 +339,13 @@ Feature: Keep tasks and patches proportional
       When implementation would otherwise begin
       Then production work stops, the recorded investigation findings survive the promotion, and the promoted work resumes at Implementation Planning with the decision open and no test evidence claimed
 
+    @rejection @proof.vitest @surface.claude-code @surface.openai-codex
+    Scenario: Claude Code and Codex retain RED when approved behavior moves to planning
+      Given a task has linked failing evidence and discovers a public-contract design decision
+      And the applicable scenarios have current approval
+      When the installed Claude Code and Codex hooks process the ticket and the next production edit
+      Then both retain the linked evidence, move the same ticket to Implementation Planning, and block the source edit
+
     @rejection @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed hosts promote a task when TDD exposes a feature decision
       Given task TDD has produced linked test evidence and then exposes an unresolved in-scope public-contract design decision
@@ -340,9 +356,7 @@ Feature: Keep tasks and patches proportional
       Examples:
         | installed_entry |
         | actual installed CLI dispatch |
-        | actual Claude Code lifecycle dispatch from installed project hooks |
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM |
-        | actual OpenAI Codex lifecycle dispatch from installed project hooks |
         | actual Cursor lifecycle dispatch from installed project hooks |
         | actual Cursor Cloud Agents lifecycle dispatch from project hooks in a fresh runner |
 

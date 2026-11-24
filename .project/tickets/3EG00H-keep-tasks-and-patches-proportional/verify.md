@@ -260,3 +260,11 @@ Four local Rule 7 and Rule 8 rows now have executable bindings. The installed ti
 For positive RED, each host's CLI build runs the failing test through the existing caller and authenticates the observation. The installed edit gate then permits the production edit with the linked proof intact. The earlier native retry sessions also proved that the change could proceed to GREEN.
 
 All 59 focused tests passed. Twelve of 133 expanded examples now have executable proof links. The acceptance dry run reports 121 undefined examples. Ten rows still explicitly name local Claude Code or Codex.
+
+### Local planning gates and promotion with linked RED
+
+Six more local Claude Code and Codex rows are bound. The installed adapters keep classified tasks on inline TDD. The feature journey issues authentic coordinator receipts using a fixture reviewer and exercises both phase-transition adapters before and after the required plan reviews. The approved-promotion case also runs an actual failing test through the existing caller, earns a current scenario receipt, stops the next source edit, preserves the original RED data, and sends the same ticket straight to Implementation Planning.
+
+A settled-notes Claude probe initially asked the owner to reconfirm recorded behavior. The installed guidance now tells promoted tasks to use settled notes directly, ask only about a missing decision, and consume the approved destination with `ticket resume`. Claude's open-decision probe `80afe1a9-9ba7-4704-bc2c-9eb6275b383b` asked only about the unreachable-service response. The updated settled-notes probe `cf10c771-f2a8-4200-a97c-ffa23e824300` began preparing scenarios directly without posing a confirmation question. It reached the harness turn limit. Initial Codex planning probes timed out before attempting the edit. These observations leave the four settle-versus-ask bindings open.
+
+All 72 focused tests and five generated-surface checks passed. Independent review `869f3747-2b55-4331-8e43-d2cc07750b65` approved the promotion guidance. Fifteen of 130 expanded examples now have executable proof links. The acceptance dry run reports 115 undefined examples. No RED, GREEN, or REFACTOR boxes were changed.
