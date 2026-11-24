@@ -47,6 +47,7 @@ describe('installed small-work RED admission', () => {
       | 'positive-red'
       | 'approved-promotion'
       | 'task-ceremony',
+    designNote?: string,
   ) {
     const cli = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
     const codexCli = nodePath.resolve(import.meta.dirname, '../../codex-plugin/runtime/cli.js');
@@ -274,6 +275,16 @@ printf '{"schema_version":1,"evidence_records":{"schema_version":1,"records":[]}
         expect(result.status, result.stderr).toBe(0);
         return result;
       };
+      const recordDesign = () => {
+        if (!designNote) return;
+        const current = readFileSync(ticketPath, 'utf8');
+        const recordedFacts = readSmallWorkFacts(current) as SmallWorkFacts;
+        const design = replaceSmallWorkFacts(current, {
+          ...recordedFacts,
+          changesSharedContract: true,
+        });
+        writeFileSync(ticketPath, `${design}\n## Investigation\n\n${designNote}\n`);
+      };
       const preparedTicket = readFileSync(ticketPath, 'utf8');
       if (route === 'patch') {
         const configPath = nodePath.join(project, '.safeword', 'config.json');
@@ -294,6 +305,7 @@ printf '{"schema_version":1,"evidence_records":{"schema_version":1,"records":[]}
           case 'approved-promotion':
           case 'positive-red': {
             recordPositiveRed(host);
+            recordDesign();
             break;
           }
           case 'task-ceremony':
@@ -349,6 +361,20 @@ printf '{"schema_version":1,"evidence_records":{"schema_version":1,"records":[]}
       expect(status).toMatch(/^phase: define-behavior$/m);
       expect(status).toContain('Investigation: preserve this observation.');
       expect(status).not.toContain('small_work_pending_phase');
+    }
+  });
+
+  it.each([
+    ['settled-design', 'An unavailable service reports ready: false.'],
+    ['open-design', 'Open: should an unreachable service report ready: false or an error?'],
+  ] as const)('Claude and Codex defer unapproved %s with its notes intact', (_case, note) => {
+    for (const { decision, status, plans } of exerciseInstalledEdits('positive-red', note)) {
+      expectHookDeny(decision, 'Complete behavior definition and its scenario review');
+      expect(status).toMatch(/^type: feature$/m);
+      expect(status).toMatch(/^phase: define-behavior$/m);
+      expect(status).toMatch(/^small_work_pending_phase: plan-implementation$/m);
+      expect(status).toContain(note);
+      expect(plans).toEqual([]);
     }
   });
 
