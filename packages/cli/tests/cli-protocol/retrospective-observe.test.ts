@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { expect, it } from 'vitest';
@@ -9,6 +10,51 @@ import {
   electronRequest,
   electronRunnerFixture,
 } from '../review/legacy-electron-runner.fixture.js';
+
+it.each(['retrospective', 'retrospective-close'])(
+  'refuses offline %s attestation before accessing proof inputs',
+  async operation => {
+    const root = mkdtempSync(path.join(tmpdir(), 'safeword-offline-attestation-'));
+    try {
+      const result = await runCliWithLiteralArguments(
+        [
+          '--cwd',
+          root,
+          '--json',
+          '--no-input',
+          '--offline',
+          'review',
+          'attest',
+          operation,
+          '--ticket',
+          'SGWMBS',
+          '--ledger',
+          '.project/missing-ledger.md',
+          ...(operation === 'retrospective'
+            ? [
+                '--scenario',
+                'A differently cased soul suffix opens as a package',
+                '--eligibility',
+                '11111111-1111-4111-8111-111111111111',
+                '--proof',
+                '22222222-2222-4222-8222-222222222222',
+              ]
+            : []),
+        ],
+        { cwd: root },
+      );
+      expect(result.exitCode).not.toBe(0);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state: 'action_required',
+        findings: [{ code: 'CLI_ONLINE_REQUIRED' }],
+        data: { command: `review attest ${operation}`, offline: true },
+      });
+      expect(existsSync(path.join(root, '.safeword/state/reviews'))).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  },
+);
 
 it.each(['README.md', 'packages/website/src/content/docs/reference/cli.mdx'])(
   'documents the public observation and its limits in %s',

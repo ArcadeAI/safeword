@@ -54,6 +54,13 @@ function publishedCapabilitiesData(): {
 }
 
 describe('CLI command catalog', () => {
+  it.each(['review attest retrospective', 'review attest retrospective-close'])(
+    'declares the dependency-registry access used by %s',
+    name => {
+      expect(commandCatalog.find(command => command.name === name)?.networkPolicy).toBe('declared');
+    },
+  );
+
   it('publishes the generated-review scope and failure codes', () => {
     const review = publicCommands.find(command => command.name === 'review run');
     expect(review?.description).toContain('data.excluded_targets');
