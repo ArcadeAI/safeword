@@ -105,6 +105,16 @@ function requireAssertionLocation(error: JsonObject, selection: ElectronReportSe
     throw new Error('Electron mutation error location differs from the declared expectation.');
 }
 
+function hasMatcherDifference(message: string): boolean {
+  const lines = message.split('\n').map(line => line.trim());
+  const expected =
+    /Expected[^\r\n]*:/u.test(message) || lines.some(line => /^- Expected\s+-\s+\d+$/u.test(line));
+  const received =
+    /Received[^\r\n]*:/u.test(message) ||
+    lines.some(line => /^\+ Received\s+\+\s+\d+$/u.test(line));
+  return expected && received;
+}
+
 function mutationFailure(result: JsonObject, selection: ElectronReportSelection): string {
   const errors = array(result.errors);
   if (errors.length !== 1) throw new Error('Electron mutation needs exactly one assertion error.');
@@ -115,8 +125,7 @@ function mutationFailure(result: JsonObject, selection: ElectronReportSelection)
     !message.includes(selection.mutation.expectedFailure) ||
     !message.includes(selection.mutation.assertionLocation) ||
     !/expect\([^\r\n]*\)\.[a-zA-Z]/u.test(message) ||
-    !/Expected[^\r\n]*:/u.test(message) ||
-    !/Received[^\r\n]*:/u.test(message)
+    !hasMatcherDifference(message)
   )
     throw new Error('Electron mutation did not fail at the declared scenario expectation.');
   return message;

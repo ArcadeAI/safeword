@@ -75,9 +75,9 @@ it.each<[string, unknown]>([
   expect(() => parseElectronProofRequest(input)).toThrow(/Electron/u);
 });
 
-function report() {
+function report(overrides: ReportOverrides = {}) {
   return {
-    config: { projects: [{ id: '', name: '', repeatEach: 1, retries: 0 }] },
+    config: { projects: [{ id: '', name: '', repeatEach: 1, retries: 0, ...overrides.project }] },
     suites: [
       {
         title: '89-soul-cased-suffix.electron.spec.ts',
@@ -93,16 +93,22 @@ function report() {
                 expectedStatus: 'passed',
                 status: 'expected',
                 annotations: [],
-                results: [{ status: 'passed', retry: 0, errors: [], annotations: [] }],
+                results: [
+                  { status: 'passed', retry: 0, errors: [], annotations: [], ...overrides.result },
+                ],
+                ...overrides.test,
               },
             ],
+            ...overrides.spec,
           },
         ],
         suites: [],
+        ...overrides.suite,
       },
     ],
     errors: [],
     stats: { expected: 1, unexpected: 0, skipped: 0, flaky: 0 },
+    ...overrides.report,
   };
 }
 
@@ -123,6 +129,8 @@ interface ReportOverrides {
   error?: Record<string, unknown>;
 }
 
+const declaredFailure = `Error: expect(received).toContain(expected)\nExpected substring: ${selection.mutation.expectedFailure}\nReceived string: "{}"\n    at ${selection.mutation.assertionLocation}:3`;
+
 function killedReport(overrides: ReportOverrides = {}) {
   const original = report();
   const suite = original.suites[0];
@@ -131,7 +139,6 @@ function killedReport(overrides: ReportOverrides = {}) {
   const result = test?.results[0];
   if (!suite || !spec || !test || !result)
     throw new Error('The original report fixture is incomplete.');
-  const failure = `Error: expect(received).toContain(expected)\nExpected substring: ${selection.mutation.expectedFailure}\nReceived string: "{}"\n    at ${selection.mutation.assertionLocation}:3`;
   return {
     ...original,
     config: { projects: [{ ...original.config.projects[0], ...overrides.project }] },
@@ -151,7 +158,7 @@ function killedReport(overrides: ReportOverrides = {}) {
                     status: 'failed',
                     errors: [
                       {
-                        message: failure,
+                        message: declaredFailure,
                         location: {
                           file: `/isolated/source/${selection.testFile}`,
                           line: 39,
@@ -184,8 +191,72 @@ it('accepts one mutant failure at the declared expectation', () => {
   expect(result.failure).toContain(selection.mutation.expectedFailure);
 });
 
+it('accepts the object-difference format emitted by the locked Playwright equality matcher', () => {
+  // Captured from a standalone @playwright/test 1.62.1 expect(...).toEqual(...)
+  // call. This is formatter-contract evidence, not an Electron mutation run.
+  const failure = [
+    'Error: expect(received).toEqual(expected) // deep equality',
+    '',
+    '- Expected  - 3',
+    '+ Received  + 1',
+    '',
+    '  Object {',
+    '-   "package": Object {',
+    '-     "revision": 1,',
+    '-   },',
+    '+   "package": undefined,',
+    '  }',
+    `    at ${selection.mutation.assertionLocation}:3`,
+  ].join('\n');
+  expect(
+    evaluateElectronReport(killedReport({ error: { message: failure } }), selection, 'failed', 1),
+  ).toEqual({ exitCode: 1, failure });
+});
+
 // These are characterization checks of the strict evaluator, not claimed new RED runs.
 it.each<[string, ReportOverrides]>([
+  [
+    'a different expected value',
+    {
+      error: {
+        message: declaredFailure.replace(
+          selection.mutation.expectedFailure,
+          'another expected value',
+        ),
+      },
+    },
+  ],
+  [
+    'a foreign assertion file at the declared line',
+    { error: { location: { file: '/isolated/helper.ts', line: 39, column: 3 } } },
+  ],
+  [
+    'a message without the declared location',
+    {
+      error: {
+        message: declaredFailure.replace(selection.mutation.assertionLocation, 'helper.ts:39'),
+      },
+    },
+  ],
+  [
+    'a message without an expectation header',
+    {
+      error: {
+        message: declaredFailure.replace(
+          'expect(received).toContain(expected)',
+          'package operation',
+        ),
+      },
+    },
+  ],
+  [
+    'a message without an expected-value label',
+    { error: { message: declaredFailure.replace('Expected substring:', 'Wanted substring:') } },
+  ],
+  [
+    'a message without a received-value label',
+    { error: { message: declaredFailure.replace('Received string:', 'Observed string:') } },
+  ],
   ['a different test title', { spec: { title: 'another scenario' } }],
   ['a different declaration file', { spec: { file: 'another.electron.spec.ts' } }],
   ['a different declaration line', { spec: { line: 9 } }],
@@ -235,4 +306,43 @@ it.each([0, -1, NaN])('refuses non-failing process status %s for a mutation', ex
   expect(() => evaluateElectronReport(killedReport(), selection, 'failed', exitCode)).toThrow(
     /Electron/u,
   );
+});
+
+it.each<[string, ReportOverrides, number]>([
+  ['a failed result', { result: { status: 'failed' } }, 0],
+  ['a timed out result', { result: { status: 'timedOut' } }, 0],
+  ['a skipped result', { result: { status: 'skipped' } }, 0],
+  ['an interrupted result', { result: { status: 'interrupted' } }, 0],
+  ['a nonzero process exit despite a passing report', {}, 1],
+  [
+    'errors despite passing statuses',
+    { result: { errors: [{ message: 'uncaught original error' }] } },
+    0,
+  ],
+  ['an unexpected test outcome', { test: { status: 'unexpected' } }, 0],
+  ['a flaky test outcome', { test: { status: 'flaky' } }, 0],
+  [
+    'a wrong passing count',
+    { report: { stats: { expected: 0, unexpected: 0, skipped: 0, flaky: 0 } } },
+    0,
+  ],
+  [
+    'an unexpected count',
+    { report: { stats: { expected: 1, unexpected: 1, skipped: 0, flaky: 0 } } },
+    0,
+  ],
+  [
+    'a skipped count',
+    { report: { stats: { expected: 1, unexpected: 0, skipped: 1, flaky: 0 } } },
+    0,
+  ],
+  ['a flaky count', { report: { stats: { expected: 1, unexpected: 0, skipped: 0, flaky: 1 } } }, 0],
+])('refuses %s as a normal original pass', (_name, overrides, exitCode) => {
+  expect(() => evaluateElectronReport(report(overrides), selection, 'passed', exitCode)).toThrow(
+    /Electron/u,
+  );
+});
+
+it('refuses a coherent failing original execution', () => {
+  expect(() => evaluateElectronReport(killedReport(), selection, 'passed', 1)).toThrow(/Electron/u);
 });

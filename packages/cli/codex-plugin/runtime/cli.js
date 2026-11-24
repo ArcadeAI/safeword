@@ -61125,6 +61125,13 @@ function requireAssertionLocation(error, selection) {
   if (declared?.[1] !== selection.testFile || !file.endsWith(`/${selection.testFile}`) || location.line !== Number(declared?.[2]))
     throw new Error("Electron mutation error location differs from the declared expectation.");
 }
+function hasMatcherDifference(message) {
+  const lines = message.split(`
+`).map((line) => line.trim());
+  const expected = /Expected[^\r\n]*:/u.test(message) || lines.some((line) => /^- Expected\s+-\s+\d+$/u.test(line));
+  const received = /Received[^\r\n]*:/u.test(message) || lines.some((line) => /^\+ Received\s+\+\s+\d+$/u.test(line));
+  return expected && received;
+}
 function mutationFailure(result, selection) {
   const errors = array(result.errors);
   if (errors.length !== 1)
@@ -61132,7 +61139,7 @@ function mutationFailure(result, selection) {
   const error = object(errors[0]);
   requireAssertionLocation(error, selection);
   const message = typeof error.message === "string" ? error.message : "";
-  if (!message.includes(selection.mutation.expectedFailure) || !message.includes(selection.mutation.assertionLocation) || !/expect\([^\r\n]*\)\.[a-zA-Z]/u.test(message) || !/Expected[^\r\n]*:/u.test(message) || !/Received[^\r\n]*:/u.test(message))
+  if (!message.includes(selection.mutation.expectedFailure) || !message.includes(selection.mutation.assertionLocation) || !/expect\([^\r\n]*\)\.[a-zA-Z]/u.test(message) || !hasMatcherDifference(message))
     throw new Error("Electron mutation did not fail at the declared scenario expectation.");
   return message;
 }

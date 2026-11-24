@@ -80,6 +80,15 @@ refusals and missing original-pass refusals. Those characterization matrices are
 written; their execution and the object-diff regression remain pending. Warnings
 about scenario/title binding and nested file selection also remain to resolve.
 
+The expanded contract suite subsequently ran: 71 cases passed and the new
+object-diff case failed for the intended unsupported format. After supporting
+both scalar labels and equality-diff headers, all 72 contract cases passed.
+Combined focused protection passed 105 tests; the final report-helper cleanup
+was protected by 92 report/runner/legacy/CLI tests. Types and all five generated
+surface checks passed. The next live run still refused message evidence after
+reaching the declared assertion, so current Electron observation remains RED;
+additional diagnostics must identify the remaining mismatch before any credit.
+
 ## Remaining delivery
 
 - [ ] Implement and protect independent Electron snapshot execution.
