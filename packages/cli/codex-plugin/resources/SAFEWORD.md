@@ -103,6 +103,11 @@ contracts. File and surface thresholds prompt reevaluation. An unresolved
 shared contract can require feature planning for a one-file change. Small
 tasks keep their test specification and observed proof in the ticket.
 
+Projects can set `"requireSmallWorkClassification": true` in
+`.safeword/config.json` to require a classified, attached ticket before
+production edits in Claude Code and Codex. Use the inline ticket record for
+patches. Test files and behavior scenarios remain available before classification.
+
 Before the first production edit, record `evaluation.base` as the full
 commit at task entry. Record the effective file and surface limits, whether
 the current footprint exceeds each one, and the declared affected surfaces.

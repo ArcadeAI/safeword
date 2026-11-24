@@ -1,6 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -9,6 +9,7 @@ import { renderInitialSmallWorkChecklist } from '../../src/execution-plan/delive
 import {
   consequentialDecisions,
   readSmallWorkFacts,
+  replaceSmallWorkFacts,
 } from '../../templates/hooks/lib/small-work-classification.js';
 import {
   createTemporaryDirectory,
@@ -34,7 +35,7 @@ describe('installed small-work RED admission', () => {
     removeTemporaryDirectory(fixture);
   });
 
-  it('denies native Claude and Codex production edits after ticket binding when RED is missing', () => {
+  function exerciseInstalledEdits(route: 'missing-red' | 'patch' | 'product-behavior') {
     const cli = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
     const setup = nodePath.resolve(
       import.meta.dirname,
@@ -54,7 +55,26 @@ describe('installed small-work RED admission', () => {
       const ticketPath = nodePath.join(project, ticket);
       const filePath = nodePath.join(project, 'src/status.ts');
       const before = readFileSync(filePath, 'utf8');
-      const after = before.replace('ready: true', 'ready: false');
+      const after =
+        route === 'patch'
+          ? before.replace(';', '; // Existing readiness response.')
+          : before.replace('ready: true', 'ready: false');
+      const original = readFileSync(ticketPath, 'utf8');
+      const facts = readSmallWorkFacts(original) as { decisions: Record<string, string> };
+      if (route === 'patch') {
+        writeFileSync(
+          ticketPath,
+          replaceSmallWorkFacts(original.replace(/^type: task$/m, 'type: patch'), {
+            ...facts,
+            changesBehavior: false,
+            verification: 'targeted',
+          }),
+        );
+      } else if (route === 'product-behavior') {
+        const revised = { ...facts, decisions: { ...facts.decisions, behavior: 'unresolved' } };
+        const promotedInput = replaceSmallWorkFacts(original, revised);
+        writeFileSync(ticketPath, `${promotedInput}\nInvestigation: preserve this observation.\n`);
+      }
       const env = { ...process.env, CLAUDE_PROJECT_DIR: project };
       const hook = (host: 'claude' | 'codex', post: boolean) => {
         const event = post ? 'PostToolUse' : 'PreToolUse';
@@ -106,15 +126,61 @@ describe('installed small-work RED admission', () => {
         expect(result.status, result.stderr).toBe(0);
         return result;
       };
-      for (const host of ['claude', 'codex'] as const) {
-        expectHookDeny(hook(host, false), 'Attach this session to the ticket');
-        hook(host, true);
-        expectHookDeny(hook(host, false), 'Record the observed failing test');
-        expect(readFileSync(filePath, 'utf8')).toBe(before);
-        expect(readFileSync(ticketPath, 'utf8')).toContain(`id: ${ticketId}\n`);
+      const preparedTicket = readFileSync(ticketPath, 'utf8');
+      if (route === 'patch') {
+        const configPath = nodePath.join(project, '.safeword', 'config.json');
+        const config = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
+        writeFileSync(
+          configPath,
+          JSON.stringify({ ...config, requireSmallWorkClassification: true }),
+        );
       }
+      return (['claude', 'codex'] as const).map(host => {
+        if (route === 'patch') {
+          unlinkSync(ticketPath);
+          expectHookDeny(hook(host, false), 'Classify this work before changing production files');
+        }
+        writeFileSync(ticketPath, preparedTicket);
+        if (route === 'missing-red') {
+          expectHookDeny(hook(host, false), 'Attach this session to the ticket');
+        }
+        hook(host, true);
+        const decision = hook(host, false);
+        const status = readFileSync(ticketPath, 'utf8');
+        const plans = readdirSync(nodePath.dirname(ticketPath)).filter(file =>
+          file.endsWith('plan.md'),
+        );
+        expect(readFileSync(filePath, 'utf8')).toBe(before);
+        expect(status).toContain(`id: ${ticketId}\n`);
+        return { decision, status, plans };
+      });
     } finally {
       removeTemporaryDirectory(project);
+    }
+  }
+
+  it('denies native Claude and Codex production edits after ticket binding when RED is missing', () => {
+    for (const { decision } of exerciseInstalledEdits('missing-red')) {
+      expectHookDeny(decision, 'Record the observed failing test');
+    }
+  });
+
+  it('allows a classified patch on Claude and Codex without feature planning', () => {
+    for (const { decision, status, plans } of exerciseInstalledEdits('patch')) {
+      expectHookAllow(decision);
+      expect(status).toMatch(/^type: patch$/m);
+      expect(status).toMatch(/^phase: intake$/m);
+      expect(plans).toEqual([]);
+    }
+  });
+
+  it('promotes unresolved product behavior on Claude and Codex before a source edit', () => {
+    for (const { decision, status } of exerciseInstalledEdits('product-behavior')) {
+      expectHookDeny(decision, 'Complete behavior definition and its scenario review');
+      expect(status).toMatch(/^type: feature$/m);
+      expect(status).toMatch(/^phase: define-behavior$/m);
+      expect(status).toContain('Investigation: preserve this observation.');
+      expect(status).not.toContain('small_work_pending_phase');
     }
   });
 

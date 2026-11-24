@@ -28,6 +28,14 @@
     "Claude Code and Codex check file and surface growth before editing": [
       "packages/cli/tests/integration/small-work-routing.test.ts",
       "admits bounded %s edits and blocks file-only and surface-only crossings"
+    ],
+    "Classified patches stay lightweight on Claude Code and Codex": [
+      "packages/cli/tests/integration/small-work-red-admission.test.ts",
+      "allows a classified patch on Claude and Codex without feature planning"
+    ],
+    "Unresolved product behavior returns to definition on Claude Code and Codex": [
+      "packages/cli/tests/integration/small-work-red-admission.test.ts",
+      "promotes unresolved product behavior on Claude and Codex before a source edit"
     ]
   }
 }

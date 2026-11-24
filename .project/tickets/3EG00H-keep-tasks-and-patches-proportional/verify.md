@@ -236,3 +236,13 @@ The failed CLI contract and Node matrix jobs reported the same missing command i
 Independent review `0de49140-23ab-40e6-8334-b886bb5713cf` found that missing scenario declarations could let an unrelated receipt advance a pending ticket. The gate now requires the declared scenario to be a reviewed target. The CLI and hooks share the same legacy-receipt validation, and the approval lookup uses the canonical ticket path. The public CLI regression tests missing declarations, mismatched declarations, unknown receipts, stale receipts, and the current receipt. Re-review `28d5447c-93bd-4deb-992e-fca2bea80815` approved the corrected gate. A fresh source CLI run advanced a disposable ticket with current Codex-authored, Claude-reviewed receipt `e066ba11-fc76-4e46-89e0-1924bc02562f`.
 
 The approval is for the exact declared scenario. Different tickets can still cite the same approved scenario file when they intentionally share behavior. Ticket-specific approval context for a shared scenario file remains a follow-up. Cold first-edit enforcement and the unchecked verification obligations above remain open.
+
+### Opt-in first-edit classification
+
+Projects can set `requireSmallWorkClassification: true` to require an attached in-progress ticket with classifiable facts before the Claude Code or Codex native edit gate admits source changes. The default behavior remains available without that setting. An attached patch uses its inline record. Test and scenario authoring remain available before classification. The existing shell inspection applies to the write forms it recognizes.
+
+Live no-ticket sessions `18947a9d-0a34-4242-afdf-b330600e70e1` (Claude Code) and `01a20b4b-6bfe-7162-b49a-7ad3a0f258ad` (Codex) both received the new classification denial and left source unchanged. Live sessions `81e5d0da-668a-4d94-b31b-472fe0c3175e` and `01a20b4b-978e-7b52-ac0f-c45c317a9e11` attached a classified patch in opted-in projects, corrected one source comment, and created no feature plans.
+
+The local patch and product-behavior rows now use two executable tests. The product-behavior test verifies that each adapter independently promotes the same ticket, retains its investigation note, and blocks the next source edit. Earlier live sessions `4f4759f3-2e8b-4c2d-8fb2-0f1078ebdfa0` and `01a20b40-0858-7b43-83f2-c4af57bfd2ff` showed the same behavior with supplied classification facts.
+
+All 66 focused tests passed, and generated surfaces and TypeScript verified. Independent review `b3033753-02e0-4294-9f82-77fd0a0e2d3f` approved the change and noted limits in the pre-existing shell write inspection. The feature now has nine bound examples across 140 expanded cases. The acceptance dry run reports 131 undefined examples.

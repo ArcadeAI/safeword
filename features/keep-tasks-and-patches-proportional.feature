@@ -16,6 +16,12 @@ Feature: Keep tasks and patches proportional
         | task | no Implementation Plan, Execution Plan, or independent planning review is created |
         | feature | an Implementation Plan and Execution Plan are required, with a semantic review of each plan |
 
+    @proof.vitest @surface.claude-code @surface.openai-codex
+    Scenario: Classified patches stay lightweight on Claude Code and Codex
+      Given an attached patch has settled behavior and targeted proof
+      When the installed Claude Code and Codex edit gates receive its bounded edit
+      Then both allow the edit and keep the ticket a patch without creating feature plans
+
     @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed hosts apply feature ceremony by work type
       Given <host> receives work already classified as <work_type>
@@ -29,13 +35,11 @@ Feature: Keep tasks and patches proportional
         | Safeword CLI | actual installed CLI dispatch | feature | both feature plans and their semantic reviews are required |
         | Claude Code | actual lifecycle dispatch from installed project hooks | feature | both feature plans and their semantic reviews are required |
         | Claude Code | actual lifecycle dispatch from installed project hooks | task | no feature planning artifact or planning review is created |
-        | Claude Code | actual lifecycle dispatch from installed project hooks | patch | no feature planning artifact or planning review is created |
         | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM | task | no feature planning artifact or planning review is created |
         | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM | patch | no feature planning artifact or planning review is created |
         | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM | feature | both feature plans and their semantic reviews are required |
         | OpenAI Codex | actual lifecycle dispatch from installed project hooks | feature | both feature plans and their semantic reviews are required |
         | OpenAI Codex | actual lifecycle dispatch from installed project hooks | task | no feature planning artifact or planning review is created |
-        | OpenAI Codex | actual lifecycle dispatch from installed project hooks | patch | no feature planning artifact or planning review is created |
         | Cursor | actual lifecycle dispatch from installed project hooks | feature | both feature plans and their semantic reviews are required |
         | Cursor | actual lifecycle dispatch from installed project hooks | task | no feature planning artifact or planning review is created |
         | Cursor | actual lifecycle dispatch from installed project hooks | patch | no feature planning artifact or planning review is created |
@@ -407,6 +411,12 @@ Feature: Keep tasks and patches proportional
       When the promoted feature discovers a sequencing-only change
       Then Execution Planning resumes with existing evidence preserved
 
+    @rejection @proof.vitest @surface.claude-code @surface.openai-codex
+    Scenario: Unresolved product behavior returns to definition on Claude Code and Codex
+      Given task investigation recorded evidence and exposed an unresolved product-behavior decision
+      When the installed Claude Code and Codex edit hooks process the same ticket and the next production edit
+      Then both preserve the evidence, send the ticket to behavior definition, and block the production edit
+
     @rejection @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed hosts return a promoted product decision to behavior definition
       Given task investigation has recorded evidence and exposes an unresolved in-scope product-behavior decision
@@ -416,9 +426,7 @@ Feature: Keep tasks and patches proportional
       Examples:
         | installed_entry |
         | actual installed CLI dispatch |
-        | actual Claude Code lifecycle dispatch from installed project hooks |
         | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM |
-        | actual OpenAI Codex lifecycle dispatch from installed project hooks |
         | actual Cursor lifecycle dispatch from installed project hooks |
         | actual Cursor Cloud Agents lifecycle dispatch from project hooks in a fresh runner |
 

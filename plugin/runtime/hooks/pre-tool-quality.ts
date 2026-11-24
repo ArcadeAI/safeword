@@ -90,7 +90,11 @@ import {
   hasCurrentSmallWorkScenarioApproval,
   smallWorkRoutingDenial,
 } from './lib/small-work-admission.ts';
-import { hasSmallWorkFacts } from './lib/small-work-classification.ts';
+import {
+  classifySmallWork,
+  hasSmallWorkFacts,
+  readSmallWorkFacts,
+} from './lib/small-work-classification.ts';
 
 const crashCapture = installCrashCapture('pre-tool-quality');
 
@@ -145,6 +149,43 @@ function enrolledTicketNeedsBinding(projectDirectory: string): boolean {
       return false;
     }
   });
+}
+
+function checkFirstEditClassification(projectDirectory: string, activeTicket?: string): void {
+  const runtime = process.env.SAFEWORD_AGENT_RUNTIME;
+  if (runtime !== undefined && runtime !== 'claude' && runtime !== 'codex') return;
+
+  const config = nodePath.join(projectDirectory, '.safeword', 'config.json');
+  try {
+    if (JSON.parse(readFileSync(config, 'utf8'))?.requireSmallWorkClassification !== true) return;
+  } catch {
+    return;
+  }
+
+  if (activeTicket) {
+    const ticket = getTicketInfo(projectDirectory, activeTicket);
+    if (ticket.folder !== undefined && ticket.status === 'in_progress') {
+      const path = nodePath.join(
+        resolveNamespaceRoot(projectDirectory),
+        'tickets',
+        ticket.folder,
+        'ticket.md',
+      );
+      try {
+        if (
+          classifySmallWork(readSmallWorkFacts(readFileSync(path, 'utf8'))).status === 'classified'
+        )
+          return;
+      } catch {
+        // An unreadable ticket cannot satisfy a required classification.
+      }
+    }
+  }
+  deny(
+    'Classify this work before changing production files.',
+    'Use safeword ticket classify-small-work, record the facts on an in-progress ticket, and attach it with a native ticket edit. A patch only needs its inline record.',
+    true,
+  );
 }
 
 function denyUnboundSmallWork(): never {
@@ -645,6 +686,7 @@ if (tool === 'Bash') {
     );
   });
   if (write !== undefined) {
+    checkFirstEditClassification(projectDirectory, activeTicket ?? undefined);
     if (!activeTicket && enrolledTicketNeedsBinding(projectDirectory)) denyUnboundSmallWork();
     if (activeTicket) {
       const { folder } = getTicketInfo(projectDirectory, activeTicket);
@@ -1440,13 +1482,9 @@ if (isMetaPath(editedFile, canonicalProjectDirectory)) {
 
 const state = readSessionState(projectDirectory, input.session_id);
 
-if (
-  !state?.activeTicket &&
-  !isTestFile(editedFile) &&
-  nodePath.extname(editedFile) !== '.feature' &&
-  enrolledTicketNeedsBinding(projectDirectory)
-) {
-  denyUnboundSmallWork();
+if (!isTestFile(editedFile) && nodePath.extname(editedFile) !== '.feature') {
+  checkFirstEditClassification(projectDirectory, state?.activeTicket ?? undefined);
+  if (!state?.activeTicket && enrolledTicketNeedsBinding(projectDirectory)) denyUnboundSmallWork();
 }
 
 if (!state) {
