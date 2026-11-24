@@ -1,8 +1,10 @@
 # Design: one rule for choosing the project directory (#5467)
 
-Status: approved; parts 1, 2a and 2b implemented (#5655, #5656, part 2b). Base: origin/main 53398c672 (includes #5571).
+Parts 1–3, Claude and Codex checkout selection, and Codex Stop verification across linked worktrees shipped. Part 4 remains open under #5467.
 
-## Problem
+## Original problem
+
+The following observations motivated the work. The delivery record below gives the current status.
 
 Claude Code keeps `CLAUDE_PROJECT_DIR` at the launch checkout after a session
 enters `.claude/worktrees/<name>`; the hook input `cwd` follows the session
@@ -54,38 +56,67 @@ Comparisons use real paths. Bash cwd keeps today's lexical-vs-real handling.
 This is the only place allowed to read `CLAUDE_PROJECT_DIR` as a project root.
 Existing resolvers in `namespace-root.ts` become wrappers, then are removed.
 
-## Durable home (state that must outlive a worktree)
+## Worktree state on main (part 3)
 
-`resolveDurableStateDirectory(projectDirectory)`: the primary checkout, found
-without subprocess or env: worktree `.git` gitfile → `gitdir:` (relative to the
-gitfile's directory) → `<gitdir>/commondir` (relative to gitdir) → its parent.
-Accepted only if that parent's `.git` is the common dir itself and the parent is
-enrolled; otherwise (bare repo, submodule, unenrolled primary) the working
-project. Not a linked worktree → the project itself.
+### Closeout session binding
 
-- Closeout binding: one file per working tree in the durable home's namespace
-  root, `closeout-session-binding-<sha256(realpath projectRoot)>.json`; writer
-  stamps `projectRoot` with the Bash call's resolved working tree (not launch).
-  Reader (closeout-cleanup) computes the same name from its own worktree root.
-  Sharded because the reader claims and deletes the whole file
-  (`closeout-binding.ts:398-428`): a shared file would let worktree A's closeout
-  destroy worktree B's fresh binding. Gitignore pattern registered in
-  `NAMESPACE_TRANSIENT_BASENAMES`.
-- Retro spool: writer (`safeword retro run`, `stop-retro`) and filer
-  (`stop-retro-filing`, Cursor/Codex stop) both use the durable home's
-  `.safeword/retro-drafts/` (already gitignored; drain guard unchanged). The
-  closeout copy step (`closeout-cleanup.ts:2088`) stays one release to rescue
-  existing worktree spools.
+Claude, Codex and Cursor record a short-lived binding in the working tree where
+the closeout command will run. The hook resolves the shell cwd or a leading
+literal `cd <absolute path> &&`. A worktree-specific filename keeps bindings
+separate even when two trees share one configured namespace root. If the hook
+cannot resolve the command, it denies the invocation and returns a runnable
+retry. The retry preserves quoting for plugin paths. The worktree and host
+adapter integration tests cover the writer and closeout reader.
+See [#7768](https://github.com/ArcadeAI/safeword/pull/7768) and
+[#7837](https://github.com/ArcadeAI/safeword/pull/7837).
 
-Required proof (real `git worktree` fixtures, real writers and readers):
+### Retro findings after worktree removal
 
-- Retro: spool a draft with the real `safeword retro run` path from a linked
-  worktree, `git worktree remove` it, then the real Stop filer gate run from
-  the primary checkout reports that draft for filing.
-- Closeout: produce bindings for two linked worktrees through the real
-  pre-tool hook (Bash call whose `cwd` is each worktree), consume worktree A's
-  through the real `closeout-cleanup` reader run from A, and assert A gets its
-  binding and B's binding is still present and consumable from B.
+The writer keeps a durable copy in `<git common dir>/safeword/retro-drafts/`.
+At handoff, `stageRetroSpool` stages pending findings into the checkout’s
+`.safeword/retro-drafts/`, where the filer can acknowledge and drain them
+without needing write access to a protected Git directory. Removal records
+and acknowledgments keep previously filed findings from being staged again.
+Closeout merges outstanding records into the surviving checkout. Outside Git,
+the project-local spool remains the home. Filing abandoned sessions’ drafts
+is outside #5467. See the implementation and worktree-removal tests in
+[#7869](https://github.com/ArcadeAI/safeword/pull/7869).
+
+## Part 4 delivery and remaining work
+
+Claude status now resolves the enrolled linked checkout when the session
+inherits the primary checkout’s launch directory (#8298). Codex native hook
+execution records likewise identify the enrolled checkout named by the host
+(#8302). In a separate two-checkout reproduction, the executable-RED receipt
+and GREEN edit were accepted only in the checkout that earned approval.
+[Issue #5395 was closed with the results](https://github.com/ArcadeAI/safeword/issues/5395#issuecomment-7140475405).
+
+### Codex Stop after a checkout switch
+
+Before [#8312](https://github.com/ArcadeAI/safeword/pull/8312), a session
+could close a task in an enrolled linked worktree, return to its primary
+checkout, and stop without running the task’s failing test. Running Stop in
+the linked checkout exposed the failure.
+
+Codex Stop now checks the current checkout first, then the enrolled worktrees
+registered with the same Git repository for verification owed by that session.
+The failure message identifies the checkout whose test failed. A later edit in
+the primary checkout does not hide a linked ticket. Native hook execution
+records still identify the checkout where the event occurred.
+
+The regression drives the public PostToolUse and Stop hooks with a payload
+session ID and with thread-only identity. In both cases, an unrelated session
+leaves the ticket alone. The issuing session’s Stop in the primary checkout
+runs the linked test and blocks. After repair, a continuation Stop clears
+verification, and the following Stop does not rerun it. The primary checkout’s
+test counter stays unchanged. This covers available, enrolled worktrees with
+checkout-local verification state.
+
+### Remaining part 4 work
+
+Retain the part 2b child-process tests. Verify each remaining
+`projectEnvironment` override against its caller before removing it, and
+narrow the parity allowlist as each site is verified.
 
 ## Session state at Stop
 
@@ -102,7 +133,7 @@ pointer falls back to the rule. Nothing is written into the repository.
 
 `resolveSessionProjectDirectory({ sessionId, cwd, env })` reads the pointer
 when it names an existing enrolled tree, else applies the rule with the input
-`cwd`. Missing session id → the rule. Used by Stop hooks, `prompt-questions`,
+`cwd`. Missing session id → the rule. Used by session-aware hooks including the shared Stop path, `prompt-questions`,
 `prompt-retro-nudge`, `post-tool-skill-nudge`, `session-compact-context`,
 `session-cleanup-quality`. `stop-quality.ts` module-level roots move after
 stdin parsing.
@@ -131,11 +162,9 @@ nearest git root of the host cwd. They already follow the session into a
 worktree and work in unenrolled repositories by design, so they keep their
 own walk.
 
-## Delivery (epic, four Draft PRs referencing #5467)
+## Delivery
 
-1. Module + durable home + guard; existing resolvers delegate. Behavior change:
-   non-edit tools use step 2.
-2. Stop/session hooks + session pointer (2a, closes #5256, #5346); the
-   remaining per-tool and SessionStart hooks and `lib/lint` (2b).
-3. Retro spool + closeout binding to the durable home.
-4. CLI resolvers, Cursor/Codex adapters, final allowlist (closes #5395, #5467).
+1. Shared resolver and parity guard shipped in #5655.
+2. Session routing and per-tool hooks shipped in #5656 and #5664.
+3. Closeout binding and recovery shipped in #7768 and #7837. Durable retro findings shipped in #7869.
+4. Claude and Codex checkout selection shipped in #8298 and #8302. Codex Stop verification across linked worktrees shipped in #8312. The child-process overrides and remaining parity exceptions still need verification.
