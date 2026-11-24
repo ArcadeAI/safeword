@@ -91464,9 +91464,8 @@ function checkVerifyArtifact(content) {
   const lines = content.split(`
 `);
   const fenced = balancedFenceBodyLines(lines);
-  for (const [index, line] of lines.entries()) {
-    if (fenced.has(index))
-      continue;
+  const reportLines = lines.filter((_, index) => !fenced.has(index));
+  for (const line of reportLines) {
     const check = FAILED_VERIFY_CHECK_PATTERN.exec(line)?.groups?.check;
     if (!check)
       continue;
@@ -91475,7 +91474,8 @@ function checkVerifyArtifact(content) {
       reason: `${check} failed. Fix the failures listed in verify.md, then run /verify again.`
     };
   }
-  const prScopeMatch = PR_SCOPE_LINE_PATTERN.exec(content);
+  const prScopeMatch = PR_SCOPE_LINE_PATTERN.exec(reportLines.join(`
+`));
   if (!prScopeMatch?.groups?.status) {
     return {
       ok: false,

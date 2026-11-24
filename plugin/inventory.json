@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "7dba9c27b72a64e9f28b594b2972e0bce49288de23c65a5aa8a8d795bd3ab66d"
+      "sha256": "cc26b35f2cd6a6ecb263d39386461ab275c316f3a89ddb667c59682b0407a909"
     },
     {
       "path": "runtime/dispatch.js",
@@ -239,7 +239,7 @@
     },
     {
       "path": "runtime/hooks/lib/done-gate.ts",
-      "sha256": "d4d7dcbeb57bc4b65a768ac6bb97819644c8bc3f80dcefe4369c101a40164e91"
+      "sha256": "2b26b1763d713da1d7027bec64c4bf5472cd887ef2549bc1e6a67d3cff0b4d84"
     },
     {
       "path": "runtime/hooks/lib/drain-retro-spool.ts",
@@ -1239,7 +1239,7 @@
     },
     {
       "path": "templates/hooks/lib/done-gate.ts",
-      "sha256": "d4d7dcbeb57bc4b65a768ac6bb97819644c8bc3f80dcefe4369c101a40164e91"
+      "sha256": "2b26b1763d713da1d7027bec64c4bf5472cd887ef2549bc1e6a67d3cff0b4d84"
     },
     {
       "path": "templates/hooks/lib/drain-retro-spool.ts",
