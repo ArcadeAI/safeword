@@ -869,13 +869,12 @@ describe('check-run evidence projection', () => {
     ]);
   });
 
-  // GitHub leaves `pull_requests` empty on workflow runs for a fork's pull request, so a fork run
-  // is matched by coming from the inspected PR's own head repository instead.
+  // Two PRs can share a fork and head SHA while targeting different base branches.
   it.each([
     ['installed', workerPath],
     ['dogfood', dogfoodWorkerPath],
   ])(
-    'forwards run identity for a fork PR whose runs list no pull requests in the %s worker',
+    'requires explicit PR attribution for runs from the same fork and commit in the %s worker',
     (_name, path) => {
       const source = readFileSync(path, 'utf8');
       const suffix = ' as $workflowBySuite |';
@@ -896,6 +895,8 @@ describe('check-run evidence projection', () => {
       };
       const workflowRuns = [
         forkRun,
+        { ...forkRun, check_suite_id: 23, pull_requests: [{ number: 8 }] },
+        { ...forkRun, check_suite_id: 24, pull_requests: [{ number: 7 }] },
         { ...forkRun, check_suite_id: 21, head_repository: { full_name: 'someone-else/safeword' } },
         { ...forkRun, check_suite_id: 22, head_repository: { full_name: 'ArcadeAI/safeword' } },
       ];
@@ -923,7 +924,7 @@ describe('check-run evidence projection', () => {
 
       expect(result.status).toBe(0);
       expect(JSON.parse(result.stdout)).toEqual({
-        '20': { runNumber: 41, workflow: '.github/workflows/ci.yml' },
+        '24': { runNumber: 41, workflow: '.github/workflows/ci.yml' },
       });
     },
   );

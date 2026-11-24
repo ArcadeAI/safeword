@@ -125,7 +125,7 @@ jobs:
           jq -n --slurpfile files pull-files-with-context.json --slurpfile pull pull.json --slurpfile checks check-runs.json --slurpfile runs workflow-runs.json --slurpfile allChecks all-checks.json --slurpfile statuses statuses.json --slurpfile comments comments.json '
             ($pull[0]) as $pr |
             ($allChecks[0] | group_by([.check_suite.id, .name]) | map(select(length == 1) | {key: (.[0].id | tostring), value: true}) | from_entries) as $uniqueJobs |
-            ($runs[0] | map(select(.event == "pull_request" and .head_sha == $pr.head.sha and (any(.pull_requests[]?; .number == $pr.number) or ((.pull_requests | length) == 0 and $pr.head.repo.full_name != $pr.base.repo.full_name and .head_repository.full_name == $pr.head.repo.full_name))) | {key: (.check_suite_id | tostring), value: {workflow: .path, runNumber: .run_number}}) | from_entries) as $workflowBySuite |
+            ($runs[0] | map(select(.event == "pull_request" and .head_sha == $pr.head.sha and any(.pull_requests[]?; .number == $pr.number)) | {key: (.check_suite_id | tostring), value: {workflow: .path, runNumber: .run_number}}) | from_entries) as $workflowBySuite |
             ([ $comments[0][] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- safeword:pr-review-receipt:v1 -->"))) ]) as $owned |
             {
               schemaVersion: 1,
