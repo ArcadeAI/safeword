@@ -466,7 +466,12 @@ describe('advisory PR review workflow contract', () => {
         },
         'event-review': {
           if: "github.event_name == 'pull_request_target' && github.event.action != 'edited'",
-          permissions: { contents: 'read', issues: 'write', 'pull-requests': 'write' },
+          permissions: {
+            actions: 'read',
+            contents: 'read',
+            issues: 'write',
+            'pull-requests': 'write',
+          },
           secrets: 'inherit',
           uses: './.github/workflows/safeword-pr-review-worker.yml',
           with: {
@@ -475,7 +480,12 @@ describe('advisory PR review workflow contract', () => {
           },
         },
         'scheduled-review': {
-          permissions: { contents: 'read', issues: 'write', 'pull-requests': 'write' },
+          permissions: {
+            actions: 'read',
+            contents: 'read',
+            issues: 'write',
+            'pull-requests': 'write',
+          },
           secrets: 'inherit',
           uses: './.github/workflows/safeword-pr-review-worker.yml',
           with: { inspect_requested: true, write_requested: true },
@@ -756,6 +766,216 @@ describe('advisory PR review workflow contract', () => {
       }
     } finally {
       rmSync(projectDirectory, { force: true, recursive: true });
+    }
+  });
+});
+
+describe('check-run evidence projection', () => {
+  // Exercise the jq expressions shipped in both workers against GitHub-shaped records.
+  function extract(source: string, pattern: RegExp): string {
+    const match = pattern.exec(source)?.[1];
+    expect(match).toBeDefined();
+    return match ?? '';
+  }
+
+  it.each([
+    ['installed', workerPath],
+    ['dogfood', dogfoodWorkerPath],
+  ])('forwards run identity only for the inspected PR and head in the %s worker', (_name, path) => {
+    const source = readFileSync(path, 'utf8');
+    const binding = (name: string) => {
+      const suffix = ` as $${name} |`;
+      const matched = source.split('\n').find(line => line.endsWith(suffix));
+      expect(matched).toBeDefined();
+      return matched?.trim().slice(0, -suffix.length);
+    };
+    const uniqueJobs = binding('uniqueJobs');
+    const workflowMap = binding('workflowBySuite');
+    expect(source).toContain('check-runs?filter=all&per_page=100');
+    const projection = extract(source, /checks: \[\$checks\[0\]\[\] \| (.+)\],\n/u);
+    const run = {
+      check_suite_id: 10,
+      path: '.github/workflows/ci.yml',
+      run_number: 5363,
+      event: 'pull_request',
+      head_sha: 'head',
+      pull_requests: [{ number: 7 }],
+    };
+    const workflowRuns = [
+      run,
+      { ...run, check_suite_id: 11, pull_requests: [] },
+      { ...run, check_suite_id: 12, pull_requests: [{ number: 8 }] },
+      { ...run, check_suite_id: 13, head_sha: 'other' },
+      { ...run, check_suite_id: 14, event: 'push' },
+      { ...run, check_suite_id: 15 },
+    ];
+    const checkRuns = [
+      {
+        check_suite: { id: 10 },
+        conclusion: 'cancelled',
+        id: 1,
+        name: 'lint',
+        started_at: '2026-11-20T17:22:11Z',
+        status: 'completed',
+      },
+      /* eslint-disable unicorn/no-null -- GitHub sends JSON null before a run starts. */
+      {
+        check_suite: { id: 11 },
+        conclusion: null,
+        id: 2,
+        name: 'lint',
+        started_at: null,
+        status: 'queued',
+      },
+      /* eslint-enable unicorn/no-null */
+    ];
+
+    const samples = [
+      ...checkRuns,
+      ...[12, 13, 14, 15].map(id => ({ ...checkRuns[1], id, check_suite: { id } })),
+    ];
+    const result = spawnSync(
+      'jq',
+      [
+        '-c',
+        '--argjson',
+        'allChecks',
+        JSON.stringify([[...samples, { ...checkRuns[1], id: 16, check_suite: { id: 15 } }]]),
+        '--argjson',
+        'pr',
+        JSON.stringify({ number: 7, head: { sha: 'head' } }),
+        '--argjson',
+        'runs',
+        JSON.stringify([workflowRuns]),
+        `${uniqueJobs} as $uniqueJobs | ${workflowMap ?? ''} as $workflowBySuite | [.[] | ${projection}]`,
+      ],
+      {
+        encoding: 'utf8',
+        input: JSON.stringify(samples),
+      },
+    );
+
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual([
+      {
+        conclusion: 'cancelled',
+        name: 'lint',
+        runNumber: 5363,
+        status: 'completed',
+        workflow: '.github/workflows/ci.yml',
+      },
+      // eslint-disable-next-line unicorn/no-null -- the projection preserves GitHub's null.
+      ...Array.from({ length: 5 }, () => ({ conclusion: null, name: 'lint', status: 'queued' })),
+    ]);
+  });
+
+  // Two PRs can share a fork and head SHA while targeting different base branches.
+  it.each([
+    ['installed', workerPath],
+    ['dogfood', dogfoodWorkerPath],
+  ])(
+    'requires explicit PR attribution for runs from the same fork and commit in the %s worker',
+    (_name, path) => {
+      const source = readFileSync(path, 'utf8');
+      const suffix = ' as $workflowBySuite |';
+      const workflowMap = source
+        .split('\n')
+        .find(line => line.endsWith(suffix))
+        ?.trim()
+        .slice(0, -suffix.length);
+      expect(workflowMap).toBeDefined();
+      const forkRun = {
+        check_suite_id: 20,
+        event: 'pull_request',
+        head_repository: { full_name: 'contributor/safeword' },
+        head_sha: 'head',
+        path: '.github/workflows/ci.yml',
+        pull_requests: [],
+        run_number: 41,
+      };
+      const workflowRuns = [
+        forkRun,
+        { ...forkRun, check_suite_id: 23, pull_requests: [{ number: 8 }] },
+        { ...forkRun, check_suite_id: 24, pull_requests: [{ number: 7 }] },
+        { ...forkRun, check_suite_id: 21, head_repository: { full_name: 'someone-else/safeword' } },
+        { ...forkRun, check_suite_id: 22, head_repository: { full_name: 'ArcadeAI/safeword' } },
+      ];
+      const pr = {
+        base: { repo: { full_name: 'ArcadeAI/safeword' } },
+        head: { repo: { full_name: 'contributor/safeword' }, sha: 'head' },
+        number: 7,
+      };
+
+      const result = spawnSync(
+        'jq',
+        [
+          '-n',
+          '-c',
+          '--argjson',
+          'pr',
+          JSON.stringify(pr),
+          '--argjson',
+          'runs',
+          JSON.stringify([workflowRuns]),
+          workflowMap ?? '',
+        ],
+        { encoding: 'utf8' },
+      );
+
+      expect(result.status).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual({
+        '24': { runNumber: 41, workflow: '.github/workflows/ci.yml' },
+      });
+    },
+  );
+
+  it.each([
+    ['installed', workerPath],
+    ['dogfood', dogfoodWorkerPath],
+  ])('lets the %s worker read workflow runs for the head', (_name, path) => {
+    const source = readFileSync(path, 'utf8');
+
+    expect(source).toContain('actions/runs?head_sha=$head_sha');
+    expect(source).toMatch(/permissions:\n\s+actions: read\n\s+contents: read\n\s+issues: read\n/u);
+  });
+});
+
+describe('caller-to-worker permission wiring', () => {
+  // A reusable workflow cannot raise a permission its caller withholds, so every caller job must
+  // grant each permission the worker's jobs request, at least at the same level.
+  const levels: Record<string, number> = { none: 0, read: 1, write: 2 };
+  type Permissions = Record<string, string>;
+  interface Job {
+    permissions?: Permissions;
+    uses?: string;
+  }
+
+  it.each([
+    ['installed', routerPath, workerPath],
+    ['dogfood', dogfoodRouterPath, dogfoodWorkerPath],
+  ])('lets every %s caller grant what the worker needs', (_name, callerPath, calleePath) => {
+    const caller = YAML.parse(readFileSync(callerPath, 'utf8')) as { jobs: Record<string, Job> };
+    const worker = YAML.parse(readFileSync(calleePath, 'utf8')) as { jobs: Record<string, Job> };
+    const required: Permissions = {};
+    const workerGrants = Object.values(worker.jobs).flatMap(job =>
+      Object.entries(job.permissions ?? {}),
+    );
+    for (const [scope, level] of workerGrants) {
+      if ((levels[level] ?? 0) > (levels[required[scope] ?? 'none'] ?? 0)) {
+        required[scope] = level;
+      }
+    }
+    const callers = Object.entries(caller.jobs).filter(([, job]) =>
+      job.uses?.endsWith('safeword-pr-review-worker.yml'),
+    );
+
+    expect(callers.length).toBeGreaterThan(0);
+    for (const [name, job] of callers) {
+      const missing = Object.entries(required).filter(
+        ([scope, level]) =>
+          (levels[job.permissions?.[scope] ?? 'none'] ?? 0) < (levels[level] ?? 0),
+      );
+      expect({ name, missing }).toEqual({ name, missing: [] });
     }
   });
 });

@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import YAML from 'yaml';
 
 import { type InspectionHandoff, inspectPullRequestCommand } from '../../src/commands/review-pr.js';
 import type { ModelFinding } from '../../src/pr-review/providers/openai.js';
@@ -209,6 +210,252 @@ describe('review-pr inspect command wiring', () => {
       expect(result).toMatchObject({ kind: 'receipt', receipt: { status: expectedStatus } });
     },
   );
+
+  /** Inspects one changed file against a single required check (`lint` by default) with these runs. */
+  function inspectLintRuns(
+    checks: unknown[],
+    {
+      artifacts = [] as unknown[],
+      context = 'lint',
+      generatedFilesCheck = undefined as string | undefined,
+    } = {},
+  ) {
+    const cwd = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-pr-superseded-'));
+    directories.push(cwd);
+    mkdirSync(nodePath.join(cwd, '.safeword'));
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      JSON.stringify({
+        prReview: {
+          enabled: true,
+          maxTotalBytes: 1024,
+          model: 'gpt-test',
+          provider: 'openai',
+          requiredChecks: [{ context }],
+          ...(generatedFilesCheck !== undefined && { generatedFilesCheck }),
+        },
+      }),
+    );
+    const inputPath = nodePath.join(cwd, 'inspection-input.json');
+    const outputPath = nodePath.join(cwd, 'inspection-result.json');
+    const fullContent = Buffer.from('allow *\n').toString('base64');
+    writeFileSync(
+      inputPath,
+      JSON.stringify({
+        artifacts: [textArtifact({ fullContentBase64: fullContent }), ...artifacts],
+        checks,
+        headSha: 'a'.repeat(40),
+        markerReceiptExists: false,
+        pullState: 'ready',
+        schemaVersion: 1,
+        statuses: [],
+      }),
+    );
+    const provider = vi.fn().mockResolvedValue({ findings: [], tokenUsage: {} });
+    const result = inspectPullRequestCommand({ cwd, inputPath, outputPath, provider });
+    return { provider, result };
+  }
+
+  const ciWorkflow = '.github/workflows/ci.yml';
+  const earlierCancellation = {
+    conclusion: 'cancelled',
+    name: 'lint',
+    runNumber: 5363,
+    startedAt: '2026-11-20T17:22:11Z',
+    status: 'completed',
+    workflow: ciWorkflow,
+  };
+
+  // Marking a PR Ready cancels the in-flight CI run and starts a new check suite on the same head,
+  // so a required check can carry a cancelled run alongside its later rerun (#7952). The API does
+  // not order runs, so the later run is listed first here.
+  it.each([
+    [
+      'a cancelled run then a successful rerun',
+      earlierCancellation,
+      'completed',
+      'success',
+      undefined,
+    ],
+    [
+      'a cancelled run then a failed rerun',
+      earlierCancellation,
+      'completed',
+      'failure',
+      'prerequisites_failed',
+    ],
+    [
+      'a cancelled run then a rerun in progress',
+      earlierCancellation,
+      'in_progress',
+      // eslint-disable-next-line unicorn/no-null -- GitHub uses JSON null until completion.
+      null,
+      'prerequisites_pending',
+    ],
+    // A same-named check from another workflow is not a rerun; its failure still counts.
+    [
+      'an earlier failure then a later success',
+      { ...earlierCancellation, conclusion: 'failure' },
+      'completed',
+      'success',
+      'prerequisites_failed',
+    ],
+    // A cancellation from another workflow was never rerun, so it still counts.
+    [
+      'a cancelled run from another workflow then a later success',
+      { ...earlierCancellation, workflow: '.github/workflows/release.yml' },
+      'completed',
+      'success',
+      'prerequisites_failed',
+    ],
+    [
+      'two matrix jobs in run 5364',
+      { ...earlierCancellation, runNumber: 5364 },
+      'completed',
+      'success',
+      'prerequisites_failed',
+    ],
+    // Without a run number nothing proves the cancellation came first, so it still counts.
+    [
+      'a cancelled run with no run number then a success',
+      { conclusion: 'cancelled', name: 'lint', status: 'completed', workflow: ciWorkflow },
+      'completed',
+      'success',
+      'prerequisites_failed',
+    ],
+    // Without a workflow nothing proves the later run is a rerun, so it still counts.
+    [
+      'a cancelled run with no workflow then a success',
+      {
+        conclusion: 'cancelled',
+        name: 'lint',
+        runNumber: 5363,
+        status: 'completed',
+      },
+      'completed',
+      'success',
+      'prerequisites_failed',
+    ],
+  ] as const)(
+    'judges a required check with %s',
+    async (_case, earlierRun, status, conclusion, expectedStatus) => {
+      const { provider, result } = inspectLintRuns([
+        {
+          conclusion,
+          name: 'lint',
+          runNumber: 5364,
+          startedAt: '2026-11-20T17:28:04Z',
+          status,
+          workflow: ciWorkflow,
+        },
+        earlierRun,
+      ]);
+
+      const receipt = receiptOf(await result);
+
+      expect(provider).toHaveBeenCalledTimes(expectedStatus ? 0 : 1);
+      expect(receipt).toMatchObject(
+        expectedStatus
+          ? { status: expectedStatus }
+          : { checks: [{ name: 'lint', status: 'success' }] },
+      );
+    },
+  );
+
+  it.each([5363, 5364])('keeps ambiguous jobs blocking in run %i', async runNumber => {
+    const success = { ...earlierCancellation, conclusion: 'success' };
+    const { result } = inspectLintRuns([
+      earlierCancellation,
+      { ...success, runNumber },
+      { ...success, runNumber: 5364 },
+    ]);
+    expect(receiptOf(await result)).toMatchObject({ status: 'prerequisites_failed' });
+  });
+
+  it('lets generated files skip review when parity reran after a cancellation', async () => {
+    const { result } = inspectLintRuns(
+      [
+        {
+          conclusion: 'success',
+          name: 'Dogfood parity',
+          runNumber: 5364,
+          status: 'completed',
+          workflow: ciWorkflow,
+        },
+        { ...earlierCancellation, name: 'Dogfood parity' },
+      ],
+      {
+        artifacts: [{ kind: 'generated', path: 'plugin/runtime/cli.js' }],
+        context: 'Dogfood parity',
+        generatedFilesCheck: 'Dogfood parity',
+      },
+    );
+
+    const receipt = receiptOf(await result);
+
+    expect(receipt).toMatchObject({
+      coverage: expect.arrayContaining([
+        { path: 'plugin/runtime/cli.js', skipReason: 'generated', status: 'skipped' },
+      ]),
+    });
+    expect(receipt).not.toMatchObject({ runState: 'incomplete' });
+  });
+
+  it('blocks review when same-run parity jobs disagree', async () => {
+    const parity = { ...earlierCancellation, name: 'Dogfood parity' };
+    const { result, provider } = inspectLintRuns([parity, { ...parity, conclusion: 'success' }], {
+      artifacts: [{ kind: 'generated', path: 'plugin/runtime/cli.js' }],
+      context: 'Dogfood parity',
+      generatedFilesCheck: 'Dogfood parity',
+    });
+    expect(receiptOf(await result)).toMatchObject({ status: 'prerequisites_failed' });
+    expect(provider).not.toHaveBeenCalled();
+  });
+
+  // The audit is what the publisher trusts about the inspection's authority, so it must declare
+  // exactly the permissions the installed worker's inspect job grants.
+  it('declares the GitHub permissions the installed inspect job grants', async () => {
+    const worker = YAML.parse(
+      readFileSync(
+        nodePath.join(import.meta.dirname, '../../templates/workflows/pr-review-worker.yml'),
+        'utf8',
+      ),
+    ) as { jobs: { inspect: { permissions: Record<string, string> } } };
+    const granted = Object.fromEntries(
+      Object.entries(worker.jobs.inspect.permissions).map(([scope, level]) => [
+        scope.replaceAll(/-(\w)/gu, (_match, letter: string) => letter.toUpperCase()),
+        level,
+      ]),
+    );
+    const { result } = inspectLintRuns([
+      { conclusion: 'success', name: 'lint', status: 'completed' },
+    ]);
+
+    const handoff = await result;
+
+    expect(handoff.inspectionAudit.githubPermissions).toEqual(granted);
+  });
+
+  it.each([
+    ['not a number', '5363'],
+    ['negative', -1],
+  ])('rejects a check run whose run number is %s', async (_case, runNumber) => {
+    const { provider, result } = inspectLintRuns([
+      { conclusion: 'success', name: 'lint', runNumber, status: 'completed' },
+    ]);
+
+    await expect(result).rejects.toThrow('review-pr: invalid check-run sample');
+    expect(provider).not.toHaveBeenCalled();
+  });
+
+  it('rejects a check run whose workflow is not a string', async () => {
+    const { provider, result } = inspectLintRuns([
+      { conclusion: 'success', name: 'lint', status: 'completed', workflow: 42 },
+    ]);
+
+    await expect(result).rejects.toThrow('review-pr: invalid check-run sample');
+    expect(provider).not.toHaveBeenCalled();
+  });
 
   it.each([
     ['missing context', [textArtifact()], ['policies/access.flux']],
