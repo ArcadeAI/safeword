@@ -121,6 +121,15 @@ it('retains an interrupted pending execution and refuses the same proof review',
     expect(hasPassedElectronReplay(root, identity, commit)).toBe(false);
     child.kill('SIGKILL');
     await exited;
+    for (const [nextIdentity, nextCommit] of [
+      [identity, 'c'.repeat(40)],
+      [{ ...identity, inputSha256: 'd'.repeat(64) }, commit],
+    ] as const) {
+      await expect(
+        withElectronReplay(root, nextIdentity, nextCommit, () => Promise.resolve('retry')),
+      ).rejects.toMatchObject({ code: 'EEXIST' });
+      expect(hasPassedElectronReplay(root, nextIdentity, nextCommit)).toBe(false);
+    }
     await expect(
       withElectronReplay(root, identity, commit, () => Promise.resolve('retry')),
     ).rejects.toMatchObject({ code: 'EEXIST' });
@@ -136,6 +145,31 @@ it('retains an interrupted pending execution and refuses the same proof review',
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+it.each([
+  ['commit', identity, 'c'.repeat(40)],
+  ['input digest', { ...identity, inputSha256: 'd'.repeat(64) }, commit],
+] as const)(
+  'cannot reuse a failed proof review by changing its %s',
+  async (_name, nextIdentity, nextCommit) => {
+    const root = mkdtempSync(path.join(tmpdir(), 'safeword-electron-journal-'));
+    vi.stubEnv('SAFEWORD_REVIEW_KEY_ROOT', path.join(root, 'profile'));
+    try {
+      await expect(
+        withElectronReplay(root, identity, commit, () =>
+          Promise.reject(new Error('mutation survived')),
+        ),
+      ).rejects.toThrow('mutation survived');
+      await expect(
+        withElectronReplay(root, nextIdentity, nextCommit, () => Promise.resolve('retry')),
+      ).rejects.toThrow(/fresh proof review/u);
+      expect(hasPassedElectronReplay(root, nextIdentity, nextCommit)).toBe(false);
+    } finally {
+      vi.unstubAllEnvs();
+      rmSync(root, { recursive: true, force: true });
+    }
+  },
+);
 
 it('keeps authorization blocked if final durable publication fails', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'safeword-electron-journal-'));

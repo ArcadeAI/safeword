@@ -91,6 +91,23 @@ additional diagnostics must identify the remaining mismatch before any credit.
 
 ## Remaining delivery
 
+The standalone journal implementation passed real-filesystem tests for pending,
+passed, failed, concurrent, SIGKILL-interrupted, and failed-publication outcomes.
+Independent review bec573f6-30c9-4253-bc8b-c0d77fe8e950 identified missing
+cross-HEAD and changed-input retry protection tests. Those additional tests
+passed in the 50-test protection run; independent rereview
+343db72b-1595-4b7e-84f2-df862ecf5c34 approved the journal with nonblocking
+tampered-record coverage suggestions. The journal is not yet complete delivery.
+
+The new public row test first had a fixture expectation error: action-required
+responses correctly use the existing envelope's ok=true. After correcting that
+new test, it failed for the intended CKWE2D-only refusal. The new SGWMBS handler
+then passed that contract. A real-collaborator positive test now passes using
+actual authenticated review jobs, committed Git archives, and controlled external
+review/Electron processes. Its first two attempts failed in fixture setup because
+the synthetic reviewer omitted its required dispatch ID; those are not product
+RED or real independent reviews. No synthetic fixture receipt touches Soulless.
+
 The installed public probe subsequently passed: independently installed/built
 original passed and the declared package-metadata mutation failed at line 39.
 Log: `/tmp/issue163-safeword-public-real-host-colors-candidate.log`. A separate
