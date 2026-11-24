@@ -1,6 +1,6 @@
 # Design: one rule for choosing the project directory (#5467)
 
-Parts 1–3 shipped. Part 4 remains open under #5467 and #5395.
+Parts 1–3 and the Claude and Codex checkout-selection fixes shipped. Part 4 remains open under #5467.
 
 ## Original problem
 
@@ -82,29 +82,41 @@ the project-local spool remains the home. Filing abandoned sessions’ drafts
 is outside #5467. See the implementation and worktree-removal tests in
 [#7869](https://github.com/ArcadeAI/safeword/pull/7869).
 
-## Remaining work (part 4)
+## Part 4 delivery and remaining work
 
-Apply the shared resolution rule to the CLI and host adapters. Both
-`canonicalClaudeProjectRoot` and `resolveCodexProjectDirectory` currently
-prefer an inherited `CLAUDE_PROJECT_DIR` even when the command runs in an
-enrolled linked worktree. Keep the launch checkout as the fallback when the
-cwd has no enrolled owner.
+Claude status now resolves the enrolled linked checkout when the session
+inherits the primary checkout’s launch directory (#8298). Codex native hook
+execution records likewise identify the enrolled checkout named by the host
+(#8302). In a separate two-checkout reproduction, the executable-RED receipt
+and GREEN edit were accepted only in the checkout that earned approval.
+[Issue #5395 was closed with the results](https://github.com/ArcadeAI/safeword/issues/5395#issuecomment-7140475405).
 
-**First regression test.** Create a real primary checkout and an enrolled
-linked worktree with an isolated Claude profile. Put a pending Claude
-transaction only in the primary checkout. Invoke `safeword claude status --json`
-from each tree with `CLAUDE_PROJECT_DIR` set to the primary checkout and no
-plugin installed. The primary must report `recovery-required`; the linked
-worktree must report `missing`. Today both resolve to the primary. This
-command exercises the affected resolver through a read-only public entry
-point. The original `project test-plan` example uses the supplied cwd directly
-and cannot detect a regression in that resolver.
+### Confirmed gap when Codex returns to the primary checkout
 
-Cover the Codex adapter through its public hook command with distinguishable
-state in each checkout. Retain the part 2b child-process tests. Remove each
-`projectEnvironment` override only after its caller passes those tests without
-it, then narrow the parity allowlist. Verify the executable-RED receipt lookup
-in #5395 before closing that issue.
+On main at `5a0006118`, a session launched in an enrolled primary checkout
+closed a task by editing its ticket in an enrolled linked worktree. The public
+Codex PostToolUse hook recorded the task as owing verification in the linked
+tree. With the same session, the public Stop hook behaved as follows:
+
+| Stop cwd | Observed response | Linked task test runs |
+| --- | --- | --- |
+| Primary checkout | Allowed Stop (`{}`); task still owed verification | 0 |
+| Linked worktree | Blocked with the task’s test failure | 1 |
+
+Both hooks ran via `safeword hook codex … --plugin-hook`. The results held with
+a payload session ID and with only `CODEX_THREAD_ID`. The primary checkout’s
+test never ran. Correct execution-record attribution alone does not establish
+where to look for a session’s outstanding verification after its cwd changes.
+
+**Next regression:** keep the edit, checkout switch and both identity variants.
+Assert that Stop from the primary checkout runs the linked task’s test once,
+reports its failure and keeps verification pending. Include a different session
+as a control so another session cannot acquire the task. Keep per-checkout
+execution proof tied to the host cwd when resolving outstanding verification.
+
+Retain the part 2b child-process tests. Verify each remaining
+`projectEnvironment` override against its caller before removing it, and
+narrow the parity allowlist as each site is verified.
 
 ## Session state at Stop
 
@@ -121,7 +133,7 @@ pointer falls back to the rule. Nothing is written into the repository.
 
 `resolveSessionProjectDirectory({ sessionId, cwd, env })` reads the pointer
 when it names an existing enrolled tree, else applies the rule with the input
-`cwd`. Missing session id → the rule. Used by Stop hooks, `prompt-questions`,
+`cwd`. Missing session id → the rule. Used by session-aware hooks including the shared Stop path, `prompt-questions`,
 `prompt-retro-nudge`, `post-tool-skill-nudge`, `session-compact-context`,
 `session-cleanup-quality`. `stop-quality.ts` module-level roots move after
 stdin parsing.
@@ -155,4 +167,4 @@ own walk.
 1. Shared resolver and parity guard shipped in #5655.
 2. Session routing and per-tool hooks shipped in #5656 and #5664.
 3. Closeout binding and recovery shipped in #7768 and #7837. Durable retro findings shipped in #7869.
-4. CLI and adapter resolution, receipt lookup, and the final parity allowlist remain open.
+4. Claude and Codex checkout selection shipped in #8298 and #8302. Codex Stop after a checkout switch and the remaining parity exceptions are still open.
