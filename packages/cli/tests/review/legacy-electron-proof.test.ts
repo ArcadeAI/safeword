@@ -32,6 +32,12 @@ it('accepts the typed request for one enrolled historical Electron scenario', ()
   expect(parseElectronProofRequest(request)).toEqual(request);
 });
 
+it('identifies an unsupported live-build field without exposing its value', () => {
+  const parse = () => parseElectronProofRequest({ ...request, build: '/live/private-build' });
+  expect(parse).toThrow(/unsupported fields:.*build/u);
+  expect(parse).not.toThrow(/private-build/u);
+});
+
 it('refuses an enrolled scenario paired with a different scenario test title', () => {
   expect(() =>
     parseElectronProofRequest({ ...request, scenario: 'Ordinary folders remain folders' }),
