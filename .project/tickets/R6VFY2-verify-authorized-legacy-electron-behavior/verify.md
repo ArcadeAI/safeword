@@ -1,0 +1,133 @@
+# Verification: Authorized legacy Electron behavior
+
+Code tested: `9ed3d02010f2410c6cdba0fba14dc27f05818a16`.
+The reporting follow-up changes verification documents and records existing real
+refactor commits only; it does not change production code, tests, dependencies,
+policy enrollment, or the missing original histories.
+
+## Verify Checklist
+
+**Test Suite:** ✓ 12333/12333 tests pass, with 14 pre-existing local skips, across
+770 CLI files. Relay: 198 passed / 1 skipped; collector: 153 passed. Current-code
+CI on Node 22 and 24 passed 12337 CLI tests / 10 skips, plus physical installation
+and 81 release-gate tests. Each unique root-delegated suite ran once locally.
+
+**Gherkin:** ✅ The canonical serialized acceptance rerun passed all 602
+scenarios / 12451 steps. The separate proof inventory passed all 53 checks.
+The first acceptance attempt
+had 600/602 scenarios and 12449/12451 steps passing; it is retained as a failure,
+not relabeled green. The queued live test rebuilt the same dist directory while
+Cucumber was using it. All subsequent build/acceptance/test checks are serialized.
+The original failures did not retain child stderr, so no stronger claim about
+their individual subprocess failure is made. No assertion or timeout was weakened.
+
+**Build:** ✅ Relay, collector and CLI builds pass.
+
+**Lint:** ✅ Full ESLint, Gherkin lint and formatting checks pass.
+
+**Typecheck:** ✅ Resolved project type checks pass.
+
+**Scenarios:** ❌ 1/25 ordinary source histories complete after recording the
+actual primary refactor. Twenty-four original RED/GREEN/REFACTOR histories remain
+unavailable and unchecked. This feature has no authority to waive its own normal
+TDD requirements. Passing tests, current mutations and operator statements do not
+reconstruct those histories.
+
+**Refactor:** ✅ Completed: `7f5ae9ca2` reuses the existing policy import in the
+public observation handler; `ca2cb66bf` makes three unused external helper exports
+module-private. Each protected test pass and the other deliberate retain/defer
+dispositions are recorded in closeout-test-quality-20261124.md. Only these actual
+commits are credited; none supplies the missing RED/GREEN history of other cases.
+
+**PR Scope:** ✅ The source diff implements the explicitly authorized fixed
+SGWMBS profile, isolated Electron observation, authenticated review/replay,
+legacy compatibility and generated installed delivery. No project-configurable
+enrollment, arbitrary commands, fabricated approvals or ordinary-TDD waiver is
+introduced. The Soulless documentation follow-up is separately merged as PR 193;
+the original application feature is already merged as PR 188.
+
+**Dep Drift:** ✅ No new architectural dependency in this branch. Bun and uv
+scans report no known vulnerabilities. Go reports zero called vulnerabilities,
+with one imported and 14 required-module advisories whose symbols are not called;
+this is not a claim that every transitive module is advisory-free.
+
+**Parent Epic:** N/A.
+
+**Reconcile:** ✅ Trusted source-owned policies and existing authenticated
+review, journal and CLI contracts are reused; no general enrollment registry.
+
+**Experience:** ✅ Walked the Technical Builder through supported plugin
+installation and the actual installed all-17 read-only delivery check. Payoff:
+17 rows plus closing approved at original Soulless delivery f7a1d907 while all
+review-record bytes stayed unchanged. Worst step is the expensive required
+original/mutant execution and independent review; no shortcut or hidden history
+repair was introduced. No native Windows walkthrough is claimed.
+
+**Surface Evidence:** ✅ OpenAI Codex: supported actual plugin installation and
+real disposable-marketplace/cache smoke pass after source removal. Safeword CLI:
+the newly installed runtime approves all 17 existing authenticated rows plus
+closing at their original producing delivery commit. Claude, Cursor and OpenCode
+interaction paths are unchanged; generated parity and conformance pass, with no
+new native host walkthrough claimed for those transports.
+
+**Evidence limits:** ⚠️ Original source TDD provenance remains missing for 24
+scenarios. Eight semantic cases have one recorded response each, strong shared
+vocabulary cues, no variance/holdout/ablation result and operator-attested model
+provenance. The cache smoke takes a refusal route; the separate positive installed
+check validates retained real records and does not issue new Electron observations.
+The initial overlapping acceptance failure remains recorded. The missing source histories block
+formal source-ticket completion and Ready promotion. The other limits bound the
+claims above; no receipt is fabricated.
+
+## Audit and independent review
+
+Audit passed: diff-scoped architecture 212 modules / 441 dependencies, no
+boundary violations, with configuration, learning, principle and domain checks.
+Repository-wide dead-code, clone and version-freshness discovery were explicitly
+outside this diff audit.
+
+Current-code cross-agent Claude approvals, with no excluded targets:
+
+- Runtime: `bf674833-683b-4d33-8a50-dd61aef55832` (19 targets).
+- Tests: `c81e74d0-dc3f-4bef-bf7c-106bcdb48ccc` (33 targets).
+- Evals/install: `16417771-33dc-422b-966a-8b6493a848c8` (7 targets).
+- Public docs/fixtures: `82d5a718-3c54-4f5b-9246-2a853f2d36a2` (7 targets).
+
+All non-generated changed runtime/test/public-doc files are covered. Generated
+copies are checked through the supported generator and actual parity/contracts.
+Warnings are answered in final-closeout-review-dispositions-20261124.md.
+Independent review is evidence, not human approval or missing test-first history.
+
+## Installed delivery and retained logs
+
+The [durable output archive](./final-closeout-evidence-20261124.json) preserves
+actual test-summary excerpts, original log hashes, the actual read-only installed
+driver stdout and inspected refactor commit paths/ancestry. It is operator-captured
+output, not an authenticated approval or a repair of missing test-first history.
+
+Supported `codex plugin add safeword@safeword --json` installed the actual source
+artifact. Installed and generated CLI SHA-256 both equal
+`d8552927ed14a4f398a3dfb1eaa437982c1130f72670b4d37df982f4cad78ff5`.
+The actual read-only driver returned 17 approved rows and approved closing at
+`f7a1d907c08787908772c5d228c20fb586a5baf8`. Review-record bytes were checked before
+and after; no tag, journal or receipt was copied or rewritten. The documentation
+branch was restored afterward. This is a local custom installation, not an npm
+publication or authorization for later Soulless commits.
+
+Local evidence:
+
+- `/tmp/issue163-closeout-final-full-verification.log`: complete CLI/build/type/
+  dependency results and the initial two acceptance failures; aggregate exit 1.
+- `/tmp/issue163-closeout-bdd-focused-reproduction.log`: recovery passed 577
+  scenarios / 11951 steps, including the two original failures. Cucumber merged
+  configured paths with line selection, so this is not the full 602-case lane.
+- `/tmp/issue163-closeout-serialized-acceptance.log`: canonical unfiltered
+  acceptance rerun after all builds completed.
+- `/tmp/issue163-closeout-final-installed-smoke.log`: actual cached-install smoke.
+- `/tmp/issue163-closeout-final-installed-delivery.json`: actual all-row gate result.
+- `/tmp/issue163-closeout-final-proof-inventory.log`: 53 proof checks passed.
+- [Current-code CI run](https://github.com/ArcadeAI/safeword/actions/runs/45471251856).
+
+Ticket remains in progress and PR 8319 remains Draft until its original-history
+limitation has an explicitly supported resolution. No all-green ticket closure
+or source readiness receipt is claimed.

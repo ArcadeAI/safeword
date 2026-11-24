@@ -43,7 +43,7 @@ example results; partial example execution cannot complete an outline.
 
 - [x] RED 21aca3867
 - [x] GREEN 2185c1d77
-- [ ] REFACTOR
+- [x] REFACTOR 7f5ae9ca2
 
 ### Scenario: A non-discriminating execution does not earn verification
 
@@ -161,5 +161,5 @@ example results; partial example execution cannot complete an outline.
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario ca2cb66bf
 
