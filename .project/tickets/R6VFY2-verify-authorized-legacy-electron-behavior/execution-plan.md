@@ -27,7 +27,12 @@ request, publication or merge is authorized merely by this plan.
 
 ### Tasks and tests
 
-1. RED at the highest-risk public boundary, before production edits: commit a
+1. Historical completed RED at the highest-risk public boundary, before the
+   original production edits: the original installed baseline 1.2.0 bundle from
+   3f5353165 rejected the request. The real RED is retained in 21aca3867 and its
+   executable review eaa0c9e4-af02-484b-a94c-477dbb15c441; GREEN 2185c1d77 was
+   recorded before this reconciliation. Do not rerun the current extended bundle
+   and describe its result as that missing-command RED. Original sequence: commit a
    truthful request for the existing mixed-case package scenario in the approved
    Soulless checkout (spec 89, its existing real renderer assertion at line 39,
    removing only the package metadata branch in tabLifecycle). Invoke the currently
@@ -131,24 +136,52 @@ request, publication or merge is authorized merely by this plan.
    do not hand-edit plugin or cache files. Run P-generated and P-public.
 12. Install the generated bundle using the supported persistent local Codex
     marketplace registration, `codex plugin add safeword@safeword --json`, and
-    supported project install reconciliation. Confirm installed identity and
+    inspect supported project install reconciliation before applying its changes.
+    The actual preview proposes unrelated helper/configuration and lockfile churn;
+    retain the existing delivery checkout because the native plugin is sufficient
+    and that churn would invalidate executable proofs. Confirm installed identity and
     public command before claiming rollout. Retain the previous marketplace
     source as rollback context; no normal npm release is required.
-13. Execute P-host against the approved Soulless checkout. Commit real requests
-    and eligibility inputs first; observe original/mutant and preserve truthful
-    observation commit. Commit observations, obtain independent eligibility and
-    proof reviews, attest rows, then make one atomic separate VERIFIED ledger edit.
-    Commit final ticket/ledger metadata; replay all 17 again for current-head
-    closing authorization. Never rewrite original missing RED/GREEN/REFACTOR.
-    A failed mutation needs repair/review, not a guessed success signature.
-   After all real records exist and closing succeeds, run P-rollback-host with
-   SGWMBS_ROLLBACK_PROJECT set to that exact checkout. Require the actual pinned
-   old bundle to return blocked for its real SGWMBS row and closing requests.
-   This invocation is separate from the earlier portable rollback fixture.
-14. Run P-full once the focused checks pass. Run Safeword verify/audit and reconcile
-    impl-plan status to implemented. Record actual proof receipts/checklist
-    results and current revision. Any failure or later material change invalidates
-    only the affected evidence, with fresh proof before completion.
+13. Current continuation — whole-test exception correction. The genuine RED is
+    `tests/review/legacy-electron-runner.test.ts` case
+    `refuses an unreported renderer exception despite an otherwise qualifying matcher report`.
+    Its real Git/process fixture emits BrowserContext weberror after launch while
+    returning a qualifying matcher report. Before repair, it resolves instead of
+    rejecting: one failed / 13 passed in `/tmp/issue163-unreported-exception-red-valid.log`.
+    Run from packages/cli with
+    `../../scripts/dev bun run test tests/review/legacy-electron-runner.test.ts --maxWorkers=1`.
+    The real installed after-readiness probe also incorrectly returned observed
+    at Soulless a1ba355a, retained without any review or verification credit.
+    GREEN: add the fixed owned preload in
+    `src/review/retrospective-electron-monitor.ts` and integrate it into the runner.
+    Extend that external-process fixture and add
+    `tests/review/legacy-electron-monitor.test.ts` for main uncaught exceptions,
+    buffered/live renderer errors, future windows, crashes, missing startup or
+    arming markers and malformed telemetry. Assert a named refusal in every case;
+    retain ordinary original-pass/mutant-assertion-kill protection. Run both files
+    with the same package test command. Keep normal exception handling and existing
+    launch options; add only the owned main `-r` preload. Install/build environments
+    stay clean. Earlier observations keep their truthful producing runtime; no
+    original observation is rewritten to claim that it had this monitor.
+14. Re-run P-generated, P-public and P-host using the supported final installation.
+    Re-run the exact real negative probe through installed `review observe retrospective`
+    with `--cwd /Users/alex/.codex/worktrees/cc7f/soulless-monorepo` and
+    `--request .project/tickets/SGWMBS-open-save-soul-electron/retrospective-proof/renderer-after-readiness.rejected-request.json`.
+    It must return blocked for the recorded runtime exception. This is an unsigned
+    negative observation and has no proof-review ID; it can grant no row credit.
+    All 17 earlier individual rows passed under 2185c1d77; this is earlier evidence,
+    not final monitored replay. Preserve their original ledger history and producing
+    observations. Commit final delivery metadata, then execute all 17 again under
+    the strengthened installed runner for exact-current-HEAD closing authorization.
+    A failed replay consumes its proof ID and requires fresh observation/review.
+    Run P-rollback-host afterward with SGWMBS_ROLLBACK_PROJECT set to the actual
+    delivery checkout. Require the immutable original old bundle to refuse its
+    actual SGWMBS row/closing records without modifying them.
+15. Re-run all affected P-contract, P-regression and P-full lanes after the monitor
+    change, plus Safeword verify/audit. Only after the focused, generated, real-host
+    closing and final verification evidence passes, reconcile impl-plan status to
+    implemented. Record actual receipts/checklist results and revision. A later
+    material change invalidates affected evidence and requires fresh proof.
 
 ## Obligation ownership
 

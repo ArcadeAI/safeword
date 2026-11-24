@@ -44,11 +44,15 @@ audit records. Neither tests nor AI review grant merge or release authority.
 
 ### Current and target truth
 
-Implemented today: one CKWE2D policy and Bun/Vitest runner, authenticated independent
-review jobs, row tags and closing signatures. Missing today: SGWMBS enrollment,
-Electron execution and a public observation entry point. This plan proposes those
-additions; no new proof or successful authorization is claimed yet. The user has
-authorized the supported exception; no product decision remains pending.
+Pre-change baseline: Safeword source 3f5353165 and its original generated 1.2.0
+bundle supported CKWE2D only. Current local implementation adds SGWMBS enrollment,
+isolated Electron execution and public observation. The supported local 1.2.0
+installation generated from 2185c1d77 produced all 17 real observations and row
+attestations; this is a local source extension, not an npm release. Original
+missing test histories remain unchanged. The actual renderer-module-throw probe
+was refused before its declared behavioral assertion. Remaining work: enforce
+whole-test exception monitoring, verify the after-readiness negative case, install
+the supported final bundle, and replay all 17 rows at the final delivery HEAD.
 
 ## Decisions
 
@@ -79,17 +83,51 @@ require one attempt, retries zero, repeat one, no skip/fail annotations or globa
 errors. Original must pass normally; mutant must fail at the declared scenario
 expectation with an expected/received matcher mismatch and reviewed location.
 An exhausted assertion matcher is valid; setup/launch/global timeouts are not.
+The runner additionally owns a fixed Node preload outside both Git archives,
+injected only into the selected Playwright execution. It wraps the public
+Electron launch method before test code loads, preserving existing options and
+adding only a fixed runner-owned `-r` preload before the application entry point.
+Playwright 1.62.1 strips NODE_OPTIONS when launching Electron, so this explicit
+argument is required for main-process coverage. That preload installs an
+uncaughtExceptionMonitor before application code without suppressing its normal
+failure behavior. Packaged-app launch is outside this built-source profile.
+Before returning an application to the test, the wrapper requires that main
+monitor's PID-specific startup marker, attaches a BrowserContext weberror listener
+and page crash listeners, and checks buffered pageErrors for already-created
+windows. Listeners remain for the entire application lifetime, including after
+renderer readiness; future windows receive the same coverage. All evidence goes
+to one freshly created runner-owned event file per snapshot. Missing monitor
+startup, malformed or missing telemetry, listener setup failure, any uncaught
+main/renderer exception, or renderer crash refuses proof before accepting a
+matcher result. The caller cannot supply preload code, paths or event records.
+Inherited NODE_OPTIONS stays cleared; only this fixed runner-owned preload is
+added for test execution. Installation and build retain their clean environment.
+The module-load and after-readiness real-host negative probes supplement portable
+process/event tests. A clean real-host original/mutant remains required. This is
+trusted-project monitoring, not protection from project code deliberately
+removing listeners or forging telemetry as the same local user.
 **Alternative considered:** Treat any nonzero exit as a kill; add a general runner
 plugin API; introduce a custom reporter before using the existing structured report.
 **Rejected because:** Exit codes admit setup failures; general plugins add unwanted
 scope; current locked report plus exact assertion location and independent semantic
-review can establish this scoped contract without another reporting protocol.
+review alone cannot detect unreported exceptions after readiness. A fixed preload
+uses public Playwright events and Node monitoring without changing archived
+project files or requiring a caller-controlled reporter.
 **Evidence reference:** https://playwright.dev/docs/test-reporters and
 https://playwright.dev/docs/test-cli; installed Playwright 1.62.1 JSON serializer,
 grep builder and reporter types; https://pitest.org/quickstart/basic_concepts/.
 **Retrieval date:** 2026-11-23.
 **Applicable version:** Playwright 1.62.1 in Soulless, Electron 44.9.1; current
 unversioned docs checked against installed source. No new dependency.
+Whole-test monitor evidence checked November 24: Playwright v1.62.1 public
+BrowserContext weberror and Page.pageErrors APIs; its Electron launcher source
+strips NODE_OPTIONS and adds its own `-r` loader. Node 24.18.1 supports `--require`;
+uncaughtExceptionMonitor observes without suppressing normal uncaught handling.
+Sources: https://github.com/microsoft/playwright/blob/v1.62.1/docs/src/api/class-browsercontext.md,
+https://github.com/microsoft/playwright/blob/v1.62.1/docs/src/api/class-page.md,
+https://github.com/microsoft/playwright/blob/v1.62.1/packages/playwright-core/src/server/electron/electron.ts,
+https://nodejs.org/download/release/v24.18.1/docs/api/cli.html,
+https://nodejs.org/docs/latest-v24.x/api/process.html#event-uncaughtexceptionmonitor.
 
 #### PlanEvidenceRecordV1
 
@@ -189,8 +227,9 @@ Data applicability: migration identity and authenticated proof records change.
   replay can begin a fresh exclusive pending transition for a new attestation.
   Row and closing readers refuse a pending record even if an older row tag exists.
   Only the owning invocation, after both executions and all before/after identity
-  checks succeed, atomically changes pending to passed and then writes the new
-  row tag. Normal failure changes pending to failed before returning. Interruption,
+  checks succeed, writes the new row tag while still owning pending execution,
+  then atomically changes pending to passed. Readers require both the current
+  tag and passed journal. Normal failure changes pending to failed before returning. Interruption,
   crash or a failed final write leaves pending, which is equally non-authorizing
   and requires a new proof review. Failure to durably initialize pending prevents
   execution entirely. A concurrent second invocation refuses the pending owner;
@@ -240,6 +279,12 @@ review and digest-bound provenance; implementation details remain in this plan.
 The existing runner shares Bun dependency installations between snapshots.
 Electron uses independent installs/builds to avoid sharing compiled or Vite state.
 Only the new adapter differs; no speculative rewrite of the proven legacy runner.
+
+Supported local plugin installation is the delivery boundary. The supported
+project-reconciliation preview was inspected but proposed unrelated legacy
+helper/configuration and lockfile changes in the delivery checkout. Those changes
+were not applied: they would invalidate every executable-input proof without
+being required by the installed native plugin. No managed cache was hand-edited.
 
 ## Doc impact
 

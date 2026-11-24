@@ -1,5 +1,47 @@
 # Implementation work log
 
+## November 24 continuation: actual delivery and fixture ownership
+
+All 17 real installed original/mutant observations and individual attestations
+passed. Each independently approved row received its own guarded VERIFIED edit
+and commit. Removing only those added entries exactly reproduces the original
+Soulless ledger. The consumed first Explorer proof stays failed; recovery used a
+fresh observation and independent proof review. Final aggregate replay remains
+pending until the delivery metadata is committed.
+
+The public outside-in GREEN is recorded against 2185c1d77 only after the exact
+`Scenario:`-prefixed executable RED gate approved its original receipt. That
+valid GREEN was committed before semantic plan reconciliation. The stale-closing
+diagnostic failure is retained as historical execution, not relabeled as a current
+GREEN authorization. Other unchecked ledger cells have not been fabricated.
+
+Fixture-construction cleanup had a separate real failure: controlled initial
+frozen-install rejection left PATH and reviewer environment overrides active.
+The test failed at PATH restoration in 4aa2bbae0, ruling out a later reviewer
+failure or successful-construction teardown. Cleanup was reachable only through
+the return value, so a rejected constructor could never release its owned
+directories or environment. The constructor now shares cleanup with its catch
+path and rethrows the original failure. The new regression and all nine real
+authorization tests passed (10 total); 8ced691a3 records the fix.
+
+The author-only refusal case now commits the actual project setting before
+creating its receipts. All nine authorization cases pass. The concurrent-journal
+test now settles its owned replay before teardown even after an assertion fails.
+The sole structural refactor removes an initial worker write that every review
+overwrites before dispatch; 12 protection tests passed and bd409ac5a records the
+separate refactor. The isolated single-worker rerun of all previously failing
+review/OpenCode files plus the journal passed all 160 tests. Earlier full-run
+timing failures remain disclosed; no assertion or existing timeout was weakened.
+
+Full app verification exits 0, and all five Soulless CI jobs pass at 69608595.
+Source full verification ran two complete CLI passes. Its second pass had 12,236
+passes, 14 existing skips and three failures in existing timing-sensitive review
+or OpenCode tests. These failures are retained and being isolated, not waived.
+The direct BDD lane passed 599 scenarios / 11,786 steps; static BDD passed 53.
+Source lint, types, builds and diff audit passed. Bun/uv audits report no known
+vulnerabilities; Go reports zero called vulnerabilities, with one imported and
+14 required-module advisories whose vulnerable symbols are not reached.
+
 ## Current continuation: real-host calibration and proof protection
 
 The current-main cased-suffix original/mutant observation passed at Soulless
