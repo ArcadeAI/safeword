@@ -68,7 +68,7 @@ interface InspectionInput {
   checks: {
     conclusion: string | null;
     name: string;
-    startedAt?: string;
+    runNumber?: number;
     status: string;
     workflow?: string;
   }[];
@@ -266,7 +266,7 @@ function parseInput(inputPath: string): InspectionInput {
     return {
       conclusion: check.conclusion,
       name: check.name,
-      ...(typeof check.startedAt === 'string' && { startedAt: check.startedAt }),
+      ...(typeof check.runNumber === 'number' && { runNumber: check.runNumber }),
       status: check.status,
       ...(typeof check.workflow === 'string' && { workflow: check.workflow }),
     };
@@ -367,46 +367,33 @@ function evaluateCheckRun(
   return PASSING_CHECK_CONCLUSIONS.has(check.conclusion) ? 'passed' : 'pending';
 }
 
-/** A check run's optional start time must parse as a date, and its optional workflow must be text. */
 function hasValidRunProvenance(check: Record<string, unknown>): boolean {
-  const { startedAt, workflow } = check;
-  const validStart =
-    startedAt === undefined ||
-    (typeof startedAt === 'string' && !Number.isNaN(Date.parse(startedAt)));
-  return validStart && (workflow === undefined || typeof workflow === 'string');
-}
-
-/**
- * Each workflow run makes a new check suite, so a check GitHub cancelled and then re-ran (as when a
- * PR is marked Ready) keeps its cancelled run on the head beside the rerun. A cancelled run that a
- * later-started run of the same check from the same workflow superseded no longer counts. Every
- * other run still counts: a same-named check from another workflow is not a rerun, and a run
- * without a start time or workflow cannot be shown to be one.
- */
-function isSupersededCancellation(
-  check: InspectionInput['checks'][number],
-  sameNamedChecks: InspectionInput['checks'],
-): boolean {
-  if (
-    check.conclusion !== 'cancelled' ||
-    check.startedAt === undefined ||
-    check.workflow === undefined
-  ) {
-    return false;
-  }
-  const startedAt = Date.parse(check.startedAt);
-  return sameNamedChecks.some(
-    other =>
-      other.workflow === check.workflow &&
-      other.startedAt !== undefined &&
-      Date.parse(other.startedAt) > startedAt,
+  const { runNumber, workflow } = check;
+  return (
+    (runNumber === undefined ||
+      (typeof runNumber === 'number' && Number.isSafeInteger(runNumber) && runNumber > 0)) &&
+    (workflow === undefined || (typeof workflow === 'string' && workflow.length > 0))
   );
 }
 
-/** The runs of one check that still count: every run except superseded cancellations. */
+/** Workers attach provenance only to workflow runs associated with this PR and head. */
 function currentCheckRuns(input: InspectionInput, name: string): InspectionInput['checks'] {
-  const sameNamedChecks = input.checks.filter(candidate => candidate.name === name);
-  return sameNamedChecks.filter(check => !isSupersededCancellation(check, sameNamedChecks));
+  const checks = input.checks.filter(check => check.name === name);
+  const byWorkflow = new Map<string, Map<number, number>>();
+  for (const { workflow, runNumber } of checks) {
+    if (workflow === undefined || runNumber === undefined) continue;
+    const counts = byWorkflow.get(workflow) ?? new Map<number, number>();
+    counts.set(runNumber, (counts.get(runNumber) ?? 0) + 1);
+    byWorkflow.set(workflow, counts);
+  }
+  return checks.filter(({ conclusion, workflow, runNumber }) => {
+    if (conclusion !== 'cancelled' || workflow === undefined || runNumber === undefined)
+      return true;
+    const counts = byWorkflow.get(workflow);
+    if (counts?.get(runNumber) !== 1) return true;
+    // A repeated display name in either execution cannot identify the replacement job.
+    return [...counts].every(([later, count]) => later <= runNumber || count !== 1);
+  });
 }
 
 function evaluatePrerequisite(context: string, input: InspectionInput): PrerequisiteState {

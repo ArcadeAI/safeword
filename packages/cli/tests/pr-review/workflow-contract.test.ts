@@ -771,9 +771,7 @@ describe('advisory PR review workflow contract', () => {
 });
 
 describe('check-run evidence projection', () => {
-  // review-pr can only tell a superseded cancellation from a live failure when the worker
-  // forwards each check run's start time (#7952) and the workflow that produced it, so a
-  // same-named check from another workflow is never mistaken for a rerun.
+  // Exercise the jq expressions shipped in both workers against GitHub-shaped records.
   function extract(source: string, pattern: RegExp): string {
     const match = pattern.exec(source)?.[1];
     expect(match).toBeDefined();
@@ -783,66 +781,93 @@ describe('check-run evidence projection', () => {
   it.each([
     ['installed', workerPath],
     ['dogfood', dogfoodWorkerPath],
-  ])(
-    'forwards started_at and the workflow from the %s worker, omitting either when unknown',
-    (_name, path) => {
-      const source = readFileSync(path, 'utf8');
-      const workflowMapSuffix = ' as $workflowBySuite |';
-      const workflowMap = source
-        .split('\n')
-        .map(line => line.trim())
-        .find(line => line.endsWith(workflowMapSuffix))
-        ?.slice(0, -workflowMapSuffix.length);
-      expect(workflowMap).toMatch(/^\(\$runs\[0\] \| /u);
-      const projection = extract(source, /checks: \[\$checks\[0\]\[\] \| (.+)\],\n/u);
-      const workflowRuns = [{ check_suite_id: 10, path: '.github/workflows/ci.yml' }];
-      const checkRuns = [
-        {
-          check_suite: { id: 10 },
-          conclusion: 'cancelled',
-          id: 1,
-          name: 'lint',
-          started_at: '2026-11-20T17:22:11Z',
-          status: 'completed',
-        },
-        /* eslint-disable unicorn/no-null -- GitHub sends JSON null before a run starts. */
-        {
-          check_suite: { id: 11 },
-          conclusion: null,
-          id: 2,
-          name: 'lint',
-          started_at: null,
-          status: 'queued',
-        },
-        /* eslint-enable unicorn/no-null */
-      ];
+  ])('forwards run identity only for the inspected PR and head in the %s worker', (_name, path) => {
+    const source = readFileSync(path, 'utf8');
+    const binding = (name: string) => {
+      const suffix = ` as $${name} |`;
+      const matched = source.split('\n').find(line => line.endsWith(suffix));
+      expect(matched).toBeDefined();
+      return matched?.trim().slice(0, -suffix.length);
+    };
+    const uniqueJobs = binding('uniqueJobs');
+    const workflowMap = binding('workflowBySuite');
+    expect(source).toContain('check-runs?filter=all&per_page=100');
+    const projection = extract(source, /checks: \[\$checks\[0\]\[\] \| (.+)\],\n/u);
+    const run = {
+      check_suite_id: 10,
+      path: '.github/workflows/ci.yml',
+      run_number: 5363,
+      event: 'pull_request',
+      head_sha: 'head',
+      pull_requests: [{ number: 7 }],
+    };
+    const workflowRuns = [
+      run,
+      { ...run, check_suite_id: 11, pull_requests: [] },
+      { ...run, check_suite_id: 12, pull_requests: [{ number: 8 }] },
+      { ...run, check_suite_id: 13, head_sha: 'other' },
+      { ...run, check_suite_id: 14, event: 'push' },
+      { ...run, check_suite_id: 15 },
+    ];
+    const checkRuns = [
+      {
+        check_suite: { id: 10 },
+        conclusion: 'cancelled',
+        id: 1,
+        name: 'lint',
+        started_at: '2026-11-20T17:22:11Z',
+        status: 'completed',
+      },
+      /* eslint-disable unicorn/no-null -- GitHub sends JSON null before a run starts. */
+      {
+        check_suite: { id: 11 },
+        conclusion: null,
+        id: 2,
+        name: 'lint',
+        started_at: null,
+        status: 'queued',
+      },
+      /* eslint-enable unicorn/no-null */
+    ];
 
-      const result = spawnSync(
-        'jq',
-        [
-          '-c',
-          '--argjson',
-          'runs',
-          JSON.stringify([workflowRuns]),
-          `${workflowMap ?? ''} as $workflowBySuite | [.[] | ${projection}]`,
-        ],
-        { encoding: 'utf8', input: JSON.stringify(checkRuns) },
-      );
+    const samples = [
+      ...checkRuns,
+      ...[12, 13, 14, 15].map(id => ({ ...checkRuns[1], id, check_suite: { id } })),
+    ];
+    const result = spawnSync(
+      'jq',
+      [
+        '-c',
+        '--argjson',
+        'allChecks',
+        JSON.stringify([[...samples, { ...checkRuns[1], id: 16, check_suite: { id: 15 } }]]),
+        '--argjson',
+        'pr',
+        JSON.stringify({ number: 7, head: { sha: 'head' } }),
+        '--argjson',
+        'runs',
+        JSON.stringify([workflowRuns]),
+        `${uniqueJobs} as $uniqueJobs | ${workflowMap ?? ''} as $workflowBySuite | [.[] | ${projection}]`,
+      ],
+      {
+        encoding: 'utf8',
+        input: JSON.stringify(samples),
+      },
+    );
 
-      expect(result.status).toBe(0);
-      expect(JSON.parse(result.stdout)).toEqual([
-        {
-          conclusion: 'cancelled',
-          name: 'lint',
-          startedAt: '2026-11-20T17:22:11Z',
-          status: 'completed',
-          workflow: '.github/workflows/ci.yml',
-        },
-        // eslint-disable-next-line unicorn/no-null -- the projection preserves GitHub's null.
-        { conclusion: null, name: 'lint', status: 'queued' },
-      ]);
-    },
-  );
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual([
+      {
+        conclusion: 'cancelled',
+        name: 'lint',
+        runNumber: 5363,
+        status: 'completed',
+        workflow: '.github/workflows/ci.yml',
+      },
+      // eslint-disable-next-line unicorn/no-null -- the projection preserves GitHub's null.
+      ...Array.from({ length: 5 }, () => ({ conclusion: null, name: 'lint', status: 'queued' })),
+    ]);
+  });
 
   it.each([
     ['installed', workerPath],

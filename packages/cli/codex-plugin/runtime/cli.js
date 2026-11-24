@@ -63091,7 +63091,7 @@ function parseInput(inputPath) {
     return {
       conclusion: check.conclusion,
       name: check.name,
-      ...typeof check.startedAt === "string" && { startedAt: check.startedAt },
+      ...typeof check.runNumber === "number" && { runNumber: check.runNumber },
       status: check.status,
       ...typeof check.workflow === "string" && { workflow: check.workflow }
     };
@@ -63145,20 +63145,27 @@ function evaluateCheckRun(check) {
   return PASSING_CHECK_CONCLUSIONS.has(check.conclusion) ? "passed" : "pending";
 }
 function hasValidRunProvenance(check) {
-  const { startedAt, workflow } = check;
-  const validStart = startedAt === undefined || typeof startedAt === "string" && !Number.isNaN(Date.parse(startedAt));
-  return validStart && (workflow === undefined || typeof workflow === "string");
-}
-function isSupersededCancellation(check, sameNamedChecks) {
-  if (check.conclusion !== "cancelled" || check.startedAt === undefined || check.workflow === undefined) {
-    return false;
-  }
-  const startedAt = Date.parse(check.startedAt);
-  return sameNamedChecks.some((other) => other.workflow === check.workflow && other.startedAt !== undefined && Date.parse(other.startedAt) > startedAt);
+  const { runNumber, workflow } = check;
+  return (runNumber === undefined || typeof runNumber === "number" && Number.isSafeInteger(runNumber) && runNumber > 0) && (workflow === undefined || typeof workflow === "string" && workflow.length > 0);
 }
 function currentCheckRuns(input, name) {
-  const sameNamedChecks = input.checks.filter((candidate) => candidate.name === name);
-  return sameNamedChecks.filter((check) => !isSupersededCancellation(check, sameNamedChecks));
+  const checks = input.checks.filter((check) => check.name === name);
+  const byWorkflow = new Map;
+  for (const { workflow, runNumber } of checks) {
+    if (workflow === undefined || runNumber === undefined)
+      continue;
+    const counts = byWorkflow.get(workflow) ?? new Map;
+    counts.set(runNumber, (counts.get(runNumber) ?? 0) + 1);
+    byWorkflow.set(workflow, counts);
+  }
+  return checks.filter(({ conclusion, workflow, runNumber }) => {
+    if (conclusion !== "cancelled" || workflow === undefined || runNumber === undefined)
+      return true;
+    const counts = byWorkflow.get(workflow);
+    if (counts?.get(runNumber) !== 1)
+      return true;
+    return [...counts].every(([later, count]) => later <= runNumber || count !== 1);
+  });
 }
 function evaluatePrerequisite(context, input) {
   const checks = currentCheckRuns(input, context);

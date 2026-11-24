@@ -260,6 +260,7 @@ describe('review-pr inspect command wiring', () => {
   const earlierCancellation = {
     conclusion: 'cancelled',
     name: 'lint',
+    runNumber: 5363,
     startedAt: '2026-11-20T17:22:11Z',
     status: 'completed',
     workflow: ciWorkflow,
@@ -307,9 +308,16 @@ describe('review-pr inspect command wiring', () => {
       'success',
       'prerequisites_failed',
     ],
-    // Without a start time nothing proves the cancellation came first, so it still counts.
     [
-      'a cancelled run with no start time then a success',
+      'two matrix jobs in run 5364',
+      { ...earlierCancellation, runNumber: 5364 },
+      'completed',
+      'success',
+      'prerequisites_failed',
+    ],
+    // Without a run number nothing proves the cancellation came first, so it still counts.
+    [
+      'a cancelled run with no run number then a success',
       { conclusion: 'cancelled', name: 'lint', status: 'completed', workflow: ciWorkflow },
       'completed',
       'success',
@@ -321,7 +329,7 @@ describe('review-pr inspect command wiring', () => {
       {
         conclusion: 'cancelled',
         name: 'lint',
-        startedAt: '2026-11-20T17:22:11Z',
+        runNumber: 5363,
         status: 'completed',
       },
       'completed',
@@ -335,6 +343,7 @@ describe('review-pr inspect command wiring', () => {
         {
           conclusion,
           name: 'lint',
+          runNumber: 5364,
           startedAt: '2026-11-20T17:28:04Z',
           status,
           workflow: ciWorkflow,
@@ -353,13 +362,23 @@ describe('review-pr inspect command wiring', () => {
     },
   );
 
+  it.each([5363, 5364])('keeps ambiguous jobs blocking in run %i', async runNumber => {
+    const success = { ...earlierCancellation, conclusion: 'success' };
+    const { result } = inspectLintRuns([
+      earlierCancellation,
+      { ...success, runNumber },
+      { ...success, runNumber: 5364 },
+    ]);
+    expect(receiptOf(await result)).toMatchObject({ status: 'prerequisites_failed' });
+  });
+
   it('lets generated files skip review when parity reran after a cancellation', async () => {
     const { result } = inspectLintRuns(
       [
         {
           conclusion: 'success',
           name: 'Dogfood parity',
-          startedAt: '2026-11-20T17:28:04Z',
+          runNumber: 5364,
           status: 'completed',
           workflow: ciWorkflow,
         },
@@ -380,6 +399,17 @@ describe('review-pr inspect command wiring', () => {
       ]),
     });
     expect(receipt).not.toMatchObject({ runState: 'incomplete' });
+  });
+
+  it('blocks review when same-run parity jobs disagree', async () => {
+    const parity = { ...earlierCancellation, name: 'Dogfood parity' };
+    const { result, provider } = inspectLintRuns([parity, { ...parity, conclusion: 'success' }], {
+      artifacts: [{ kind: 'generated', path: 'plugin/runtime/cli.js' }],
+      context: 'Dogfood parity',
+      generatedFilesCheck: 'Dogfood parity',
+    });
+    expect(receiptOf(await result)).toMatchObject({ status: 'prerequisites_failed' });
+    expect(provider).not.toHaveBeenCalled();
   });
 
   // The audit is what the publisher trusts about the inspection's authority, so it must declare
@@ -407,11 +437,11 @@ describe('review-pr inspect command wiring', () => {
   });
 
   it.each([
-    ['not a date', 'yesterday'],
-    ['not a string', 1_763_659_331],
-  ])('rejects a check run whose start time is %s', async (_case, startedAt) => {
+    ['not a number', '5363'],
+    ['negative', -1],
+  ])('rejects a check run whose run number is %s', async (_case, runNumber) => {
     const { provider, result } = inspectLintRuns([
-      { conclusion: 'success', name: 'lint', startedAt, status: 'completed' },
+      { conclusion: 'success', name: 'lint', runNumber, status: 'completed' },
     ]);
 
     await expect(result).rejects.toThrow('review-pr: invalid check-run sample');
