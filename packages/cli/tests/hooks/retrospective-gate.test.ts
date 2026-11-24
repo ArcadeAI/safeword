@@ -67,7 +67,7 @@ describe('installed retrospective closing gate', () => {
       `setTimeout(() => process.stdout.write(${JSON.stringify(envelope())}), 11_000);\n`,
     );
     expect(retrospectiveCloseDenial(project, 'CKWE2D', ledger)).toBeUndefined();
-  });
+  }, 20_000);
 
   it('still refuses an individual row response after its shorter deadline', () => {
     const claim = {
@@ -86,7 +86,7 @@ describe('installed retrospective closing gate', () => {
     expect(retrospectiveGateDenial(project, claim)).toBe(
       'Retrospective review gate could not return a verified result.',
     );
-  });
+  }, 20_000);
 
   it.each([
     [

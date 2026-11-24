@@ -1,8 +1,8 @@
 # Retrospective reviewer semantic calibration
 
-This repository-only corpus tests a probabilistic boundary that substring tests
-cannot prove: whether the actual exported eligibility/proof rules distinguish
-valid behavioral discrimination from misleading evidence. Eight synthetic cases
+This repository-only corpus calibrates classification under a guide containing
+the exported eligibility/proof rules and a shared response vocabulary.
+Substring tests cannot establish those model decisions. Eight synthetic cases
 include two valid controls and six false-credit hazards. Every verdict and its
 controlling reason must match the reference labels. No evaluation grants real
 review authority or repairs original test-first history.
@@ -13,6 +13,9 @@ never sent to the model. One controlling-reason priority avoids ambiguous
 multi-label grading. Initial calibration found overlapping reason labels in two
 cases; the shared response contract was clarified before recording this corpus.
 Production reviewer rules were not weakened to obtain a passing result.
+No ablation was performed: the vocabulary itself supplies semantic clues, so
+passing results do not establish the causal necessity of each production rule
+or prove that deleting a particular rule would change the model's verdict.
 
 `records.json` was produced by the existing cold-start recorder using real
 headless Claude calls. Its historical `data-architecture-eval.ts` name does not
@@ -37,7 +40,8 @@ adapter argv using the same response schema as the recorder. The recorded run
 used Claude CLI 2.1.330, model alias `opus`, high effort, tools disabled, slash
 commands disabled, empty setting sources, strict empty MCP configuration and
 no session persistence. The adapter receives one prompt through stdin and
-returns JSON containing `decisionIds` and `proofFactIds`, each a single string.
+returns JSON containing `decisionIds` and `proofFactIds`, each an array
+containing one string.
 OAuth/keychain authentication remains available through the normal signed-in
 CLI; `--bare` intentionally disables that authentication and was not used for
 the successful run. No credentials were copied into this corpus.
