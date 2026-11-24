@@ -640,8 +640,8 @@ Safeword installs three workflows: `safeword-pr-review.yml`, a
 `pull_request_target` router (so it always runs with base-branch privileges,
 even for fork PRs) that also runs a five-minute sweep and the readiness status;
 `safeword-pr-review-worker.yml`, a reusable workflow whose inspection job reads
-the PR's data (never its code) and calls the model without any GitHub write
-permission; and `safeword-pr-review-publisher.yml`, which posts event-triggered
+the PR's data and the head's workflow runs (never its code) and calls the model
+without any GitHub write permission; and `safeword-pr-review-publisher.yml`, which posts event-triggered
 results without ever touching the model secret. GitHub currently requires
 `pull-requests: write` for an ordinary pull-request conversation comment, so the
 publisher is additionally constrained by Safeword's fixed issue-comment-only

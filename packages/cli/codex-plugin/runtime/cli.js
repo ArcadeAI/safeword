@@ -63371,7 +63371,7 @@ var init_review_pr = __esm(() => {
   INSPECTION_AUDIT = {
     checkout: false,
     customerCodeExecution: false,
-    githubPermissions: { contents: "read", issues: "read", pullRequests: "read" },
+    githubPermissions: { actions: "read", contents: "read", issues: "read", pullRequests: "read" },
     githubWriteCredential: false
   };
   PULL_STATES = new Set(["closed", "draft", "merged", "ready"]);

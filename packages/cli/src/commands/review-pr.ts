@@ -28,7 +28,7 @@ export interface InspectPullRequestCommandOptions {
 interface InspectionAudit {
   checkout: false;
   customerCodeExecution: false;
-  githubPermissions: { contents: 'read'; issues: 'read'; pullRequests: 'read' };
+  githubPermissions: { actions: 'read'; contents: 'read'; issues: 'read'; pullRequests: 'read' };
   githubWriteCredential: false;
 }
 
@@ -48,7 +48,7 @@ export type InspectionHandoff =
 const INSPECTION_AUDIT: InspectionAudit = {
   checkout: false,
   customerCodeExecution: false,
-  githubPermissions: { contents: 'read', issues: 'read', pullRequests: 'read' },
+  githubPermissions: { actions: 'read', contents: 'read', issues: 'read', pullRequests: 'read' },
   githubWriteCredential: false,
 };
 
