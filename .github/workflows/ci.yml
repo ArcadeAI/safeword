@@ -169,9 +169,9 @@ jobs:
   test:
     name: test (node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
-    # 30 (was 20): headroom for the growing suite + setup. The suite runs
-    # parallel (vitest maxWorkers:3 on the 4-vCPU runner); sequential timed out.
-    timeout-minutes: 30
+    # Package tests can take 26 minutes before the acceptance and release lanes.
+    # Keep those lanes within one bounded job without truncating their assertions.
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:

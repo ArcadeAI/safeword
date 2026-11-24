@@ -114,7 +114,9 @@ export function retrospectiveCloseDenial(
       cwd: command.cwd,
       env: trustedEnvironment(projectRoot),
       encoding: 'utf8',
-      timeout: command.timeout,
+      // The combined reader validates all 17 rows; a cold check exceeds the
+      // individual-row deadline. Keep its process budget bounded and separate.
+      timeout: 120_000,
       maxBuffer: 1024 * 1024,
     },
   );
