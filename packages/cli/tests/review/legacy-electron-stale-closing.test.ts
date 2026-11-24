@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { expect, it } from 'vitest';
@@ -56,6 +56,13 @@ it('identifies a stale proof row at closing despite fresh successful execution a
     const refusal = closing.findings.map(finding => finding.message).join('\n');
     expect(refusal).toContain(first.scenario);
     expect(refusal).toContain('changed');
+    expect(refusal).toContain('proof review');
+    expect(refusal).toContain(first.proofId);
+    expect(
+      existsSync(
+        path.join(fixture.root, '.safeword/state/reviews/electron-retrospective-close-v1.json'),
+      ),
+    ).toBe(false);
     expect(fixture.events()).toHaveLength(executions);
   } finally {
     fixture.cleanup();
