@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { stripVTControlCharacters } from 'node:util';
 
 export interface ElectronReportSelection {
   readonly testFile: string;
@@ -120,14 +121,16 @@ function mutationFailure(result: JsonObject, selection: ElectronReportSelection)
   if (errors.length !== 1) throw new Error('Electron mutation needs exactly one assertion error.');
   const error = object(errors[0]);
   requireAssertionLocation(error, selection);
-  const message = typeof error.message === 'string' ? error.message : '';
+  const message = typeof error.message === 'string' ? stripVTControlCharacters(error.message) : '';
   if (
     !message.includes(selection.mutation.expectedFailure) ||
     !message.includes(selection.mutation.assertionLocation) ||
     !/expect\([^\r\n]*\)\.[a-zA-Z]/u.test(message) ||
     !hasMatcherDifference(message)
   )
-    throw new Error('Electron mutation did not fail at the declared scenario expectation.');
+    throw new Error(
+      `Electron mutation did not fail at the declared scenario expectation: ${message.slice(0, 5000)}`,
+    );
   return message;
 }
 

@@ -60836,7 +60836,7 @@ function requireScenario(request) {
     throw new Error("Electron proof request is outside the approved migration scenarios.");
 }
 function requireSelection(request) {
-  if (!containedElectronInput(request.testFile) || !request.testFile.startsWith("packages/desktop/tests/electron/") || !request.testFile.endsWith(".electron.spec.ts") || !text(request.testFullName) || !request.testFullName.startsWith(` ${path7.posix.basename(request.testFile)} `) || !Number.isSafeInteger(request.testLine) || Number(request.testLine) < 1)
+  if (!containedElectronInput(request.testFile) || !/^packages\/desktop\/tests\/electron\/[^/]+\.electron\.spec\.ts$/u.test(request.testFile) || !text(request.testFullName) || !request.testFullName.startsWith(` ${path7.posix.basename(request.testFile)} `) || !request.testFullName.endsWith(` ${String(request.scenario)}`) || !Number.isSafeInteger(request.testLine) || Number(request.testLine) < 1)
     throw new Error("Electron proof request needs one exact Electron test declaration.");
 }
 function requireInputs(request) {
@@ -61065,6 +61065,7 @@ var init_red_execution = __esm(() => {
 
 // src/review/retrospective-electron-report.ts
 import path8 from "path";
+import { stripVTControlCharacters as stripVTControlCharacters3 } from "util";
 function object(value) {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new Error("Electron proof report contains a malformed object.");
@@ -61138,9 +61139,9 @@ function mutationFailure(result, selection) {
     throw new Error("Electron mutation needs exactly one assertion error.");
   const error = object(errors[0]);
   requireAssertionLocation(error, selection);
-  const message = typeof error.message === "string" ? error.message : "";
+  const message = typeof error.message === "string" ? stripVTControlCharacters3(error.message) : "";
   if (!message.includes(selection.mutation.expectedFailure) || !message.includes(selection.mutation.assertionLocation) || !/expect\([^\r\n]*\)\.[a-zA-Z]/u.test(message) || !hasMatcherDifference(message))
-    throw new Error("Electron mutation did not fail at the declared scenario expectation.");
+    throw new Error(`Electron mutation did not fail at the declared scenario expectation: ${message.slice(0, 5000)}`);
   return message;
 }
 function requireStatistics(stats, passing) {

@@ -91,6 +91,34 @@ additional diagnostics must identify the remaining mismatch before any credit.
 
 ## Remaining delivery
 
+The installed public probe subsequently passed: independently installed/built
+original passed and the declared package-metadata mutation failed at line 39.
+Log: `/tmp/issue163-safeword-public-real-host-colors-candidate.log`. A separate
+successful public run retained its complete actual observation in Soulless commit
+24e75e69, with truthful producing HEAD 5839fe857a14a3172ff8714196c703233214d5ec.
+Neither run authorizes a row. The 76 report/request cases passed after the queued
+runner acquired its lock; its RED-oriented filename is not a RED result.
+Scenario/title and flat-suite path guards each had a separate failing standalone
+contract probe before implementation. No Vitest RED is claimed for those guards.
+Independent cross-agent Claude Opus review b5ecd51b-66fb-4418-bcbf-fc1ef55a8c83
+approved the current report/request checks with nonblocking message-format
+limitations. Semantic mutation review remains mandatory. Current journal work is
+unfinished and has not authorized any SGWMBS row or closing proof.
+
+### Root cause: colored matcher evidence
+
+The resumed installed public run reached the declared mutant assertion but
+refused its message. The actual JSON contains ANSI color sequences between
+`expect(...)` and the matcher name and around equality-diff headers. Replaying
+that captured message through the source evaluator failed for the same reason.
+Wrong assertion location is ruled out by the structured location check passing;
+missing expected value and missing repository path are ruled out by their
+presence in the actual message. Normalize terminal formatting before the same
+semantic checks. This is a report-parser correction, not a weaker proof rule.
+The interrupted Vitest wrapper produced no result; the resumed wrapper is queued
+behind another checkout's lock. Standalone captured-message rejection is real
+diagnostic RED, not claimed as a Vitest result or successful Electron observation.
+
 - [ ] Implement and protect independent Electron snapshot execution.
 - [ ] Expose and prove the installed public observation command.
 - [ ] Add authenticated row failure records and exact-set closing replay.

@@ -32,6 +32,23 @@ it('accepts the typed request for one enrolled historical Electron scenario', ()
   expect(parseElectronProofRequest(request)).toEqual(request);
 });
 
+it('refuses an enrolled scenario paired with a different scenario test title', () => {
+  expect(() =>
+    parseElectronProofRequest({ ...request, scenario: 'Ordinary folders remain folders' }),
+  ).toThrow(/Electron/u);
+});
+
+it('refuses nested test paths outside the enrolled flat Electron suite', () => {
+  const testFile = request.testFile.replace('/electron/', '/electron/nested/');
+  expect(() =>
+    parseElectronProofRequest({
+      ...request,
+      testFile,
+      mutation: { ...request.mutation, assertionLocation: `${testFile}:39` },
+    }),
+  ).toThrow(/Electron/u);
+});
+
 it.each<[string, unknown]>([
   ['another ticket', { ...request, ticketId: 'OTHER1' }],
   ['an unenrolled scenario', { ...request, scenario: 'New unreviewed behavior' }],
@@ -189,6 +206,27 @@ it('accepts one mutant failure at the declared expectation', () => {
   expect(result.exitCode).toBe(1);
   expect(result.failure).toContain(selection.mutation.assertionLocation);
   expect(result.failure).toContain(selection.mutation.expectedFailure);
+});
+
+it('normalizes terminal colors inside a declared Playwright matcher failure', () => {
+  const escape = String.fromCodePoint(27);
+  const failure = declaredFailure
+    .replace('expect(received).', () => `expect(${escape}[31mreceived${escape}[39m).${escape}[22m`)
+    .replace('Expected substring:', () => `${escape}[32mExpected substring:${escape}[39m`)
+    .replace('Received string:', () => `${escape}[31mReceived string:${escape}[39m`);
+  expect(
+    evaluateElectronReport(killedReport({ error: { message: failure } }), selection, 'failed', 1),
+  ).toEqual({ exitCode: 1, failure: declaredFailure });
+});
+
+it('includes the actual refused matcher message in its diagnostic', () => {
+  const failure = declaredFailure.replace(
+    selection.mutation.expectedFailure,
+    'a different expected value',
+  );
+  expect(() =>
+    evaluateElectronReport(killedReport({ error: { message: failure } }), selection, 'failed', 1),
+  ).toThrow(failure);
 });
 
 it('accepts the object-difference format emitted by the locked Playwright equality matcher', () => {

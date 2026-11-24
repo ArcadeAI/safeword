@@ -48,10 +48,10 @@ function requireScenario(request: Record<string, unknown>): void {
 function requireSelection(request: Record<string, unknown>): void {
   if (
     !containedElectronInput(request.testFile) ||
-    !request.testFile.startsWith('packages/desktop/tests/electron/') ||
-    !request.testFile.endsWith('.electron.spec.ts') ||
+    !/^packages\/desktop\/tests\/electron\/[^/]+\.electron\.spec\.ts$/u.test(request.testFile) ||
     !text(request.testFullName) ||
     !request.testFullName.startsWith(` ${path.posix.basename(request.testFile)} `) ||
+    !request.testFullName.endsWith(` ${String(request.scenario)}`) ||
     !Number.isSafeInteger(request.testLine) ||
     Number(request.testLine) < 1
   )
