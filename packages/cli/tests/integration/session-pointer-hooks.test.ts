@@ -182,7 +182,7 @@ describe('session-level hooks follow the session pointer (#5467)', () => {
       project: string;
     };
     expect(run.cwd).toBe(realpathSync(repoB));
-    expect(run.args).toEqual(['architecture']);
+    expect(run.args).toEqual(['project', 'architecture']);
     expect(realpathSync(run.project)).toBe(realpathSync(repoB));
   });
 
