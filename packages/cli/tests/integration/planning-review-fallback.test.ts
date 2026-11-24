@@ -4,6 +4,7 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { reviewOutputSchema } from '../../src/review/runtime.js';
 import {
   createConfiguredProject,
   createTemporaryDirectory,
@@ -152,13 +153,14 @@ describe('planning fallback after independent route exhaustion', () => {
         status: 'continuation_required',
         continuation: { tier: 'fresh-context', packet: { kind: 'plan-implementation' } },
       });
+      const { instructions, packet } = output.data.continuation;
+      const schema = reviewOutputSchema(packet.kind, packet.planning_phase, packet.dispatch_id);
+      expect(instructions).toContain(schema);
+      expect(JSON.parse(schema)).toMatchObject({
+        required: expect.arrayContaining(['evidence_records']),
+        properties: { dispatch_id: { enum: [packet.dispatch_id] } },
+      });
       if (options.selfReview) {
-        const { instructions, packet } = output.data.continuation;
-        const schema = JSON.parse(
-          instructions.split('Return an object matching this JSON Schema:\n', 2)[1],
-        );
-        expect(schema.required).toContain('evidence_records');
-        expect(schema.properties.dispatch_id.enum).toEqual([packet.dispatch_id]);
         const second = await runCli(
           [
             'review',

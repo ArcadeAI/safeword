@@ -1002,6 +1002,7 @@ function hostContinuationResult(input: {
   // fresh-context review rather than blocking, whatever stopped the routes:
   // failure, unavailability, or a run budget too small to fund the rest.
   if (!input.planning || input.degraded !== undefined) return undefined;
+  const { packet } = input.prepared;
   const headlessRoute = input.evidence.some(route => route.independence === 'degraded');
   return createResult({
     state: 'action_required',
@@ -1027,19 +1028,11 @@ function hostContinuationResult(input: {
       continuation: {
         tier: 'fresh-context',
         instructions: [
-          reviewerPromptInstructions(
-            input.input.kind,
-            input.author,
-            input.prepared.packet.planning_phase,
-          ),
+          reviewerPromptInstructions(packet.kind, input.author, packet.planning_phase),
           'Return an object matching this JSON Schema:',
-          reviewOutputSchema(
-            input.input.kind,
-            input.prepared.packet.planning_phase,
-            input.prepared.packet.dispatch_id,
-          ),
+          reviewOutputSchema(packet.kind, packet.planning_phase, packet.dispatch_id),
         ].join('\n'),
-        packet: input.prepared.packet,
+        packet,
       },
     },
   });
