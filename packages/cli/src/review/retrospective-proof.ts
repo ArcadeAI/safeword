@@ -23,6 +23,17 @@ const REPORT = 'retrospective-proof-report.json';
 const MAX_PROCESS_OUTPUT = 128 * 1024;
 const VITEST_SUITE_SEPARATOR = String.raw`(?:\s*>\s*|\s+)`;
 
+// Shared mechanics only; the Electron adapter owns its independent installs and evaluator.
+export {
+  archiveDigests,
+  snapshot as archiveProofSnapshot,
+  proofEnvironment,
+  proofExecutable,
+  git as proofGit,
+  sha256 as proofSha256,
+  requireDigests,
+};
+
 export interface RetrospectiveProofRequest {
   readonly ticketId: string;
   readonly scenario: string;
