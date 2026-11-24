@@ -153,17 +153,15 @@ export async function retrospectiveObserveHandler(
     const { readProofInput } = await import('../review/retrospective-proof.js');
     const { parseElectronProofRequest } =
       await import('../review/retrospective-electron-request.js');
-    const { SOULLESS_RETROSPECTIVE_POLICY: policy } =
-      await import('../review/retrospective-policy.js');
     const { checkRetrospectiveHistory } = await import('../review/retrospective-history.js');
     const { runElectronProof } = await import('../review/retrospective-electron-proof.js');
     const request = parseElectronProofRequest(
       JSON.parse(readProofInput(invocation.cwd, requestPath).toString('utf8')),
     );
     const history = checkRetrospectiveHistory(invocation.cwd, {
-      ticketId: policy.ticketId,
-      cutoff: policy.cutoff,
-      baseline: policy.cutoff,
+      ticketId: SOULLESS_RETROSPECTIVE_POLICY.ticketId,
+      cutoff: SOULLESS_RETROSPECTIVE_POLICY.cutoff,
+      baseline: SOULLESS_RETROSPECTIVE_POLICY.cutoff,
       rationale:
         'Observe only the source-enrolled migration; historical eligibility is reviewed separately.',
     });

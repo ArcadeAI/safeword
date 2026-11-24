@@ -98598,7 +98598,6 @@ async function retrospectiveObserveHandler(invocation) {
   try {
     await Promise.resolve().then(() => init_retrospective_proof());
     await Promise.resolve().then(() => init_retrospective_electron_request());
-    await Promise.resolve().then(() => init_retrospective_policy());
     await Promise.resolve().then(() => init_retrospective_history());
     await Promise.resolve().then(() => init_retrospective_electron_proof());
     const request = parseElectronProofRequest(JSON.parse(readProofInput(invocation.cwd, requestPath).toString("utf8")));
