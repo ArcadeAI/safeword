@@ -150,7 +150,7 @@ function validateRequest(request: RetrospectiveProofRequest): void {
 
 function git(root: string, args: readonly string[]): Buffer {
   const result = spawnSync(
-    proofExecutable(root, 'git', 'Git'),
+    proofExecutableInvocation(root, 'git', 'Git'),
     ['--no-replace-objects', '-C', root, ...args],
     {
       encoding: 'buffer',

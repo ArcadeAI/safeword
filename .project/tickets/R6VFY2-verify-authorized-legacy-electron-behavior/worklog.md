@@ -257,3 +257,22 @@ diagnostic RED, not claimed as a Vitest result or successful Electron observatio
 
 Original Soulless historical entries remain unchanged. Portable fixture reports
 are process-wiring protection and never substitute for real Electron evidence.
+
+### Root cause: Git hard-link invocation identity
+
+The first real row attestation failed before replay while reading committed
+input. Instrumented diagnostics captured the resolver selecting `/usr/bin/make`
+for Git; alternating native realpath calls also returned Clang and Swift names.
+These macOS developer-tool dispatchers share an inode but select behavior from
+their invocation name. Bun 1.4.4's native path lookup can return a sibling link
+([upstream report](https://github.com/oven-sh/bun/issues/44550)). Missing Git
+objects are ruled out by successful direct reads of the same objects; resource
+exhaustion is ruled out by the captured tool-specific argument refusal.
+
+Commit 17b181f3e adds a genuine failing real-process regression using two hard
+links and a controlled native-realpath boundary. The minimal correction selects
+the existing validated invocation path, retaining external canonical-target
+validation. This remains correct dispatcher behavior after an upstream fix;
+there is no temporary version workaround to remove. Regression plus unchanged
+legacy row protections: 16 passed. The failed live proof ID remains consumed;
+recovery needs a fresh observation and independent review, never a journal reset.

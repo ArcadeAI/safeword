@@ -60562,7 +60562,7 @@ function validateRequest(request) {
   }
 }
 function git2(root, args) {
-  const result = spawnSync11(proofExecutable(root, "git", "Git"), ["--no-replace-objects", "-C", root, ...args], {
+  const result = spawnSync11(proofExecutableInvocation(root, "git", "Git"), ["--no-replace-objects", "-C", root, ...args], {
     encoding: "buffer",
     timeout: 30000,
     maxBuffer: 128 * 1024 * 1024,
