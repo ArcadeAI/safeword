@@ -333,7 +333,8 @@ formatters:
         // Should check for safeword configs
         expect(lintHook).toContain('.safeword/eslint.config.mjs');
         expect(lintHook).toContain('.safeword/ruff.toml');
-        expect(lintHook).toContain('.safeword/.golangci.yml');
+        // Go config paths are preserved by the bundled package-context helper.
+        expect(lintHook).toContain("'go-lint'");
 
         // The generated hook carries explicit config support. Runtime selection
         // with and without these files is covered by lint-config-fallback.test.ts.

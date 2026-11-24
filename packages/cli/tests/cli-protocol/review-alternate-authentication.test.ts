@@ -12,7 +12,7 @@ import {
 
 afterAll(cleanupTrustedReviewerDirectories);
 
-/** The default model times out before the alternate exposes expired auth. */
+/** The primary (latest Sol) times out before the alternate exposes expired auth. */
 function installTimedOutPrimaryWithUnauthenticatedAlternate(host: string): string {
   const bin = nodePath.join(host, 'bin');
   mkdirSync(bin, { recursive: true });
@@ -23,7 +23,7 @@ function installTimedOutPrimaryWithUnauthenticatedAlternate(host: string): strin
 set -eu
 if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then printf '%s\n' '${REVIEWER_CAPABILITIES.codex}'; exit 0; fi
 printf 'codex\n' >> "$SAFEWORD_REVIEW_ROUTE_LOG"
-if printf '%s' "$*" | /usr/bin/grep -q -- '--model'; then
+if printf '%s' "$*" | /usr/bin/grep -q -- 'vendor-model-2'; then
   printf 'not logged in\n' >&2
   exit 1
 fi
@@ -48,7 +48,7 @@ printf 'not-a-review\n'
 }
 
 describe('when an alternate independent route exposes expired authentication', () => {
-  it('returns a reauthentication handoff without launching the author fallback', async () => {
+  it('records the signed-out alternate and continues to the author fallback', async () => {
     const directory = createTemporaryDirectory();
     const host = createTrustedReviewerDirectory('safeword-alternate-auth-');
     const routeLog = nodePath.join(directory, 'routes.log');
@@ -91,17 +91,20 @@ describe('when an alternate independent route exposes expired authentication', (
     };
     const explanation = payload.findings.map(finding => finding.message).join(' ');
 
+    // The fixture's author fallback returns no valid review, so nothing completes, but the
+    // signed-out alternate no longer stops the run before that fallback is tried.
     expect(result.exitCode, result.stdout).toBe(2);
-    expect(payload.findings[0]?.code).toBe('REVIEW_AUTHENTICATION_REQUIRED');
-    expect(explanation).toMatch(/reauthenticate Codex/iu);
-    expect(payload.recovery).toEqual([expect.objectContaining({ command: 'codex login' })]);
+    expect(payload.findings.map(finding => finding.code)).not.toContain(
+      'REVIEW_AUTHENTICATION_REQUIRED',
+    );
+    expect(explanation).toMatch(/Codex/u);
     expect(payload.data).toMatchObject({
       preferred_failure: 'timed_out',
       alternate_model: 'vendor-model-2',
       alternate_model_failure: 'not_authenticated',
+      fallback_failure: 'invalid_output',
+      independence: 'none',
     });
-    expect(payload.data).not.toHaveProperty('fallback_failure');
-    expect(payload.data.independence).toBe('none');
-    expect(readFileSync(routeLog, 'utf8')).toBe('codex\ncodex\n');
+    expect(readFileSync(routeLog, 'utf8')).toBe('codex\ncodex\nclaude\nclaude\n');
   }, 30_000);
 });

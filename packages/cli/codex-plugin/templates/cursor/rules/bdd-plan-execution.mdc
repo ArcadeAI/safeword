@@ -1,0 +1,6 @@
+---
+description: USE WHEN in BDD plan-execution phase. Turn the accepted Implementation Plan into startable work and review before coding.
+alwaysApply: false
+---
+
+@.safeword/skills/bdd/PLAN_EXECUTION.md

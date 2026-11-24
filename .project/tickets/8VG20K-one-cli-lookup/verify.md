@@ -1,0 +1,52 @@
+# Verify: Run the same Safeword CLI from every hook on every host (8VG20K)
+
+**Verified on:** 2026-10-13 · **Head:** `a2dd63ad4` (full /verify lanes ran on `bb19d7597`; the two later commits are covered by targeted suites and CI below)
+
+## Verify Checklist
+
+**Test Suite:** ✓ 10554/10554 tests pass (614 files, 14 skipped)
+**Gherkin:** ✅ Acceptance lane passes — 596/596 scenarios (dedicated lane and a confirming rerun)
+**Build:** ✅ Success
+**Lint:** ✅ Clean
+**Typecheck:** ✅ Clean
+**Scenarios:** ⏭️ Skipped — task ticket, no scenario ledger
+**Refactor:** ✅ Completed — `bd73986aa` one containment check; `9b19185bc` each trusted env name listed once; `c27920b46` one package.json reader; `5c928ee50` one GREEN-tick hook helper in tests. Deferred: the retrospective gate's two spawn blocks predate this ticket.
+**PR Scope:** ✅ Diff matches ticket scope — the shared lookup module, the hooks moved onto it, the fail-closed test-plan fix and learnings stamp fix in functions this change touched, their tests, regenerated plugin/installed copies, and the ARCHITECTURE.md decision. No unrelated changes.
+**Dep Drift:** ✅ Clean — no dependency manifest changed
+**Parent Epic:** N/A
+**Reconcile:** ✅ No pattern deviation — the change removes nine divergent lookups in favor of one
+**Experience:** ⏭️ N/A — not persona-facing (hook plumbing; users see only fewer false "could not find its local CLI" blocks)
+**Surface Evidence:** ✅ 3/3 affected hosts have recorded proof
+**Evidence limits:** ⚠️ One acceptance scenario ("Nothing a reviewer emits reaches the explanation") failed once inside the full test-suite lane under machine load and passed alone twice and in both dedicated Gherkin runs; a duplicate test-suite invocation and one proof-lane run could not start because another session held the machine-wide test lock (exit 75). Neither is product evidence. Dependency audit reports 8 pre-existing advisories (2 high, 3 moderate, 3 low); this PR changes no manifests.
+
+| Affected surface | Proof | Result |
+| --- | --- | --- |
+| Claude Code (plugin and project-local hooks) | `tests/integration/write-time-annotation-gate.test.ts` real GREEN-guard processes: plugin bundle, pinned `bun x --bun` via local npm registry, preload/symlink/shim/cache forgeries denied | pass |
+| OpenAI Codex | `tests/integration/codex-stop-retro.test.ts`; Codex plugin hook-parity acceptance scenario "Packaged Stop runs retro extraction invisibly" | pass |
+| Cursor / project-local delivery | `tests/integration/action-hook-cli-version.test.ts` real session hook + real `bunx` against a local registry; `tests/hooks/retrospective-gate.test.ts` | pass |
+
+## Reviews and audit
+
+- Intake: independent review `6e8dbcb3` (Codex, cross-agent) approved.
+- TDD test-quality review: fixed stale test names, an unsafe env restore, and a proof gap (the test runner's real lookup had no test without the suite-wide `SAFEWORD_CLI` override) in `8c62c3be2`.
+- Quality review: earlier passes requested changes on trust-boundary and fail-closed defects, each fixed with a test that fails against the previous code; final review `d332d63e` (Codex, cross-agent) approved; its timeout warning fixed in `bb19d7597`.
+- Final diff read: found that review receipt verification still passed the full environment to the trusted CLI; fixed in `c79dead6e` with a regression test that fails against the previous reader (review and hook suites: 2,603 passed across 132 files). Lint now resolves the CLI only for feature files (`a2dd63ad4`; lint-hook suites 83/83). CI on `a2dd63ad4`: 13 checks passed, 0 failed.
+- Audit passed — diff scope on the final code: 0 errors, no dependency violations (428 modules), no learning, principle-trace, or domain-doc findings.
+
+## Known limits
+
+- A first `bun x` needs network or a warm cache; trust checks fail closed when it cannot run (30s download budget).
+- Closeout (`templates/scripts/closeout-cleanup.ts`) keeps its own lookup with an unpinned `bunx safeword`; out of scope, flagged as a follow-up.
+
+## Re-verification — 2026-10-18
+
+**Verify lanes ran on:** `76ee6279f` (the head before two generated-files-only merges of `origin/main`)
+**Test Suite:** ✓ 11264/11264 tests pass (682 files; 14 skipped by design)
+**Gherkin:** ✅ Acceptance lane passes — 596 scenarios (596 passed)
+**Build:** ✅ Success
+**Typecheck:** ✅ Clean
+**Dep audit lane:** ⚠️ `bun audit` reports 8 advisories (2 high, 3 moderate, 3 low) in transitive website/tooling dependencies, already present on `main`; this branch changes no dependency files. Python `uv audit` and Go `govulncheck` clean.
+**Audit:** Audit passed — diff-scoped at `d9cc74403`: depcruise clean (523 modules, 890 dependencies), config in sync, learnings, principle trace and domain docs clean.
+**Test-quality review:** added the missing trust-boundary test (`76ee6279f`): coding authorization refuses a plugin CLI inside the project; mutation-checked.
+**Refactor:** ✅ Completed — `bbd67b743` moves the shared trusted-CLI loop of the executable-RED receipt gate and the coding-authorization gate into `askTrustedSafeword` (safeword-cli.ts); generated surfaces current with no lifecycle result change, typecheck clean, 192/192 targeted tests.
+**CI:** green on `d9cc74403` except one recurring retro-collector startup flake outside this diff (tracked separately).

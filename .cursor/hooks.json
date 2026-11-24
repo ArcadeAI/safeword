@@ -14,7 +14,7 @@
         "command": "bun ./.safeword/hooks/cursor/pre-tool-quality.ts",
         "matcher": "Write",
         "failClosed": true,
-        "timeout": 90
+        "timeout": 2400
       }
     ],
     "beforeShellExecution": [

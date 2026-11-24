@@ -19,6 +19,7 @@ import nodePath from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  assertLintHookSucceeded,
   createPythonProject,
   createTemporaryDirectory,
   fileExists,
@@ -124,18 +125,16 @@ describe('E2E: Python Golden Path', () => {
     expect(formatted).toContain('y = 2');
   });
 
-  it.skipIf(!IS_RUFF_AVAILABLE)('post-tool-lint hook processes Python files', () => {
+  it.skipIf(!IS_RUFF_AVAILABLE)('post-tool-lint preserves unfinished Python files', () => {
     const filePath = nodePath.join(projectDirectory, 'src/hook-test.py');
     // Intentionally badly formatted
     writeTestFile(projectDirectory, 'src/hook-test.py', 'x=1;y=2');
 
-    // Run the lint hook
-    runLintHook(projectDirectory, filePath);
-
-    // File should be formatted by Ruff
+    const before = readTestFile(projectDirectory, 'src/hook-test.py');
+    const output = assertLintHookSucceeded(runLintHook(projectDirectory, filePath));
     const result = readTestFile(projectDirectory, 'src/hook-test.py');
-    expect(result).toContain('x = 1');
-    expect(result).toContain('y = 2');
+    expect(result).toBe(before);
+    expect(output).toMatch(/reformat|unformatted/iu);
   });
 
   describe('Lint Hook Graceful Handling', () => {
@@ -143,15 +142,18 @@ describe('E2E: Python Golden Path', () => {
       writeTestFile(projectDirectory, 'src/syntax-error.py', 'def broken( invalid syntax');
       const filePath = nodePath.join(projectDirectory, 'src/syntax-error.py');
 
-      // Should not throw - hook uses .nothrow()
-      expect(() => runLintHook(projectDirectory, filePath)).not.toThrow();
+      const before = readTestFile(projectDirectory, 'src/syntax-error.py');
+      const output = assertLintHookSucceeded(runLintHook(projectDirectory, filePath));
+      expect(readTestFile(projectDirectory, 'src/syntax-error.py')).toBe(before);
+      if (IS_RUFF_AVAILABLE) expect(output).toMatch(/invalid-syntax|SyntaxError|Expected/iu);
     });
 
     it('hook completes without crashing on non-existent file', () => {
       const filePath = nodePath.join(projectDirectory, 'src/does-not-exist.py');
 
-      // Should not throw - hook uses .nothrow()
-      expect(() => runLintHook(projectDirectory, filePath)).not.toThrow();
+      const result = runLintHook(projectDirectory, filePath);
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
     });
   });
 });
@@ -234,7 +236,7 @@ describe('E2E: Python Lint Hook Fallback', () => {
     }
   });
 
-  it.skipIf(!IS_RUFF_AVAILABLE)('lint hook formats files without safeword Ruff config', () => {
+  it.skipIf(!IS_RUFF_AVAILABLE)('lint hook preserves files without safeword Ruff config', () => {
     writeTestFile(projectDirectory, 'src/fallback.py', 'x=1;y=2');
     const filePath = nodePath.join(projectDirectory, 'src/fallback.py');
 
@@ -244,7 +246,9 @@ describe('E2E: Python Lint Hook Fallback', () => {
     // it and the file is never touched, which is how this test flaked — and (b) RESTORES
     // both configs, so the run lints via the normal configured path and the fallback
     // this test is named for is never exercised at all.
+    const before = readTestFile(projectDirectory, 'src/fallback.py');
     const hook = runLintHook(projectDirectory, filePath, { SAFEWORD_NO_AUTO_UPGRADE: '1' });
+    const output = assertLintHookSucceeded(hook);
 
     // Assert the hook actually ran. Discarding this result is what let the flake surface
     // as a baffling content mismatch instead of "the hook was killed". A set `signal`
@@ -256,8 +260,8 @@ describe('E2E: Python Lint Hook Fallback', () => {
     expect(fileExists(projectDirectory, 'ruff.toml')).toBe(false);
     expect(fileExists(projectDirectory, '.safeword/ruff.toml')).toBe(false);
 
-    // File should still be formatted by Ruff, using its own defaults.
     const result = readTestFile(projectDirectory, 'src/fallback.py');
-    expect(result).toContain('x = 1');
+    expect(result).toBe(before);
+    expect(output).toMatch(/reformat|unformatted/iu);
   });
 });

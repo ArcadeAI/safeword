@@ -12,10 +12,13 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
+
+import { safewordCli } from './lib/safeword-cli.ts';
 import process from 'node:process';
 
 import { stagedChangeAffectsArchitecture } from './lib/architecture-staged-scope.ts';
 import { commandWordIndex, parseShellCommandList, parseShellWords } from './lib/shell-segments.ts';
+import { projectEnvironment, resolveLaunchDirectory } from './lib/project-directory.ts';
 
 const ARCHITECTURE_SOURCE_INDEX_ENV = 'SAFEWORD_ARCHITECTURE_SOURCE_INDEX';
 const ARCHITECTURE_KEEP_MATERIALIZED_ENV = 'SAFEWORD_ARCHITECTURE_KEEP_MATERIALIZED';
@@ -514,29 +517,14 @@ function runArchitectureHook(projectDir: string, plan: GitCommitPlan): void {
       return;
     }
 
-    // Prefer local source in dev/dogfood, fall back to the published CLI. The CLI
-    // owns the regenerate-and-stage logic (and the opt-out check); this hook is glue.
-    const localCli = nodePath.join(projectDir, 'packages/cli/src/cli.ts');
-    const pluginCli = process.env.SAFEWORD_PLUGIN_CLI;
-    const [command, args] =
-      pluginCli === undefined
-        ? existsSync(localCli)
-          ? ['bun', [localCli, 'architecture', '--from-index', '--stage-output']]
-          : [
-              'bun',
-              [
-                process.env.SAFEWORD_PLUGIN_CLI ?? localCli,
-                'architecture',
-                '--from-index',
-                '--stage-output',
-              ],
-            ]
-        : ['bun', [pluginCli, 'architecture', '--from-index', '--stage-output']];
+    // The CLI owns the regenerate-and-stage logic (and the opt-out check); this hook is glue.
+    const cli = safewordCli(projectDir);
+    if (cli === undefined) return;
 
-    spawnSync(command as string, args as string[], {
+    spawnSync(cli.command, [...cli.args, 'architecture', '--from-index', '--stage-output'], {
       cwd: projectDir,
       env: {
-        ...process.env,
+        ...projectEnvironment(projectDir),
         ...plan.commit.environment,
         GIT_DIR: commitTarget.gitDirectory,
         GIT_INDEX_FILE: commitTarget.indexPath,
@@ -666,6 +654,7 @@ function writeUnmodeledCommitAdvisory(): void {
 
 interface HookInput {
   tool_name?: string;
+  cwd?: string;
   tool_input?: { command?: string };
 }
 
@@ -679,7 +668,8 @@ try {
 // Only the agent's `git commit` is in scope; everything else passes through.
 if ((input.tool_name ?? '') !== 'Bash') process.exit(0);
 const gitCommand = input.tool_input?.command ?? '';
-const baseDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+// Git runs where the shell is; the commit's own worktree is resolved from it below.
+const baseDirectory = nodePath.resolve(resolveLaunchDirectory(), input.cwd ?? '.');
 const commitPlan = gitCommitPlan(gitCommand, baseDirectory);
 if (commitPlan === undefined) {
   if (unmodeledCommitNeedsAdvice(gitCommand, baseDirectory)) writeUnmodeledCommitAdvisory();

@@ -1648,8 +1648,8 @@ describe('E2E: Python Lint Hook', () => {
     });
   });
 
-  describe('Test 2.4: Ruff fixes Python files via lint hook', () => {
-    it.skipIf(!IS_RUFF_AVAILABLE)('should format Python files when run through lint hook', () => {
+  describe('Test 2.4: Ruff reports Python problems without changing source', () => {
+    it.skipIf(!IS_RUFF_AVAILABLE)('preserves Python bytes while reporting formatting', () => {
       // Create badly formatted Python file
       const badCode = 'x=1;y=2';
       writeTestFile(shared.projectDirectory, 'format-test.py', badCode);
@@ -1661,13 +1661,14 @@ describe('E2E: Python Lint Hook', () => {
       );
       expect(result.status).toBe(0);
 
-      // File should now be formatted
       const formatted = readTestFile(shared.projectDirectory, 'format-test.py');
-      expect(formatted).toContain('x = 1');
-      expect(formatted).toContain('y = 2');
+      expect(formatted).toBe(badCode);
+      expect(JSON.parse(result.stdout).hookSpecificOutput.additionalContext).toMatch(
+        /reformat|unformatted/iu,
+      );
     });
 
-    it.skipIf(!IS_RUFF_AVAILABLE)('should fix auto-fixable lint issues', () => {
+    it.skipIf(!IS_RUFF_AVAILABLE)('preserves unused imports while reporting their findings', () => {
       // Create file with unused import (auto-fixable with --fix)
       const codeWithUnusedImport = 'import os\nx = 1\n';
       writeTestFile(shared.projectDirectory, 'fix-test.py', codeWithUnusedImport);
@@ -1679,10 +1680,9 @@ describe('E2E: Python Lint Hook', () => {
       );
       expect(result.status).toBe(0);
 
-      // Unused import should be removed
       const fixed = readTestFile(shared.projectDirectory, 'fix-test.py');
-      expect(fixed).not.toContain('import os');
-      expect(fixed).toContain('x = 1');
+      expect(fixed).toBe(codeWithUnusedImport);
+      expect(JSON.parse(result.stdout).hookSpecificOutput.additionalContext).toContain('F401');
     });
 
     it.skipIf(!IS_RUFF_AVAILABLE)(
@@ -1705,25 +1705,30 @@ describe('E2E: Python Lint Hook', () => {
         expect(output.hookSpecificOutput).toBeDefined();
         expect(output.hookSpecificOutput.hookEventName).toBe('PostToolUse');
         expect(output.hookSpecificOutput.additionalContext).toContain('unfixable-test.py');
+        expect(output.hookSpecificOutput.additionalContext).toContain('F841');
+        expect(readTestFile(shared.projectDirectory, 'unfixable-test.py')).toBe(codeWithUnfixable);
       },
     );
 
-    it.skipIf(!IS_RUFF_AVAILABLE)('should output no JSON when all errors are auto-fixed', () => {
-      // Unused import is fully auto-fixable — no remaining errors
-      const autoFixable = 'import os\nx = 1\n';
-      writeTestFile(shared.projectDirectory, 'clean-after-fix.py', autoFixable);
-
-      const result = runPostToolLint(
-        shared.projectDirectory,
-        `${shared.projectDirectory}/clean-after-fix.py`,
-      );
-      expect(result.status).toBe(0);
-
-      // No additionalContext should be output (file is clean after fix)
-      const stdout = result.stdout.trim();
-      // stdout should be empty or not contain hookSpecificOutput
-      if (stdout) {
-        expect(stdout).not.toContain('additionalContext');
+    it.skipIf(!IS_RUFF_AVAILABLE)('stays silent for already clean configured Python source', () => {
+      const cleanCode = 'x = 1\n';
+      writeTestFile(shared.projectDirectory, 'clean.py', cleanCode);
+      const config = '.safeword/ruff.toml';
+      const previous = fileExists(shared.projectDirectory, config)
+        ? readTestFile(shared.projectDirectory, config)
+        : undefined;
+      writeTestFile(shared.projectDirectory, config, '[lint]\nselect = ["F"]\n');
+      try {
+        const result = runPostToolLint(
+          shared.projectDirectory,
+          `${shared.projectDirectory}/clean.py`,
+        );
+        expect(result.status).toBe(0);
+        expect(result.stdout.trim()).toBe('');
+        expect(readTestFile(shared.projectDirectory, 'clean.py')).toBe(cleanCode);
+      } finally {
+        if (previous === undefined) rmSync(nodePath.join(shared.projectDirectory, config));
+        else writeTestFile(shared.projectDirectory, config, previous);
       }
     });
   });
@@ -1744,10 +1749,29 @@ describe('session-safeword-context.ts', () => {
     expect(result.status, result.stderr || result.stdout).toBe(0);
     const output = JSON.parse(result.stdout);
     expect(output.hookSpecificOutput.hookEventName).toBe('SessionStart');
-    expect(output.hookSpecificOutput.additionalContext).toContain('Safeword session bootstrap');
+    expect(output.hookSpecificOutput.additionalContext).toContain('First, Read `');
     expect(output.hookSpecificOutput.additionalContext).toContain('.safeword/SAFEWORD.md');
     expect(output.hookSpecificOutput.additionalContext).not.toContain('## Workflow');
     expect(output.hookSpecificOutput.additionalContext.length).toBeLessThanOrEqual(1000);
+  });
+
+  it('stays silent on resume, when the earlier read is still in context', () => {
+    const result = spawnSync(
+      'bun',
+      ['.safeword/hooks/session-safeword-context.ts', '--agent=claude'],
+      {
+        cwd: shared.projectDirectory,
+        input: JSON.stringify({
+          hook_event_name: 'SessionStart',
+          source: 'resume',
+          cwd: shared.projectDirectory,
+        }),
+        encoding: 'utf8',
+      },
+    );
+
+    expect(result.status, result.stderr || result.stdout).toBe(0);
+    expect(result.stdout.trim()).toBe('');
   });
 
   it('emits a compact Cursor bootstrap that points to SAFEWORD.md', () => {
@@ -1763,7 +1787,7 @@ describe('session-safeword-context.ts', () => {
 
     expect(result.status, result.stderr || result.stdout).toBe(0);
     const output = JSON.parse(result.stdout);
-    expect(output.additional_context).toContain('Safeword session bootstrap');
+    expect(output.additional_context).toContain('First, Read `');
     expect(output.additional_context).toContain('.safeword/SAFEWORD.md');
     expect(output.additional_context).not.toContain('## Workflow');
     expect(output.additional_context.length).toBeLessThanOrEqual(1000);
@@ -1789,7 +1813,7 @@ describe('session-safeword-context.ts', () => {
     expect(result.status).toBe(0);
     const output = JSON.parse(result.stdout);
     expect(output.hookSpecificOutput.hookEventName).toBe('SessionStart');
-    expect(output.hookSpecificOutput.additionalContext).toContain('Safeword session bootstrap');
+    expect(output.hookSpecificOutput.additionalContext).toContain('First, Read `');
   });
 
   it('falls back to hook stdin cwd when CLAUDE_PROJECT_DIR is stale', () => {
@@ -1812,7 +1836,7 @@ describe('session-safeword-context.ts', () => {
       expect(result.status).toBe(0);
       const output = JSON.parse(result.stdout);
       expect(output.hookSpecificOutput.hookEventName).toBe('SessionStart');
-      expect(output.hookSpecificOutput.additionalContext).toContain('Safeword session bootstrap');
+      expect(output.hookSpecificOutput.additionalContext).toContain('First, Read `');
     } finally {
       rmSync(staleDirectory, { recursive: true, force: true });
     }
@@ -1831,7 +1855,7 @@ describe('session-codex-start.ts', () => {
     expect(result.status, result.stderr || result.stdout).toBe(0);
     const output = JSON.parse(result.stdout);
     expect(output.hookSpecificOutput.hookEventName).toBe('SessionStart');
-    expect(output.hookSpecificOutput.additionalContext).toContain('Safeword session bootstrap');
+    expect(output.hookSpecificOutput.additionalContext).toContain('First, Read `');
     expect(output.hookSpecificOutput.additionalContext).toContain('.safeword/SAFEWORD.md');
     expect(output.hookSpecificOutput.additionalContext).not.toContain('## Workflow');
     expect(output.hookSpecificOutput.additionalContext.length).toBeLessThanOrEqual(1000);

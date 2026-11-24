@@ -13,7 +13,13 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { ReviewerOutput } from '../../src/review/contract.js';
+import type {
+  ReviewerOutput,
+  ReviewPacket,
+  UnverifiedReviewerOutput,
+} from '../../src/review/contract.js';
+import { prepareReviewPacket } from '../../src/review/packet.js';
+import { EXECUTABLE_RED_REVIEW_RUBRIC } from '../../src/review/red-rubric.generated.js';
 import {
   inspectReviewRoute,
   parseProcessStat,
@@ -21,6 +27,7 @@ import {
   planReviewRubric,
   procGroupHasRunningMember,
   qualityReviewRubric,
+  reconcilePlanContract,
   retrospectiveEligibilityRubric,
   reviewerArguments,
   reviewTimeoutMilliseconds,
@@ -57,6 +64,7 @@ function trustedTemporaryDirectory(): string {
 const output: ReviewerOutput = {
   schema_version: 1,
   dispatch_id: 'dispatch-1',
+  evidence_records: { schema_version: 1, records: [] },
   reviewer_agent: 'claude',
   verdict: 'approve',
   summary: 'reviewed',
@@ -105,6 +113,43 @@ describe('scenario review rubric', () => {
     expect(rubric).toContain('baseline implementation path');
     expect(rubric).toContain('post-cutoff-only implementation');
     expect(rubric).toContain('passing current test alone does not prove historical implementation');
+  });
+});
+
+describe('plan contract reconciliation', () => {
+  it('normalizes a contract-mismatch Execution Plan denial to a null record', () => {
+    const packet: ReviewPacket = {
+      schema_version: 1,
+      dispatch_id: 'dispatch-1',
+      kind: 'plan-execution',
+      logical_files: [],
+      plan_contract: {
+        author: { sha256: 'author', obligations: ['Slicing decision'] },
+        reviewer: { sha256: 'reviewer', obligations: ['Slicing decision'] },
+      },
+    };
+    const approved: UnverifiedReviewerOutput = {
+      ...output,
+      planning_destination: 'plan-execution',
+      execution_plan_record: {
+        slicing_decision: 'one_pull_request',
+        rationale: 'One coherent change.',
+        slices: [],
+        obligation_owners: [],
+        decision_statuses: [],
+      },
+    };
+
+    const result = reconcilePlanContract(packet, approved);
+
+    expect(result.verdict).toBe('request_changes');
+    expect(result.execution_plan_record).toBeNull();
+    expect(
+      result.findings.some(
+        finding =>
+          finding.severity === 'error' && finding.message.includes('contract reconciliation'),
+      ),
+    ).toBe(true);
   });
 });
 
@@ -561,6 +606,166 @@ describe('reviewer process-group liveness', () => {
 });
 
 describe('headless reviewer process lifecycle', () => {
+  it.skipIf(process.platform === 'win32')(
+    'preserves the structural rejection reason from plan-execution review output',
+    async () => {
+      vi.stubEnv('NODE_ENV', 'test');
+      const bin = trustedTemporaryDirectory();
+      const project = temporaryDirectory();
+      const untrustedRoot = temporaryDirectory();
+      const executable = nodePath.join(bin, 'claude');
+      const malformedApproval = {
+        ...output,
+        planning_destination: 'plan-execution',
+        execution_plan_record: JSON.parse('null') as null,
+      };
+      writeFileSync(
+        executable,
+        `#!/bin/sh
+if [ "\${1:-}" = "--help" ]; then
+  echo '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools'
+  exit 0
+fi
+/bin/cat > /dev/null
+printf '%s' '${JSON.stringify({ structured_output: malformedApproval })}'
+`,
+      );
+      chmodSync(executable, 0o755);
+      vi.stubEnv('PATH', bin);
+
+      await expect(
+        runHeadlessReviewer(
+          'claude',
+          {
+            schema_version: 1,
+            dispatch_id: 'dispatch-1',
+            kind: 'plan-execution',
+            logical_files: [],
+          },
+          project,
+          untrustedRoot,
+        ),
+      ).rejects.toMatchObject({
+        failure: 'invalid_output',
+        message: expect.stringContaining('execution_plan_record must be an object'),
+      });
+    },
+  );
+
+  it.skipIf(process.platform === 'win32')(
+    'sends the executable RED refusal rubric to the reviewer process',
+    async () => {
+      vi.stubEnv('NODE_ENV', 'test');
+      const bin = trustedTemporaryDirectory();
+      const project = temporaryDirectory();
+      const untrustedRoot = temporaryDirectory();
+      const promptPath = nodePath.join(project, 'reviewer-prompt.txt');
+      const executable = nodePath.join(bin, 'claude');
+      writeFileSync(
+        executable,
+        `#!/bin/sh
+if [ "\${1:-}" = "--help" ]; then
+  echo '${REVIEWER_CAPABILITIES.claude}'
+  exit 0
+fi
+/bin/cat > '${promptPath}'
+printf '%s' '${JSON.stringify({ structured_output: output })}'
+`,
+        { mode: 0o755 },
+      );
+      vi.stubEnv('PATH', bin);
+      const packet: ReviewPacket = {
+        schema_version: 1,
+        dispatch_id: 'dispatch-1',
+        kind: 'executable-red',
+        logical_files: [],
+      };
+
+      const result = await runHeadlessReviewer('claude', packet, project, untrustedRoot);
+
+      expect(result).toMatchObject({ dispatch_id: packet.dispatch_id, verdict: 'approve' });
+      const prompt = readFileSync(promptPath, 'utf8');
+      const packetStart = prompt.lastIndexOf('\n');
+      expect(JSON.parse(prompt.slice(packetStart + 1))).toEqual(packet);
+      const instructions = prompt.slice(0, packetStart);
+      expect(instructions).toContain(EXECUTABLE_RED_REVIEW_RUBRIC);
+      expect(instructions).toContain('undefined or pending Cucumber steps');
+    },
+  );
+
+  it.skipIf(process.platform === 'win32')(
+    'blocks contradictory plan contracts even when the reviewer approves',
+    async () => {
+      vi.stubEnv('NODE_ENV', 'test');
+      const bin = trustedTemporaryDirectory();
+      const project = temporaryDirectory();
+      const untrustedRoot = temporaryDirectory();
+      const executable = nodePath.join(bin, 'claude');
+      writeFileSync(
+        executable,
+        `#!/bin/sh
+if [ "\${1:-}" = "--help" ]; then
+  echo '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools'
+  exit 0
+fi
+/bin/cat > /dev/null
+printf '%s' '${JSON.stringify({ structured_output: output })}'
+`,
+      );
+      chmodSync(executable, 0o755);
+      vi.stubEnv('PATH', bin);
+      writeFileSync(nodePath.join(project, 'impl-plan.md'), '# Plan\n');
+
+      const baseline = prepareReviewPacket(project, 'plan-implementation', ['impl-plan.md']);
+      const authorContract = baseline.packet.plan_contract?.author;
+      baseline.cleanup();
+      if (authorContract === undefined) throw new Error('Packaged plan contract is missing');
+      const omittedObligation = authorContract.obligations[0];
+      const retainedObligation = authorContract.obligations[1];
+      if (omittedObligation === undefined || retainedObligation === undefined)
+        throw new Error('Packaged plan contract needs two obligations for this proof');
+      const contradictory = prepareReviewPacket(
+        project,
+        'plan-implementation',
+        ['impl-plan.md'],
+        [],
+        {
+          planContract: {
+            author: authorContract,
+            reviewer: {
+              sha256: 'reviewer-contract',
+              obligations: [...authorContract.obligations.slice(1), 'require execution sequencing'],
+            },
+          },
+        },
+      );
+      const matching = prepareReviewPacket(project, 'plan-implementation', ['impl-plan.md'], [], {
+        planContract: { author: authorContract, reviewer: authorContract },
+      });
+      const matchingResult = await runHeadlessReviewer(
+        'claude',
+        matching.packet,
+        project,
+        untrustedRoot,
+      );
+      expect(matchingResult.verdict).toBe('approve');
+
+      const result = await runHeadlessReviewer(
+        'claude',
+        contradictory.packet,
+        project,
+        untrustedRoot,
+      );
+      expect(result.verdict).toBe('request_changes');
+      expect(result.findings).toHaveLength(3);
+      expect(result.findings.every(finding => finding.severity === 'error')).toBe(true);
+      const messages = result.findings.map(finding => finding.message);
+      expect(messages.some(message => message.includes(omittedObligation))).toBe(true);
+      expect(messages.some(message => message.includes('require execution sequencing'))).toBe(true);
+      expect(messages.some(message => message.includes(retainedObligation))).toBe(false);
+    },
+  );
+
   // The only real-process test of the SUCCESS path. Every other real-process
   // case here ends in a timeout, a rejected probe, or an uncleanable tree, so
   // without this one a break in the spawn → stdin → stdout → parse → cleanup

@@ -1,0 +1,13 @@
+# Final polish after approved review
+
+Review e4f917c6-92fb-4019-af5a-a7d92155e063 approved the source repair. Its suggested proof-isolation improvement is now applied: both the security proof declaration and all corresponding task invocations use the same inadequate marker command. The independent unit oracle permits exactly that command substitution, while requiring unchanged accepted scenarios and approach. The old ambiguous production case is untouched.
+
+Lint-driven extractions move the acceptance-only record assertions to a named helper and replace nested earlier-review conditionals with an explicit mode lookup. Assertions and fixture outcomes remain intact. JSON null remains a deliberate malformed input, with a narrow documented lint exception.
+
+The prior reviewer warning about parser compatibility is documented in the decision record and PR, and an ordinary-cell literal-backslash regression is present. Plans whose parsed definition changes require fresh review. Literal subject assertions are retained as conservative localization checks; synonym generalization is deferred. Deterministic seeded admission remains Given setup; real-reviewer admission and native public-CLI proof execution were exercised separately and recorded as a bounded manual walkthrough.
+
+A first post-delta run failed six checks (cleanup/timeouts and compatibility fixture response). The three affected files subsequently passed 109 tests, two existing platform skips. Full Verify is running; do not infer completion from this note. The manual walkthrough confirms failed-child refusal and passed receipt bytes/digest. It does not claim retention of failed receipts, which the existing CLI does not provide.
+
+Scenario review e2ed0918 raised an unreadable-plan proof error based on the wrong fixture. The manifest maps that scenario to delivery-checklist-unreadable.test.ts, which actually calls record-delivery-proof, checks the named finding and single repair, and confirms the directory remains untouched afterwards. The invalid contributor/human row is a different named scenario. Supply the manifest and both complete proof files to resolve this context error. Nevertheless, the human-handoff proof now also checks identical recovery/findings and unchanged plan/ledger after its update attempt. No broken behavior is excused.
+
+The new slicing Then explicitly denies the slice for its inadequate proof obligation, resolving both R2 ownership and explicit-rejection warnings. Baseline production oracle provenance is verifiable with git show 31befd189:packages/cli/tests/smoke/execution-plan.live.test.ts; the additional strict checks were introduced only on this branch and remain enabled for every acceptance case.

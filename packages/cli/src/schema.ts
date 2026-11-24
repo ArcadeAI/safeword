@@ -45,11 +45,21 @@ import type {
 } from './packs/types.js';
 import { CURSOR_HOOKS, SETTINGS_HOOKS } from './templates/config.js';
 import { AGENTS_MD_LINK, CLAUDE_MD_IMPORT_BLOCK } from './templates/content.js';
+import { SAFEWORD_ENROLLMENT_MARKER_CONTENT } from './utils/configured-paths.js';
 import { getTemplatesDirectory, readFile, readFileSafe } from './utils/fs.js';
 import { filterOutEquivalentSafewordHooks, filterOutSafewordHooks } from './utils/hooks.js';
 import { MCP_SERVERS } from './utils/install.js';
 import { assignOrPrune } from './utils/json-merge.js';
 import { VERSION } from './version.js';
+
+export const PLANNING_DATA_GUIDE_PATH = '.safeword/guides/data-architecture-guide.md';
+
+/** Closed planning-template classifier; registered templates stay literal for catalogue extraction. */
+export const PLANNING_CONTRACT_TEMPLATE_PATHS = {
+  product: 'skills/bdd/DISCOVERY.md',
+  implementation: 'skills/bdd/PLAN_IMPLEMENTATION.md',
+  execution: 'skills/bdd/PLAN_EXECUTION.md',
+} as const;
 
 export interface TextPatchDefinition {
   operation: 'prepend' | 'append';
@@ -219,6 +229,7 @@ const CURSOR_SHARED_SKILL_FILES = [
   'bdd/SKILL.md',
   'bdd/DISCOVERY.md',
   'bdd/PLAN_IMPLEMENTATION.md',
+  'bdd/PLAN_EXECUTION.md',
   'bdd/SCENARIOS.md',
   'bdd/TDD.md',
   'bdd/DONE.md',
@@ -255,6 +266,15 @@ const CURSOR_SHARED_SKILL_OWNED_FILES: Record<string, FileDefinition> = Object.f
     { template: `skills/${path}` },
   ]),
 );
+
+/** Select the active Cursor-owned asset from the managed-file schema. */
+export function cursorPlanningContractPath(template: string): string {
+  const owned = Object.entries(CURSOR_SHARED_SKILL_OWNED_FILES).find(
+    ([, definition]) => definition.template === template,
+  );
+  if (owned === undefined) throw new Error(`No Cursor planning contract owns ${template}.`);
+  return owned[0];
+}
 
 const CURSOR_SHARED_SKILL_DIRS = [
   '.safeword/skills',
@@ -294,9 +314,9 @@ const CODEX_RUNTIME_ASSETS: Record<string, ManagedFileDefinition> = Object.fromE
  * skill-invocations, re-entry, dependency-readiness). Single source for both
  * the per-root `.gitignore` managed file (`NAMESPACE_GITIGNORE_CONTENT`) and the
  * repo-root `.gitignore` block (`SAFEWORD_TRANSIENT_PATHS`). Patterns are exact
- * filenames plus the one `quality-state*` glob — never a bare `*` — so durable
- * siblings (tickets/, learnings/, principles.md, personas.md, glossary.md,
- * surfaces.md) stay tracked.
+ * filenames plus the `quality-state*` and per-worktree `closeout-session-binding*`
+ * globs — never a bare `*` — so durable siblings (tickets/, learnings/,
+ * principles.md, personas.md, glossary.md, surfaces.md) stay tracked.
  */
 const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
   'quality-state*.json',
@@ -307,7 +327,7 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
   're-entry.md',
   'dependency-readiness.json',
   'readiness-ticket.json',
-  'closeout-session-binding.json',
+  'closeout-session-binding*.json',
   'codex-review-stamp-identity.json',
   'cursor-review-stamp-identity.json',
 ];
@@ -315,10 +335,9 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
 /**
  * Runtime/transient state files safeword's hooks write to the working tree
  * every turn (update-cache plus the namespace-root state above). They must be
- * gitignored — and untracked on upgrade if a customer committed them before the
- * ignore rule existed — because the hooks read/write these paths directly, so
- * git tracking is never consulted. Single source for the repo-root managed
- * `.gitignore` block (below) and the upgrade-time untrack.
+ * gitignored because the hooks read/write these paths directly, so git
+ * tracking is never consulted. Feeds the repo-root managed `.gitignore` block
+ * (`GITIGNORE_BLOCK_PATHS`, below).
  *
  * Both well-known namespace roots are listed: hooks write transient state under
  * the resolved root (TAGWZ8), which is `.project/` on fresh installs and
@@ -344,6 +363,25 @@ export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   ...['.project', '.safeword-project'].flatMap(root =>
     NAMESPACE_TRANSIENT_BASENAMES.map(name => `${root}/${name}`),
   ),
+];
+
+/**
+ * Lines of the repo-root managed `.gitignore` block. `node_modules/` rides here
+ * so a fresh project's `git add -A` never commits dependencies (#6764). It is
+ * not Safeword state, so it stays out of `SAFEWORD_TRANSIENT_PATHS` — that list
+ * also decides which `.safeword/` entries prove no install ran.
+ */
+const GITIGNORE_BLOCK_PATHS: readonly string[] = ['node_modules/', ...SAFEWORD_TRANSIENT_PATHS];
+
+/**
+ * Transient paths earlier releases wrote into the repo-root block and later replaced. The
+ * rerender must still recognize them as Safeword's, or an upgrade stops claiming the old block at
+ * the first one and strands every line after it outside the managed block.
+ */
+const RETIRED_TRANSIENT_PATHS: readonly string[] = [
+  // Now one file per working tree (#5467).
+  '.project/closeout-session-binding.json',
+  '.safeword-project/closeout-session-binding.json',
 ];
 
 /**
@@ -658,6 +696,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/stop-quality.sh',
     '.safeword/hooks/cursor/after-file-edit.sh',
     '.safeword/hooks/cursor/stop.sh',
+    // Author-model capture removed: independence is judged by reviewing agent (K8VPME)
+    '.safeword/hooks/session-author-model.ts',
     // Shell libraries no longer needed with Bun
     '.safeword/lib/common.sh',
     '.safeword/lib/jq-fallback.sh',
@@ -767,7 +807,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
     // Core files
     '.safeword/AGENTS.md': { template: 'AGENTS.md' },
+    // Project handbook copy for project-delivered hosts (Cursor, legacy Claude/Codex
+    // hooks). Plugin-only projects drop it: see projectLifecycleSchema.
     '.safeword/SAFEWORD.md': { template: 'SAFEWORD.md' },
+    // Dedicated enrollment marker; host hooks run only in projects carrying it
+    // (or, until upgraded, the handbook copy above).
+    '.safeword/enrolled': { content: () => SAFEWORD_ENROLLMENT_MARKER_CONTENT },
     '.safeword/version': { content: () => VERSION },
     // config.json is created by packs system but needs to be registered for cleanup on uninstall
     // Generator returns undefined = never created/updated by schema, but still deleted on uninstall
@@ -842,6 +887,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/ticket-close.ts': { template: 'hooks/lib/ticket-close.ts' },
     '.safeword/hooks/lib/jsonl-spool.ts': { template: 'hooks/lib/jsonl-spool.ts' },
     '.safeword/hooks/lib/namespace-root.ts': { template: 'hooks/lib/namespace-root.ts' },
+    '.safeword/hooks/lib/project-directory.ts': { template: 'hooks/lib/project-directory.ts' },
     '.safeword/hooks/lib/drain-retro-spool.ts': { template: 'hooks/lib/drain-retro-spool.ts' },
     '.safeword/hooks/lib/retro-draft-spool.ts': { template: 'hooks/lib/retro-draft-spool.ts' },
     '.safeword/hooks/lib/retro-debug.ts': { template: 'hooks/lib/retro-debug.ts' },
@@ -855,6 +901,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/lib/parse-annotation.ts': { template: 'hooks/lib/parse-annotation.ts' },
     '.safeword/hooks/lib/retrospective-gate.ts': { template: 'hooks/lib/retrospective-gate.ts' },
+    '.safeword/hooks/lib/safeword-cli.ts': { template: 'hooks/lib/safeword-cli.ts' },
     '.safeword/hooks/lib/retrospective-annotation.ts': {
       template: 'hooks/lib/retrospective-annotation.ts',
     },
@@ -945,9 +992,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/session-architecture-heal.ts': {
       template: 'hooks/session-architecture-heal.ts',
-    },
-    '.safeword/hooks/session-author-model.ts': {
-      template: 'hooks/session-author-model.ts',
     },
     '.safeword/hooks/session-compact-context.ts': {
       template: 'hooks/session-compact-context.ts',
@@ -1047,8 +1091,11 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/guides/context-files-guide.md': {
       template: 'guides/context-files-guide.md',
     },
-    '.safeword/guides/data-architecture-guide.md': {
+    [PLANNING_DATA_GUIDE_PATH]: {
       template: 'guides/data-architecture-guide.md',
+    },
+    '.safeword/guides/interface-contract-guide.md': {
+      template: 'guides/interface-contract-guide.md',
     },
     '.safeword/guides/design-doc-guide.md': {
       template: 'guides/design-doc-guide.md',
@@ -1064,6 +1111,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/guides/planning-guide.md': {
       template: 'guides/planning-guide.md',
+    },
+    '.safeword/guides/release-recovery-guide.md': {
+      template: 'guides/release-recovery-guide.md',
+    },
+    '.safeword/guides/measurement-design-guide.md': {
+      template: 'guides/measurement-design-guide.md',
     },
     '.safeword/guides/skill-eval-optimization-guide.md': {
       template: 'guides/skill-eval-optimization-guide.md',
@@ -1101,6 +1154,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // the plan-implementation phase, validated by the stop hook's impl-plan gate.
     '.safeword/templates/impl-plan-template.md': {
       template: 'doc-templates/impl-plan-template.md',
+    },
+    '.safeword/templates/execution-plan-template.md': {
+      template: 'doc-templates/execution-plan-template.md',
     },
     '.safeword/templates/adr-template.md': {
       template: 'doc-templates/adr-template.md',
@@ -1181,6 +1237,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.claude/skills/bdd/PLAN_IMPLEMENTATION.md': {
       template: 'skills/bdd/PLAN_IMPLEMENTATION.md',
+    },
+    '.claude/skills/bdd/PLAN_EXECUTION.md': {
+      template: 'skills/bdd/PLAN_EXECUTION.md',
     },
     '.claude/skills/bdd/SCENARIOS.md': {
       template: 'skills/bdd/SCENARIOS.md',
@@ -1502,15 +1561,19 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.husky/pre-push': boundaryShimPatch('push'),
     '.gitignore': {
       operation: 'append',
-      content: `\n# Safeword - Local cache and transient state\n${SAFEWORD_TRANSIENT_PATHS.join('\n')}\n`,
+      content: `\n# Safeword - Local cache and transient state\n${GITIGNORE_BLOCK_PATHS.join('\n')}\n`,
       // A stable header plus rerender heals the block whenever the transient
       // path list grows and lets uninstall recognize older variants.
       rerender: true,
+      // Recognizes only Safeword's own paths, never `node_modules/`: an older,
+      // shorter block can be followed by a customer's `node_modules/` rule,
+      // and the pattern must not absorb it. A current block's `node_modules/`
+      // line is still claimed by the exact in-order match.
       // eslint-disable-next-line security/detect-non-literal-regexp -- derived only from the source-controlled constant above
       rerenderOwnedLinePattern: new RegExp(
-        `^(?:${SAFEWORD_TRANSIENT_PATHS.map(path =>
-          path.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`),
-        ).join('|')})$`,
+        `^(?:${[...SAFEWORD_TRANSIENT_PATHS, ...RETIRED_TRANSIENT_PATHS]
+          .map(path => path.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`))
+          .join('|')})$`,
         'u',
       ),
       marker: '# Safeword - Local cache and transient state',

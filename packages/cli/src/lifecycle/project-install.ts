@@ -57,7 +57,11 @@ import {
   syncConfigCore,
 } from '../commands/sync-config.js';
 import { checkHealth, type HealthStatus } from '../health.js';
-import { applyFreshInstallDefaults, freshInstallDefaultsNeedUpdate } from '../packs/config.js';
+import {
+  applyFreshInstallDefaults,
+  freshInstallDefaultsNeedUpdate,
+  recordOwnedPackages,
+} from '../packs/config.js';
 import { installPack } from '../packs/install.js';
 import { hasImportLinterScaffoldTarget } from '../packs/python/files.js';
 import {
@@ -70,13 +74,21 @@ import {
 } from '../packs/python/setup.js';
 import { getMissingPacks } from '../packs/registry.js';
 import { rustToolingTargets } from '../packs/rust/setup.js';
-import { reconcile, ReconcileExecutionError, type ReconcileResult } from '../reconcile.js';
+import { InvalidInvalidationContractError } from '../planning/phase-contract.js';
+import { MissingGeneratedSharedClauseError } from '../planning/shared-clause-integrity.js';
+import {
+  ownershipTrackedPackageNames,
+  reconcile,
+  ReconcileExecutionError,
+  type ReconcileResult,
+} from '../reconcile.js';
 import {
   ensurePublicRetroProjectConfig,
   publicRetroConfigNeedsUpdate,
   validatePublicRetroProjectConfig,
 } from '../retro/public-config.js';
 import type { SafewordSchema } from '../schema.js';
+import { PLANNING_CONTRACT_TEMPLATE_PATHS } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
 import { exists, writeJson } from '../utils/fs.js';
 import { hookIntegrationNudge } from '../utils/hook-nudge.js';
@@ -184,6 +196,22 @@ const PYTHON_PACKAGE_FILES = [
 
 function plannedFileEffect(cwd: string, target: string): Effect {
   return { kind: existsSync(nodePath.join(cwd, target)) ? 'update' : 'create', target };
+}
+
+/**
+ * The config write that records Safeword-owned packages, when install plans one.
+ */
+function plannedOwnershipRecordEffects(
+  cwd: string,
+  schema: SafewordSchema,
+  packages: readonly Effect[],
+): Effect[] {
+  const installing = packages
+    .filter(effect => effect.kind === 'install')
+    .map(effect => effect.target);
+  return ownershipTrackedPackageNames(schema, installing).length > 0
+    ? [plannedFileEffect(cwd, '.safeword/config.json')]
+    : [];
 }
 
 function existingFileEffects(cwd: string, targets: readonly string[]): Effect[] {
@@ -560,6 +588,7 @@ export async function createSetupPlan(
     ...(publicRetroConfigNeedsUpdate(cwd)
       ? [{ kind: 'update' as const, target: '.safeword/config.json' }]
       : []),
+    ...plannedOwnershipRecordEffects(cwd, schema, reconciliationEffects.packages),
   ];
   const packageFiles = reconciliationPackages ? plannedJavaScriptPackageFiles(cwd) : [];
   const python = plannedPythonEffects(cwd);
@@ -1403,6 +1432,26 @@ function recordInstalledPackages(
   }
 }
 
+/**
+ * Record packages Safeword tried to install that full uninstall could not
+ * otherwise attribute to Safeword (their install condition stops holding once
+ * present). Runs after any attempt, since a failed run can still save them.
+ */
+function recordSafewordOwnedPackages(
+  cwd: string,
+  schema: SafewordSchema,
+  packagesToInstall: readonly string[],
+  installation: DependencyInstallResult,
+  completedEffects: CompletedSetupEffects,
+): void {
+  if (!installation.attempted) return;
+  const tracked = ownershipTrackedPackageNames(schema, packagesToInstall);
+  if (tracked.length === 0) return;
+  observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () => {
+    recordOwnedPackages(cwd, tracked);
+  });
+}
+
 function applyPackageCompatibility(
   cwd: string,
   completedEffects: CompletedSetupEffects,
@@ -1597,6 +1646,13 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
       }),
     );
     recordInstalledPackages(result.packagesToInstall, installation, completedEffects);
+    recordSafewordOwnedPackages(
+      cwd,
+      setupSchema,
+      result.packagesToInstall,
+      installation,
+      completedEffects,
+    );
     const pythonSetup = observeFileStage(cwd, pythonObservationTargets(cwd), completedEffects, () =>
       adapters.configurePython(cwd, context, { offline: input.offline }),
     );
@@ -1720,6 +1776,49 @@ function verifiedSetupResult(
   };
 }
 
+function setupFailureDetails(setupError: unknown): Pick<CliResult, 'findings' | 'errors'> {
+  const cause = setupError instanceof SetupApplyError ? setupError.cause : setupError;
+  if (cause instanceof InvalidInvalidationContractError) {
+    return {
+      findings: [
+        {
+          code: cause.code,
+          message: cause.message,
+          severity: 'error',
+          metadata: {
+            planning_phase: cause.phase,
+            contract_path: PLANNING_CONTRACT_TEMPLATE_PATHS.execution,
+          },
+        },
+      ],
+      errors: [{ code: cause.code, message: cause.message, retryable: false }],
+    };
+  }
+  if (cause instanceof MissingGeneratedSharedClauseError) {
+    return {
+      findings: [
+        {
+          code: cause.code,
+          message: cause.message,
+          severity: 'error',
+          metadata: { clause_id: cause.clauseId, contract_path: cause.contractPath },
+        },
+      ],
+      errors: [{ code: cause.code, message: cause.message, retryable: false }],
+    };
+  }
+  return {
+    findings: [],
+    errors: [
+      {
+        code: 'SETUP_FAILED',
+        message: setupError instanceof Error ? setupError.message : String(setupError),
+        retryable: true,
+      },
+    ],
+  };
+}
+
 function setupFailure(setupError: unknown, initialEffects: Partial<Effects>): CliResult {
   const reconciliationEffects =
     setupError instanceof ReconcileExecutionError
@@ -1739,13 +1838,7 @@ function setupFailure(setupError: unknown, initialEffects: Partial<Effects>): Cl
     state: 'failed',
     changed,
     effects,
-    errors: [
-      {
-        code: 'SETUP_FAILED',
-        message: setupError instanceof Error ? setupError.message : String(setupError),
-        retryable: true,
-      },
-    ],
+    ...setupFailureDetails(setupError),
     recovery: [
       ...(applyRecovery ?? []),
       {

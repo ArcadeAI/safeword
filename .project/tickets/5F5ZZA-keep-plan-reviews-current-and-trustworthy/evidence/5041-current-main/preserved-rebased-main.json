@@ -1,0 +1,42 @@
+[
+  {
+    "path": "packages/cli/src/review/lockfile-diff.ts",
+    "identical_to_rebased_main": true,
+    "sha256": "d260799d69b968c6c5d2148069ff1a724bdc93cfdf6c1b5871f62fbffc04c3fa"
+  },
+  {
+    "path": "packages/cli/src/review/text.ts",
+    "identical_to_rebased_main": true,
+    "sha256": "a2c856b2e1549ba3daef14a2e404456b1064103eed014afb1543726a91b8f81e"
+  },
+  {
+    "path": "packages/cli/src/review/git-prefix.ts",
+    "identical_to_rebased_main": true,
+    "sha256": "2b1ccb2177ca06458d7d9f3d20150985f666556be72e8c07928fa0aaa39bf691"
+  },
+  {
+    "path": "packages/cli/src/review/contract.ts",
+    "identical_to_rebased_main": true,
+    "sha256": "a4cb4930ed533b6323c1f031b0770bc6553a9f052a4ae4486e2af6a16cdb4b05"
+  },
+  {
+    "path": "packages/cli/tests/review/job.test.ts",
+    "identical_to_rebased_main": true,
+    "sha256": "89040f87aeabb46dff8dbcc1390d1d74cbd3d6608feb3cdcddf2af0e7d6097a8"
+  },
+  {
+    "path": "packages/cli/src/review/planning-context-identity.ts",
+    "identical_to_rebased_main": true,
+    "sha256": "d1db2d22b1092d92c48516b6f9346e1f0c812e113a06d65545db90f4794295d7"
+  },
+  {
+    "path": "packages/cli/src/review/planning-role-context.ts",
+    "identical_to_rebased_main": true,
+    "sha256": "e8460522189e329298af49e508736c5000f24ba9791f59b38e18d92b4ab3451d"
+  },
+  {
+    "path": "packages/cli/src/execution-plan/delivery-checklist.ts",
+    "identical_to_rebased_main": true,
+    "sha256": "e75a0ed9127e8be4949275ed63cdedeec5408bd4ee9abf69fc6291b3b65f6304"
+  }
+]

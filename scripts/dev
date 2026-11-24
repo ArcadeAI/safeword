@@ -1,0 +1,28 @@
+#!/bin/sh
+# Resolve the repository pins explicitly: shell activation can leave tool
+# directories behind a global installation in inherited PATHs.
+set -eu
+
+if [ "$#" -eq 0 ]; then
+  echo 'Usage: scripts/dev <command> [arguments...]' >&2
+  exit 2
+fi
+if ! command -v mise > /dev/null 2>&1; then
+  echo 'Install mise, then run mise install from the repository root.' >&2
+  exit 1
+fi
+
+safeword_repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+if ! safeword_bun=$(mise -C "$safeword_repo_root" which bun) \
+  || ! safeword_node=$(mise -C "$safeword_repo_root" which node); then
+  echo 'Pinned Bun/Node unavailable. Run mise install from the repository root.' >&2
+  exit 1
+fi
+PATH="$(dirname -- "$safeword_bun"):$(dirname -- "$safeword_node"):$PATH"
+export PATH
+
+if [ "$1" = '--print-path' ]; then
+  printf '%s\n' "$PATH"
+  exit 0
+fi
+exec "$@"

@@ -1,0 +1,23 @@
+{
+  "inferred_not_authenticated": true,
+  "mappings": [
+    {
+      "dispatch_id": "f10d8971-2e57-4b5a-9e34-5ec6afd1cdd7",
+      "derived_case_id": "ordered-schema-before-reader",
+      "basis": "Unique named slices and obligations in the retained reviewer output match the unchanged corpus; independently identified by review b15034b3-6a37-47ce-8550-cb1fc56419cc.",
+      "authenticated_run_case_binding": false
+    },
+    {
+      "dispatch_id": "401ca82d-646b-45b7-b988-85f35f700738",
+      "derived_case_id": "few-files-two-outcomes",
+      "basis": "Unique named slices and obligations in the retained reviewer output match the unchanged corpus; independently identified by review b15034b3-6a37-47ce-8550-cb1fc56419cc.",
+      "authenticated_run_case_binding": false
+    },
+    {
+      "dispatch_id": "43e48e84-4fea-4ea3-8d92-f3629da64145",
+      "derived_case_id": "all-obligations-assigned",
+      "basis": "Unique named slices and obligations in the retained reviewer output match the unchanged corpus; independently identified by review b15034b3-6a37-47ce-8550-cb1fc56419cc.",
+      "authenticated_run_case_binding": false
+    }
+  ]
+}

@@ -23,7 +23,7 @@ For JS/TS projects, it installs ESLint, Prettier, and supporting plugins with th
 
 ### Will it overwrite my CLAUDE.md?
 
-No. Safeword neither creates `CLAUDE.md` or `AGENTS.md` nor adds imports to them — a SessionStart hook injects `.safeword/SAFEWORD.md` into each agent session instead. Install only removes an obsolete Safeword link block that an older release prepended, leaving the rest of the file untouched.
+No. Safeword neither creates `CLAUDE.md` or `AGENTS.md` nor adds imports to them — a SessionStart hook points each agent session at the Safeword handbook (`SAFEWORD.md`) instead. Install only removes an obsolete Safeword link block that an older release prepended, leaving the rest of the file untouched.
 
 ### I already use Biome / dprint — is that a problem?
 

@@ -1,0 +1,37 @@
+[0m[1mbun audit [0m[2mv1.3.14 (0d9b296a)[0m
+http-cache-semantics  <=4.2.0
+  workspace:@safeword/website › astro
+  high: http-cache-semantics max-stale handling can disclose cross-user cached responses - https://github.com/advisories/GHSA-ch52-4w7c-c8xp
+
+dompurify  >=3.4.13 <=3.4.15
+  workspace:@safeword/website › mermaid
+  low: DOMPurify: IN_PLACE: node-removing afterSanitize hook leaves detached subtree event handlers armed, causing DOM XSS - https://github.com/advisories/GHSA-p98j-92pf-mc4p
+  low: DOMPurify: IN_PLACE returns a force-removed rawtext root whose text carries attacker markup — pure HTML reparse executes - https://github.com/advisories/GHSA-6688-9rhm-gjv2
+
+braces  <=3.0.3
+  markdownlint-cli2 › globby › fast-glob › micromatch › braces
+  workspace:safeword › @next/eslint-plugin-next
+  high: braces vulnerable to stack-exhaustion denial of service through deeply nested patterns - https://github.com/advisories/GHSA-vfj7-8cjw-p6xm
+
+fast-uri  >=3.0.0 <3.1.8
+  workspace:safeword › ajv
+  moderate: fast-uri vulnerable to inconsistent host case normalization via percent-encoded octets - https://github.com/advisories/GHSA-hrr3-gc8f-f4qj
+
+postcss-selector-parser  <7.1.6
+  workspace:safeword › eslint-plugin-astro
+  workspace:@safeword/website › @astrojs/starlight
+  moderate: PostCSS: Quadratic complexity in flat selector parsing allows CPU exhaustion - https://github.com/advisories/GHSA-rj75-hqrm-r3gf
+
+katex  >=0.11.0 <0.18.2
+  workspace:@safeword/website › mermaid
+  markdownlint-cli2 › markdownlint › micromark-extension-math › katex
+  low: KaTeX: Existing prototype pollution can bypass trust restrictions - https://github.com/advisories/GHSA-238p-pmpm-9mq7
+
+7 vulnerabilities (2 high, 2 moderate, 3 low)
+
+To update all dependencies to the latest compatible versions:
+  bun update
+
+To update all dependencies to the latest versions (including breaking changes):
+  bun update --latest
+

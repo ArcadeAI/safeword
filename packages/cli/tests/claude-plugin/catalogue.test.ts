@@ -5,6 +5,7 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { normalizePluginCliBundle } from '../../scripts/lib/build-plugin-cli-bundle.js';
+import { claudeSkillSha256 } from '../../src/claude-plugin/asset-integrity.js';
 import {
   assertClaudePluginAssetReferences,
   CLAUDE_DISPATCHER_NODE_TARGET,
@@ -14,6 +15,30 @@ import {
 const packageRoot = nodePath.resolve(import.meta.dirname, '../..');
 
 describe('Claude plugin catalogue generation', () => {
+  it('records the semantic digest of every exposed skill in the generated inventory', () => {
+    const assets = generateClaudePluginAssets({
+      cliBundle: 'console.log("stub cli bundle");',
+      sourceRoot: nodePath.join(packageRoot, 'src'),
+      templatesRoot: nodePath.join(packageRoot, 'templates'),
+      version: '0.0.0-test',
+    });
+    const inventoryAsset = assets.find(asset => asset.relativePath === 'inventory.json');
+    if (inventoryAsset === undefined) throw new Error('Generated inventory.json is missing.');
+    const inventory = JSON.parse(inventoryAsset.content) as {
+      assets: { path: string; skill_sha256?: string }[];
+    };
+    const skills = assets.filter(asset => /^skills\/[^/]+\/SKILL\.md$/u.test(asset.relativePath));
+    expect(skills.length).toBeGreaterThan(0);
+    for (const skill of skills) {
+      const entries = inventory.assets.filter(asset => asset.path === skill.relativePath);
+      expect(entries, skill.relativePath).toHaveLength(1);
+      expect(entries[0]?.skill_sha256, skill.relativePath).toMatch(/^[a-f\d]{64}$/u);
+      expect(entries[0]?.skill_sha256, skill.relativePath).toBe(
+        claudeSkillSha256(skill.relativePath, skill.content),
+      );
+    }
+  });
+
   it('normalizes machine-specific Bun install instance paths', () => {
     const firstBundle = [
       '// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/index.js',

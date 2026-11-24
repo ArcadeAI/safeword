@@ -150,12 +150,42 @@ function scanWorkspaceDirectory(rootDirectory: string, pattern: string): Depende
 }
 
 /**
+ * Packages that are still Safeword's (`ownedPackages` in .safeword/config.json):
+ * recorded with the range Safeword added, and still declared with that range.
+ * Read inline to keep the presets package self-contained.
+ */
+function readSafewordOwnedPackages(
+  rootDirectory: string,
+  declared: DependenciesRecord,
+): Set<string> {
+  try {
+    const { ownedPackages } = JSON.parse(
+      readFileSync(path.join(rootDirectory, '.safeword', 'config.json'), 'utf8'),
+    ) as { ownedPackages?: unknown };
+    if (typeof ownedPackages !== 'object' || ownedPackages === null) return new Set();
+    return new Set(
+      Object.entries(ownedPackages)
+        .filter(([name, range]) => typeof range === 'string' && declared[name] === range)
+        .map(([name]) => name),
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+/**
  * Collect all dependencies from root and workspace package.json files.
  * Supports npm/yarn workspaces and common monorepo patterns.
  */
 function collectAllDependencies(rootDirectory: string): DependenciesRecord {
   const rootPackagePath = path.join(rootDirectory, 'package.json');
-  const allDependencies = readPackageDependencies(rootPackagePath);
+  // A package Safeword added for its own tooling (typescript for the BDD steps)
+  // says nothing about the app, so a JavaScript app stays JavaScript.
+  const rootDependencies = readPackageDependencies(rootPackagePath);
+  const ownedPackages = readSafewordOwnedPackages(rootDirectory, rootDependencies);
+  const allDependencies: DependenciesRecord = Object.fromEntries(
+    Object.entries(rootDependencies).filter(([name]) => !ownedPackages.has(name)),
+  );
 
   // Scan each workspace pattern
   for (const pattern of getMonorepoPatterns(rootDirectory)) {

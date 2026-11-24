@@ -25,7 +25,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js Stop -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/stop-quality.ts"
+            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js Stop -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/stop-quality.ts",
+            "timeout": 2400
           }
         ]
       },

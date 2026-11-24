@@ -157,12 +157,24 @@ function expectTypedExhaustion(relativePath: string, call: ReviewCallSection): v
   const { kind, section } = call;
   const context = `${relativePath}:${kind}`;
   const normalized = section.replaceAll(/\s+/gu, ' ');
+  if (relativePath.endsWith('PLAN_EXECUTION.md')) {
+    expect(normalized, context).toContain('--agent-handoff --json');
+    expect(normalized, context).toContain('REVIEW_PENDING');
+    expect(normalized, context).toContain('REVIEW_CONTINUATION_REQUIRED');
+    expect(normalized, context).toContain('continuation_required');
+    expect(normalized, context).toContain('authenticated reduced independence');
+    return;
+  }
+  const planning = kind === 'scenario-gate' || kind === 'plan-implementation';
   expect(normalized, context).toContain('--agent-handoff --json');
   expect(normalized, context).toContain('`REVIEW_AUTHENTICATION_REQUIRED`');
   expect(normalized, context).toMatch(/execute its exact recovery command/iu);
   expect(normalized, context).toMatch(/rerun the same coordinator command once/iu);
   expect(section, context).toContain('REVIEW_PENDING');
-  expect(normalized, context).toMatch(/independence: degraded[^.]{0,240}not independent/iu);
+  if (planning) {
+    expect(normalized, context).toContain('REVIEW_CONTINUATION_REQUIRED');
+    expect(normalized, context).toContain('continuation_required');
+  }
   expect(normalized, context).toContain(
     'Never substitute another surface-private reviewer or hand-written independent evidence.',
   );
@@ -179,17 +191,13 @@ function expectTypedExhaustion(relativePath: string, call: ReviewCallSection): v
     return;
   }
 
-  if (kind !== 'quality-review') {
-    expect(normalized, context).toMatch(
-      /independence: degraded[^.]{0,240}do not stamp or advance/iu,
-    );
+  if (planning) {
+    expect(normalized, context).toContain('do not stamp or advance');
+    expect(normalized, context).toMatch(/continuation_required[^.]{0,320}finish-review/iu);
+  } else if (kind === 'quality-review') {
+    expect(section, context).toContain('REVIEW_ROUTES_EXHAUSTED');
+    expect(normalized, context).toContain('REVIEW_CONTINUATION_REQUIRED');
   }
-
-  expect(section, context).toContain('REVIEW_ROUTES_EXHAUSTED');
-  expect(normalized, context).toMatch(/Only when[^.]{0,240}REVIEW_ROUTES_EXHAUSTED/u);
-  expect(normalized, context).toMatch(
-    /REVIEW_ROUTES_EXHAUSTED[^.]{0,200}invoke[^.]{0,80}finish-review/iu,
-  );
 }
 
 function markedQualityRubric(content: string): string {
@@ -274,6 +282,7 @@ printf 'bunx:%s\n' "$*" >> "$CALL_LOG"`,
         // its way back up here rather than treating that subdirectory as the project.
         mkdirSync(nodePath.join(fixture, '.safeword'), { recursive: true });
         mkdirSync(nodePath.join(fixture, 'node_modules/.bin'), { recursive: true });
+        pinLocalSafeword(fixture);
         executable(
           nodePath.join(fixture, 'node_modules/.bin/safeword'),
           String.raw`pwd -P > "$CWD_LOG"
@@ -320,6 +329,17 @@ printf 'local:%s\n' "$*" >> "$CALL_LOG"`,
   }
 }
 
+/** Pin the fixture to the version its node_modules safeword reports, as a real install does. */
+function pinLocalSafeword(fixture: string): void {
+  mkdirSync(nodePath.join(fixture, '.safeword'), { recursive: true });
+  writeFileSync(nodePath.join(fixture, '.safeword/version'), '0.74.7\n');
+  mkdirSync(nodePath.join(fixture, 'node_modules/safeword'), { recursive: true });
+  writeFileSync(
+    nodePath.join(fixture, 'node_modules/safeword/package.json'),
+    '{"name":"safeword","version":"0.74.7"}',
+  );
+}
+
 describe('class-1 review surface parity', () => {
   it('keeps wrapper global-option parsing aligned with the CLI contract', () => {
     const valueless = new Set<string>();
@@ -345,6 +365,7 @@ describe('class-1 review surface parity', () => {
       const acknowledgement = nodePath.join(fixture, 'acknowledged');
       const probeEnvironment = nodePath.join(fixture, 'probe-environment.log');
       mkdirSync(localBin, { recursive: true });
+      pinLocalSafeword(fixture);
       executable(
         nodePath.join(localBin, 'safeword'),
         `if [ "$*" = "review run --help" ]; then printf '%s\n' "\${SAFEWORD_REVIEW_PROGRESS-unset}" > "$PROBE_ENVIRONMENT"; exit 0; fi
@@ -417,6 +438,7 @@ exit 2`,
       try {
         const localBin = nodePath.join(fixture, 'node_modules/.bin');
         mkdirSync(localBin, { recursive: true });
+        pinLocalSafeword(fixture);
         executable(
           nodePath.join(localBin, 'safeword'),
           `if [ "$*" = "review run --help" ]; then exit 0; fi
@@ -523,7 +545,7 @@ exit ${status}`,
 
       expect(commands, relativePath).not.toHaveLength(0);
       for (const command of commands) {
-        expect(command, relativePath).toMatch(/ --context .+ -- impl-plan\.md$/u);
+        expect(command, relativePath).toMatch(/ --context .+ -- ticket-path\/impl-plan\.md$/u);
       }
     },
   );
@@ -568,6 +590,7 @@ exit ${status}`,
     const lexical = (left: string, right: string): number => left.localeCompare(right);
     expect(callers.toSorted(lexical)).toEqual(
       [
+        'bdd/PLAN_EXECUTION.md',
         'bdd/PLAN_IMPLEMENTATION.md',
         'bdd/TDD.md',
         'quality-review/SKILL.md',
@@ -578,7 +601,19 @@ exit ${status}`,
       const calls = reviewCallSections(nodePath.join('skills', relativePath));
       expect(calls, relativePath).not.toHaveLength(0);
       for (const { kind, section } of calls) {
-        expectDispatchAuthorization(section, `${relativePath}:${kind}`);
+        if (relativePath.endsWith('PLAN_EXECUTION.md')) {
+          const normalized = section.replaceAll(/\s+/gu, ' ');
+          expect(normalized).toContain(
+            '**The dispatch is authorized; skipping it is not your call.**',
+          );
+          expect(normalized).toMatch(/do not stop and ask[^.]{0,80}consent in chat/iu);
+          expect(normalized).toContain(
+            'Never pass credentials, customer data, or secret-bearing files as targets or `--context`',
+          );
+          expect(normalized).toContain('Invoke the coordinator first');
+        } else {
+          expectDispatchAuthorization(section, `${relativePath}:${kind}`);
+        }
         expectTypedExhaustion(relativePath, { kind, section });
       }
     }
@@ -602,7 +637,17 @@ exit ${status}`,
         expect(calls, `${root}/${relativePath}`).not.toHaveLength(0);
         for (const call of calls) {
           const context = `${root}/${relativePath}:${call.kind}`;
-          expectDispatchAuthorization(call.section, context);
+          if (relativePath.endsWith('PLAN_EXECUTION.md')) {
+            const normalized = call.section.replaceAll(/\s+/gu, ' ');
+            expect(normalized, context).toContain(
+              '**The dispatch is authorized; skipping it is not your call.**',
+            );
+            expect(normalized, context).toContain(
+              'Never pass credentials, customer data, or secret-bearing files as targets or `--context`',
+            );
+          } else {
+            expectDispatchAuthorization(call.section, context);
+          }
           expectTypedExhaustion(`${root}/${relativePath}`, call);
         }
       }
@@ -682,6 +727,7 @@ exit ${status}`,
         requiredReviewFiles: [
           'quality-review/SKILL.md',
           'review-spec/SKILL.md',
+          'bdd/PLAN_EXECUTION.md',
           'bdd/PLAN_IMPLEMENTATION.md',
           'bdd/TDD.md',
         ],
@@ -696,6 +742,7 @@ exit ${status}`,
         requiredReviewFiles: [
           'quality-review/SKILL.md',
           'review-spec/SKILL.md',
+          'bdd/references/PLAN_EXECUTION.md',
           'bdd/references/PLAN_IMPLEMENTATION.md',
           'bdd/references/TDD.md',
         ],

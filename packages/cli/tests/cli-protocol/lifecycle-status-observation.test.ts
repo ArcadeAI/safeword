@@ -75,9 +75,12 @@ describe('lifecycle profile observation', () => {
     );
 
     expect(sharedRuntimePaths).toEqual([]);
-    // Non-runtime .safeword content Claude still reads stays installed.
+    // Project configuration and enrollment stay installed; the handbook copy is
+    // retired because the plugin ships its own.
     expect(schema.ownedFiles['.safeword/config.json']).toBeDefined();
-    expect(schema.ownedFiles['.safeword/SAFEWORD.md']).toBeDefined();
+    expect(schema.ownedFiles['.safeword/enrolled']).toBeDefined();
+    expect(schema.ownedFiles['.safeword/SAFEWORD.md']).toBeUndefined();
+    expect(schema.deprecatedFiles).toContain('.safeword/SAFEWORD.md');
   });
 
   it('keeps the shared runtime while legacy Claude delivery remains observable', () => {

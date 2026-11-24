@@ -21,17 +21,17 @@ const RETRO_SKIPS = [
   'define-behavior: retro',
   'scenario-gate: retro',
   'plan-implementation: retro',
+  'plan-execution: retro',
 ];
 import {
   boundaryTicketContent as ticketContent,
   createBoundaryPushFixture,
   git,
   readAudit,
-  shapeValidImplPlan,
 } from './boundary-helpers';
 
 const TICKET = '.project/tickets/BNP001-fixture';
-const IMPL_PLAN = `${TICKET}/impl-plan.md`;
+const EXECUTION_PLAN = `${TICKET}/execution-plan.md`;
 const LEDGER = `${TICKET}/test-definitions.md`;
 
 const MINIMAL_LEDGER = [
@@ -69,24 +69,24 @@ describe('safeword boundary (push tier: artifact-content anchors)', () => {
     removeTemporaryDirectory(remote);
   });
 
-  /** Advance to implement anchored on an impl-plan path that was never written. */
+  /** Advance to implement anchored on an execution-plan path that was never written. */
   function commitMissingArtifactAdvance() {
     writeTestFile(
       dir,
       `${TICKET}/ticket.md`,
-      ticketContent({ phase: 'implement', anchors: [`implement: ${IMPL_PLAN}`] }),
+      ticketContent({ phase: 'implement', anchors: [`implement: ${EXECUTION_PLAN}`] }),
     );
     git(dir, 'add -A');
     git(dir, 'commit -m advance --quiet');
   }
 
-  /** Advance to implement anchored on a committed shape-valid impl-plan. */
+  /** Advance to implement anchored on a committed execution plan. */
   function commitAnchoredAdvance() {
-    writeTestFile(dir, IMPL_PLAN, shapeValidImplPlan());
+    writeTestFile(dir, EXECUTION_PLAN, '# Execution Plan\n');
     writeTestFile(
       dir,
       `${TICKET}/ticket.md`,
-      ticketContent({ phase: 'implement', anchors: [`implement: ${IMPL_PLAN}`] }),
+      ticketContent({ phase: 'implement', anchors: [`implement: ${EXECUTION_PLAN}`] }),
     );
     git(dir, 'add -A');
     git(dir, 'commit -m advance --quiet');
@@ -185,7 +185,7 @@ describe('safeword boundary (push tier: artifact-content anchors)', () => {
     );
     git(dir, 'add -A');
     git(dir, 'commit -m c1 --quiet');
-    writeTestFile(dir, IMPL_PLAN, shapeValidImplPlan());
+    writeTestFile(dir, EXECUTION_PLAN, '# Execution Plan\n');
     writeTestFile(
       dir,
       `${TICKET}/ticket.md`,
@@ -194,7 +194,7 @@ describe('safeword boundary (push tier: artifact-content anchors)', () => {
         anchors: [
           `define-behavior: ${legacyHex}`,
           'scenario-gate: features/fixture.feature',
-          `implement: ${IMPL_PLAN}`,
+          `implement: ${EXECUTION_PLAN}`,
         ],
       }),
     );
@@ -214,7 +214,7 @@ describe('safeword boundary (push tier: artifact-content anchors)', () => {
         anchors: [
           `define-behavior: ${legacyHex}`,
           'scenario-gate: features/fixture.feature',
-          `implement: ${IMPL_PLAN}`,
+          `implement: ${EXECUTION_PLAN}`,
           `verify: ${LEDGER}`,
         ],
       }),
@@ -230,7 +230,7 @@ describe('safeword boundary (push tier: artifact-content anchors)', () => {
   });
 
   it('verifies ledger SHAs from history while anchors verify from the tree (SM1.R5)', async () => {
-    writeTestFile(dir, IMPL_PLAN, shapeValidImplPlan());
+    writeTestFile(dir, EXECUTION_PLAN, '# Execution Plan\n');
     writeTestFile(
       dir,
       LEDGER,
@@ -248,7 +248,7 @@ describe('safeword boundary (push tier: artifact-content anchors)', () => {
     writeTestFile(
       dir,
       `${TICKET}/ticket.md`,
-      ticketContent({ phase: 'implement', anchors: [`implement: ${IMPL_PLAN}`] }),
+      ticketContent({ phase: 'implement', anchors: [`implement: ${EXECUTION_PLAN}`] }),
     );
     git(dir, 'add -A');
     git(dir, 'commit -m advance-with-forged-ledger --quiet');
@@ -296,11 +296,11 @@ describe('safeword boundary (push tier: shallow clone)', () => {
   });
 
   it('a shallow clone verifies anchors with no unreachable-history hedging (SM1.R2)', async () => {
-    writeTestFile(shallow, IMPL_PLAN, shapeValidImplPlan());
+    writeTestFile(shallow, EXECUTION_PLAN, '# Execution Plan\n');
     writeTestFile(
       shallow,
       `${TICKET}/ticket.md`,
-      ticketContent({ phase: 'implement', anchors: [`implement: ${IMPL_PLAN}`] }),
+      ticketContent({ phase: 'implement', anchors: [`implement: ${EXECUTION_PLAN}`] }),
     );
     git(shallow, 'add -A');
     git(shallow, 'commit -m advance --quiet');

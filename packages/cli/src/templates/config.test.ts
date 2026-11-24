@@ -40,20 +40,20 @@ describe('getEslintConfig', () => {
   // shows up here before it ships broken configs to users.
   it.each([
     ['dependency scanning', 'detect.collectAllDeps(__dirname)'],
-    ['framework detection', 'detect.detectFramework(deps)'],
-    ['framework base-config selection', 'baseConfigs[framework]'],
+    ['framework detection', 'detect.detectFramework(dependencies)'],
+    ['framework base-config selection', 'baseConfigs.get(framework)'],
     ['Next.js base config', 'configs.recommendedTypeScriptNext'],
     ['React base config', 'configs.recommendedTypeScriptReact'],
     ['TypeScript base config', 'configs.recommendedTypeScript'],
     ['plain-JS base config', 'configs.recommended'],
-    ['conditional Vitest plugin', 'detect.hasVitest(deps)'],
-    ['conditional bun:test plugin', 'detect.hasBunTest(deps, __dirname)'],
-    ['conditional Playwright plugin', 'detect.hasPlaywright(deps)'],
-    ['conditional Storybook plugin', 'detect.hasStorybook(deps)'],
-    ['conditional TanStack Query plugin', 'detect.hasTanstackQuery(deps)'],
+    ['conditional Vitest plugin', 'detect.hasVitest(dependencies)'],
+    ['conditional bun:test plugin', 'detect.hasBunTest(dependencies, __dirname)'],
+    ['conditional Playwright plugin', 'detect.hasPlaywright(dependencies)'],
+    ['conditional Storybook plugin', 'detect.hasStorybook(dependencies)'],
+    ['conditional TanStack Query plugin', 'detect.hasTanstackQuery(dependencies)'],
     [
       'Tailwind detection (plugin needs tailwind.config to validate classes)',
-      'detect.hasTailwind(deps)',
+      'detect.hasTailwind(dependencies)',
     ],
     ['standard ignores', 'detect.getIgnores()'],
   ])('generated config wires %s', (_purpose, contractCall) => {

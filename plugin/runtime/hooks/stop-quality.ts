@@ -18,18 +18,12 @@ import { hasCitation, parseImplPlan, sectionBody } from './lib/impl-plan.ts';
 import { createLedgerShaResolver } from './lib/ledger-git.ts';
 import { validateLedger, wholeTicketPassApplies } from './lib/ledger-validation.ts';
 import {
-  AUTHOR_MODEL_ENV,
   hashArtifact,
   isArchitectureReviewGateEnabled,
   isTerminalHandoffCorrectionEnabled,
   isStopQualityReviewEnabled,
-  isCrossModelReviewRequired,
-  isSatisfyingCoordinatorReviewStamp,
-  isSatisfyingSkipStamp,
-  modelsMatch,
   parseReviewStamps,
-  readCrossAgentReviewPolicy,
-  reviewGateForNextAsset,
+  reviewGateForIndependentDesign,
   reviewScope,
 } from './lib/review-ledger.ts';
 import {
@@ -60,15 +54,17 @@ import { checkSkillInvocations, requiredSkillsForDone } from './lib/skill-invoca
 import { runTests } from './lib/test-runner.ts';
 import { changedFilesSinceHead, evaluateImplementStopTypecheck } from './lib/typecheck-gate.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
+import { resolveSessionProjectDirectory } from './lib/project-directory.ts';
 import { verifiedStamps } from './lib/verify-stamp-claims.ts';
 import { architectureDocumentNudgeForProject } from './lib/architecture-document-nudge.ts';
 import { evaluateParentContract } from './lib/product-plan-contract.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 
-installCrashCapture('stop-quality');
+const crashCapture = installCrashCapture('stop-quality');
 
 interface HookInput {
   session_id?: string;
+  cwd?: string;
   transcript_path?: string;
   stop_hook_active?: boolean;
   last_assistant_message?: string;
@@ -81,6 +77,10 @@ interface ContentItem {
   type: string;
   text?: string;
   name?: string; // tool_use: tool name
+  id?: string; // tool_use: call id
+  input?: { run_in_background?: unknown }; // tool_use: arguments
+  tool_use_id?: string; // tool_result: the call it answers
+  is_error?: boolean; // tool_result: the call failed
 }
 
 interface TranscriptMessage {
@@ -116,10 +116,6 @@ const TRANSCRIPT_SYSTEM_BLOCK_PATTERN = /<(system-reminder|task-notification)\b[
 /** Evidence patterns for done-phase validation (matched against Claude's last message text). */
 const TEST_EVIDENCE_PATTERN = /\d+\/\d+\s*tests?\s*pass/i; // "156/156 tests pass" or "✓ 156/156 tests pass"
 const USAGE_LIMIT_PATTERN = /\b(usage limit reached|5-hour limit reached)\b/i;
-
-const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-const safewordDir = `${projectDir}/.safeword`;
-const ticketsDir = `${resolveNamespaceRoot(projectDir)}/tickets`;
 
 interface TicketInfo {
   phase: BddPhase | undefined;
@@ -280,10 +276,8 @@ function checkImplPlanArtifact(ticketInfo: TicketInfo): void {
  * `.safeword/config.json` sets `architectureReviewGate: true`. For a new-flow
  * feature leaving implement (verify/done), require (a) the impl-plan Decisions
  * section to carry cited evidence — the /figure-it-out trace — and (b) a
- * design-review stamp bound to this ticket's impl-plan at its current content.
- * When `crossModelReview` is set, the satisfying real-review stamp must record a
- * model different from the author's (env `SAFEWORD_AUTHOR_MODEL`); an absent tag
- * fails closed. Runs AFTER checkImplPlanArtifact, so absent/malformed plans were
+ * design-review stamp bound to this ticket's impl-plan at its current content,
+ * at any achieved independence. Runs AFTER checkImplPlanArtifact, so absent/malformed plans were
  * already blocked there (precedence). Skips and exemptions are auditable.
  */
 function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
@@ -318,37 +312,11 @@ function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
   const stamps = existsSync(logPath)
     ? verifiedStamps(parseReviewStamps(readFileSync(logPath, 'utf8')), projectDir, scope)
     : [];
-  if (!reviewGateForNextAsset(scope, stamps, readCrossAgentReviewPolicy(rawConfig)).ok) {
+  if (!reviewGateForIndependentDesign(scope, stamps).ok) {
     hardBlockDone(
       'Architecture review gate: the impl-plan design has no independent design review at its current content. Run `safeword review run plan-implementation ...`, then record its author_agent, actual_reviewer, and independence with `bun "\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts impl-plan`; add a model only when independently verified.',
     );
   }
-
-  // Ceiling-raiser: under cross-model, a real-review stamp must record a model different from
-  // the author. Evaluate over ALL real-review stamps at this scope (the log is append-only, so a
-  // corrected re-review can sit after a same-model attempt) — pass if any is cross-model. A logged
-  // skip records no real-review stamp, so it deliberately bypasses cross-model: that is the same
-  // auditable escape valve every safeword gate carries, not an oversight.
-  if (isCrossModelReviewRequired(rawConfig)) {
-    if (stamps.some(stamp => isSatisfyingSkipStamp(scope, stamp))) return;
-    const modelVerifiedStamps = verifiedStamps(stamps, projectDir, scope, true);
-    const realReviews = modelVerifiedStamps.filter(stamp =>
-      isSatisfyingCoordinatorReviewStamp(scope, stamp, readCrossAgentReviewPolicy(rawConfig)),
-    );
-    const hasCrossModelReview = realReviews.some(
-      s => !modelsMatch(s.model, process.env[AUTHOR_MODEL_ENV]),
-    );
-    if (!hasCrossModelReview) {
-      hardBlockDone(
-        'Architecture review gate (cross-model): the design review must be performed by a different model than the author. Re-run `safeword review run plan-implementation ...` with a different configured reviewer model, then record its returned provenance and reviewer_model via `write-review-stamp.ts impl-plan`.',
-      );
-    }
-  }
-}
-
-// Not a safeword project, skip silently
-if (!existsSync(safewordDir)) {
-  process.exit(0);
 }
 
 // Read hook input from stdin
@@ -356,6 +324,19 @@ let input: HookInput;
 try {
   input = await Bun.stdin.json();
 } catch {
+  process.exit(0);
+}
+
+// The session's project: the tree its last edit landed in (a worktree, even
+// when the host's cwd and CLAUDE_PROJECT_DIR stay at the launch checkout),
+// else the rule applied to the host cwd (#5467). Every reader below uses it.
+const projectDir = resolveSessionProjectDirectory({ sessionId: input.session_id, cwd: input.cwd });
+crashCapture.setProject(projectDir);
+const safewordDir = `${projectDir}/.safeword`;
+const ticketsDir = `${resolveNamespaceRoot(projectDir)}/tickets`;
+
+// Not a safeword project, skip silently
+if (!existsSync(safewordDir)) {
   process.exit(0);
 }
 
@@ -409,9 +390,11 @@ checkArchitectureReviewGate(ticketInfo);
 // the prior bounded fallback. The done phase always falls through to its gate.
 const editsToReview = detectEditsToReview(lines);
 const currentTurnToolEvidence = detectToolUseInCurrentUserTurn(lines, () => true);
+// A turn whose last tool call launches background work is waiting, not handing off;
+// the results arrive in a new turn that is checked on its own stop (#5765, #1431).
 const terminalHandoffEvidence = editsToReview
   ? 'current-turn-edit'
-  : currentTurnToolEvidence === true
+  : currentTurnToolEvidence === true && !endsWaitingOnBackgroundWork(lines)
     ? 'current-turn-tool'
     : 'none';
 
@@ -522,12 +505,14 @@ function detectEditToolsUsedInCurrentUserTurn(
   );
 }
 
-/** Attribute matching tool use only to the user turn that currently ends the transcript. */
-function detectToolUseInCurrentUserTurn(
+/**
+ * Yield the current user turn's messages newest-first. The return value says how
+ * the walk ended: at the turn's start, at the record cap, or at the start of an
+ * unbounded (byte-truncated) tail with no turn boundary.
+ */
+function* currentUserTurnMessages(
   transcriptLines: string[],
-  matches: (name: string | undefined) => boolean,
-): boolean | typeof CURRENT_TURN_BOUNDARY_EXHAUSTED | undefined {
-  let foundTool = false;
+): Generator<TranscriptMessage, 'turn-start' | 'exhausted' | 'no-boundary'> {
   const firstRecord = Math.max(0, transcriptLines.length - MAX_CURRENT_TURN_SCAN_RECORDS);
   for (let i = transcriptLines.length - 1; i >= firstRecord; i--) {
     // An unparseable line is skipped, not a boundary: preserve the legacy
@@ -535,15 +520,62 @@ function detectToolUseInCurrentUserTurn(
     const message = parseTranscriptLine(transcriptLines[i]);
     if (message === undefined) continue;
     const precedingMessage = i > 0 ? parseTranscriptLine(transcriptLines[i - 1]) : undefined;
-    if (startsNewTurn(message, precedingMessage)) return foundTool;
-    if (isAssistantMessage(message)) {
-      foundTool ||= normalizeContentItems(message.message?.content).some(
+    if (startsNewTurn(message, precedingMessage)) return 'turn-start';
+    yield message;
+  }
+  return firstRecord > 0 ? 'exhausted' : 'no-boundary';
+}
+
+/** Attribute matching tool use only to the user turn that currently ends the transcript. */
+function detectToolUseInCurrentUserTurn(
+  transcriptLines: string[],
+  matches: (name: string | undefined) => boolean,
+): boolean | typeof CURRENT_TURN_BOUNDARY_EXHAUSTED | undefined {
+  let foundTool = false;
+  const walk = currentUserTurnMessages(transcriptLines);
+  for (let step = walk.next(); ; step = walk.next()) {
+    if (step.done) {
+      if (step.value === 'turn-start') return foundTool;
+      return step.value === 'exhausted' ? CURRENT_TURN_BOUNDARY_EXHAUSTED : undefined;
+    }
+    if (isAssistantMessage(step.value)) {
+      foundTool ||= normalizeContentItems(step.value.message?.content).some(
         item => item.type === 'tool_use' && matches(item.name),
       );
     }
   }
-  if (firstRecord > 0) return CURRENT_TURN_BOUNDARY_EXHAUSTED;
-  return undefined;
+}
+
+/**
+ * Whether the current user turn's final tool call launched background work that
+ * actually started — an errored launch started nothing, so the turn is not waiting.
+ */
+function endsWaitingOnBackgroundWork(transcriptLines: string[]): boolean {
+  // Results follow their call, so scanning backward meets a failed result first.
+  const failedToolUseIds = new Set<string>();
+  for (const message of currentUserTurnMessages(transcriptLines)) {
+    const content = normalizeContentItems(message.message?.content);
+    if (!isAssistantMessage(message)) {
+      for (const item of content) {
+        if (item.type === 'tool_result' && item.is_error === true && item.tool_use_id) {
+          failedToolUseIds.add(item.tool_use_id);
+        }
+      }
+      continue;
+    }
+    const toolUse = content.findLast(item => item.type === 'tool_use');
+    if (toolUse) return isBackgroundLaunch(toolUse) && !failedToolUseIds.has(toolUse.id ?? '');
+  }
+  return false;
+}
+
+/** Claude Code's background launches: Bash/Agent with run_in_background, and Monitor. */
+function isBackgroundLaunch(toolUse: ContentItem): boolean {
+  if (toolUse.name === 'Monitor') return true;
+  return (
+    (toolUse.name === 'Bash' || toolUse.name === 'Agent') &&
+    toolUse.input?.run_in_background === true
+  );
 }
 
 function normalizeContentItems(content: ContentItem[] | string | undefined): ContentItem[] {

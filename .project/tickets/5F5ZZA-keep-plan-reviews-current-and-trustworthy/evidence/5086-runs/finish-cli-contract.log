@@ -1,0 +1,10 @@
+$ bun run --cwd packages/cli check:cli-contract
+$ bun scripts/check-cli-contract.ts
+✓ build
+✓ runtime, aliases, help, capabilities, fixtures, and documentation
+✓ generated CLI reference
+✓ canonical CLI terminology
+✓ generated Claude plugin
+✓ generated Codex plugin
+✓ Claude plugin release contract
+CLI contract is consistent.

@@ -1,0 +1,15 @@
+{
+  "package.json": "61d6e54e858ba2b9227244691b5ef0e002879f06a2c5e3d944092108314638f5",
+  "packages/cli/templates/hooks/lib/test-runner.ts": "790bf270b386f520be424d12ee88019aa9aaa425e01bf791067a984e0e627ac4",
+  "packages/cli/src/templates/config.ts": "11393ba52503886e7e703d38803c1b9bbac3e4987e3eec1c0350cd1db8ff05ce",
+  "packages/cli/src/codex-plugin/hooks.ts": "13d3e6a0453389be3f3c5b4a1b23b78f4962a56af758e9116170cba207001420",
+  "packages/cli/src/opencode/plugin.ts": "9397c7c2b42565dea98ad5eb362ae4fb19103090f9dcbf8be98c80a2b4465cf3",
+  "packages/cli/scripts/generate-codex-plugin.ts": "ce98ddb1d581bfac705db61ab6d0ee80efe01c38c026c4306bc11bd2db81aa17",
+  "packages/cli/tests/hooks/completion-hook-budget.test.ts": "feac63e4d28563506f0e7fed59c8d937e574d751698ee149685f3d7cc16de098",
+  "packages/cli/tests/hooks/test-runner.test.ts": "8e29610bdb8cbd7522018d8e6af6ee74f510eff4db153f0137a9e11f359ced26",
+  "packages/cli/tests/hooks/test-runner-timeout.test.ts": "d2fee0321fd3c18ded7950a5232eec0ffc5b109a4b0587704099be38b7b01c88",
+  "packages/cli/src/commands/delivery-checklist.ts": "84b936ac66b8ad0c42c10ec9a02f3603c3094dfbbb81aef3fe92074da8becadc",
+  "packages/cli/src/execution-plan/delivery-checklist.ts": "e75a0ed9127e8be4949275ed63cdedeec5408bd4ee9abf69fc6291b3b65f6304",
+  "packages/cli/src/review/execution-plan-output.ts": "b710d8b10a6364f7d46a0ae9621adf5f59ade5b7053b61136e5869072e0fdfc1",
+  "packages/cli/src/review/runtime.ts": "18716e8b766ece8b5044b9306b5f63154dd3bdf6d1ba325afa376a7eef40d1ed"
+}

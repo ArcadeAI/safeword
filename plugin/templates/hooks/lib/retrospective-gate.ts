@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
-import { realpathSync } from 'node:fs';
-import nodePath from 'node:path';
+
+import { trustedEnvironment, trustedSafewordClis } from './safeword-cli.ts';
 
 export interface RetrospectiveGateClaim {
   readonly ticketId: string;
@@ -10,52 +10,15 @@ export interface RetrospectiveGateClaim {
   readonly proofId: string;
 }
 
-function trustedCommand(projectRoot: string): readonly [string, ...string[]] | undefined {
-  const explicit = process.env.SAFEWORD_PLUGIN_CLI?.trim();
-  const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT?.trim();
-  const candidate = explicit || (pluginRoot ? nodePath.join(pluginRoot, 'runtime', 'cli.js') : '');
-  if (candidate === '') return undefined;
-  try {
-    const cli = realpathSync.native(candidate);
-    const project = realpathSync.native(projectRoot);
-    const runtime = realpathSync.native(process.execPath);
-    const inside = [cli, runtime].some(path => {
-      const relative = nodePath.relative(project, path);
-      return (
-        relative === '' ||
-        (relative !== '..' &&
-          !relative.startsWith(`..${nodePath.sep}`) &&
-          !nodePath.isAbsolute(relative))
-      );
-    });
-    if (inside) return undefined;
-    return process.versions.bun === undefined ? [runtime, cli] : [runtime, '--no-env-file', cli];
-  } catch {
-    return undefined;
-  }
-}
-
-const RUNTIME_ENVIRONMENT = new Set(
-  [
-    'PATH',
-    'HOME',
-    'USERPROFILE',
-    'APPDATA',
-    'LOCALAPPDATA',
-    'SystemRoot',
-    'XDG_STATE_HOME',
-    'XDG_CONFIG_HOME',
-    'XDG_CACHE_HOME',
-    'CODEX_HOME',
-    'NODE_ENV',
-    'SAFEWORD_REVIEW_KEY_ROOT',
-  ].map(name => name.toUpperCase()),
-);
-
-function runtimeEnvironment(): NodeJS.ProcessEnv {
-  return Object.fromEntries(
-    Object.entries(process.env).filter(([name]) => RUNTIME_ENVIRONMENT.has(name.toUpperCase())),
-  );
+/** The first trusted CLI; the shared lookup keeps runtime and script outside the project. */
+function trustedCommand(
+  projectRoot: string,
+): { argv: readonly [string, ...string[]]; cwd: string; timeout: number } | undefined {
+  const cli = trustedSafewordClis(projectRoot)[0];
+  if (cli === undefined) return undefined;
+  // A first `bun x` run may download the pinned package.
+  const timeout = cli.downloads === true ? 30_000 : 10_000;
+  return { argv: [cli.command, ...cli.args], cwd: cli.cwd, timeout };
 }
 
 /** Invoke the installed runtime, never a project-writable source file. */
@@ -65,7 +28,7 @@ export function retrospectiveGateDenial(
 ): string | undefined {
   const command = trustedCommand(projectRoot);
   if (command === undefined) return 'A trusted installed Safeword CLI is unavailable.';
-  const [executable, ...prefix] = command;
+  const [executable, ...prefix] = command.argv;
   const result = spawnSync(
     executable,
     [
@@ -89,10 +52,10 @@ export function retrospectiveGateDenial(
       claim.proofId,
     ],
     {
-      cwd: nodePath.dirname(prefix.at(-1) ?? executable),
-      env: runtimeEnvironment(),
+      cwd: command.cwd,
+      env: trustedEnvironment(projectRoot),
       encoding: 'utf8',
-      timeout: 30_000,
+      timeout: command.timeout,
       maxBuffer: 1024 * 1024,
     },
   );
@@ -130,7 +93,7 @@ export function retrospectiveCloseDenial(
 ): string | undefined {
   const command = trustedCommand(projectRoot);
   if (command === undefined) return 'A trusted installed Safeword CLI is unavailable.';
-  const [executable, ...prefix] = command;
+  const [executable, ...prefix] = command.argv;
   const result = spawnSync(
     executable,
     [
@@ -148,10 +111,10 @@ export function retrospectiveCloseDenial(
       ledger,
     ],
     {
-      cwd: nodePath.dirname(prefix.at(-1) ?? executable),
-      env: runtimeEnvironment(),
+      cwd: command.cwd,
+      env: trustedEnvironment(projectRoot),
       encoding: 'utf8',
-      timeout: 10_000,
+      timeout: command.timeout,
       maxBuffer: 1024 * 1024,
     },
   );

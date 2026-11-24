@@ -10,12 +10,20 @@ import process from 'node:process';
 
 const projectRoot = import.meta.dirname;
 
+/**
+ * Keep a configured path only when it is a non-empty string.
+ * @param {unknown} value - Raw value read from .safeword/config.json.
+ * @returns {string | undefined} The value, or undefined when unusable.
+ */
 function nonEmptyString(value) {
   return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
-// Configured lane directories from .safeword/config.json (safe on missing or
-// unparseable config — defaults below always apply).
+/**
+ * Configured lane directories from .safeword/config.json (safe on missing or
+ * unparseable config — defaults below always apply).
+ * @returns {{ features: string | undefined, steps: string | undefined }} Relocated lane directories.
+ */
 function readConfiguredLaneDirectories() {
   try {
     const config = JSON.parse(
@@ -53,33 +61,89 @@ const workspaceStepImports = [
 const defaultTags = 'not @wip and not @proof.vitest and not @manual and not @live';
 const liveTags = '@live and not @manual';
 
-const cliFeatureDirectories = new Set([
-  'features',
-  'packages',
-  'apps',
-  'libs',
-  'modules',
-  // A bare configured directory passed as a positional arg is a feature path
-  // too — without this, `cucumber-js tests/behaviors` would still get the
-  // config's default paths merged in.
-  ...(configuredFeaturesDirectory
-    ? [configuredFeaturesDirectory, configuredFeaturesDirectory.split('/', 1)[0]]
-    : []),
+// Cucumber options that take a value (`--name <REGEXP>`, `-f <TYPE>`). That
+// value is never a feature path, even when it ends in `.feature`; the
+// `--option=value` form is a single argument and needs no special case.
+const valueTakingLongOptions = new Set([
+  '--config',
+  '--format',
+  '--format-options',
+  '--i18n-keywords',
+  '--import',
+  '--loader',
+  '--language',
+  '--name',
+  '--order',
+  '--profile',
+  '--parallel',
+  '--plugin',
+  '--plugin-options',
+  '--require',
+  '--require-module',
+  '--retry',
+  '--retry-tag-filter',
+  '--shard',
+  '--tags',
+  '--world-parameters',
 ]);
+// Short flags `-c -f -i -l -p -r -t` take a value. In a cluster (`-df`), the
+// first value-taking flag takes the rest of the cluster as its value
+// (`-fsummary`), or the next argument when it is the cluster's last flag.
+const shortClusterEndingInValueFlag = /^-[^cfilprt]*[cfilprt]$/;
 
-function isCliFeaturePathArgument(argument) {
-  if (argument.startsWith('-')) return false;
-  return (
-    argument.endsWith('.feature') ||
-    argument.includes('*.feature') ||
-    cliFeatureDirectories.has(argument)
-  );
+/**
+ * Whether an option argument consumes the next argument as its value.
+ * @param {string} option - An argument starting with `-`.
+ * @returns {boolean} True when the next argument is this option's value.
+ */
+function consumesNextArgument(option) {
+  if (option.startsWith('--')) {
+    return valueTakingLongOptions.has(option);
+  }
+  return shortClusterEndingInValueFlag.test(option);
 }
 
+/**
+ * Cucumber reads every positional argument as a feature path (a file, a
+ * directory, a glob, or `file.feature:12`): everything except options and
+ * their values, plus every argument after a bare `--`.
+ * @param {string[]} argv - CLI arguments after the executable.
+ * @returns {string[]} The positional arguments.
+ */
+function positionalArguments(argv) {
+  const positionals = [];
+  let skipNext = false;
+  for (const [index, argument] of argv.entries()) {
+    // A pending option value comes first: `--name --` uses `--` as the name.
+    if (skipNext) {
+      skipNext = false;
+    } else if (argument === '--') {
+      return [...positionals, ...argv.slice(index + 1)];
+    } else if (argument.startsWith('-') && argument !== '-') {
+      skipNext = consumesNextArgument(argument);
+    } else {
+      positionals.push(argument);
+    }
+  }
+  return positionals;
+}
+
+/**
+ * Whether the cucumber-js invocation names features. Any CLI feature path
+ * replaces the default globs, so a targeted run never picks up unselected
+ * scenarios.
+ * @param {string[]} argv - CLI arguments after the executable.
+ * @returns {boolean} True when any argument selects features.
+ */
 export function hasCliFeaturePath(argv = process.argv.slice(2)) {
-  return argv.some(argument => isCliFeaturePathArgument(argument));
+  return positionalArguments(argv).length > 0;
 }
 
+/**
+ * Build the default lane config; CLI feature paths replace the default globs.
+ * @param {string[]} argv - CLI arguments after the executable.
+ * @returns {Record<string, unknown>} cucumber-js configuration.
+ */
 export function buildCucumberConfig(argv = process.argv.slice(2)) {
   const config = {
     import: workspaceStepImports,
@@ -93,6 +157,11 @@ export function buildCucumberConfig(argv = process.argv.slice(2)) {
   return config;
 }
 
+/**
+ * Build the `live` profile: the default lane config restricted to `@live` scenarios.
+ * @param {string[]} argv - CLI arguments after the executable.
+ * @returns {Record<string, unknown>} cucumber-js configuration.
+ */
 function buildLiveCucumberConfig(argv = process.argv.slice(2)) {
   return {
     ...buildCucumberConfig(argv),

@@ -84,4 +84,32 @@ describe('installCrashCapture (QYYC5Y)', () => {
     expect(records[0]?.agent).toBe('cursor');
     expect(records[0]?.source).toBe('cursor-after-file-edit');
   });
+
+  it('records a crash in the project the hook resolved to, once it knows it (#5467)', () => {
+    // A hook installs the backstop before reading input, so it starts on the
+    // launch checkout; once it resolves the worktree it is working in, a crash
+    // belongs to that worktree.
+    const launch = nodePath.join(directory, 'launch');
+    const worktree = nodePath.join(directory, 'worktree');
+    const fixture = nodePath.join(directory, 'resolving-hook.ts');
+    writeFileSync(
+      fixture,
+      [
+        `import { installCrashCapture } from ${JSON.stringify(LIB)};`,
+        `const crashCapture = installCrashCapture('resolving-hook', ${JSON.stringify(launch)});`,
+        `crashCapture.setProject(${JSON.stringify(worktree)});`,
+        "throw new Error('boom');",
+      ].join('\n'),
+    );
+
+    const result = spawnSync('bun', [fixture], {
+      cwd: directory,
+      encoding: 'utf8',
+      timeout: TIMEOUT_QUICK,
+    });
+
+    expect(result.status).toBe(0);
+    expect(readReports(worktree)).toHaveLength(1);
+    expect(readReports(launch)).toHaveLength(0);
+  });
 });

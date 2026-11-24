@@ -63,7 +63,7 @@ Feature: Rank local reviewers and models
     Scenario: Same-author success cannot satisfy independent review
       Given a same-author route appears before an independent route and will succeed
       When a review starts through the public command
-      Then it is labelled degraded, the later independent route is attempted, and its success records an independent review
+      Then the independent route is attempted first and its success records an independent review
 
     Scenario: Last same-author success remains degraded
       Given every independent route failed before a final same-author route that will succeed

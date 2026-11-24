@@ -3,8 +3,9 @@
 // Shows current safeword version and confirms hooks are active
 
 import { existsSync } from 'node:fs';
+import { readSessionProjectDirectory } from './lib/project-directory.ts';
 
-const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const projectDir = readSessionProjectDirectory();
 const safewordDir = `${projectDir}/.safeword`;
 
 // Not a safeword project, skip silently

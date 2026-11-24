@@ -272,6 +272,71 @@ describe('review-receipt wiring (write-review-stamp.ts ↔ review status --json)
     expect(result.stdout).toMatch(/reviewer/u);
   });
 
+  describe('implement phase on a branch that regenerates mirrors (#5870)', () => {
+    const git = (...args: string[]): void => {
+      const result = spawnSync('git', ['-C', projectRoot, ...args], { encoding: 'utf8' });
+      if (result.status !== 0) throw new Error(`git ${args.join(' ')}: ${result.stderr}`);
+    };
+    const writeProjectFile = (relative: string, content: string): void => {
+      mkdirSync(nodePath.dirname(nodePath.join(projectRoot, relative)), { recursive: true });
+      writeFileSync(nodePath.join(projectRoot, relative), content);
+    };
+
+    /** A branch that edits src/ and mirror/; `.gitattributes` differs per side. */
+    function branchWithMirror(baseAttributes: string, branchAttributes: string): void {
+      git('init', '-q', '-b', 'main');
+      git('config', 'user.email', 'test@example.com');
+      git('config', 'user.name', 'Test');
+      git('config', 'commit.gpgsign', 'false');
+      writeProjectFile('.gitattributes', baseAttributes);
+      writeProjectFile('src/feature.ts', 'export const a = 1;\n');
+      writeProjectFile('mirror/feature.js', 'export const a = 1;\n');
+      git('add', '-A');
+      git('commit', '-q', '-m', 'base');
+      git('checkout', '-q', '-b', 'work');
+      writeProjectFile('.gitattributes', branchAttributes);
+      writeProjectFile('src/feature.ts', 'export const a = 2;\n');
+      writeProjectFile('mirror/feature.js', 'export const a = 2;\n');
+      git('add', '-A');
+      git('commit', '-q', '-m', 'work');
+    }
+
+    const stampSourceOnlyReview = (): ReturnType<typeof runStamp> => {
+      stubCoordinator({
+        ...approvedEnvelope,
+        review_kind: 'quality-review',
+        review_targets: ['src/feature.ts'],
+      });
+      return runStamp(
+        '--independence',
+        'cross-agent',
+        '--review-id',
+        REVIEW_ID,
+        '--phase',
+        'implement',
+      );
+    };
+
+    it('stamps a review of only the hand-written files when the base marks the mirror', () => {
+      branchWithMirror('mirror/** linguist-generated\n', 'mirror/** linguist-generated\n');
+
+      const result = stampSourceOnlyReview();
+
+      expect(result.status).toBe(0);
+      expect(readLog()).toContain('phase@implement');
+    });
+
+    it('refuses, naming the mirror, when only the branch marks it generated', () => {
+      branchWithMirror('', 'mirror/** linguist-generated\n');
+
+      const result = stampSourceOnlyReview();
+
+      expect(result.status).not.toBe(0);
+      expect(result.stdout).toMatch(/not reviewed: .*mirror\/feature\.js/u);
+      expect(readLog()).toBe('');
+    });
+  });
+
   it('still writes a stamp naming a model, which the receipt does not record', () => {
     const result = stampImplPlan('--model', 'claude-opus-5');
 
@@ -510,6 +575,22 @@ describe('review-receipt trust and aggregate budget', () => {
     expect(existsSync(marker)).toBe(false);
   });
 
+  it('passes only host settings to the trusted CLI, not runtime option variables', () => {
+    process.env.CLAUDE_PLUGIN_ROOT = pluginRoot;
+    mkdirSync(nodePath.join(pluginRoot, 'runtime'), { recursive: true });
+    // Approves only when the non-host variable did not reach it.
+    writeFileSync(
+      nodePath.join(pluginRoot, 'runtime', 'cli.js'),
+      `if (process.env.NODE_OPTIONS_FORGE === undefined) process.stdout.write(${JSON.stringify(JSON.stringify({ data: approvedEnvelope }))});`,
+    );
+    process.env.NODE_OPTIONS_FORGE = '--require ./forge.js';
+    try {
+      expect(readReviewReceipt(REVIEW_ID, projectRoot)?.status).toBe('approved');
+    } finally {
+      delete process.env.NODE_OPTIONS_FORGE;
+    }
+  });
+
   it('runs the package fallback outside the reviewed project', () => {
     delete process.env.CLAUDE_PLUGIN_ROOT;
     process.env.CODEX_HOME = pluginRoot;
@@ -518,9 +599,10 @@ describe('review-receipt trust and aggregate budget', () => {
     mkdirSync(nodePath.join(projectRoot, '.safeword'), { recursive: true });
     writeFileSync(nodePath.join(projectRoot, '.safeword', 'version'), '0.83.1\n');
     mkdirSync(trustedBin, { recursive: true });
+    // The fallback is `bun x --bun safeword@<version>` through a Bun outside the project.
     writeFileSync(
-      nodePath.join(trustedBin, 'bunx'),
-      `#!/bin/sh\nif [ -n "$SAFEWORD_REVIEW_PROGRESS" ]; then exit 9; fi\npwd > ${JSON.stringify(marker)}\nprintf '%s' '${JSON.stringify({ data: approvedEnvelope })}'\n`,
+      nodePath.join(trustedBin, 'bun'),
+      `#!/bin/sh\nif [ -n "$SAFEWORD_REVIEW_PROGRESS" ]; then exit 9; fi\n[ "$1 $2 $3" = "x --bun safeword@0.83.1" ] || exit 7\npwd > ${JSON.stringify(marker)}\nprintf '%s' '${JSON.stringify({ data: approvedEnvelope })}'\n`,
       { mode: 0o755 },
     );
     process.env.PATH = `${trustedBin}${nodePath.delimiter}${previousPath ?? ''}`;

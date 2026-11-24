@@ -8,6 +8,10 @@
 import { lstatSync, readdirSync, readlinkSync, unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { getOwnedPackages } from './packs/config.js';
+import { parsePlanningContract } from './planning/phase-contract.js';
+import { assertGeneratedSharedClauses } from './planning/shared-clause-integrity.js';
+import { extractExecutionPlanReviewRubric } from './review/execution-plan-rubric.js';
 import type {
   FileDefinition,
   JsonMergeDefinition,
@@ -16,6 +20,7 @@ import type {
   SafewordSchema,
   TextPatchDefinition,
 } from './schema.js';
+import { PLANNING_CONTRACT_TEMPLATE_PATHS } from './schema.js';
 import {
   NAMESPACE_ROOT_LEGACY,
   readConfiguredPath,
@@ -42,6 +47,9 @@ import { getWorkspacePackageNames } from './utils/workspaces.js';
 // ============================================================================
 
 const HUSKY_DIR = '.husky';
+const PLANNING_CONTRACT_TEMPLATES: ReadonlySet<string> = new Set(
+  Object.values(PLANNING_CONTRACT_TEMPLATE_PATHS),
+);
 
 /**
  * Directories containing executable scripts that need chmod +x.
@@ -59,15 +67,41 @@ const PRETTIER_PACKAGES = new Set([
   'prettier-plugin-sh',
 ]);
 
-// Conditional-package keys whose condition is the ABSENCE of existing tooling,
-// rather than a truthy ProjectType field: "standard" = no existing formatter.
-const INVERTED_PACKAGE_CONDITIONS: Record<string, (projectType: ProjectType) => boolean> = {
+// Conditional-package keys whose condition is derived rather than a truthy
+// ProjectType field of the same name: "standard" = no existing formatter;
+// "typescriptToolchain" = the TypeScript BDD lane is scaffolded and no
+// typescript is declared or resolvable yet.
+const DERIVED_PACKAGE_CONDITIONS: Record<string, (projectType: ProjectType) => boolean> = {
   standard: projectType => !projectType.existingFormatter,
+  typescriptToolchain: projectType =>
+    projectType.scaffoldBddLane && !projectType.typescriptAvailable,
 };
+
+// Conditional-package keys whose condition stops holding once their packages are
+// installed. Install records these packages as Safeword-owned; full uninstall
+// removes them only when that record exists.
+const OWNERSHIP_TRACKED_GROUPS = ['typescriptToolchain'];
+
+/**
+ * Names of the packages in `packages` that install must record as Safeword-owned.
+ *
+ * @param schema - Safeword schema
+ * @param packages - Package specifiers install is adding
+ * @returns Package names (no version specifiers) to record
+ */
+export function ownershipTrackedPackageNames(
+  schema: SafewordSchema,
+  packages: readonly string[],
+): string[] {
+  const tracked = new Set(
+    OWNERSHIP_TRACKED_GROUPS.flatMap(group => schema.packages.conditional[group] ?? []),
+  );
+  return packages.filter(pkg => tracked.has(pkg)).map(pkg => stripVersionSpecifier(pkg));
+}
 
 /**
  * Get conditional packages based on project type.
- * Handles inverted keys (standard) and prettier filtering for existing formatters.
+ * Handles derived keys (standard, typescriptToolchain) and prettier filtering for existing formatters.
  */
 function getConditionalPackages(
   conditionalPackages: Record<string, string[]>,
@@ -76,9 +110,9 @@ function getConditionalPackages(
   const packages: string[] = [];
 
   for (const [key, dependencies] of Object.entries(conditionalPackages)) {
-    const inverted = INVERTED_PACKAGE_CONDITIONS[key];
-    if (inverted) {
-      if (inverted(projectType)) packages.push(...dependencies);
+    const derived = DERIVED_PACKAGE_CONDITIONS[key];
+    if (derived) {
+      if (derived(projectType)) packages.push(...dependencies);
       continue;
     }
 
@@ -706,14 +740,6 @@ function isConfigOverridden(definition: ManagedFileDefinition, cwd: string): boo
 }
 
 /**
- * Plan actions for managed files (only create if missing).
- *
- * Entries with a `configKey` whose `paths.<configKey>` override is set in
- * `.safeword/config.json` are suppressed — the user has redirected
- * safeword to read from elsewhere, so the default location is no longer
- * safeword's concern (ticket K7N2QM).
- */
-/**
  * Whether an already-installed managed file should be rewritten on upgrade.
  *
  * Managed files are create-only so an upgrade never clobbers a customized one.
@@ -734,6 +760,16 @@ function shouldRefreshManagedFile(
   return matchesManagedScaffold(definition, ctx, installed);
 }
 
+/**
+ * Plan upgrade actions for managed files: create missing ones, and rewrite an
+ * existing one only when `shouldRefreshManagedFile` allows it. Rewrites are
+ * reported in `updated` so the upgrade preview lists them.
+ *
+ * Entries with a `configKey` whose `paths.<configKey>` override is set in
+ * `.safeword/config.json` are suppressed — the user has redirected
+ * safeword to read from elsewhere, so the default location is no longer
+ * safeword's concern (ticket K7N2QM).
+ */
 function planManagedFilesActions(
   managedFiles: Record<string, ManagedFileDefinition>,
   ctx: ProjectContext,
@@ -780,10 +816,11 @@ function computeUpgradePlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
   wouldCreate.push(...ownedFilesResult.created);
   wouldUpdate.push(...ownedFilesResult.updated);
 
-  // 3. Create missing managed files (don't update existing)
+  // 3. Create missing managed files; refresh only unmodified opt-in scaffolds
   const managedFilesResult = planManagedFilesActions(schema.managedFiles, ctx);
   actions.push(...managedFilesResult.actions);
   wouldCreate.push(...managedFilesResult.created);
+  wouldUpdate.push(...managedFilesResult.updated);
 
   // 3b. Remove exact conditional scaffolds when their feature is disabled.
   const omittedManagedFiles = planOmittedManagedRemoval(schema.managedFiles, ctx);
@@ -927,7 +964,12 @@ function computeUninstallPlan(
   // 7. Compute packages to remove (full only)
   let packagesToRemove: string[] = [];
   if (full) {
-    packagesToRemove = computePackagesToRemove(schema, ctx.projectType, ctx.developmentDeps);
+    packagesToRemove = computePackagesToRemove(
+      schema,
+      ctx.projectType,
+      ctx.developmentDeps,
+      getOwnedPackages(ctx.cwd),
+    );
   } else if (Object.hasOwn(ctx.developmentDeps, 'safeword')) {
     packagesToRemove = ['safeword'];
   }
@@ -1249,7 +1291,14 @@ function resolveFileContent(definition: FileDefinition, ctx: ProjectContext): st
 
   if (definition.template) {
     const templatesDirectory = getTemplatesDirectory();
-    return readFile(nodePath.join(templatesDirectory, definition.template));
+    const content = readFile(nodePath.join(templatesDirectory, definition.template));
+    if (PLANNING_CONTRACT_TEMPLATES.has(definition.template)) {
+      assertGeneratedSharedClauses(content, definition.template);
+    }
+    if (definition.template === PLANNING_CONTRACT_TEMPLATE_PATHS.execution) {
+      parsePlanningContract('plan-execution', extractExecutionPlanReviewRubric(content));
+    }
+    return content;
   }
 
   if (definition.content) {
@@ -1291,10 +1340,17 @@ function computePackagesToRemove(
   schema: SafewordSchema,
   projectType: ProjectType,
   installedDevelopmentDependencies: Record<string, string>,
+  ownedPackages: readonly string[],
 ): string[] {
+  const ownedTracked = OWNERSHIP_TRACKED_GROUPS.flatMap(
+    group => schema.packages.conditional[group] ?? [],
+  ).filter(pkg => ownedPackages.includes(stripVersionSpecifier(pkg)));
   const safewordPackages = [
-    ...schema.packages.base,
-    ...getConditionalPackages(schema.packages.conditional, projectType),
+    ...new Set([
+      ...schema.packages.base,
+      ...getConditionalPackages(schema.packages.conditional, projectType),
+      ...ownedTracked,
+    ]),
   ];
 
   // Only remove packages that are actually installed

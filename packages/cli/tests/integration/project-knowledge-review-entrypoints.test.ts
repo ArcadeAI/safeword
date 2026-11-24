@@ -43,6 +43,7 @@ const PROJECT_TYPE = {
   publishableLibrary: false,
   shell: false,
   hasJsSource: false,
+  typescriptAvailable: false,
   existingLinter: false,
   existingFormatter: false,
   existingPrettierConfig: false,
@@ -160,11 +161,11 @@ describe('installed review entry points resolve current project knowledge', () =
   });
 
   it('covers every host and review stage', () => {
-    expect(REVIEW_ENTRYPOINTS).toHaveLength(12);
+    expect(REVIEW_ENTRYPOINTS).toHaveLength(15);
     for (const host of ['claude', 'cursor', 'codex']) {
-      expect(REVIEW_ENTRYPOINTS.filter(row => row.host === host)).toHaveLength(4);
+      expect(REVIEW_ENTRYPOINTS.filter(row => row.host === host)).toHaveLength(5);
     }
-    expect(new Set(REVIEW_ENTRYPOINTS.map(row => row.stage))).toHaveLength(4);
+    expect(new Set(REVIEW_ENTRYPOINTS.map(row => row.stage))).toHaveLength(5);
   });
 
   it.each(REVIEW_ENTRYPOINTS)(

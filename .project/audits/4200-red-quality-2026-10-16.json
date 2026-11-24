@@ -1,0 +1,832 @@
+{
+  "schema_version": 1,
+  "purpose": "Current test-quality assessment for the #4200/#5170 clarification in Draft PR #5898; no historical RED reconstruction.",
+  "captured_at": "2026-10-16T19:32:36.400746+00:00",
+  "reviewed_source_head": "a5a7c89e4e7371913f0578c2211b6c8c1e8f22d8",
+  "scope": {
+    "inventory": "All configured feature files and their proof manifests; counts describe routing, not demonstrated behavior.",
+    "deep_review": "Critical executable-RED review, attestation, receipt/ledger/edit-gate and BDD proof-corpus paths. Selected sections of larger lifecycle suites, not a line-by-line review of all 144 mapped test files.",
+    "historical_evidence": "No ticket ledger, archived failure record or historical RED evidence was edited."
+  },
+  "inventory": {
+    "feature_files": 148,
+    "manifests": 41,
+    "scenario_headers": 2946,
+    "expanded": 5827,
+    "routes": {
+      "cucumber": {
+        "headers": 1219,
+        "expanded": 2372
+      },
+      "vitest": {
+        "headers": 799,
+        "expanded": 1179
+      },
+      "manual": {
+        "headers": 321,
+        "expanded": 526
+      },
+      "live": {
+        "headers": 39,
+        "expanded": 87
+      },
+      "wip": {
+        "headers": 568,
+        "expanded": 1663
+      }
+    },
+    "mapping_entries": 987,
+    "mapped_test_files": 144,
+    "reused_test_names": 73,
+    "max_fan_in": 6,
+    "note": "Route totals use feature/rule/scenario tags. Examples-tag-specific changes need separate interpretation; these counts are inventory, not execution evidence."
+  },
+  "findings": [
+    {
+      "id": "Q1",
+      "severity": "error",
+      "status": "open",
+      "title": "Reviewer-verdict BDD scenarios use non-behavioral primary proofs",
+      "evidence": [
+        {
+          "path": "packages/cli/features/review-executable-red-before-implementation.bdd-proof.json",
+          "line": 24
+        },
+        {
+          "path": "packages/cli/tests/review/red-rubric-generation.test.ts",
+          "line": 19
+        }
+      ],
+      "consequence": "An always-approve reviewer or dropped rubric dispatch can satisfy every registered phrase assertion while the claimed reviewer rejection is false. Prompt-contract assertions remain useful but cannot certify semantic decisions.",
+      "next_step": "Retain prompt-contract tests; add durable real-reviewer observations and a packet-wiring regression proof to the semantic scenario evidence. Do not label string tests as behavioral RED."
+    },
+    {
+      "id": "Q2",
+      "severity": "error",
+      "status": "open",
+      "title": "Timeout scenario primary proof omits refusal-of-approval outcome",
+      "evidence": [
+        {
+          "path": "packages/cli/features/review-executable-red-before-implementation.bdd-proof.json",
+          "line": 20
+        },
+        {
+          "path": "packages/cli/tests/review/red-execution.test.ts",
+          "line": 119
+        }
+      ],
+      "consequence": "The named test checks SIGKILL/timed_out with review disabled. A regression allowing timed-out evidence to earn approval would not fail that registered proof.",
+      "next_step": "Add a discriminating gate/receipt test that refuses a timed-out attestation despite an approved-looking reviewer verdict, then register it alongside execution evidence."
+    },
+    {
+      "id": "Q3",
+      "severity": "warning",
+      "status": "corrected",
+      "title": "Added wiring case shifted existing BDD Examples order",
+      "evidence": [
+        {
+          "path": "packages/cli/tests/review/red-rubric-generation.test.ts",
+          "line": 37
+        },
+        {
+          "path": "packages/cli/tests/bdd-proof-tags.test.ts",
+          "line": 564
+        }
+      ],
+      "consequence": "The new entry originally preceded infrastructure; positional Examples interpretation shifted. The static gate only checks enough proof units, so it did not detect this.",
+      "correction": "Move the extra documentation-contract case after the six existing Examples cases. The six original cases retain their order. No feature scenario, enforcement or historical record is changed.",
+      "remaining_limit": "The provenance gate still does not semantically bind whole-table rows; selected-case registrations are stronger when tables diverge.",
+      "commit": "1f2b4a7a2b5caddf3a5d5c89ac6fe7da1c4900b1"
+    },
+    {
+      "id": "Q4",
+      "severity": "warning",
+      "status": "open",
+      "title": "Attestation proof has narrower assertions than its BDD description",
+      "evidence": [
+        {
+          "path": "packages/cli/tests/review/red-execution.test.ts",
+          "line": 60
+        }
+      ],
+      "consequence": "The proof prints a failure string and exits 1. It demonstrates execution capture, not an actor assertion or reviewer judgment. It checks a stderr digest shape, not full stdout capture, truncation, or digest correctness.",
+      "next_step": "Keep the mechanics coverage; add exact byte/digest and truncation boundary tests, and use an actual actor-boundary proof for the semantic claim."
+    },
+    {
+      "id": "Q5",
+      "severity": "error",
+      "status": "open",
+      "title": "CI guard accepts removal of one Node package suite and duplicate BDD execution",
+      "evidence": [
+        {
+          "path": "packages/cli/tests/ci-bdd-workflow.test.ts",
+          "line": 33
+        }
+      ],
+      "consequence": "The guard checks the matrix version list but not whether Test all packages runs on both legs. It finds the acceptance step by display name, so a second differently named unconditional BDD step survives. Both mutations leave the current guard assertions passing.",
+      "next_step": "Assert command/condition coverage of actual package/release steps and select all acceptance command invocations rather than only one display name.",
+      "counterfactual_probe": {
+        "method": "Counterfactual replay of the two existing guard assertions over in-memory YAML mutations; no workflow was edited and no additional Vitest process was run.",
+        "baseline_guard_passes": true,
+        "drops_node22_package_suite_guard_still_passes": true,
+        "adds_duplicate_unconditional_bdd_guard_still_passes": true
+      },
+      "independent_review": {
+        "review_id": "c40b0658-5897-44a9-8c87-461a40c348b3",
+        "verdict": "request_changes",
+        "independence": "cross-agent",
+        "reviewer": "Claude Opus"
+      }
+    },
+    {
+      "id": "Q6",
+      "severity": "warning",
+      "status": "open",
+      "title": "Two broad acceptance assertions overfit the hook command prefix",
+      "evidence": [
+        {
+          "path": "steps/test-codex-plugin-migration.steps.ts",
+          "line": 1800
+        },
+        {
+          "path": "steps/test-codex-plugin-migration.steps.ts",
+          "line": 2074
+        },
+        {
+          "path": "packages/cli/codex-plugin/hooks.json",
+          "line": 9
+        }
+      ],
+      "observed_failure": "The steps require bun immediately followed by the bundled runtime path. The current generated command adds --no-env-file and --cwd before that same runtime path, so both regex assertions fail.",
+      "next_step": "Review the assertion against the required packaged-entrypoint contract; preserve hardening flags and semantic entrypoint checks. No hook, parser, argument handling or regex repair is included here."
+    }
+  ],
+  "strengths": [
+    "Real child-process execution and environment-secret isolation tests use observable exit/output assertions.",
+    "Receipt freshness and wrong-ledger/provenance/passing-evidence tests exercise the real gate around a stubbed reviewer worker; appropriate for lifecycle mechanics, not reviewer judgment.",
+    "The 22-case proof corpus executes Cucumber baselines and injected defects, requires outcome failures, and pairs invalid patterns with valid neighboring controls.",
+    "The Cucumber wiring test explicitly labels dry-run evidence as wiring and rejects undefined/ambiguous/pending output; it does not claim behavioral execution."
+  ],
+  "independent_test_quality_review": {
+    "review_id": "248b5e15-a707-4b02-b3ce-fd1d61b7c236",
+    "reviewer": "Claude Opus",
+    "independence": "cross-agent",
+    "verdict": "request_changes",
+    "scope_time": "Before Q3 order correction. Q1 and Q2 remain substantive coverage findings.",
+    "dispositions": [
+      "Accepted Q1 and Q2; retained as open quality findings, not hidden by passing live observations.",
+      "Corrected the introduced row-order issue Q3.",
+      "The suggested SIGTERM/startup flake is not supported by current executor source: terminateProofTree sends SIGKILL directly. No timeout change made."
+    ]
+  },
+  "semantic_observation": {
+    "pre_registered_bar": "The initial 16-observation bar required four valid observations to approve independently and twelve negatives to request changes and block GREEN. A separately pre-registered timeout supplement adds two more rejection/gate observations. Cases cover undefined/pending When wiring, setup failure, unrelated Then assertion, an already-passing scenario, undefined dry-run and timed-out execution.",
+    "score": {
+      "approved_valid_observations": 4,
+      "rejected_negative_observations": 14,
+      "correct_gate_decisions": 18,
+      "total_observations": 18
+    },
+    "independence": "All 18 observations used the actual executable-red CLI, trusted Cucumber process attestations, and cross-agent Claude Opus verdicts. Labels/expected verdicts were kept outside review packets.",
+    "limitations": [
+      "Two runs per case are a small observation, not a statistical reliability or provider-admission qualification.",
+      "actor_then and helper_then are structurally identical valid helper-based controls: one positive implementation observed four times, not two distinct positive designs.",
+      "The fixture boundary is Cucumber -> a local Node CLI. No supported-host UI/cloud or external service fidelity is claimed.",
+      "Timed-out Cucumber runs have no completed step-status report; only their trusted SIGKILL/timed_out attestations are claimed.",
+      "These are current post-change observations; none repairs historical RED or the historical GREEN/REFACTOR SHA collision."
+    ],
+    "cases": [
+      {
+        "case": "actor_then",
+        "observations": 2,
+        "review_ids": [
+          "4d2503e6-8e51-45da-8149-232ec1d7c227",
+          "cd33d9a5-ddd0-44ca-b0a7-a96b64d63c9c"
+        ],
+        "expected_verdict": "approve",
+        "observed_verdicts": [
+          "approve",
+          "approve"
+        ],
+        "observed_gate_states": [
+          "approved",
+          "approved"
+        ],
+        "attested_exit_codes": [
+          1,
+          1
+        ],
+        "expected_literal_matched": [
+          true,
+          true
+        ],
+        "observed_step_statuses": [
+          [
+            "passed",
+            "passed",
+            "failed"
+          ],
+          [
+            "passed",
+            "passed",
+            "failed"
+          ]
+        ],
+        "reviewer_models": [
+          "opus",
+          "opus"
+        ],
+        "reason": "The attested RED run is valid. The exact Cucumber command exited with code 1, with no signal and no timeout. The expected-failure literal 'Expected actor output status: ready' is in the full, untruncated stdout. The Given and When steps passed. Only the Then assertion failed, and it failed because the CLI printed 'status: pending' instead of 'status: ready'. That is the missing behavior named in the proof plan. The When step runs the actor.mjs CLI as a child process and the Then step checks its trimmed stdout, which matches the plan's rule that only CLI stdout proves the outcome. There are no syntax, import, fixture, undefined-step, or infrastructure failures. I found no errors, only two non-blocking warnings."
+      },
+      {
+        "case": "helper_then",
+        "observations": 2,
+        "review_ids": [
+          "990b0828-9b35-4d15-bf9d-48e26e5c9d6f",
+          "6f631081-7bb1-40bb-864c-40d1d21eb756"
+        ],
+        "expected_verdict": "approve",
+        "observed_verdicts": [
+          "approve",
+          "approve"
+        ],
+        "observed_gate_states": [
+          "approved",
+          "approved"
+        ],
+        "attested_exit_codes": [
+          1,
+          1
+        ],
+        "expected_literal_matched": [
+          true,
+          true
+        ],
+        "observed_step_statuses": [
+          [
+            "passed",
+            "passed",
+            "failed"
+          ],
+          [
+            "passed",
+            "passed",
+            "failed"
+          ]
+        ],
+        "reviewer_models": [
+          "opus",
+          "opus"
+        ],
+        "reason": "I'm approving this RED. According to the execution attestation, the exact Cucumber command exited with code 1, with no signal and no timeout (464 ms against a 10000 ms limit). The expected-failure literal \"Expected actor output status: ready\" appears in the full stdout, which was not truncated. The failure is an assertion in the actor-visible Then step (steps.mjs:6), not a syntax, import, fixture, or undefined-step problem: the Given and When steps passed. The When step runs the real Node CLI actor.mjs through a child process, and the Then step checks the CLI's trimmed stdout. The observed actual value 'status: pending' versus the expected 'status: ready' is exactly the missing behavior the proof plan names. The proof would catch a regression: any stdout other than 'status: ready' fails the step, and a non-zero CLI exit throws instead of passing. I couldn't independently recompute the source fingerprint, so I'm accepting the attestation's binding as supplied."
+      },
+      {
+        "case": "undefined_when",
+        "observations": 2,
+        "review_ids": [
+          "761adc00-a26c-49f3-93f6-0e89e27ed219",
+          "ef7a25aa-16c9-4048-976c-967d39c3183a"
+        ],
+        "expected_verdict": "request_changes",
+        "observed_verdicts": [
+          "request_changes",
+          "request_changes"
+        ],
+        "observed_gate_states": [
+          "blocked",
+          "blocked"
+        ],
+        "attested_exit_codes": [
+          1,
+          1
+        ],
+        "expected_literal_matched": [
+          true,
+          true
+        ],
+        "observed_step_statuses": [
+          [
+            "passed",
+            "undefined",
+            "skipped"
+          ],
+          [
+            "passed",
+            "undefined",
+            "skipped"
+          ]
+        ],
+        "reviewer_models": [
+          "opus",
+          "opus"
+        ],
+        "reason": "The attested run failed (exit 1, no timeout), but for the wrong reason. The step 'When the builder requests readiness' is undefined, so Cucumber skipped the Then step and never invoked actor.mjs. The expected-failure literal 'undefined' matches Cucumber's pending-step report, not the intended missing behavior ('status: pending' emitted instead of 'status: ready'). This is not a valid executable RED."
+      },
+      {
+        "case": "pending_when",
+        "observations": 2,
+        "review_ids": [
+          "088638a3-243f-4623-8171-c37b42ec41ee",
+          "f0f4c0fc-625b-4b19-8952-0477f4b39277"
+        ],
+        "expected_verdict": "request_changes",
+        "observed_verdicts": [
+          "request_changes",
+          "request_changes"
+        ],
+        "observed_gate_states": [
+          "blocked",
+          "blocked"
+        ],
+        "attested_exit_codes": [
+          1,
+          1
+        ],
+        "expected_literal_matched": [
+          true,
+          true
+        ],
+        "observed_step_statuses": [
+          [
+            "passed",
+            "pending",
+            "skipped"
+          ],
+          [
+            "passed",
+            "pending",
+            "skipped"
+          ]
+        ],
+        "reviewer_models": [
+          "opus",
+          "opus"
+        ],
+        "reason": "The attested RED is invalid. The command did fail (exit 1, no timeout, no signal), and the literal \"pending\" does appear in stdout. But the failure comes from a pending Cucumber step, not from the missing behavior. The When step returns 'pending' and never calls the CLI. The Then step is skipped, so the assertion on actor stdout never runs. The expected-failure literal \"pending\" also matches Cucumber's own pending-step output, so it would match whether or not the behavior exists."
+      },
+      {
+        "case": "setup_failure",
+        "observations": 2,
+        "review_ids": [
+          "88a182ee-61bf-432e-8fd2-90b5447039d5",
+          "bcadedcb-da77-4946-9be0-a17971b0c25f"
+        ],
+        "expected_verdict": "request_changes",
+        "observed_verdicts": [
+          "request_changes",
+          "request_changes"
+        ],
+        "observed_gate_states": [
+          "blocked",
+          "blocked"
+        ],
+        "attested_exit_codes": [
+          1,
+          1
+        ],
+        "expected_literal_matched": [
+          true,
+          true
+        ],
+        "observed_step_statuses": [
+          [
+            "failed",
+            "skipped",
+            "skipped",
+            "skipped"
+          ],
+          [
+            "failed",
+            "skipped",
+            "skipped",
+            "skipped"
+          ]
+        ],
+        "reviewer_models": [
+          "opus",
+          "opus"
+        ],
+        "reason": "The attested command failed (exit 1, no timeout), and the expected-failure literal does appear in stdout. But that literal comes from an unconditional Before hook at steps.mjs:4, not from the actor boundary. The When and Then steps were skipped, so actor.mjs was never run and its stdout was never checked. This RED does not show the intended missing behavior, which is the CLI emitting 'status: pending' instead of 'status: ready'."
+      },
+      {
+        "case": "unrelated_then",
+        "observations": 2,
+        "review_ids": [
+          "dbf61051-fe22-425f-96f7-ede572738678",
+          "4d261511-ef7a-4c22-8763-3a62ea0acea6"
+        ],
+        "expected_verdict": "request_changes",
+        "observed_verdicts": [
+          "request_changes",
+          "request_changes"
+        ],
+        "observed_gate_states": [
+          "blocked",
+          "blocked"
+        ],
+        "attested_exit_codes": [
+          1,
+          1
+        ],
+        "expected_literal_matched": [
+          true,
+          true
+        ],
+        "observed_step_statuses": [
+          [
+            "passed",
+            "passed",
+            "failed"
+          ],
+          [
+            "passed",
+            "passed",
+            "failed"
+          ]
+        ],
+        "reviewer_models": [
+          "opus",
+          "opus"
+        ],
+        "reason": "The attested command failed without timing out (exit 1, no signal), and the expected-failure literal shows up in stdout. But the failure has nothing to do with the CLI's output. The Then step compares two hardcoded strings ('broken setup note' vs 'expected setup note') and never reads this.output. So the red is unrelated to the missing behavior (the CLI printing 'status: pending' instead of 'status: ready'). It would still fail after the CLI is fixed, so it can't tell broken from fixed behavior."
+      },
+      {
+        "case": "already_passing",
+        "observations": 2,
+        "review_ids": [
+          "5b079ef5-49e6-488c-a701-203aa121a965",
+          "860cbee7-cdae-4fa3-9cda-ddc3a68789e7"
+        ],
+        "expected_verdict": "request_changes",
+        "observed_verdicts": [
+          "request_changes",
+          "request_changes"
+        ],
+        "observed_gate_states": [
+          "blocked",
+          "blocked"
+        ],
+        "attested_exit_codes": [
+          0,
+          0
+        ],
+        "expected_literal_matched": [
+          false,
+          false
+        ],
+        "observed_step_statuses": [
+          [
+            "passed",
+            "passed",
+            "passed"
+          ],
+          [
+            "passed",
+            "passed",
+            "passed"
+          ]
+        ],
+        "reviewer_models": [
+          "opus",
+          "opus"
+        ],
+        "reason": "This is not a valid RED. The attested Cucumber command passed: exit_code 0, and stdout shows \"1 scenario (1 passed)\" and \"3 steps (3 passed)\". The expected-failure literal \"Expected actor output status: ready\" was not matched. actor.mjs already writes \"status: ready\", so the behavior the plan calls missing is already present. The proof cannot show a missing behavior at the actor boundary. Make actor.mjs write the pre-implementation output \"status: pending\". Then rerun the same attested command and confirm it exits non-zero with the literal in the attested stderr or stdout."
+      },
+      {
+        "case": "dry_run_undefined",
+        "observations": 2,
+        "review_ids": [
+          "f8db2f7a-82c1-47f6-8b66-f16c47620e48",
+          "22f8b151-7e1e-474c-8944-ddfc835928ad"
+        ],
+        "expected_verdict": "request_changes",
+        "observed_verdicts": [
+          "request_changes",
+          "request_changes"
+        ],
+        "observed_gate_states": [
+          "blocked",
+          "blocked"
+        ],
+        "attested_exit_codes": [
+          0,
+          0
+        ],
+        "expected_literal_matched": [
+          true,
+          true
+        ],
+        "observed_step_statuses": [
+          [
+            "skipped",
+            "undefined",
+            "skipped"
+          ],
+          [
+            "skipped",
+            "undefined",
+            "skipped"
+          ]
+        ],
+        "reviewer_models": [
+          "opus",
+          "opus"
+        ],
+        "reason": "This RED attestation is invalid. The attested command exited 0 and ran with --dry-run, so no step code ran. The scenario is 'undefined' because steps.mjs never defines the actor-facing When step. The expected-failure literal 'undefined' matches Cucumber's undefined-step report, not the intended missing behavior (actor.mjs emitting 'status: pending' instead of 'status: ready'). The proof never invokes the CLI or observes its stdout."
+      },
+      {
+        "case": "timeout_when",
+        "observations": 2,
+        "review_ids": [
+          "c1e36f95-a620-430e-8b23-36fe30af4822",
+          "9504469e-412e-4e70-ba5c-fea0cd51589b"
+        ],
+        "expected_verdict": "request_changes",
+        "observed_verdicts": [
+          "request_changes",
+          "request_changes"
+        ],
+        "observed_gate_states": [
+          "blocked",
+          "blocked"
+        ],
+        "attested_exit_codes": [
+          null,
+          null
+        ],
+        "expected_literal_matched": [
+          true,
+          true
+        ],
+        "observed_step_statuses": [
+          [],
+          []
+        ],
+        "reviewer_models": [
+          "opus",
+          "opus"
+        ],
+        "reason": "This red result is not valid. The attested command didn't fail on its own: it was killed with SIGKILL when it hit the 2000 ms timeout. The expected-failure text matched only because the When step prints it to stderr itself before it hangs. The Then assertion never ran, and the CLI actor was never invoked."
+      }
+    ],
+    "raw_results_sha256": "5d4890373bad17e6d420d0e1014b541bef079ef902848fafbe445e811aca68f0",
+    "unique_review_ids": 18
+  },
+  "mutation_probe": {
+    "result": [
+      {
+        "case": "original",
+        "exit_code": 1,
+        "statuses": {
+          "baseline": [
+            [
+              "passed",
+              "passed",
+              "passed"
+            ],
+            [
+              "passed",
+              "passed",
+              "passed"
+            ]
+          ],
+          "defect": [
+            [
+              "passed",
+              "passed",
+              "failed"
+            ],
+            [
+              "passed",
+              "passed",
+              "failed"
+            ]
+          ]
+        }
+      },
+      {
+        "case": "tautological-outcome",
+        "exit_code": 0,
+        "statuses": {
+          "baseline": [
+            [
+              "passed",
+              "passed",
+              "passed"
+            ],
+            [
+              "passed",
+              "passed",
+              "passed"
+            ]
+          ],
+          "defect": [
+            [
+              "passed",
+              "passed",
+              "passed"
+            ],
+            [
+              "passed",
+              "passed",
+              "passed"
+            ]
+          ]
+        }
+      }
+    ],
+    "interpretation": "The accepted shared-step control passes both baseline rows and fails both defect rows at Then. Replacing the outcome assertion with assert.equal(status, status) makes both defect rows pass; the corpus acceptance criterion would reject that vacuous proof.",
+    "harness_correction": "Initial disposable probe used an absolute Cucumber config path and failed before executing scenarios. Retried with the relative config form used by the existing corpus helper; initial failure retained in /tmp/4200-quality."
+  },
+  "provenance_probe": {
+    "observed": {
+      "non_asserting_body": [
+        "semantic verdict"
+      ],
+      "empty_body": [],
+      "disabled_body": []
+    },
+    "interpretation": "The current declaration scanner admits a nonempty body with no assertion, and excludes empty/disabled bodies. This is consistent with its documented static-provenance purpose; it cannot substitute for a semantic proof-quality check."
+  },
+  "verification": {
+    "root_bdd_acceptance": {
+      "status": "failed",
+      "command": "scripts/dev bun run test:bdd:acceptance",
+      "log": "/tmp/4200-quality-bdd-root.log",
+      "exit_code": 1,
+      "scenarios": {
+        "total": 2372,
+        "passed": 1781,
+        "failed": 3,
+        "skipped": 3,
+        "undefined": 585
+      },
+      "steps": {
+        "total": 110469,
+        "passed": 108702,
+        "failed": 3,
+        "skipped": 5,
+        "undefined": 1759
+      },
+      "reported_duration": "31m 45.71s",
+      "failure_details": "Failed scenarios:\n  1) Evidence over budget cannot look complete or ready # features/route-ready-prs-with-a-safe-advisory-review.feature:167\n       And the published state is `incomplete` # steps/route-ready-prs-with-a-safe-advisory-review.steps.ts:778\n           AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n           + actual - expected\n           \n           + 'complete'\n           - 'incomplete'\n           \n               + expected - actual\n           \n               -complete\n               +incomplete\n           \n               at SafewordWorld.<anonymous> (/Users/alex/.codex/worktrees/b2c3/safeword/steps/route-ready-prs-with-a-safe-advisory-review.steps.ts:779:10)\n  2) Plugin hook commands never point at repo-local hook scripts # features/test-codex-plugin-migration.feature:92\n       And each command invokes a packaged Safeword command entrypoint # steps/test-codex-plugin-migration.steps.ts:1794\n           AssertionError [ERR_ASSERTION]: The input did not match the regular expression /^bun \"\\$\\{PLUGIN_ROOT\\}\\/runtime\\/cli\\.js\"\\s+/u. Input:\n           \n           'bun --no-env-file --cwd \"${PLUGIN_ROOT}\" \"${PLUGIN_ROOT}/runtime/cli.js\" hook codex session-start --plugin-hook'\n           \n               at SafewordWorld.<anonymous> (/Users/alex/.codex/worktrees/b2c3/safeword/steps/test-codex-plugin-migration.steps.ts:1800:14)\n  3) Release check proves the packed package contains the plugin and hook entrypoints # features/test-codex-plugin-migration.feature:141\n       And the package contains every CLI entrypoint referenced by plugin hook commands # steps/test-codex-plugin-migration.steps.ts:2064\n           AssertionError [ERR_ASSERTION]: The input did not match the regular expression /^bun \"\\$\\{PLUGIN_ROOT\\}\\/runtime\\/cli\\.js\"\\s+hook\\s+codex\\b/u. Input:\n           \n           'bun --no-env-file --cwd \"${PLUGIN_ROOT}\" \"${PLUGIN_ROOT}/runtime/cli.js\" hook codex session-start --plugin-hook'\n           \n               at SafewordWorld.<anonymous> (/Users/alex/.codex/worktrees/b2c3/safeword/steps/test-codex-plugin-migration.steps.ts:2074:14)",
+      "raw_log_sha256": "042d8289ee11817de9f7347c2aaa75e5fabc2e655a9655c81f30e222f825e1c6",
+      "interpretation": "Undefined/pending wiring is not actor-boundary behavioral RED. These current results do not replace or repair prior failed/unfinished historical acceptance evidence. No failing expectations, tags or bindings were weakened to make this run pass."
+    },
+    "targeted_regression": {
+      "status": "passed",
+      "command": "SAFEWORD_TEST_LOCK_MAX_WAIT_MS=1200000 scripts/dev bun run --cwd packages/cli test tests/review/red-rubric-generation.test.ts tests/bdd-proof-tags.test.ts tests/bdd-proof-corpus.test.ts",
+      "log": "/tmp/4200-quality/targeted.log",
+      "tests": 72,
+      "files": 3,
+      "corpus_cases": 22
+    },
+    "prior_verification": "Earlier full-run routing deadline failure, isolated pass, release checks and dependency-audit findings remain recorded in PR #5898; no fresh full-suite success is claimed.",
+    "workspace_wiring": {
+      "command": "NODE_OPTIONS='--import tsx' scripts/dev bunx cucumber-js --dry-run --format summary",
+      "exit_code": 0,
+      "summary": [
+        "2372 scenarios (1787 skipped, 585 undefined)",
+        "110469 steps (108710 skipped, 1759 undefined)"
+      ],
+      "undefined_scenarios_by_feature": {
+        "features/keep-plan-reviews-current-and-trustworthy.feature": 167,
+        "features/keep-tasks-and-patches-proportional.feature": 144,
+        "features/make-planning-gates-understandable-and-scope-safe.feature": 33,
+        "features/migrate-planning-guidance-without-disrupting-features.feature": 79,
+        "features/resolve-disputed-plan-findings.feature": 43,
+        "features/write-clear-reviewable-plans.feature": 119
+      },
+      "generated_step_snippets": 1126,
+      "interpretation": "Wiring evidence only. Exit 0 does not establish binding or behavioral execution. Undefined scenarios are not actor-boundary RED. No steps, tags or historical evidence were changed to hide these gaps."
+    },
+    "static_checks": {
+      "eslint": "passed for corrected test",
+      "prettier": "passed for corrected test",
+      "row_order_commit": "1f2b4a7a2b5caddf3a5d5c89ac6fe7da1c4900b1",
+      "commit_hooks": "passed"
+    }
+  },
+  "conclusion": "Three material permanent-proof gaps remain (semantic reviewer decisions, timeout approval refusal, and CI guard discrimination). The introduced row-order issue is corrected. Current bounded live observations passed; broad workspace acceptance failed. Keep Draft. No historical RED repair is claimed.",
+  "current_stream_boundary_probe": {
+    "passed": true,
+    "stdout_bytes": 70022,
+    "excerpt_bytes": 65536,
+    "truncated": true,
+    "digest_matches_full_stream": true,
+    "literal_found_beyond_excerpt": true,
+    "limit": "Current execution observation only; permanent regression assertions remain a follow-up."
+  },
+  "ci_acceptance_scope": {
+    "command_chain": "CI runs root bun run test:bdd, which delegates to packages/cli test:bdd. That package Cucumber configuration selects features/**/*.feature relative to packages/cli. The broader workspace command is root bun run test:bdd:acceptance.",
+    "inventory_expanded_cases": {
+      "cli_package_harness": 596,
+      "workspace_outside_cli_feature_directory": 1776
+    },
+    "limitation": "Counts are source inventory, not completed execution. Green status of the named CI acceptance step does not certify the broader workspace harness. No workflow change was made."
+  },
+  "probe_harness_limits": [
+    "The first CI-guard probe resolved yaml relative to the repository root, where it is not installed. Corrected the probe to use the CLI package dependency context. This was a disposable audit-harness failure, not a product-test result."
+  ],
+  "reviewed_files": [
+    {
+      "path": "packages/cli/tests/review/red-execution.test.ts",
+      "depth": "complete",
+      "sha256": "3dfe7c58861a34226d62fb71aa15fec5da80909959b72f2242542ef956422a13"
+    },
+    {
+      "path": "packages/cli/tests/review/red-rubric-generation.test.ts",
+      "depth": "complete; corrected order",
+      "sha256": "55a389696fedfafff02248439af8d19f6946533243ef6ff19142059ed553e568"
+    },
+    {
+      "path": "packages/cli/tests/bdd-proof-corpus.test.ts",
+      "depth": "complete",
+      "sha256": "deaee233492cc68c7d4f04f47dd43141a57ff67b7edd4a4f67edd7a92c281b3e"
+    },
+    {
+      "path": "packages/cli/tests/bdd-proof-tags.test.ts",
+      "depth": "critical scanner/registration/coverage sections",
+      "sha256": "33f16e1a993c1ec71238d47bbeffbaad3539c73649a2bc25e87422e164d42883"
+    },
+    {
+      "path": "packages/cli/tests/hooks/ledger-validation.test.ts",
+      "depth": "selected ledger and Git-backed SHA cases",
+      "sha256": "4c39c3ac310c5c5fb7de64e4d8d0dce76979956d733c4ccc782dddd744230a46"
+    },
+    {
+      "path": "packages/cli/tests/review/job.test.ts",
+      "depth": "executable-RED receipt/freshness/admission sections",
+      "sha256": "517114067b34f39e92410020bf9543f085c258a88f8504ca093b5957da19a20c"
+    },
+    {
+      "path": "packages/cli/tests/review/packet.test.ts",
+      "depth": "attestation admission sections",
+      "sha256": "89997c6cd9af5ee5bf38b3b53df9315254a77749c76cf03f7ce87a13b49b2fa6"
+    },
+    {
+      "path": "packages/cli/tests/review/runtime.test.ts",
+      "depth": "rubric and route construction sections",
+      "sha256": "1c965417772628a2c187d02d35723c329f987e8c1d5c67b3b61d5a2638706a8c"
+    },
+    {
+      "path": "packages/cli/tests/cli-protocol/executable-red-wiring.test.ts",
+      "depth": "complete",
+      "sha256": "0fea5d791574a3f1ebe5abe756be882332facdbdab4c5b548b3c71cdcf1a49b1"
+    },
+    {
+      "path": "packages/cli/tests/integration/write-time-annotation-gate.test.ts",
+      "depth": "receipt-gate stubs and host-hook setup",
+      "sha256": "51500ed141385c085d2060769503b08d505b5e9259d94b3f506891e7fcd52931"
+    },
+    {
+      "path": "packages/cli/tests/integration/cucumber-bdd.test.ts",
+      "depth": "complete",
+      "sha256": "8d8ed21e4ddb78a2bff909b52eeb88fb1708dcfbfe0a294e5cba0367b262edc0"
+    },
+    {
+      "path": "packages/cli/tests/ci-bdd-workflow.test.ts",
+      "depth": "complete",
+      "sha256": "2878c7a48d1ec602269d4f15a9aaa6240ea0b9f8f1fb091f51b5f5cad9176961"
+    },
+    {
+      "path": "packages/cli/features/review-executable-red-before-implementation.feature",
+      "depth": "complete",
+      "sha256": "1a54538244778c671193a4cb41cd46a49cecff9e49b7a27d73a65737c340d8a2"
+    },
+    {
+      "path": "packages/cli/features/review-executable-red-before-implementation.bdd-proof.json",
+      "depth": "complete",
+      "sha256": "26843d5af568eac10a350aef77db78a61b05c000cc3cde06bf0f533546903087"
+    }
+  ],
+  "reproduction_records": {
+    "semantic_driver": "/tmp/4200-quality/run-semantic.py",
+    "timeout_supplement_driver": "/tmp/4200-quality/run-timeout.py",
+    "raw_results": "/tmp/4200-quality/semantic-with-gates.json",
+    "pre_registered_criteria": [
+      "/tmp/4200-quality/pre-registered.json",
+      "/tmp/4200-quality/timeout-pre-registered.json"
+    ],
+    "mutation_driver": "/tmp/4200-quality/mutate-corpus.py",
+    "ci_guard_probe": "/tmp/4200-quality/ci-guard-probe.ts",
+    "inventory_driver": "/tmp/4200-quality/inventory.ts",
+    "scope": "Disposable local audit tools, not maintained CI gates. Results and inputs will be retained in a local evidence archive."
+  },
+  "completed_at": "2026-10-16T19:51:08.382485+00:00",
+  "unclassified_behavior_failure": {
+    "scenario": "Evidence over budget cannot look complete or ready",
+    "feature": "features/route-ready-prs-with-a-safe-advisory-review.feature",
+    "line": 167,
+    "assertion": "steps/route-ready-prs-with-a-safe-advisory-review.steps.ts:779",
+    "expected": "incomplete",
+    "actual": "complete",
+    "disposition": "Observed and retained. Not diagnosed as a product defect versus fixture/configuration drift, and not relabeled as a bad assertion or repaired in this audit."
+  },
+  "evidence_archive": {
+    "path": "/tmp/4200-red-quality-evidence.zip",
+    "sha256": "f75ffb6132a7027728023481051083fff9d0c2703b4d9a5a227fe28388ddc2a8",
+    "bytes": 423310,
+    "scope": "Local downloadable evidence, including raw records and reproduction scripts. The compact assessment is committed separately; the binary archive is not added to the PR."
+  }
+}

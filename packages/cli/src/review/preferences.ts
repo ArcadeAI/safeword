@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { writeDurableFile } from '../codex-plugin/durable-write.js';
-import type { ReviewAgent, ReviewAuthor } from './contract.js';
+import type { ReviewAgent, ReviewAuthor, SupportedReviewAuthor } from './contract.js';
 import {
   parseConfiguredReviewRoutes,
   type ReviewRoute,
@@ -95,7 +95,7 @@ function readConfigFile(path: string): Record<string, unknown> {
 export function setScopedReviewRoutes(
   cwd: string,
   scope: ReviewRouteScope,
-  author: ReviewAgent,
+  author: SupportedReviewAuthor,
   routes: readonly { readonly reviewer: ReviewAgent; readonly model?: string }[],
 ): void {
   const path = scopedConfigPath(cwd, scope);
@@ -131,7 +131,7 @@ export function setScopedReviewRoutes(
 export function resetScopedReviewRoutes(
   cwd: string,
   scope: ReviewRouteScope,
-  author: ReviewAgent,
+  author: SupportedReviewAuthor,
 ): boolean {
   const path = scopedConfigPath(cwd, scope);
   if (!existsSync(path)) return false;
@@ -157,7 +157,7 @@ export function effectiveConfiguredRoutes(
   cwd: string,
   author: ReviewAuthor,
 ): { readonly source: ReviewRouteScope; readonly routes: readonly ReviewRoute[] } | undefined {
-  if (author !== 'claude' && author !== 'codex' && author !== 'opencode') return undefined;
+  if (author === 'unknown') return undefined;
   const projectPath = scopedConfigPath(cwd, 'project');
   const projectRoutes = parseConfiguredReviewRoutes(
     readConfigFile(projectPath),

@@ -8,6 +8,7 @@
  * which is exactly the surface these tests pin.
  */
 
+import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -113,6 +114,36 @@ describe('evaluateDoneEvidence', () => {
         ticketType: 'task',
       }),
     ).toEqual({ ok: true });
+  });
+
+  // Codex and Cursor reach the stale-dependency recovery only through this gate:
+  // they have no PostToolUse hook to stamp the fingerprint after an install.
+  it('clears a stale-dependency block once its printed recovery runs (#5647)', () => {
+    writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), VALID_VERIFY);
+    writeFileSync(
+      nodePath.join(projectDirectory, 'package.json'),
+      JSON.stringify({ name: 'stale', packageManager: 'bun@1.4.2' }),
+    );
+    writeFileSync(nodePath.join(projectDirectory, 'bun.lock'), '# bumped lockfile');
+    const artifact = nodePath.join(projectDirectory, 'node_modules');
+    mkdirSync(artifact);
+    writeFileSync(nodePath.join(artifact, '.safeword-deps-fingerprint'), 'previous-inputs');
+    const params = { projectDir: projectDirectory, ticketDir: ticketDirectory, ticketType: 'task' };
+
+    const blocked = evaluateDoneEvidence(params);
+    expect(blocked.ok).toBe(false);
+    const recovery = blocked.reason?.split('\n').at(-1)?.trim() ?? '';
+    expect(recovery).toMatch(
+      /^bun ci && touch node_modules\/\.safeword-deps-reinstalled-[0-9a-f]{12}$/,
+    );
+
+    // Stub the install itself; the rest of the printed command runs verbatim.
+    const run = spawnSync('sh', ['-c', recovery.replace('bun ci', 'true')], {
+      cwd: projectDirectory,
+    });
+    expect(run.status).toBe(0);
+
+    expect(evaluateDoneEvidence(params)).toEqual({ ok: true });
   });
 
   it('blocks a feature close when test-definitions.md is missing', () => {

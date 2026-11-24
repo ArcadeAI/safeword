@@ -1,0 +1,10 @@
+PASS malformed config warning
+PASS unwritable base warning
+PASS wd formatter exclusion and negative control
+PASS fixable misspelling retained after formatting
+PASS genuine sibling typecheck retained
+PASS depguard config-path selector against native result
+PASS YAML merge exclusions and negative control
+PASS legacy YAML boolean native equivalence
+PASS home and no-config fallback
+9/9 manual policy checks passed

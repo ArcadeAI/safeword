@@ -41,6 +41,8 @@ export interface StampClaim {
   readonly intakeArtifact?: 'spec.md' | 'ticket.md';
   /** Repo-relative files changed by the current branch/worktree. */
   readonly implementationFiles?: readonly string[];
+  /** Scenario source declared by this ticket, which may live outside its folder. */
+  readonly scenarioArtifact?: string;
   /** Author runtime the stamp reports, when it reports one. */
   readonly authorAgent?: string;
   /** Actual reviewer runtime the stamp reports, when it reports one. */
@@ -65,10 +67,9 @@ export interface ReviewReceipt {
 /**
  * The review kind that witnesses a given phase exit.
  *
- * Specialist exits use a phase-named review kind; every other exit is witnessed
- * by the general `quality-review`. `plan-execution` is intentionally receipt-only
- * in 1.0.0-rc.4: this runtime can verify receipts produced by the source
- * implementation, but cannot start that review kind itself.
+ * Three exits have a specialist reviewer whose rubric is generated from the same
+ * skill that authors the artifact, so the kind and the phase name coincide.
+ * Every other exit is witnessed by the general `quality-review`.
  *
  * Before this mapping existed the check was `receipt.kind === claim.phase`,
  * which quietly made five exits unsatisfiable: a stamp for `intake`,
@@ -86,7 +87,7 @@ export function reviewKindForPhase(phase: string): string {
 }
 
 /** Levels that assert a coordinator ran and returned a verdict. */
-const COORDINATOR_CLAIMS = new Set(['cross-agent', 'degraded']);
+const COORDINATOR_CLAIMS = new Set(['cross-agent', 'reduced', 'degraded']);
 
 /** Whether a stamp asserts a coordinator ran — the claims that need a witness. */
 export function claimsCoordinatorVerdict(independence?: string): boolean {
@@ -176,37 +177,74 @@ function coversPhase(
 
   if (phase === 'intake')
     return claim.intakeArtifact !== undefined && ticketTargets.includes(claim.intakeArtifact);
-  if (phase === 'define-behavior' || phase === 'scenario-gate')
-    return ticketTargets.some(
-      target => target === 'test-definitions.md' || target.endsWith('.feature'),
+  if (phase === 'define-behavior' || phase === 'scenario-gate') {
+    const declaredScenario =
+      claim.scenarioArtifact === undefined
+        ? undefined
+        : resolveTarget(claim.scenarioArtifact, claim.projectDirectory);
+    return (
+      ticketTargets.some(
+        target => target === 'test-definitions.md' || target.endsWith('.feature'),
+      ) ||
+      (declaredScenario !== undefined &&
+        targets.some(target => resolveTarget(target, claim.projectDirectory) === declaredScenario))
     );
+  }
   if (phase === 'plan-implementation') return ticketTargets.includes('impl-plan.md');
   if (phase === 'plan-execution') return ticketTargets.includes('execution-plan.md');
   if (phase === 'verify') return ticketTargets.includes('verify.md');
   if (phase === 'done') return ticketTargets.includes('ticket.md');
   if (phase === 'implement') {
-    if (claim.implementationFiles === undefined) return false;
     // Without a current Git change set there is no independent evidence that
     // a reviewed file is the implementation this phase produced.
-    if (claim.implementationFiles.length === 0) return false;
-    const excluded = new Set(
-      excludedTargets
-        .map(target => resolveTarget(target, claim.projectDirectory))
-        .filter((target): target is string => target !== undefined),
-    );
-    const changed = claim.implementationFiles.filter(target => {
-      const resolved = resolveTarget(target, claim.projectDirectory);
-      return (
-        relativeTicketTarget(target, claim) === undefined &&
-        (resolved === undefined || !excluded.has(resolved))
-      );
-    });
+    const changed = implementationChanges(claim, excludedTargets);
     if (changed.length === 0) return false;
-    return changed.every(file =>
-      targets.some(target => targetCoversFile(target, file, claim.projectDirectory)),
-    );
+    return uncoveredFiles(changed, targets, claim.projectDirectory).length === 0;
   }
   return false;
+}
+
+/** Changed implementation files outside the ticket folder and coordinator exclusions. */
+function implementationChanges(claim: StampClaim, excludedTargets: readonly string[]): string[] {
+  if (claim.implementationFiles === undefined) return [];
+  const excluded = new Set(
+    excludedTargets
+      .map(target => resolveTarget(target, claim.projectDirectory))
+      .filter((target): target is string => target !== undefined),
+  );
+  return claim.implementationFiles.filter(target => {
+    const resolved = resolveTarget(target, claim.projectDirectory);
+    return (
+      relativeTicketTarget(target, claim) === undefined &&
+      (resolved === undefined || !excluded.has(resolved))
+    );
+  });
+}
+
+/** The changed files no review target covers. */
+function uncoveredFiles(
+  files: readonly string[],
+  targets: readonly string[],
+  projectDirectory: string,
+): string[] {
+  return files.filter(
+    file => !targets.some(target => targetCoversFile(target, file, projectDirectory)),
+  );
+}
+
+/** For an implement rejection, the changed files the review must still cover. */
+function uncoveredSuffix(
+  claim: StampClaim,
+  targets: readonly string[],
+  excluded?: readonly string[],
+): string {
+  if (claim.phase !== 'implement') return '';
+  const missing = uncoveredFiles(
+    implementationChanges(claim, excluded ?? []),
+    targets,
+    claim.projectDirectory,
+  );
+  return missing.length === 0 ? '' : `; not reviewed: ${missing.join(', ')}`;
 }
 
 /**
@@ -270,7 +308,7 @@ export function receiptGateVerdict(claim: StampClaim, receipt?: ReviewReceipt): 
     if (!coversPhase(targets, claim, claim.phase, receipt.excludedTargets))
       return {
         ok: false,
-        reason: `review ${receipt.reviewId} did not cover the work produced by the "${claim.phase}" phase in ${claim.ticketFolder} — it covered ${targets.join(', ') || 'nothing'}`,
+        reason: `review ${receipt.reviewId} did not cover the work produced by the "${claim.phase}" phase in ${claim.ticketFolder} — it covered ${targets.join(', ') || 'nothing'}${uncoveredSuffix(claim, targets, receipt.excludedTargets)}`,
       };
   }
 

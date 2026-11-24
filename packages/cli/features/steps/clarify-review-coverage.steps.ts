@@ -903,17 +903,14 @@ function assertBlockedJsonMode(result: CliExecution): void {
   };
   assert.equal(envelope.state, 'action_required');
   assert.equal(envelope.data?.status, 'blocked');
-  assert.equal(envelope.data?.review_policy, 'require');
+  assert.equal(envelope.data?.review_policy, 'prefer');
   assert.doesNotMatch(result.stdout, /Review incomplete/u);
 }
 
 function assertBlockedQuietMode(result: CliExecution): void {
   assert.equal(result.exitCode, 2);
   assert.equal(result.stderr, '');
-  assert.match(
-    result.stdout,
-    /^Review incomplete — required independent coverage is unsatisfied\.\n/u,
-  );
+  assert.doesNotMatch(result.stdout, /required independent coverage is unsatisfied/u);
   assert.match(result.stdout, /No independent check was recorded\.\n$/u);
 }
 
@@ -1154,8 +1151,6 @@ const realSchemaOutcomeRunners: Readonly<Record<string, () => Promise<CliExecuti
     return runFixtureCli(fixture, reviewRunArguments(fixture.directory, '--json'));
   },
   changes_requested: runPreferredChangesFixture,
-  blocked_degraded: () =>
-    runRequiredFixture(changeRequestEnvironment({ SAFEWORD_REVIEW_COVERAGE_FAIL_CLAUDE: '1' })),
   exhausted: () => runRequiredFixture({ SAFEWORD_REVIEW_COVERAGE_FAIL: '1' }),
 };
 
@@ -1173,7 +1168,7 @@ When(
   },
 );
 
-Given('isolated real CLI fixtures can require independent review', markCliFixtureReady);
+Given('isolated real CLI fixtures set the retired require policy', markCliFixtureReady);
 
 function parseExecutionEnvelope(result: CliExecution): {
   state?: string;
@@ -1257,9 +1252,10 @@ function assertRequiredSameAgent(result: CliExecution): void {
       actual: envelope.data.actual_reviewer,
     },
     {
+      // The retired require policy reads as prefer: a same-agent result is labeled, not blocked.
       state: 'action_required',
-      status: 'blocked',
-      policy: 'require',
+      status: 'changes_requested',
+      policy: undefined,
       independence: 'degraded',
       assigned: 'claude',
       actual: 'codex',
@@ -1282,7 +1278,7 @@ function assertRequiredExhausted(result: CliExecution): void {
     {
       state: 'action_required',
       status: 'blocked',
-      policy: 'require',
+      policy: 'prefer',
       independence: 'none',
       reviewer: undefined,
     },
@@ -1307,21 +1303,12 @@ function assertRequiredUnsupportedAuthor(result: CliExecution): void {
     {
       state: 'action_required',
       status: 'blocked',
-      policy: 'require',
+      policy: 'prefer',
       independence: 'none',
       author: 'cursor',
     },
   );
-  assert.deepEqual(
-    envelope.recovery?.map(item => item.command),
-    ['safeword review run quality-review -- spec.md'],
-  );
-  assert.ok(
-    readFileSync(
-      nodePath.join(repoRoot, 'packages/cli/templates/skills/finish-review/SKILL.md'),
-      'utf8',
-    ).includes("Include the coordinator's recovery command exactly as provided."),
-  );
+  assert.deepEqual(envelope.recovery, []);
 }
 
 const REQUIRED_OUTCOME_ASSERTIONS: Readonly<Record<string, (result: CliExecution) => void>> = {
@@ -1447,31 +1434,17 @@ function distributedContractPaths(name: ReviewContractName): readonly string[] {
   ];
 }
 
-const mandatoryFinishPolicyBlock = `Under \`prefer\`, map \`approve\` to \`State: approved\` and \`request_changes\` to
-\`State: action required\`; an \`approve\` verdict is not action required under
-\`prefer\`. Under \`require\`, always use
-\`Policy: require unsatisfied\` and \`State: action required\`, regardless of the
-supplemental verdict. A \`request_changes\` verdict must never be reported as
-approval.
-
-- Under \`prefer\`, supplemental findings complete the requested review with the
-  verdict above. Do not call them standard or independent coverage and do not
-  write machine provenance or a review stamp.
-- Under \`require\`, report the supplemental findings as additional feedback, keep
-  the coordinator's unsatisfied-independence verdict action required, and say:
-  "Required independent coverage remains unsatisfied. Use an environment with a
-  usable independent reviewer. Alternatively, explicitly choose \`prefer\`."
-  Include the coordinator's recovery command exactly as provided.
-
-Never describe either supplemental route as completed standard or independent
-coverage, and never write an
-independent review stamp from this workflow.`;
+const mandatoryFinishPolicyBlock = `Report the verdict, summary, and every finding as supplemental feedback in
+the foreground, with the actual reviewer and \`degraded\` for fresh context or
+\`none\` for self-review. An approval completes only this supplemental request;
+it creates no machine receipt or review stamp.
+`;
 
 const mandatoryQualityPolicyBlock = `Keep optional setup advice quiet by default. When the user asks
 \`Show review coverage details.\`, report the typed result's achieved coverage,
 raw independence, and actual reviewer when present. Derive at most one
 optional upgrade from typed \`assigned_reviewer\` and \`preferred_failure\`.
-Preserve a blocked or \`require\`-unsatisfied result, and never invent
+Preserve a blocked result, and never invent
 provenance, completed coverage, or a recovery command.`;
 
 function normalizeContract(content: string): string {
@@ -1591,9 +1564,8 @@ Then(
     assert.equal(this.distributedContract, 'finish-review');
     const contractPaths = distributedContractPaths('finish-review');
     const allowedClauses = [
-      'Do not call them standard or independent coverage and do not write machine provenance or a review stamp.',
-      'Required independent coverage remains unsatisfied.',
-      'Never describe either supplemental route as completed standard or independent coverage, and never write an independent review stamp from this workflow.',
+      'Never describe this as packet-only or independent coverage.',
+      'An approval completes only this supplemental request; it creates no machine receipt or review stamp.',
     ];
     for (const relativePath of contractPaths) {
       assertPointerOnlyWrapper(relativePath, 'finish-review');

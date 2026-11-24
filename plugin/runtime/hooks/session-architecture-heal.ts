@@ -8,27 +8,26 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import nodePath from 'node:path';
-import process from 'node:process';
 
-const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+import { safewordCli } from './lib/safeword-cli.ts';
+import process from 'node:process';
+import { projectEnvironment, readSessionProjectDirectory } from './lib/project-directory.ts';
+
+const projectDir = readSessionProjectDirectory();
 
 // Not a safeword project — nothing to do.
 if (!existsSync(nodePath.join(projectDir, '.safeword'))) {
   process.exit(0);
 }
 
-// Prefer local source in dev/dogfood, fall back to the published CLI.
-const localCli = nodePath.join(projectDir, 'packages/cli/src/cli.ts');
-const pluginCli = process.env.SAFEWORD_PLUGIN_CLI;
-const [command, args] =
-  pluginCli === undefined
-    ? existsSync(localCli)
-      ? ['bun', [localCli, 'architecture']]
-      : ['bun', [process.env.SAFEWORD_PLUGIN_CLI ?? localCli, 'architecture']]
-    : ['bun', [pluginCli, 'architecture']];
+const cli = safewordCli(projectDir);
+if (cli === undefined) process.exit(0);
 
-spawnSync(command as string, args as string[], {
+// Use the canonical command, not the retained `architecture` alias: the alias
+// emits a deprecation finding on every session start (#8143).
+spawnSync(cli.command, [...cli.args, 'project', 'architecture'], {
   cwd: projectDir,
+  env: projectEnvironment(projectDir),
   stdio: 'inherit',
   timeout: 30_000,
 });

@@ -1,0 +1,316 @@
+diff --git a/README.md b/README.md
+index aee13dc23..81c7db3a6 100644
+--- a/README.md
++++ b/README.md
+@@ -450,8 +450,10 @@ and single-use submission. The fresh-context claim and current agent origin
+ are host-reported; the receipt does not attest that an isolated reviewer ran.
+ Claude and Codex app-server planning reviewers use the effort settings sealed
+ with the packaged capability catalogue. The legacy Codex exec path cannot confirm
+-the reviewer model and remains unqualified. A completed rejection whose reviewer capability is unknown
+-remains blocked with its findings retained; fallback approval cannot hide it.
++the reviewer model and remains unqualified. A completed rejection whose reviewer
++capability is unknown blocks fallback approval, with its findings retained. A later
++qualified independent verdict may resolve the review; the earlier unqualified
++findings remain visible as warning feedback without replacing that verdict.
+ 
+ The opt-in `architectureReviewGate` separately requires verified independent
+ design review before implementation finishes. A reduced planning receipt does
+diff --git a/packages/cli/features/review-with-the-best-available-agent.feature b/packages/cli/features/review-with-the-best-available-agent.feature
+index eeda57258..72b83c2e4 100644
+--- a/packages/cli/features/review-with-the-best-available-agent.feature
++++ b/packages/cli/features/review-with-the-best-available-agent.feature
+@@ -64,7 +64,7 @@ Feature: Keep review available with the best supported fallback
+       | Cursor Cloud Agents |
+ 
+   @review-with-the-best-available-agent.TBU1.R1 @surface.claude-code
+-  Rule: review-with-the-best-available-agent.TBU1.R1 — Every independent reviewer precedes every degraded route
++  Rule: review-with-the-best-available-agent.TBU1.R1 — Planning reviews try every eligible independent reviewer before reduced fallback
+ 
+     Scenario Outline: Ranked planning routes honor <case> eligibility and stop after completion
+       Given a ranked planning review with "<case>" routes
+diff --git a/packages/cli/src/review/codex-app-server-proof.ts b/packages/cli/src/review/codex-app-server-proof.ts
+index 41c2b401f..33914deda 100644
+--- a/packages/cli/src/review/codex-app-server-proof.ts
++++ b/packages/cli/src/review/codex-app-server-proof.ts
+@@ -9,6 +9,18 @@ function record(value: unknown): value is Record<string, unknown> {
+   return typeof value === 'object' && value !== null && !Array.isArray(value);
+ }
+ 
++export function isCodexAppServerResponse(
++  value: unknown,
++  id: number,
++): value is Record<string, unknown> {
++  return (
++    record(value) &&
++    value.id === id &&
++    value.method === undefined &&
++    ('result' in value || 'error' in value)
++  );
++}
++
+ function unique(
+   messages: readonly unknown[],
+   predicate: (message: Record<string, unknown>) => boolean,
+@@ -24,8 +36,8 @@ function startedTurn(
+ ):
+   | { readonly threadId: string; readonly turnId: string; readonly start: Record<string, unknown> }
+   | undefined {
+-  const start = unique(messages, message => message.id === 2);
+-  const turnStart = unique(messages, message => message.id === 3);
++  const start = unique(messages, message => isCodexAppServerResponse(message, 2));
++  const turnStart = unique(messages, message => isCodexAppServerResponse(message, 3));
+   if (!record(start?.result) || !record(start.result.thread) || !record(turnStart?.result))
+     return undefined;
+   const threadId = start.result.thread.id;
+diff --git a/packages/cli/src/review/coordinator.ts b/packages/cli/src/review/coordinator.ts
+index df1b0171d..296b335fd 100644
+--- a/packages/cli/src/review/coordinator.ts
++++ b/packages/cli/src/review/coordinator.ts
+@@ -1020,6 +1020,21 @@ function retainUnqualifiedRejection(
+   return current?.output.verdict === 'request_changes' ? current : { output, route };
+ }
+ 
++function unqualifiedReviewFeedback(
++  retained: { readonly output: ReviewerOutput; readonly route: ReviewRoute } | undefined,
++) {
++  if (retained?.output.verdict !== 'request_changes') return [];
++  const messages =
++    retained.output.findings.length > 0
++      ? retained.output.findings.map(finding => finding.message)
++      : [retained.output.summary];
++  return messages.map(message => ({
++    code: 'REVIEW_UNQUALIFIED_FEEDBACK',
++    severity: 'warning' as const,
++    message: `Earlier unqualified ${agentName(retained.route.reviewer)} feedback: ${message}`,
++  }));
++}
++
+ function preparedRankedPacket(
+   input: ReviewRunInput,
+   existing: ReturnType<typeof prepareReviewPacket> | undefined,
+@@ -1134,6 +1149,7 @@ async function runConfiguredRankedRoutes({
+         });
+         return {
+           ...result,
++          findings: [...result.findings, ...unqualifiedReviewFeedback(unqualified)],
+           effects: { ...result.effects, network: rankedNetworkEffects(evidence) },
+           data: { ...(result.data as Record<string, unknown>), review_routes: evidence },
+         };
+diff --git a/packages/cli/src/review/runtime.ts b/packages/cli/src/review/runtime.ts
+index b3f102476..6358a4131 100644
+--- a/packages/cli/src/review/runtime.ts
++++ b/packages/cli/src/review/runtime.ts
+@@ -23,7 +23,11 @@ import nodePath from 'node:path';
+ 
+ import { DELIVERY_CHECKLIST_CATEGORIES } from '../execution-plan/delivery-checklist.js';
+ import { warn } from '../utils/output.js';
+-import { codexAppServerFailedTurn, codexAppServerProof } from './codex-app-server-proof.js';
++import {
++  codexAppServerFailedTurn,
++  codexAppServerProof,
++  isCodexAppServerResponse,
++} from './codex-app-server-proof.js';
+ import type {
+   PlanContractPair,
+   ReviewAgent,
+@@ -1642,7 +1646,7 @@ async function runCodexAppServerCandidate(
+       const handle = (message: unknown): void => {
+         if (!isRecord(message)) return;
+         messages.push(message);
+-        if (message.id === 1) {
++        if (isCodexAppServerResponse(message, 1)) {
+           if (message.error !== undefined) throw new Error('initialize failed');
+           send({ method: 'initialized' });
+           send({
+@@ -1656,9 +1660,9 @@ async function runCodexAppServerCandidate(
+               ...(attempt.model !== undefined && { model: attempt.model }),
+             },
+           });
+-        } else if (message.id === 2) {
++        } else if (isCodexAppServerResponse(message, 2)) {
+           startTurn(message.result);
+-        } else if (message.id === 3 && message.error !== undefined) {
++        } else if (isCodexAppServerResponse(message, 3) && message.error !== undefined) {
+           throw new ReviewRuntimeError('process_failed', 'codex turn was rejected');
+         } else if (message.method === 'turn/completed') {
+           finishTurn();
+diff --git a/packages/cli/tests/cli-protocol/review-wiring.test.ts b/packages/cli/tests/cli-protocol/review-wiring.test.ts
+index a9f72d738..93cc88c65 100644
+--- a/packages/cli/tests/cli-protocol/review-wiring.test.ts
++++ b/packages/cli/tests/cli-protocol/review-wiring.test.ts
+@@ -506,7 +506,7 @@ describe('cross-agent review public-command wiring', () => {
+     });
+   });
+ 
+-  it('rejects a host continuation without an enforced local agent origin', async () => {
++  it('rejects a host continuation without a recognized local agent runtime', async () => {
+     const directory = createTemporaryDirectory();
+     writeFileSync(nodePath.join(directory, 'review-output.json'), '{}\n');
+ 
+diff --git a/packages/cli/tests/fixtures/ranked-planning-review.ts b/packages/cli/tests/fixtures/ranked-planning-review.ts
+index fc5b9f34f..c7ad11cbe 100644
+--- a/packages/cli/tests/fixtures/ranked-planning-review.ts
++++ b/packages/cli/tests/fixtures/ranked-planning-review.ts
+@@ -36,6 +36,7 @@ process.stdin.on('data', chunk => {
+  let end;
+  while ((end = buffer.indexOf('\n')) !== -1) {
+   const m = JSON.parse(buffer.slice(0,end)); buffer = buffer.slice(end+1);
++  if (m.id) console.log(JSON.stringify({id:m.id,method:'item/commandExecution/requestApproval',params:{threadId:'t',turnId:'u'}}));
+   if (m.id === 1) console.log(JSON.stringify({id:1,result:{}}));
+   if (m.id === 2) { model=m.params.model; console.log(JSON.stringify({id:2,result:{thread:{id:'t'},model,modelProvider:'openai'}})); }
+   if (m.id === 3) {
+diff --git a/packages/cli/tests/integration/architecture-review-gate.test.ts b/packages/cli/tests/integration/architecture-review-gate.test.ts
+index f395639b5..17b6ab3bc 100644
+--- a/packages/cli/tests/integration/architecture-review-gate.test.ts
++++ b/packages/cli/tests/integration/architecture-review-gate.test.ts
+@@ -293,6 +293,16 @@ describe('architecture review gate (MR5M3A)', () => {
+     );
+   });
+ 
++  it('blocks a witnessed stamp whose model differs from its coordinator receipt', () => {
++    setConfig({ architectureReviewGate: true, crossModelReview: true });
++    writeTicket('ARG006C', 'feature', CITED);
++    writeReviewResponse('ARG006C', 'approved', 'claude-opus-4-8');
++    writeStamp('ARG006C', CITED, { model: 'claude-sonnet-4-6', witnessed: true });
++    expect(runStopHook('ARG006C', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' })).toContain(
++      CROSS_MODEL_MSG,
++    );
++  });
++
+   it('allows under cross-model when the stamp model differs from the author model', () => {
+     setConfig({ architectureReviewGate: true, crossModelReview: true });
+     writeTicket('ARG007', 'feature', CITED);
+diff --git a/packages/cli/tests/integration/planning-review-fallback.test.ts b/packages/cli/tests/integration/planning-review-fallback.test.ts
+index 3e7256cf7..f177dee89 100644
+--- a/packages/cli/tests/integration/planning-review-fallback.test.ts
++++ b/packages/cli/tests/integration/planning-review-fallback.test.ts
+@@ -299,7 +299,7 @@ describe('planning fallback after independent route exhaustion', () => {
+         ...process.env,
+         ...environment,
+         CLAUDE_PROJECT_DIR: project,
+-        CLAUDE_SESSION_ID: author === 'opencode' ? undefined : 'fallback-fixture',
++        CLAUDE_SESSION_ID: author === 'claude' ? 'fallback-fixture' : undefined,
+         CLAUDE_CODE_SESSION_ID: undefined,
+         CODEX_THREAD_ID: undefined,
+       },
+@@ -317,6 +317,18 @@ describe('planning fallback after independent route exhaustion', () => {
+       );
+       expect(skipped.status).not.toBe(0);
+       expect(skipped.stdout).toContain('missing run identity');
++      const wrongReviewer = [...stampArguments];
++      wrongReviewer[wrongReviewer.indexOf('--reviewer-agent') + 1] = 'opencode';
++      const mismatched = spawnSync('bun', wrongReviewer, stampOptions);
++      expect(mismatched.status).not.toBe(0);
++      expect(mismatched.stdout).toContain('recorded "reviewer: claude"');
++      const planPath = nodePath.join(project, target);
++      const reviewedPlan = readFileSync(planPath, 'utf8');
++      writeFileSync(planPath, `${reviewedPlan}\nChanged after review.\n`);
++      const stale = spawnSync('bun', stampArguments, stampOptions);
++      expect(stale.status).not.toBe(0);
++      expect(stale.stdout).toContain('stale');
++      writeFileSync(planPath, reviewedPlan);
+       const forged = [...stampArguments];
+       forged[forged.indexOf('--review-id') + 1] = '00000000-0000-4000-8000-000000000000';
+       const rejected = spawnSync('bun', forged, stampOptions);
+@@ -372,7 +384,7 @@ describe('planning fallback after independent route exhaustion', () => {
+     });
+   });
+ 
+-  it('admits a Cursor host review after independent routes fail without inventing a Cursor CLI', async () => {
++  it('admits a Cursor host review through its shell bridge without a Claude session', async () => {
+     expect(await reviewThroughAdmission(true, 'cursor')).toMatchObject({
+       achieved_independence: 'reduced',
+     });
+diff --git a/packages/cli/tests/integration/planning-review-weaker-route.test.ts b/packages/cli/tests/integration/planning-review-weaker-route.test.ts
+index fa90c7c9e..7ab5d1998 100644
+--- a/packages/cli/tests/integration/planning-review-weaker-route.test.ts
++++ b/packages/cli/tests/integration/planning-review-weaker-route.test.ts
+@@ -21,9 +21,11 @@ const dispatchedEfforts = vi.hoisted(() => [] as (string | undefined)[]);
+ 
+ function fixtureRejects(reviewer: string, model: string | undefined): boolean {
+   return (
+-    model === 'gpt-6-astra' ||
++    (model === 'gpt-6-astra' && process.env.SAFEWORD_TEST_QUALIFIED_APPROVAL !== '1') ||
+     (model === 'gpt-6-luna' && process.env.SAFEWORD_TEST_WEAKER_REJECTION === '1') ||
+-    (reviewer !== 'claude' && process.env.SAFEWORD_TEST_UNKNOWN_REJECTION === '1')
++    (reviewer !== 'claude' &&
++      model === undefined &&
++      process.env.SAFEWORD_TEST_UNKNOWN_REJECTION === '1')
+   );
+ }
+ 
+@@ -60,7 +62,8 @@ vi.mock('../../src/review/runtime.js', async importOriginal => {
+           verdict: fixtureRejects(reviewer, options.model) ? 'request_changes' : 'approve',
+           summary: fixtureSummary(options.model),
+           findings:
+-            reviewer !== 'claude' && process.env.SAFEWORD_TEST_UNKNOWN_REJECTION === '1'
++            fixtureRejects(reviewer, options.model) &&
++            process.env.SAFEWORD_TEST_UNKNOWN_REJECTION === '1'
+               ? [
+                   {
+                     severity: 'error',
+@@ -372,3 +375,39 @@ it('discards a proven-weaker rejection before taking a qualified verdict', async
+   });
+   expect(JSON.stringify(result)).not.toContain('Weak rejection.');
+ });
++
++it('keeps earlier unqualified rejection feedback when a qualified reviewer approves', async () => {
++  const { project, ticket, configPath, config } = await planningFixture();
++  vi.stubEnv('SAFEWORD_TEST_UNKNOWN_REJECTION', '1');
++  vi.stubEnv('SAFEWORD_TEST_QUALIFIED_APPROVAL', '1');
++  writeFileSync(
++    configPath,
++    JSON.stringify({
++      ...config,
++      crossAgentReviewRoutes: {
++        claude: [{ reviewer: 'codex' }, { reviewer: 'codex', model: 'gpt-6-astra' }],
++      },
++    }),
++  );
++  const result = await runReview({
++    cwd: project,
++    kind: 'plan-implementation',
++    targets: [`${ticket}/impl-plan.md`],
++    context: [`${ticket}/spec.md`],
++  });
++  expect(result.data).toMatchObject({
++    status: 'approved',
++    independence: 'cross-agent',
++    reviewer_output: { verdict: 'approve', findings: [] },
++    review_routes: [
++      { status: 'attempted', failure: 'reviewer_capability_unknown' },
++      { status: 'attempted', model: 'gpt-6-astra' },
++    ],
++  });
++  expect(result.findings).toContainEqual(
++    expect.objectContaining({
++      severity: 'warning',
++      message: expect.stringContaining('The unqualified reviewer found a blocking defect.'),
++    }),
++  );
++});
+diff --git a/packages/cli/tests/review/codex-app-server-proof.test.ts b/packages/cli/tests/review/codex-app-server-proof.test.ts
+index 2cdbff565..2d115178c 100644
+--- a/packages/cli/tests/review/codex-app-server-proof.test.ts
++++ b/packages/cli/tests/review/codex-app-server-proof.test.ts
+@@ -30,6 +30,20 @@ describe('Codex app-server reviewer proof', () => {
+     });
+   });
+ 
++  it('ignores server requests that reuse client response ids', () => {
++    const serverRequests = [1, 2, 3].map(id => ({
++      id,
++      method: 'item/commandExecution/requestApproval',
++      params: { threadId: 'thread-1', turnId: 'turn-1' },
++    }));
++    expect(
++      codexAppServerProof([...serverRequests, threadStart, turnStart, completed], 'gpt-6-astra'),
++    ).toEqual({
++      text: '{"verdict":"approve"}',
++      confirmedModel: { provider: 'openai', model: 'gpt-6-astra' },
++    });
++  });
++
+   it('keeps a completed review but does not confirm a mismatched or rerouted model', () => {
+     const rerouted = {
+       method: 'model/rerouted',

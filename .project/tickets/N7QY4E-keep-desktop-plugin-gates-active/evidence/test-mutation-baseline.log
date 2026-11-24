@@ -1,0 +1,9 @@
+
+ RUN  v5.0.3 /private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-6004-test-quality-7pana0km
+
+
+ Test Files  1 passed (1)
+      Tests  24 passed (24)
+   Start at  08:44:30
+   Duration  100ms (import 55%, transform 30%, tests 12%, worker 4%)
+

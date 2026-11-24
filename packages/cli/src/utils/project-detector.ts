@@ -47,7 +47,7 @@ const ESLINT_CONFIG_FILES = [
 ] as const;
 
 // golangci-lint config file markers
-const GOLANGCI_CONFIG_FILES = [
+export const GOLANGCI_CONFIG_FILES = [
   '.golangci.yml',
   '.golangci.yaml',
   '.golangci.toml',
@@ -584,6 +584,37 @@ export function detectCucumberLane(cwd: string | undefined): CucumberLaneDetecti
   };
 }
 
+/**
+ * The folders whose node_modules belong to the project: the project folder and,
+ * inside a repository, each ancestor up to the repository root (hoisted
+ * workspaces). Never above it, where a compiler (e.g. ~/node_modules) would be
+ * missing on CI and other machines.
+ */
+function projectModuleFolders(cwd: string): string[] {
+  const folders: string[] = [];
+  let directory = nodePath.resolve(cwd);
+  for (;;) {
+    folders.push(directory);
+    if (existsSync(nodePath.join(directory, '.git'))) return folders;
+    const parent = nodePath.dirname(directory);
+    if (parent === directory) return [nodePath.resolve(cwd)];
+    directory = parent;
+  }
+}
+
+/**
+ * True if `typescript` is installed where the project's own tools load it from.
+ * Checks the folders directly rather than asking the runtime's resolver: Bun's
+ * resolver falls back to its global install cache, which would report a
+ * compiler the project does not have.
+ */
+function resolvesTypescript(cwd: string | undefined): boolean {
+  if (cwd === undefined) return false;
+  return projectModuleFolders(cwd).some(folder =>
+    existsSync(nodePath.join(folder, 'node_modules', 'typescript', 'package.json')),
+  );
+}
+
 export function detectProjectType(packageJson: PackageJsonWithScripts, cwd?: string): ProjectType {
   const dependencies = packageJson.dependencies ?? {};
   const developmentDependencies = packageJson.devDependencies ?? {};
@@ -595,6 +626,7 @@ export function detectProjectType(packageJson: PackageJsonWithScripts, cwd?: str
     publishableLibrary: detectPublishable(packageJson),
     shell: cwd ? hasShellScripts(cwd) : false,
     hasJsSource: cwd ? hasJsSource(cwd) : false,
+    typescriptAvailable: 'typescript' in allDependencies || resolvesTypescript(cwd),
     ...detectCucumberLane(cwd),
     ...detectExistingTooling(cwd, scripts),
   };

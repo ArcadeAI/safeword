@@ -15,9 +15,10 @@ import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 import { hasSafewordProjectMarker, resolveNamespaceRoot } from './namespace-root.js';
+import { nearestGitTree } from './project-directory.js';
 import { commandWords, splitShellSegments } from './shell-segments.js';
 
-const CLOSEOUT_BINDING_CACHE = 'closeout-session-binding.json';
+const CLOSEOUT_BINDING_PREFIX = 'closeout-session-binding';
 const DEFAULT_MAX_AGE_MS = 5 * 60 * 1000;
 const CLOSEOUT_RUNTIMES = ['claude', 'codex', 'cursor'] as const;
 const CLOSEOUT_HANDOFF_TTL_MS = 24 * 60 * 60 * 1000;
@@ -360,15 +361,151 @@ export function commandInvokesCloseoutCleanup(
   });
 }
 
+/**
+ * The binding file for one working tree. Worktrees can share an absolute configured namespace
+ * root, and the reader claims and deletes its whole file, so each tree gets its own name.
+ */
+function closeoutBindingPath(projectDirectory: string): string {
+  const tree = createHash('sha256').update(realpathSync(projectDirectory)).digest('hex');
+  return nodePath.join(
+    resolveNamespaceRoot(projectDirectory),
+    `${CLOSEOUT_BINDING_PREFIX}-${tree.slice(0, 16)}.json`,
+  );
+}
+
+/**
+ * The only command shapes that run closeout with a binding: `bun <script> <plain args>`,
+ * optionally after one `cd <plain absolute path> &&` (a relative path could resolve through
+ * CDPATH). A word has no expansion or control characters; only the script word may name the plugin
+ * root in double quotes, as the plugin's closeout command does. Shell has too many ways to change or
+ * fork a directory (pipes, background jobs, subshells, `env -C`, `pushd`) for a hook to follow
+ * them reliably, so any other shape that runs closeout is denied with a recovery the agent can
+ * follow at once.
+ */
+const CLOSEOUT_COMMAND =
+  /^[ \t]*(?:cd[ \t]+(?="?\/)(?<directory>(?:[^\s$\x60~*?[\]{}()'"\\;&|<>]|"[^"$\x60\\]*")+)[ \t]*&&[ \t]*)?bun[ \t]+(?<script>(?:[^\s$\x60~*?[\]{}()'"\\;&|<>]|"(?:\$\{CLAUDE_PLUGIN_ROOT\}|[^"$\x60\\])*")+)(?:[ \t]+[\w./:=@+-]+)*[ \t]*$/u;
+
+/**
+ * Programs that only read files they are given. Any other program whose command names the
+ * closeout script, or a reader that names it inside a larger value, is treated as running it, so an unrecognized wrapper (`exec`, `time`, `bun run`) is denied with the
+ * recovery rather than allowed without a binding.
+ */
+const FILE_READERS = new Set([
+  'cat',
+  'less',
+  'more',
+  'head',
+  'tail',
+  'grep',
+  'egrep',
+  'rg',
+  'sed',
+  'awk',
+  'wc',
+  'ls',
+  'stat',
+  'file',
+  'diff',
+  'git',
+  'echo',
+  'printf',
+  'shasum',
+  'sha256sum',
+  'md5',
+  'code',
+  'open',
+]);
+
+export type CloseoutBindingTarget =
+  { kind: 'tree'; projectDirectory: string } | { kind: 'unresolved'; recovery: string };
+
+/**
+ * Where a closeout command will run, so its binding lands where closeout reads it: the git working
+ * tree of the shell cwd, or of a leading `cd <plain path>`. Closeout reads its binding from
+ * `git rev-parse --show-toplevel` of its own cwd. `unresolved` means the command runs a closeout
+ * script in any other shape or through any program but `bun`, or runs one other than this
+ * project's or the plugin's. Returns undefined when the command runs no closeout script.
+ */
+export function closeoutBindingTarget(
+  command: string,
+  shellDirectory: string,
+  pluginRoot: string | undefined = process.env.CLAUDE_PLUGIN_ROOT,
+): CloseoutBindingTarget | undefined {
+  const runsCloseoutScript = splitShellSegments(command).some(segment => {
+    const words = commandWords(segment).map(word => word.replaceAll('"', '').replaceAll("'", ''));
+    const program = nodePath.basename(words[0] ?? '');
+    // Git can define and run a shell alias inline; with inline config it is not a reader.
+    const inlineGitConfig =
+      program === 'git' && words.some(word => word === '-c' || word.startsWith('--config'));
+    const reader = FILE_READERS.has(program) && !inlineGitConfig;
+    // A reader only reads a word that is the bare script path; the script named inside a larger
+    // value (a git alias, a sed or awk program) can still run.
+    return words.some(
+      word =>
+        word.includes('closeout-cleanup.ts') &&
+        (!reader || !/^[^\s=!]*closeout-cleanup\.ts$/u.test(word)),
+    );
+  });
+  if (!runsCloseoutScript) return undefined;
+  const match = CLOSEOUT_COMMAND.exec(command);
+  if (!match?.groups?.script) return unresolved(command);
+  const directory = match.groups.directory
+    ? nodePath.resolve(shellDirectory, match.groups.directory.replaceAll('"', ''))
+    : shellDirectory;
+  const tree = nearestGitTree(directory) ?? directory;
+  return isCloseoutCleanupPath(match.groups.script, pluginRoot, tree)
+    ? { kind: 'tree', projectDirectory: tree }
+    : unresolved(command);
+}
+
+/**
+ * A denial that gives the exact command to run instead: the agent's own closeout script and plain
+ * arguments, alone, from the worktree or after one absolute `cd`. Built from the command so it
+ * names whichever script (project or plugin) the agent used.
+ */
+function unresolved(command: string): CloseoutBindingTarget {
+  const words = splitShellSegments(command)
+    .map(segment => commandWords(segment).map(word => word.replaceAll(/[()]/gu, '')))
+    .find(segmentWords => segmentWords.some(word => word.includes('closeout-cleanup.ts')));
+  const scriptIndex = words?.findIndex(word => word.includes('closeout-cleanup.ts')) ?? -1;
+  const script = words?.[scriptIndex] ?? '';
+  // Keep the agent's own script whenever it is a plain path (double-quoted if it has spaces or
+  // names the plugin root, which the command shape only accepts inside quotes), so a
+  // plugin script stays the plugin's; a script named inside a larger value falls back.
+  // Drop a leading `./`: the hook accepts only the bare relative form, so a retry must use it.
+  const bareScript = script
+    .replaceAll('"', '')
+    .replaceAll("'", '')
+    .replace(/^(?:\.\/)+/u, '');
+  const keepsScript =
+    /^[^=!]*closeout-cleanup\.ts$/u.test(bareScript) &&
+    !bareScript.replaceAll('\${CLAUDE_PLUGIN_ROOT}', '').includes('$');
+  const plainScript = keepsScript
+    ? /[\s$]/u.test(bareScript)
+      ? `"${bareScript}"`
+      : bareScript
+    : ['.safeword', 'scripts', 'closeout-cleanup.ts'].join('/');
+  const after = words?.slice(scriptIndex + 1) ?? [];
+  const firstOption = after.findIndex(word => word.startsWith('-'));
+  const argumentsAfter = (firstOption === -1 ? [] : after.slice(firstOption)).filter(word =>
+    /^[\w./:=@+-]+$/u.test(word),
+  );
+  const closeout = ['bun', plainScript, ...argumentsAfter].join(' ');
+  return {
+    kind: 'unresolved',
+    recovery:
+      'Closeout must confirm this session in the worktree it runs in, and the hook cannot tell ' +
+      'where this command runs it. Run it as its own command from the worktree: ' +
+      `\`${closeout}\` (or \`cd <absolute worktree path> && ${closeout}\`), with nothing else.`,
+  };
+}
+
 export function rememberCloseoutBinding(input: RememberCloseoutBindingInput): boolean {
   const id = nonEmptyString(input.id);
   if (id === undefined || !hasSafewordProjectMarker(input.projectDirectory)) return false;
   const transcriptPath = nonEmptyString(input.transcriptPath);
   try {
-    const cachePath = nodePath.join(
-      resolveNamespaceRoot(input.projectDirectory),
-      CLOSEOUT_BINDING_CACHE,
-    );
+    const cachePath = closeoutBindingPath(input.projectDirectory);
     mkdirSync(nodePath.dirname(cachePath), { recursive: true });
     appendFileSync(
       cachePath,
@@ -390,10 +527,12 @@ export function rememberCloseoutBinding(input: RememberCloseoutBindingInput): bo
 export function readFreshCloseoutBinding(
   input: ReadFreshCloseoutBindingInput,
 ): CloseoutBinding | undefined {
-  const cachePath = nodePath.join(
-    resolveNamespaceRoot(input.projectDirectory),
-    CLOSEOUT_BINDING_CACHE,
-  );
+  let cachePath: string;
+  try {
+    cachePath = closeoutBindingPath(input.projectDirectory);
+  } catch {
+    return undefined;
+  }
   if (!existsSync(cachePath)) return undefined;
   const claimPath = `${cachePath}.claim-${randomUUID()}`;
   try {

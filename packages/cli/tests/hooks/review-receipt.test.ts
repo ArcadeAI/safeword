@@ -88,14 +88,37 @@ describe('receiptGateVerdict — stamps that claim independence', () => {
     expect(receiptGateVerdict(claim, approved).ok).toBe(false);
   });
 
-  it('accepts an existing Execution Plan approval for the plan-execution exit', () => {
+  it('accepts the ticket-declared scenario source outside the ticket folder', () => {
+    const claim = claimFor({
+      phase: 'scenario-gate',
+      scenarioArtifact: '/repo/features/t1.feature',
+    });
+
     expect(
-      receiptGateVerdict(claimFor({ phase: 'plan-execution' }), {
+      receiptGateVerdict(claim, {
         ...approved,
-        kind: 'plan-execution',
-        targets: [`.project/tickets/${TICKET}/execution-plan.md`],
+        kind: 'scenario-gate',
+        targets: ['features/t1.feature'],
       }),
     ).toEqual({ ok: true });
+  });
+
+  it('binds the plan-execution phase to its specialist review of execution-plan.md', () => {
+    const claim = claimFor({ phase: 'plan-execution' });
+    const receipt = {
+      ...approved,
+      kind: 'plan-execution',
+      targets: [`.project/tickets/${TICKET}/execution-plan.md`],
+    };
+
+    expect(receiptGateVerdict(claim, receipt)).toEqual({ ok: true });
+    expect(receiptGateVerdict(claim, { ...receipt, kind: 'quality-review' }).ok).toBe(false);
+    expect(
+      receiptGateVerdict(claim, {
+        ...receipt,
+        targets: [`.project/tickets/${TICKET}/impl-plan.md`],
+      }).ok,
+    ).toBe(false);
   });
 
   it.each([
@@ -209,6 +232,24 @@ describe('receiptGateVerdict — stamps that claim independence', () => {
         targets: ['packages/cli'],
       }),
     ).toEqual({ ok: true });
+  });
+
+  it('names the changed files an implement review left uncovered', () => {
+    const claim = claimFor({
+      phase: 'implement',
+      implementationFiles: ['packages/cli/src/changed.ts', 'packages/cli/tests/changed.test.ts'],
+    });
+
+    const verdict = receiptGateVerdict(claim, {
+      ...approved,
+      kind: 'quality-review',
+      targets: ['packages/cli/src/changed.ts'],
+    });
+
+    expect(verdict.ok).toBe(false);
+    expect(!verdict.ok && verdict.reason).toMatch(
+      /not reviewed: packages\/cli\/tests\/changed\.test\.ts$/u,
+    );
   });
 
   it('honors exact coordinator exclusions without granting unrelated authored coverage', () => {

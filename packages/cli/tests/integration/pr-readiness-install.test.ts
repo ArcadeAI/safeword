@@ -217,7 +217,15 @@ function runInstalledReadyHook(
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
   });
-  expect(result.status, result.stderr).toBe(0);
+  expect(
+    result.status,
+    JSON.stringify({
+      error: result.error?.message,
+      signal: result.signal,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    }),
+  ).toBe(0);
   expect(result.stderr).toBe('');
   return result.stdout.trim() === ''
     ? {}

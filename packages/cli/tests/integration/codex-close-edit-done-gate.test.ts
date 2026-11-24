@@ -1,7 +1,7 @@
 /**
  * Integration: on Codex, closing a ticket by edit still owes the Stop done gate (#5633)
  *
- * Drives the real `safeword hook codex post-tool-use` with an Edit that flips a
+ * Drives the real `safeword hook codex post-tool-use` with a patch that flips a
  * task ticket to `status: done`, then the real `safeword hook codex stop`.
  * PostToolUse records the close under the Codex run identity; Codex Stop must
  * run the done gate for it under that same identity — whether the identity
@@ -152,16 +152,21 @@ function runCodexHook(
   return result.stdout;
 }
 
-/** Close the ticket with one Edit, reported through Codex PostToolUse. */
+/** Report a native Codex apply_patch event for the ticket close. */
 function closeThroughCodexPostToolUse(directory: string, run: CodexRun, ticketFile: string): void {
   const before = readFileSync(ticketFile, 'utf8');
   writeFileSync(ticketFile, before.replace('status: in_progress', 'status: done'));
   runCodexHook(directory, run, 'post-tool-use', {
-    tool_name: 'Edit',
+    tool_name: 'apply_patch',
     tool_input: {
-      file_path: ticketFile,
-      old_string: 'status: in_progress',
-      new_string: 'status: done',
+      command: [
+        '*** Begin Patch',
+        `*** Update File: ${nodePath.relative(directory, ticketFile)}`,
+        '@@',
+        '-status: in_progress',
+        '+status: done',
+        '*** End Patch',
+      ].join('\n'),
     },
   });
 }

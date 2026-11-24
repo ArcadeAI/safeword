@@ -1,5 +1,5 @@
 export interface CodexPluginHookEntry {
-  hooks?: { command?: string }[];
+  hooks?: { command?: string; timeout?: number }[];
   matcher?: string;
 }
 

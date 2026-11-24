@@ -1,0 +1,17 @@
+# Next-Task Codex Plugin Activation and Migration Result v2
+
+**Status:** Superseded by [Restart-Bound Codex Plugin Activation](restart-bound-codex-plugin-activation.md)
+**Date:** 2026-08-01
+**Supersedes in part:** [Profile-Scoped Generated Codex Plugin and Staged Hook Migration](profile-scoped-generated-codex-plugin-and-staged-hook-migration.md) and [Typed CLI Execution and Discovery](typed-cli-execution-and-discovery.md)
+
+**Historical assumption.** Codex can install a refreshed plugin while the app is running, but an existing task keeps the bundle it already loaded. The former `restart-pending-v1.json` name and `plugin_installed_restart_required` state incorrectly prescribed an application reboot. Reusing schema version 1 for renamed lifecycle semantics would silently break machine consumers.
+
+**Original decision.** Before installing the released plugin, inspect configured marketplaces with `codex plugin marketplace list --json`. Refresh an existing Git-backed `safeword` marketplace only when its source identity is the official `ArcadeAI/safeword` repository, fail closed on a mismatched Git source, and retain the supported add path for fresh, local, or older-source metadata. Installation fails closed if marketplace discovery or refresh fails. Write `activation-pending-v1.json`, bound to exact plugin version and hook-manifest digest. The current task would keep its bundle. Matching SessionStart proof from a later task would retire the marker. Read the v0.70 restart marker only as an exact-identity compatibility input; once a canonical marker is durably written, it supersedes and removes any older legacy marker. Emit `CodexMigrationResultV2` with `schema_version: 2` and `plugin_installed_new_session_required`; expose it under the public schema-v1 envelope's versioned `data.migration` object while retaining the former `data.migration_state` value for compatibility.
+
+**Expected consequences at the time.** The design assumed users could deploy a plugin update without restarting Codex, but must start a new task to use it and review changed hooks. The output tells users which changes require a new task. Malformed, stale, version-mismatched, and digest-mismatched markers create neither pending activation nor proof. Schema-1 domain migration-result consumers must upgrade explicitly to v2. Public `safeword ... --json` envelope consumers are unaffected.
+
+**Alternatives.** Hot-reload or rewrite the running task: rejected because Codex exposes no supported task reload boundary. Use a stable `safeword@latest` hook dispatcher: rejected because reviewed hook behavior could change without renewed trust. Keep the old state and change prose only: rejected because machine and human contracts would disagree. Rename the enum under schema 1: rejected because it is a breaking in-place mutation. Mutate Codex's cache directly: rejected because supported marketplace commands own that state.
+
+**Reassess when.** Codex exposes a documented trust-preserving plugin hot-reload API, a task/plugin identity API, or materially changes marketplace list/upgrade JSON.
+
+**Implementation.** Ticket `4S2S8V-codex-plugin-next-task-upgrades`; `packages/cli/src/commands/migrate-codex-plugin.ts`, `packages/cli/src/codex-plugin/profile-proof.ts`, `packages/cli/src/codex-plugin/migration.ts`, command/filesystem integration tests, tagged Cucumber scenarios, and a release-time live host runbook.

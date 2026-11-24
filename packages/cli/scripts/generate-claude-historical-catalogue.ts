@@ -9,6 +9,9 @@ import { format, resolveConfig } from 'prettier';
 import ts from 'typescript';
 
 import { normalizeSafewordHookCommands } from '../src/utils/hooks.js';
+import { generatePlanningContracts } from './generate-planning-contracts.js';
+
+generatePlanningContracts(process.argv.includes('--check'));
 
 interface ReleaseRecord {
   files: Record<string, string>;

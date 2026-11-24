@@ -21,6 +21,7 @@ const REVIEW_STAGE_TEMPLATES = {
   spec: 'skills/self-review/SKILL.md',
   scenario: 'skills/review-spec/SKILL.md',
   plan: 'skills/bdd/PLAN_IMPLEMENTATION.md',
+  execution: 'skills/bdd/PLAN_EXECUTION.md',
   quality: 'skills/quality-review/SKILL.md',
 } as const;
 

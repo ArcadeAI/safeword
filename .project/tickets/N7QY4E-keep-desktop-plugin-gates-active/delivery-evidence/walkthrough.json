@@ -1,0 +1,19 @@
+{
+  "boundary": "generated Claude hook entrypoint, no test runner",
+  "steps": [
+    {
+      "event": "UserPromptSubmit",
+      "header_bytes_changed": true,
+      "exit_code": 0,
+      "proof_written": true,
+      "outcome": "accepted normalization"
+    },
+    {
+      "event": "PreToolUse",
+      "header_bytes_changed": true,
+      "exit_code": 0,
+      "proof_written": false,
+      "outcome": "approval required for added tool permission"
+    }
+  ]
+}
