@@ -68714,7 +68714,7 @@ async function executeNoShellCommand(input) {
     }, input.timeoutMs);
     child.once("close", (exitCode, signal) => {
       clearTimers();
-      if (!timedOut)
+      if (!timedOut && process.platform !== "win32")
         terminateProofTree(child);
       resolve({ exitCode, signal, timedOut });
     });

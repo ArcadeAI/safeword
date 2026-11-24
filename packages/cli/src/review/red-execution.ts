@@ -171,7 +171,9 @@ export async function executeNoShellCommand(input: {
     }, input.timeoutMs);
     child.once('close', (exitCode, signal) => {
       clearTimers();
-      if (!timedOut) terminateProofTree(child);
+      // POSIX descendants retain the owned process group. Windows taskkill
+      // cannot safely identify an already exited parent whose PID may be reused.
+      if (!timedOut && process.platform !== 'win32') terminateProofTree(child);
       resolve({ exitCode, signal, timedOut });
     });
   });
