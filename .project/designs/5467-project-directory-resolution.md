@@ -1,6 +1,6 @@
 # Design: one rule for choosing the project directory (#5467)
 
-Parts 1–3 and the Claude and Codex checkout-selection fixes shipped. Part 4 remains open under #5467.
+Parts 1–3, Claude and Codex checkout selection, and Codex Stop verification across linked worktrees shipped. Part 4 remains open under #5467.
 
 ## Original problem
 
@@ -91,28 +91,28 @@ execution records likewise identify the enrolled checkout named by the host
 and GREEN edit were accepted only in the checkout that earned approval.
 [Issue #5395 was closed with the results](https://github.com/ArcadeAI/safeword/issues/5395#issuecomment-7140475405).
 
-### Confirmed gap when Codex returns to the primary checkout
+### Codex Stop after a checkout switch
 
-On main at `5a0006118`, a session launched in an enrolled primary checkout
-closed a task by editing its ticket in an enrolled linked worktree. The public
-Codex PostToolUse hook recorded the task as owing verification in the linked
-tree. With the same session, the public Stop hook behaved as follows:
+Before [#8312](https://github.com/ArcadeAI/safeword/pull/8312), a session
+could close a task in an enrolled linked worktree, return to its primary
+checkout, and stop without running the task’s failing test. Running Stop in
+the linked checkout exposed the failure.
 
-| Stop cwd | Observed response | Linked task test runs |
-| --- | --- | --- |
-| Primary checkout | Allowed Stop (`{}`); task still owed verification | 0 |
-| Linked worktree | Blocked with the task’s test failure | 1 |
+Codex Stop now checks the current checkout first, then the enrolled worktrees
+registered with the same Git repository for verification owed by that session.
+The failure message identifies the checkout whose test failed. A later edit in
+the primary checkout does not hide a linked ticket. Native hook execution
+records still identify the checkout where the event occurred.
 
-Both hooks ran via `safeword hook codex … --plugin-hook`. The results held with
-a payload session ID and with only `CODEX_THREAD_ID`. The primary checkout’s
-test never ran. Correct execution-record attribution alone does not establish
-where to look for a session’s outstanding verification after its cwd changes.
+The regression drives the public PostToolUse and Stop hooks with a payload
+session ID and with thread-only identity. In both cases, an unrelated session
+leaves the ticket alone. The issuing session’s Stop in the primary checkout
+runs the linked test and blocks. After repair, a continuation Stop clears
+verification, and the following Stop does not rerun it. The primary checkout’s
+test counter stays unchanged. This covers available, enrolled worktrees with
+checkout-local verification state.
 
-**Next regression:** keep the edit, checkout switch and both identity variants.
-Assert that Stop from the primary checkout runs the linked task’s test once,
-reports its failure and keeps verification pending. Include a different session
-as a control so another session cannot acquire the task. Keep per-checkout
-execution proof tied to the host cwd when resolving outstanding verification.
+### Remaining part 4 work
 
 Retain the part 2b child-process tests. Verify each remaining
 `projectEnvironment` override against its caller before removing it, and
@@ -167,4 +167,4 @@ own walk.
 1. Shared resolver and parity guard shipped in #5655.
 2. Session routing and per-tool hooks shipped in #5656 and #5664.
 3. Closeout binding and recovery shipped in #7768 and #7837. Durable retro findings shipped in #7869.
-4. Claude and Codex checkout selection shipped in #8298 and #8302. Codex Stop after a checkout switch and the remaining parity exceptions are still open.
+4. Claude and Codex checkout selection shipped in #8298 and #8302. Codex Stop verification across linked worktrees shipped in #8312. The child-process overrides and remaining parity exceptions still need verification.
