@@ -97,6 +97,10 @@ describe('remote workflow contract', () => {
         version: 12,
         normalizedSha256: '06334293ca35675e5fb3f42282c7a9a341345c4d88701356d8108ff56a35212e',
       },
+      {
+        version: 13,
+        normalizedSha256: '9ca43d7204421ca4b50bec87e4c7e0b850616ddddc8db768da29047bd3f20bb2',
+      },
     ]);
     expect(fixtureHistory).toEqual(REMOTE_WORKFLOW_RELEASE_MANIFEST.slice(0, -1));
     expect(normalizedSha256(workflow)).toBe(
@@ -152,7 +156,7 @@ describe('remote workflow contract', () => {
   });
 
   it('installs uv and checks out release history required by the full lane', () => {
-    expect(workflow).toContain('astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7');
+    expect(workflow).toContain('astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d');
     expect(workflow).toContain('fetch-depth: 0');
   });
 
@@ -225,7 +229,7 @@ describe('remote workflow contract', () => {
     ],
     [
       'uses a local action',
-      'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020',
+      'actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1',
       './setup-node',
       'remote_actions_only',
     ],
