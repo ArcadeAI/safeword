@@ -24,6 +24,9 @@ own renderer port, profile directory, and fresh structured report. It requires
 one normal original pass and one mutant failure at the declared expectation.
 Setup failures, crashes, timeouts, skips, retries, and unrelated assertions are
 refused; a retrying matcher at the declared expectation may discriminate behavior.
+Fixed runner-owned instrumentation monitors uncaught main/renderer exceptions
+and renderer crashes throughout each test. It refuses missing monitor coverage
+and leaves the committed project archives unchanged.
 
 An observation cannot grant separate `VERIFIED` credit. Independent eligibility
 and proof reviews and a fresh signed replay remain required. Keep missing original RED

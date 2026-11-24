@@ -156,6 +156,9 @@ Original and mutant executions use distinct renderer ports and private profiles.
 Requests cannot supply a command, working directory, or existing build.
 Setup failures, crashes, skipped or retried tests, and failures at another
 assertion are refused. A mutant must fail the declared scenario expectation.
+Runner-owned monitoring stays active throughout the test: uncaught main/renderer
+errors and renderer crashes cannot become qualifying matcher failures. Missing
+monitor coverage also refuses proof; archived project files are unchanged.
 
 An observation never grants separate `VERIFIED` credit. That requires independent
 eligibility and proof reviews plus fresh signed replay. Preserve every missing original RED
