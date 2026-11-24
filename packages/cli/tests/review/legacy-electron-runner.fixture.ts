@@ -72,6 +72,8 @@ export function electronRunnerFixture() {
 const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(process.cwd(), '../..');
+(async () => {
+const app = await require(path.join(root, 'node_modules/playwright'))._electron.launch({args: []});
 const args = process.argv.slice(2);
 const grep = args[args.indexOf('--grep')+1];
 const pattern = new RegExp(grep.slice(1,-1));
@@ -91,6 +93,7 @@ if (process.env.SAFEWORD_ELECTRON_FIXTURE_MODE === 'malformed-report') {
 }
 const mutated = process.env.SAFEWORD_ELECTRON_FIXTURE_MODE !== 'surviving-mutation' && source.includes('behavior = false');
 const failure = 'Error: expect(received).toEqual(expected)\nExpected: '+request.mutation.expectedFailure+'\nReceived: missing package behavior\n    at '+request.mutation.assertionLocation+':3';
+if (process.env.SAFEWORD_ELECTRON_FIXTURE_MODE === 'unreported-renderer-error') app.context().emit('weberror', {error: () => new Error('controlled renderer exception after readiness')});
 const failed = mutated || process.env.SAFEWORD_ELECTRON_FIXTURE_MODE === 'failing-original';
 const result = {status:failed?'failed':'passed',retry:0,annotations:[],errors:failed?[{message:failure,location:{file:path.join(root,request.testFile),line:Number(request.mutation.assertionLocation.split(':').at(-1)),column:3}}]:[]};
 const report = {config:{projects:[{id:'',name:'',repeatEach:1,retries:0}]},suites:[{title:path.basename(request.testFile),specs:[{title:request.scenario,file:path.basename(request.testFile),line:request.testLine,tests:[{projectId:'',projectName:'',expectedStatus:'passed',status:failed?'unexpected':'expected',annotations:[],results:[result]}]}],suites:[]}],errors:[],stats:{expected:failed?0:1,unexpected:failed?1:0,flaky:0,skipped:0}};
@@ -114,8 +117,30 @@ if (process.env.SAFEWORD_ELECTRON_FIXTURE_MODE === 'occupied-port') {
 } else {
   fs.appendFileSync(process.env.SAFEWORD_ELECTRON_FIXTURE_LOG, JSON.stringify({event:'test', root, source, scenario:request.scenario, port:process.env.SOULLESS_ELECTRON_TEST_PORT, profile:process.env.TMPDIR})+'\n');
   fs.writeFileSync(process.env.PLAYWRIGHT_JSON_OUTPUT_FILE, JSON.stringify(report));
+  await app.close();
   process.exit(failed?1:0);
 }
+})().catch(error => { console.error(error); process.exit(1); });
+`;
+  const publicElectron = `
+const { EventEmitter } = require('node:events');
+const { spawnSync } = require('node:child_process');
+exports._electron = { async launch(options) {
+  const context = new EventEmitter();
+  const page = new EventEmitter();
+  page.pageErrors = async () => [];
+  let pid = process.pid;
+  const preload = options.args?.[options.args.indexOf('-r') + 1];
+  if (preload) {
+    // Controlled external Electron boundary: run the actual main preload in a
+    // child with Electron's main-process identity. No real review is minted.
+    const script = "Object.defineProperty(process.versions,'electron',{value:'fixture'});process.type='browser';require(" + JSON.stringify(preload) + ");";
+    const child = spawnSync(process.execPath, ['--eval', script], {env: {...process.env, NODE_OPTIONS: ''}, encoding: 'utf8'});
+    if (child.status !== 0) throw new Error(child.stderr);
+    pid = child.pid;
+  }
+  return {context: () => context, windows: () => [page], process: () => ({pid: pid}), close: async () => {}};
+}};
 `;
   const pnpm = String.raw`#!${process.execPath}
 const fs = require('node:fs');
@@ -133,6 +158,7 @@ if (event === 'install') {
   fs.mkdirSync('node_modules/playwright', {recursive:true});
   fs.writeFileSync('node_modules/installed-for', root);
   fs.writeFileSync('node_modules/playwright/cli.js', ${JSON.stringify(playwright)});
+  fs.writeFileSync('node_modules/playwright/index.js', ${JSON.stringify(publicElectron)});
   if (mode === 'lock-drift') fs.appendFileSync('pnpm-lock.yaml', 'changed by installation\n');
   process.exit(0);
 }

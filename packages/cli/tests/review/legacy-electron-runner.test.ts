@@ -10,6 +10,19 @@ import { electronRequest, electronRunnerFixture } from './legacy-electron-runner
 
 afterEach(() => vi.unstubAllEnvs());
 
+it('refuses an unreported renderer exception despite an otherwise qualifying matcher report', async () => {
+  const fixture = electronRunnerFixture();
+  for (const [name, value] of Object.entries(fixture.environment)) vi.stubEnv(name, value);
+  vi.stubEnv('SAFEWORD_ELECTRON_FIXTURE_MODE', 'unreported-renderer-error');
+  try {
+    await expect(
+      runElectronProof(fixture.root, electronRequest, fixture.requestPath),
+    ).rejects.toThrow(/uncaught|exception/u);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
 it('identifies an untracked declared support input before installation', async () => {
   const fixture = electronRunnerFixture();
   const support = 'packages/desktop/untracked-support.ts';
