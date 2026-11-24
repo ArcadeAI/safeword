@@ -71,21 +71,42 @@ export function electronRunnerFixture() {
   const playwright = String.raw`
 const fs = require('node:fs');
 const path = require('node:path');
-const request = ${JSON.stringify(electronRequest)};
 const root = path.resolve(process.cwd(), '../..');
+const args = process.argv.slice(2);
+const grep = args[args.indexOf('--grep')+1];
+const pattern = new RegExp(grep.slice(1,-1));
+const requestDirectory = path.join(root, ${JSON.stringify(path.dirname(requestPath))});
+const requests = fs.readdirSync(requestDirectory).filter(file=>file.endsWith('.request.json')).map(file=>JSON.parse(fs.readFileSync(path.join(requestDirectory,file),'utf8'))).filter(request=>pattern.test(request.testFullName));
+if (requests.length !== 1) process.exit(74);
+const request = requests[0];
 const source = fs.readFileSync(path.join(root, request.implementationPath), 'utf8');
 if (fs.readFileSync(path.join(root, 'node_modules/installed-for'), 'utf8') !== root) process.exit(71);
 if (fs.readFileSync('out/main/index.js', 'utf8') !== source) process.exit(72);
 if (fs.existsSync(path.join(root, 'untracked-poison'))) process.exit(73);
-const args = process.argv.slice(2);
 if (!args.includes('--workers=1') || !args.includes('--retries=0') || !args.includes('--repeat-each=1') || !args.includes('--no-deps') || !args.includes('--forbid-only')) process.exit(74);
-fs.appendFileSync(process.env.SAFEWORD_ELECTRON_FIXTURE_LOG, JSON.stringify({event:'test', root, source, port:process.env.SOULLESS_ELECTRON_TEST_PORT, profile:process.env.TMPDIR})+'\n');
+fs.appendFileSync(process.env.SAFEWORD_ELECTRON_FIXTURE_LOG, JSON.stringify({event:'test', root, source, scenario:request.scenario, port:process.env.SOULLESS_ELECTRON_TEST_PORT, profile:process.env.TMPDIR})+'\n');
 const mutated = process.env.SAFEWORD_ELECTRON_FIXTURE_MODE !== 'surviving-mutation' && source.includes('behavior = false');
 const failure = 'Error: expect(received).toEqual(expected)\nExpected: '+request.mutation.expectedFailure+'\nReceived: missing package behavior\n    at '+request.mutation.assertionLocation+':3';
 const result = {status:mutated?'failed':'passed',retry:0,annotations:[],errors:mutated?[{message:failure,location:{file:path.join(root,request.testFile),line:39,column:3}}]:[]};
 const report = {config:{projects:[{id:'',name:'',repeatEach:1,retries:0}]},suites:[{title:path.basename(request.testFile),specs:[{title:request.scenario,file:path.basename(request.testFile),line:request.testLine,tests:[{projectId:'',projectName:'',expectedStatus:'passed',status:mutated?'unexpected':'expected',annotations:[],results:[result]}]}],suites:[]}],errors:[],stats:{expected:mutated?0:1,unexpected:mutated?1:0,flaky:0,skipped:0}};
-fs.writeFileSync(process.env.PLAYWRIGHT_JSON_OUTPUT_FILE, JSON.stringify(report));
-process.exit(mutated?1:0);
+if (process.env.SAFEWORD_ELECTRON_FIXTURE_MODE === 'occupied-port') {
+  const net = require('node:net');
+  const owner = net.createServer();
+  owner.listen(Number(process.env.SOULLESS_ELECTRON_TEST_PORT),'127.0.0.1',()=>{
+    const renderer=net.createServer();
+    renderer.once('error',error=>{
+      report.suites=[];report.stats={expected:0,unexpected:0,flaky:0,skipped:0};
+      report.errors=[{message:'Owned renderer port collision: '+error.code}];
+      fs.writeFileSync(process.env.PLAYWRIGHT_JSON_OUTPUT_FILE,JSON.stringify(report));
+      fs.appendFileSync(process.env.SAFEWORD_ELECTRON_FIXTURE_LOG,JSON.stringify({event:'port-refused',root,code:error.code})+'\n');
+      owner.close(()=>process.exit(1));
+    });
+    renderer.listen(Number(process.env.SOULLESS_ELECTRON_TEST_PORT),'127.0.0.1');
+  });
+} else {
+  fs.writeFileSync(process.env.PLAYWRIGHT_JSON_OUTPUT_FILE, JSON.stringify(report));
+  process.exit(mutated?1:0);
+}
 `;
   const pnpm = String.raw`#!${process.execPath}
 const fs = require('node:fs');
@@ -135,6 +156,8 @@ for (const file of ['main/index.js','preload/index.cjs','renderer/index.html']) 
               source?: string;
               port?: string;
               profile?: string;
+              scenario?: string;
+              code?: string;
             },
         ),
     environment: {

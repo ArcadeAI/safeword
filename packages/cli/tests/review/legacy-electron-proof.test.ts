@@ -136,6 +136,13 @@ it('accepts exactly one normal original pass for the declared Electron selection
   });
 });
 
+it('identifies a global renderer port failure even when no selected test could start', () => {
+  const setupFailure = report({
+    report: { suites: [], errors: [{ message: 'Renderer EADDRINUSE at the owned test port' }] },
+  });
+  expect(() => evaluateElectronReport(setupFailure, selection, 'passed', 1)).toThrow(/EADDRINUSE/u);
+});
+
 interface ReportOverrides {
   report?: Record<string, unknown>;
   project?: Record<string, unknown>;

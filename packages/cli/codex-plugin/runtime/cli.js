@@ -61114,10 +61114,19 @@ function requireSingleExecution(report, test) {
   requireSingleProject(report);
   const results = array(test.results);
   const result = object(results[0]);
-  if (test.expectedStatus !== "passed" || array(test.annotations).length > 0 || results.length !== 1 || result.retry !== 0 || array(result.annotations).length > 0 || array(report.errors).length > 0) {
+  if (test.expectedStatus !== "passed" || array(test.annotations).length > 0 || results.length !== 1 || result.retry !== 0 || array(result.annotations).length > 0) {
     throw new Error("Electron proof requires one unannotated execution without retries or global errors.");
   }
   return result;
+}
+function requireNoGlobalErrors(report) {
+  const errors = array(report.errors);
+  if (errors.length === 0)
+    return;
+  const messages = errors.map((value) => object(value).message).filter((value) => typeof value === "string");
+  const detail = stripVTControlCharacters3(messages.join(`
+`)).slice(0, 2000);
+  throw new Error(`Electron proof reported global setup errors: ${detail}`);
 }
 function requireAssertionLocation(error, selection) {
   const location = object(error.location);
@@ -61156,6 +61165,7 @@ function requireOutcome(stats, test, result, expected, exitCode) {
 }
 function evaluateElectronReport(input, selection, expected, exitCode) {
   const report = object(input);
+  requireNoGlobalErrors(report);
   const selected = requireSelection2(report, selection);
   const result = requireSingleExecution(report, selected.test);
   const stats = object(report.stats);
@@ -63044,7 +63054,7 @@ function requireObservedMutation(observation) {
   if (!Number.isSafeInteger(mutated.exitCode) || mutated.exitCode <= 0 || mutated.passedTests !== 0 || mutated.failedTests !== 1 || mutated.test !== request.testFullName || !mutated.failure.includes(request.mutation.expectedFailure) || !mutated.failure.includes(request.mutation.assertionLocation))
     throw new Error("The reviewed Electron observation does not describe the enrolled discriminating outcome.");
 }
-function preparedRow(root, request) {
+function prepareElectronRow(root, request) {
   const admission = prepareElectronAdmission(root, request);
   const observationBytes = committedElectronInput(root, admission.observationPath);
   const observation = JSON.parse(observationBytes.toString("utf8"));
@@ -63065,14 +63075,17 @@ function preparedRow(root, request) {
   const content = `electron-row-v1\x00${admission.commit}\x00${JSON.stringify(request)}\x00${stableObservation(observation)}`;
   return { ...admission, observation, journal, content };
 }
+function requireElectronRowAuthorization(root, request, row) {
+  const tag = readFileSync48(path12.join(root, rowPath(request)), "utf8").trim();
+  if (!hasPassedElectronReplay(root, row.journal, row.commit) || !validRetrospectiveCloseTag(root, row.content, tag))
+    throw new Error("The Electron row has no current completed replay. Run review attest retrospective.");
+  if (currentProofCommit(root) !== row.commit)
+    throw new Error("The Electron committed view changed during row verification.");
+}
 function electronRetrospectiveGate(root, request) {
   try {
-    const row = preparedRow(root, request);
-    const tag = readFileSync48(path12.join(root, rowPath(request)), "utf8").trim();
-    if (!hasPassedElectronReplay(root, row.journal, row.commit) || !validRetrospectiveCloseTag(root, row.content, tag))
-      throw new Error("The Electron row has no current completed replay. Run review attest retrospective.");
-    if (currentProofCommit(root) !== row.commit)
-      throw new Error("The Electron committed view changed during row verification.");
+    const row = prepareElectronRow(root, request);
+    requireElectronRowAuthorization(root, request, row);
     return result(request, false);
   } catch (error) {
     return result(request, false, error instanceof Error ? error.message : "Electron row evidence is invalid.");
@@ -63080,10 +63093,10 @@ function electronRetrospectiveGate(root, request) {
 }
 async function attestElectronRetrospectiveRow(root, request) {
   try {
-    const row = preparedRow(root, request);
+    const row = prepareElectronRow(root, request);
     await withElectronReplay(root, row.journal, row.commit, async () => {
       const replay = await runElectronProof(root, row.proof, row.requestPath);
-      const after = preparedRow(root, request);
+      const after = prepareElectronRow(root, request);
       if (replay.commit !== row.commit || currentProofCommit(root) !== row.commit || after.content !== row.content || JSON.stringify(after.journal) !== JSON.stringify(row.journal) || stableObservation(replay) !== stableObservation(row.observation))
         throw new Error(`Electron replay did not reproduce the reviewed proof for ${request.scenario}.`);
     });
@@ -63353,13 +63366,15 @@ function exactClaims(root) {
 function closingView(root) {
   const sourceCommit = currentProofCommit(root);
   const claims = exactClaims(root);
+  const rows = [];
   const paths = new Set([
     SOULLESS_RETROSPECTIVE_POLICY.ledger,
     SOULLESS_RETROSPECTIVE_POLICY.feature,
     path13.posix.join(path13.posix.dirname(SOULLESS_RETROSPECTIVE_POLICY.ledger), "ticket.md")
   ]);
   for (const claim of claims) {
-    const row = prepareElectronAdmission(root, claim);
+    const row = prepareElectronRow(root, claim);
+    rows.push({ claim, prepared: row });
     for (const input of [
       row.eligibilityPath,
       row.requestPath,
@@ -63368,15 +63383,14 @@ function closingView(root) {
       `.safeword/state/reviews/${claim.proofId}.json`
     ])
       paths.add(input);
-    const observed = JSON.parse(committedElectronInput(root, row.observationPath).toString("utf8"));
-    for (const input of Object.keys(observed.supportSha256))
+    for (const input of Object.keys(row.observation.supportSha256))
       paths.add(input);
   }
   const sorted = [...paths].toSorted((left, right) => left.localeCompare(right, "en"));
   const inputs = Object.fromEntries(sorted.map((input) => [input, sha2565(readProofInput(root, input))]));
   if (currentProofCommit(root) !== sourceCommit)
     throw new Error("Electron closing view changed during verification.");
-  return {
+  const view = {
     schema_version: 1,
     policyId: SOULLESS_RETROSPECTIVE_POLICY.id,
     policySha256: sha2565(JSON.stringify(SOULLESS_RETROSPECTIVE_POLICY)),
@@ -63386,30 +63400,36 @@ function closingView(root) {
     claims,
     inputs
   };
+  return { view, rows };
 }
-function requireCurrentRows(root, claims) {
-  for (const claim of claims) {
-    const checked = electronRetrospectiveGate(root, claim);
-    if (checked.state !== "healthy")
-      throw new Error(`Electron closing row ${claim.scenario}: ${checked.findings[0]?.message}`);
+function requireCurrentRows(root, closing) {
+  for (const { claim, prepared } of closing.rows) {
+    try {
+      requireElectronRowAuthorization(root, claim, prepared);
+    } catch (error) {
+      throw new Error(`Electron closing row ${claim.scenario} is not current.`, { cause: error });
+    }
   }
+  for (const [input, digest] of Object.entries(closing.view.inputs))
+    if (sha2565(readProofInput(root, input)) !== digest)
+      throw new Error(`Electron closing input changed: ${input}`);
 }
 async function attestElectronRetrospectiveClose(root, ticketId, ledger) {
   try {
     requireMigration(ticketId, ledger);
     const before = closingView(root);
-    for (const claim of before.claims) {
+    for (const claim of before.view.claims) {
       const replay = await attestElectronRetrospectiveRow(root, claim);
       if (replay.state !== "changed")
         throw new Error(`Electron closing row ${claim.scenario}: ${replay.findings[0]?.message}`);
     }
     const after = closingView(root);
-    if (JSON.stringify(before) !== JSON.stringify(after))
+    if (JSON.stringify(before.view) !== JSON.stringify(after.view))
       throw new Error("Electron closing inputs changed during all-row replay.");
-    requireCurrentRows(root, after.claims);
-    const content = JSON.stringify(after);
+    requireCurrentRows(root, after);
+    const content = JSON.stringify(after.view);
     const integrity = retrospectiveCloseTag(root, `electron-close-v1\x00${content}`);
-    writeDurableFile(path13.join(root, RECORD_PATH), `${JSON.stringify({ view: after, integrity })}
+    writeDurableFile(path13.join(root, RECORD_PATH), `${JSON.stringify({ view: after.view, integrity })}
 `, { mode: 384 });
     return result2(true);
   } catch (error) {
@@ -63423,9 +63443,9 @@ function electronRetrospectiveCloseGate(root, ticketId, ledger) {
     if (!validRetrospectiveCloseTag(root, `electron-close-v1\x00${JSON.stringify(record.view)}`, record.integrity))
       throw new Error("Electron closing record is missing an authentic signature.");
     const current = closingView(root);
-    if (JSON.stringify(record.view) !== JSON.stringify(current))
+    if (JSON.stringify(record.view) !== JSON.stringify(current.view))
       throw new Error("Electron closing record does not bind the current committed view and reviews.");
-    requireCurrentRows(root, current.claims);
+    requireCurrentRows(root, current);
     return result2(false);
   } catch (error) {
     return result2(false, error instanceof Error ? error.message : "Electron closing proof is invalid.");

@@ -4,14 +4,11 @@ import path from 'node:path';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { writeDurableFile } from '../codex-plugin/durable-write.js';
 import { retrospectiveCloseTag, validRetrospectiveCloseTag } from './job.js';
-import {
-  committedElectronInput,
-  electronLedgerClaims,
-  prepareElectronAdmission,
-} from './retrospective-electron-admission.js';
+import { electronLedgerClaims } from './retrospective-electron-admission.js';
 import {
   attestElectronRetrospectiveRow,
-  electronRetrospectiveGate,
+  prepareElectronRow,
+  requireElectronRowAuthorization,
 } from './retrospective-electron-gate.js';
 import type { RetrospectiveGateRequest } from './retrospective-gate.js';
 import { SOULLESS_RETROSPECTIVE_POLICY as policy } from './retrospective-policy.js';
@@ -73,16 +70,21 @@ function exactClaims(root: string): RetrospectiveGateRequest[] {
   return claims;
 }
 
-function closingView(root: string): ClosingView {
+function closingView(root: string) {
   const sourceCommit = currentProofCommit(root);
   const claims = exactClaims(root);
+  const rows: {
+    claim: RetrospectiveGateRequest;
+    prepared: ReturnType<typeof prepareElectronRow>;
+  }[] = [];
   const paths = new Set<string>([
     policy.ledger,
     policy.feature,
     path.posix.join(path.posix.dirname(policy.ledger), 'ticket.md'),
   ]);
   for (const claim of claims) {
-    const row = prepareElectronAdmission(root, claim);
+    const row = prepareElectronRow(root, claim);
+    rows.push({ claim, prepared: row });
     for (const input of [
       row.eligibilityPath,
       row.requestPath,
@@ -91,10 +93,7 @@ function closingView(root: string): ClosingView {
       `.safeword/state/reviews/${claim.proofId}.json`,
     ])
       paths.add(input);
-    const observed = JSON.parse(
-      committedElectronInput(root, row.observationPath).toString('utf8'),
-    ) as { supportSha256: Record<string, string> };
-    for (const input of Object.keys(observed.supportSha256)) paths.add(input);
+    for (const input of Object.keys(row.observation.supportSha256)) paths.add(input);
   }
   const sorted = [...paths].toSorted((left, right) => left.localeCompare(right, 'en'));
   const inputs = Object.fromEntries(
@@ -102,7 +101,7 @@ function closingView(root: string): ClosingView {
   );
   if (currentProofCommit(root) !== sourceCommit)
     throw new Error('Electron closing view changed during verification.');
-  return {
+  const view: ClosingView = {
     schema_version: 1,
     policyId: policy.id,
     policySha256: proofSha256(JSON.stringify(policy)),
@@ -112,14 +111,20 @@ function closingView(root: string): ClosingView {
     claims,
     inputs,
   };
+  return { view, rows };
 }
 
-function requireCurrentRows(root: string, claims: readonly RetrospectiveGateRequest[]): void {
-  for (const claim of claims) {
-    const checked = electronRetrospectiveGate(root, claim);
-    if (checked.state !== 'healthy')
-      throw new Error(`Electron closing row ${claim.scenario}: ${checked.findings[0]?.message}`);
+function requireCurrentRows(root: string, closing: ReturnType<typeof closingView>): void {
+  for (const { claim, prepared } of closing.rows) {
+    try {
+      requireElectronRowAuthorization(root, claim, prepared);
+    } catch (error: unknown) {
+      throw new Error(`Electron closing row ${claim.scenario} is not current.`, { cause: error });
+    }
   }
+  for (const [input, digest] of Object.entries(closing.view.inputs))
+    if (proofSha256(readProofInput(root, input)) !== digest)
+      throw new Error(`Electron closing input changed: ${input}`);
 }
 
 /** Every required row executes at the same final committed view before aggregate publication. */
@@ -131,20 +136,20 @@ export async function attestElectronRetrospectiveClose(
   try {
     requireMigration(ticketId, ledger);
     const before = closingView(root);
-    for (const claim of before.claims) {
+    for (const claim of before.view.claims) {
       const replay = await attestElectronRetrospectiveRow(root, claim);
       if (replay.state !== 'changed')
         throw new Error(`Electron closing row ${claim.scenario}: ${replay.findings[0]?.message}`);
     }
     const after = closingView(root);
-    if (JSON.stringify(before) !== JSON.stringify(after))
+    if (JSON.stringify(before.view) !== JSON.stringify(after.view))
       throw new Error('Electron closing inputs changed during all-row replay.');
-    requireCurrentRows(root, after.claims);
-    const content = JSON.stringify(after);
+    requireCurrentRows(root, after);
+    const content = JSON.stringify(after.view);
     const integrity = retrospectiveCloseTag(root, `electron-close-v1\0${content}`);
     writeDurableFile(
       path.join(root, RECORD_PATH),
-      `${JSON.stringify({ view: after, integrity })}\n`,
+      `${JSON.stringify({ view: after.view, integrity })}\n`,
       { mode: 0o600 },
     );
     return result(true);
@@ -174,11 +179,11 @@ export function electronRetrospectiveCloseGate(
     )
       throw new Error('Electron closing record is missing an authentic signature.');
     const current = closingView(root);
-    if (JSON.stringify(record.view) !== JSON.stringify(current))
+    if (JSON.stringify(record.view) !== JSON.stringify(current.view))
       throw new Error(
         'Electron closing record does not bind the current committed view and reviews.',
       );
-    requireCurrentRows(root, current.claims);
+    requireCurrentRows(root, current);
     return result(false);
   } catch (error: unknown) {
     return result(

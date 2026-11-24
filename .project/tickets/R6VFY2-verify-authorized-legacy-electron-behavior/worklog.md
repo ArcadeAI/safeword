@@ -91,6 +91,32 @@ additional diagnostics must identify the remaining mismatch before any credit.
 
 ## Remaining delivery
 
+The positive public closing check and same-HEAD failed-replay invalidation both
+passed: 3 closing tests in 227.59 seconds. The old aggregate bytes remained
+unchanged while its failed journal made them non-authorizing; a same-proof retry
+executed no additional tests. The subsequent 9-file regression run passed 155
+tests, including actual owned-port EADDRINUSE refusal and signed foreign-policy,
+foreign-scenario, unsupported-schema and interrupted-journal refusals. No tests
+were run concurrently. These are fixture/contract results; real Soulless still
+has only its first non-authorizing observation and no VERIFIED rows.
+
+The all-17 synthetic closing journey initially exhausted its 120-second test
+budget after all 34 replay executions. Closing redundantly prepared each row
+again solely to read its already-bound row tag and journal. Reuse is now limited
+to one check invocation: closing prepares each row once, reads its current
+authenticated tag/journal, and rechecks all captured input hashes before success.
+It never reuses execution across HEADs. The unchanged 120-second case then
+passed; combined closing/ledger protection passed 6 tests in 106.59 seconds.
+These controlled external-process results establish wiring, not the actual
+17-scenario Electron delivery. A positive public closing-gate test and an
+old-aggregate-after-failed-replay test are running separately.
+
+A new global-error diagnostic probe failed because an occupied renderer port
+was reported only as an absent selected test. The validator now refuses global
+setup errors before selection and retains their bounded actual reason. The
+standalone probe passed after that change; formal contract and actual socket
+collision protection remain to run. Neither diagnostic is an Electron kill.
+
 Row admission protection passed 57 tests, including authenticated synthetic
 external-review jobs, metadata HEAD replay and same-HEAD failure/renewal. Review
 905e1baf-6acd-4dd6-966a-3c2415bdfa08 then found a newline bug in the new ledger

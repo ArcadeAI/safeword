@@ -1,11 +1,20 @@
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { expect, it, vi } from 'vitest';
 
+import { retrospectiveCloseTag } from '../../src/review/job.js';
 import {
   hasPassedElectronReplay,
   withElectronReplay,
@@ -17,6 +26,16 @@ const identity = {
   inputSha256: 'a'.repeat(64),
 };
 const commit = 'b'.repeat(40);
+
+interface JournalEnvelopeFixture {
+  record: {
+    schema_version: number;
+    policySha256: string;
+    identity: typeof identity;
+    state: string;
+  };
+  integrity: string;
+}
 
 it('authorizes a completed replay only after its owned pending execution finishes', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'safeword-electron-journal-'));
@@ -189,6 +208,84 @@ it('keeps authorization blocked if final durable publication fails', async () =>
     await expect(
       withElectronReplay(root, identity, commit, () => Promise.resolve('retry')),
     ).rejects.toMatchObject({ code: 'EEXIST' });
+  } finally {
+    vi.unstubAllEnvs();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+it.each<[string, (envelope: JournalEnvelopeFixture) => void, boolean]>([
+  [
+    'a forged integrity tag',
+    envelope => {
+      envelope.integrity = '0'.repeat(64);
+    },
+    false,
+  ],
+  [
+    'a state changed without its signature',
+    envelope => {
+      envelope.record.state = 'pending';
+    },
+    false,
+  ],
+  [
+    'an authenticated foreign policy',
+    envelope => {
+      envelope.record.policySha256 = 'f'.repeat(64);
+    },
+    true,
+  ],
+  [
+    'an authenticated foreign scenario',
+    envelope => {
+      envelope.record.identity.scenario = 'Ordinary folders remain folders';
+    },
+    true,
+  ],
+  [
+    'an authenticated unsupported schema',
+    envelope => {
+      envelope.record.schema_version = 2;
+    },
+    true,
+  ],
+  [
+    'an authenticated pending record without a lock',
+    envelope => {
+      envelope.record.state = 'pending';
+    },
+    true,
+  ],
+])('refuses %s before executing or refreshing its replay record', async (_name, tamper, resign) => {
+  const root = mkdtempSync(path.join(tmpdir(), 'safeword-electron-journal-'));
+  vi.stubEnv('SAFEWORD_REVIEW_KEY_ROOT', path.join(root, 'profile'));
+  try {
+    await withElectronReplay(root, identity, commit, () => Promise.resolve('initial pass'));
+    const records = path.join(root, '.safeword/state/reviews');
+    const filename = readdirSync(records).find(file => file.endsWith('.json'));
+    const recordPath = path.join(records, filename ?? 'missing');
+    const envelope = JSON.parse(readFileSync(recordPath, 'utf8')) as JournalEnvelopeFixture;
+    tamper(envelope);
+    // Only this temporary fixture owns the signing key. Resigning isolates the
+    // scope/state guard from HMAC rejection; it creates no real review receipt.
+    if (resign)
+      envelope.integrity = retrospectiveCloseTag(
+        root,
+        `electron-replay-v1\0${JSON.stringify(envelope.record)}`,
+      );
+    const bytes = JSON.stringify(envelope);
+    writeFileSync(recordPath, bytes);
+    expect(hasPassedElectronReplay(root, identity, commit)).toBe(false);
+    const marker = path.join(root, 'executed-after-invalid-record');
+    await expect(
+      withElectronReplay(root, identity, commit, () => {
+        writeFileSync(marker, 'unexpected execution');
+        return Promise.resolve('invalid retry');
+      }),
+    ).rejects.toThrow();
+    expect(existsSync(marker)).toBe(false);
+    expect(readFileSync(recordPath, 'utf8')).toBe(bytes);
   } finally {
     vi.unstubAllEnvs();
     rmSync(root, { recursive: true, force: true });

@@ -4,6 +4,9 @@ import { electronLedgerClaims } from '../../src/review/retrospective-electron-ad
 import { SOULLESS_RETROSPECTIVE_POLICY as policy } from '../../src/review/retrospective-policy.js';
 import { electronAuthorizationFixture } from './legacy-electron-authorization.fixture.js';
 
+const verified =
+  '- [x] VERIFIED eligibility=11111111-1111-4111-8111-111111111111 proof=22222222-2222-4222-8222-222222222222\n';
+
 it.runIf(process.platform !== 'win32')(
   'parses separate VERIFIED credit beneath a newline-terminated historical heading',
   async () => {
@@ -27,6 +30,33 @@ it.runIf(process.platform !== 'win32')(
           proofId,
         },
       ]);
+    } finally {
+      fixture.cleanup();
+    }
+  },
+);
+
+it.runIf(process.platform !== 'win32').each<[string, (content: string) => string, RegExp]>([
+  ['duplicate credit', content => content + verified + verified, /unique enrolled headings/u],
+  [
+    'a foreign heading',
+    content => `${content}### Scenario: Unenrolled behavior\n${verified}`,
+    /approved Electron migration boundary/u,
+  ],
+  [
+    'rewritten original history',
+    content => content.replace('- [ ] GREEN', '- [x] GREEN fabricated') + verified,
+    /Original Electron history changed/u,
+  ],
+])(
+  'refuses %s instead of interpreting it as retrospective completion',
+  async (_name, modify, reason) => {
+    const fixture = await electronAuthorizationFixture();
+    try {
+      fixture.write(policy.ledger, modify(fixture.ledger));
+      fixture.git('add', policy.ledger);
+      fixture.git('commit', '-qm', 'record invalid structural ledger fixture');
+      expect(() => electronLedgerClaims(fixture.root)).toThrow(reason);
     } finally {
       fixture.cleanup();
     }

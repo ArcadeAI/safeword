@@ -84,14 +84,23 @@ function requireSingleExecution(report: JsonObject, test: JsonObject): JsonObjec
     array(test.annotations).length > 0 ||
     results.length !== 1 ||
     result.retry !== 0 ||
-    array(result.annotations).length > 0 ||
-    array(report.errors).length > 0
+    array(result.annotations).length > 0
   ) {
     throw new Error(
       'Electron proof requires one unannotated execution without retries or global errors.',
     );
   }
   return result;
+}
+
+function requireNoGlobalErrors(report: JsonObject): void {
+  const errors = array(report.errors);
+  if (errors.length === 0) return;
+  const messages = errors
+    .map(value => object(value).message)
+    .filter((value): value is string => typeof value === 'string');
+  const detail = stripVTControlCharacters(messages.join('\n')).slice(0, 2000);
+  throw new Error(`Electron proof reported global setup errors: ${detail}`);
 }
 
 function requireAssertionLocation(error: JsonObject, selection: ElectronReportSelection): void {
@@ -173,6 +182,7 @@ export function evaluateElectronReport(
   exitCode: number,
 ): { exitCode: number; failure: string } {
   const report = object(input);
+  requireNoGlobalErrors(report);
   const selected = requireSelection(report, selection);
   const result = requireSingleExecution(report, selected.test);
   const stats = object(report.stats);

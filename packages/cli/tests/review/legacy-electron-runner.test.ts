@@ -63,6 +63,7 @@ it.runIf(process.platform !== 'win32').each([
   ['build-failure', 'Electron full desktop build failed'],
   ['lock-drift', 'Electron install changed committed proof inputs'],
   ['surviving-mutation', 'Electron proof statistics'],
+  ['occupied-port', 'Owned renderer port collision: EADDRINUSE'],
 ])('refuses %s and removes its owned snapshots', async (mode, reason) => {
   const fixture = electronRunnerFixture();
   for (const [name, value] of Object.entries(fixture.environment)) vi.stubEnv(name, value);

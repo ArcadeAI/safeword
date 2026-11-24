@@ -100,7 +100,7 @@ function requireObservedMutation(observation: ElectronProofObservation): void {
     );
 }
 
-function preparedRow(root: string, request: RetrospectiveGateRequest) {
+export function prepareElectronRow(root: string, request: RetrospectiveGateRequest) {
   const admission = prepareElectronAdmission(root, request);
   const observationBytes = committedElectronInput(root, admission.observationPath);
   const observation = JSON.parse(observationBytes.toString('utf8')) as ElectronProofObservation;
@@ -124,23 +124,32 @@ function preparedRow(root: string, request: RetrospectiveGateRequest) {
   return { ...admission, observation, journal, content };
 }
 
+/** Consume only a preparation from this invocation, never a serialized caller value. */
+export function requireElectronRowAuthorization(
+  root: string,
+  request: RetrospectiveGateRequest,
+  row: ReturnType<typeof prepareElectronRow>,
+): void {
+  const tag = readFileSync(path.join(root, rowPath(request)), 'utf8').trim();
+  if (
+    !hasPassedElectronReplay(root, row.journal, row.commit) ||
+    !validRetrospectiveCloseTag(root, row.content, tag)
+  )
+    throw new Error(
+      'The Electron row has no current completed replay. Run review attest retrospective.',
+    );
+  if (currentProofCommit(root) !== row.commit)
+    throw new Error('The Electron committed view changed during row verification.');
+}
+
 /** Host hooks read authenticated replay state and current review fingerprints without executing tests. */
 export function electronRetrospectiveGate(
   root: string,
   request: RetrospectiveGateRequest,
 ): CliResult {
   try {
-    const row = preparedRow(root, request);
-    const tag = readFileSync(path.join(root, rowPath(request)), 'utf8').trim();
-    if (
-      !hasPassedElectronReplay(root, row.journal, row.commit) ||
-      !validRetrospectiveCloseTag(root, row.content, tag)
-    )
-      throw new Error(
-        'The Electron row has no current completed replay. Run review attest retrospective.',
-      );
-    if (currentProofCommit(root) !== row.commit)
-      throw new Error('The Electron committed view changed during row verification.');
+    const row = prepareElectronRow(root, request);
+    requireElectronRowAuthorization(root, request, row);
     return result(request, false);
   } catch (error: unknown) {
     return result(
@@ -157,10 +166,10 @@ export async function attestElectronRetrospectiveRow(
   request: RetrospectiveGateRequest,
 ): Promise<CliResult> {
   try {
-    const row = preparedRow(root, request);
+    const row = prepareElectronRow(root, request);
     await withElectronReplay(root, row.journal, row.commit, async () => {
       const replay = await runElectronProof(root, row.proof, row.requestPath);
-      const after = preparedRow(root, request);
+      const after = prepareElectronRow(root, request);
       if (
         replay.commit !== row.commit ||
         currentProofCommit(root) !== row.commit ||
