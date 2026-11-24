@@ -1,5 +1,3 @@
-import { inspectHistoryGit } from './retrospective-history-core.js';
-
 export interface RetrospectiveMigrationPolicy {
   readonly id: string;
   readonly ticketId: 'CKWE2D' | 'SGWMBS';
@@ -82,11 +80,10 @@ function canonicalRepo(remote: string): string | undefined {
 }
 
 /** Legacy enrollment keeps its original ancestry-only repository boundary. */
-export function matchesMigrationOrigin(
-  root: string,
+export function matchesMigrationRemote(
+  remote: string,
   policy: RetrospectiveMigrationPolicy,
 ): boolean {
   if (policy.repository === undefined) return true;
-  const remote = inspectHistoryGit(root, ['config', '--get', 'remote.origin.url']);
-  return !remote.error && remote.status === 0 && canonicalRepo(remote.stdout) === policy.repository;
+  return canonicalRepo(remote) === policy.repository;
 }

@@ -1,11 +1,12 @@
 import {
   checkHistoryAgainstTrustedCutoff,
+  inspectHistoryGit,
   type RetrospectiveHistoryRequest,
   type RetrospectiveHistoryResult,
 } from './retrospective-history-core.js';
 import {
   LEGACY_RETROSPECTIVE_POLICY,
-  matchesMigrationOrigin,
+  matchesMigrationRemote,
   retrospectivePolicy,
 } from './retrospective-policy.js';
 
@@ -26,7 +27,8 @@ export function checkRetrospectiveHistory(
 ): RetrospectiveHistoryResult {
   const policy = retrospectivePolicy(request.ticketId);
   if (policy?.runner === 'playwright-electron') {
-    if (!matchesMigrationOrigin(projectRoot, policy)) {
+    const remote = inspectHistoryGit(projectRoot, ['config', '--get', 'remote.origin.url']);
+    if (remote.error || remote.status !== 0 || !matchesMigrationRemote(remote.stdout, policy)) {
       return {
         eligibleForReview: false,
         reason: 'The approved migration repository does not match.',
