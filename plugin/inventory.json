@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "a0086dc3392f65e3de28d01782bd1c347a36b1bad988a5bcdd8fd83f84dadf01"
+      "sha256": "7dd05267cecc0b1f02243c076259d5b4afc03b473757c916a7d7e8ac844e4174"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "1ae840ee8fc90f6105a74cfd5be0a25447bad4e9c1755dbbe4033dcc34c90427"
+      "sha256": "8cad16a3b025f96b9a064c540770346a2dcf366ecdf06c821a2c4b1c77496528"
     },
     {
       "path": "runtime/event-groups.json",
@@ -567,7 +567,7 @@
     },
     {
       "path": "runtime/hooks/session-architecture-heal.ts",
-      "sha256": "2288bfca27f7a039fafd5a60c4e3cf8c3e07b2f387ec2502545a16bc3005346e"
+      "sha256": "8eedd3ac81844dd2676505d313135c24c8d9ad0b7eec2f7f7734c0870cb7ae90"
     },
     {
       "path": "runtime/hooks/session-auto-upgrade.ts",
@@ -1563,7 +1563,7 @@
     },
     {
       "path": "templates/hooks/session-architecture-heal.ts",
-      "sha256": "2288bfca27f7a039fafd5a60c4e3cf8c3e07b2f387ec2502545a16bc3005346e"
+      "sha256": "8eedd3ac81844dd2676505d313135c24c8d9ad0b7eec2f7f7734c0870cb7ae90"
     },
     {
       "path": "templates/hooks/session-auto-upgrade.ts",

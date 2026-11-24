@@ -23,7 +23,9 @@ if (!existsSync(nodePath.join(projectDir, '.safeword'))) {
 const cli = safewordCli(projectDir);
 if (cli === undefined) process.exit(0);
 
-spawnSync(cli.command, [...cli.args, 'architecture'], {
+// Use the canonical command, not the retained `architecture` alias: the alias
+// emits a deprecation finding on every session start (#8143).
+spawnSync(cli.command, [...cli.args, 'project', 'architecture'], {
   cwd: projectDir,
   env: projectEnvironment(projectDir),
   stdio: 'inherit',

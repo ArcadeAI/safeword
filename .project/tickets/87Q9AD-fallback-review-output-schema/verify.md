@@ -18,3 +18,9 @@
 ### Cursor fallback review
 
 The Cursor integration case failed when it required the advertised reviewer identity to match the submitting host. After binding the schema to the host author, the packaged CLI returned exactly `["cursor"]` and the sealed dispatch ID for a Cursor planning fallback. The CLI build and typecheck passed. The fallback, runtime, job and finish-review suites passed 170 tests with two skipped. All five generated surfaces verified. All seven tracked reviewer guide copies have the same SHA-256 digest as the Claude historical catalogue and the bundled runtimes.
+
+### Audit and host handoff evidence
+
+At ede1b69a6 the diff audit found no dependency violations across 536 modules. All 602 acceptance scenarios passed. The full CLI suite passed once (12,081 tests, 12 skipped), then failed on its repeat. The repeated run reported seven failed tests plus setup failures; an isolated rerun still had five routing and CLI discovery failures. The aggregate local verification result was red. Both Node CI jobs passed.
+
+Two live Claude samples produced schema-valid objects inside Markdown fences. In a disposable project, the real Cursor Agent CLI received a fenced fixture and wrote the same JSON object to disk. Its first session lacked shell permission. With automatic command review, Cursor submitted that file to the packaged CLI. The captured input matched Cursor's file byte for byte and the job reached approved with reduced independence. This exercises the handoff; it does not estimate reviewer reliability.
