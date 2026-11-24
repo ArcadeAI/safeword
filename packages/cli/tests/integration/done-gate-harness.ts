@@ -41,11 +41,12 @@ export function writeFeatureTicketAtDone(directory: string, ticketId: string): v
  * Run the real stop-quality.ts done-gate against a project for a session, and
  * return its exit code + block reason. `environment` defaults to the ambient
  * env with CLAUDE_PROJECT_DIR set; pass a scrubbed env to simulate a non-Claude
- * runtime.
+ * runtime. An undefined `sessionId` omits session_id from the payload, as Codex
+ * Desktop does.
  */
 export function runDoneGate(
   projectDirectory: string,
-  sessionId: string,
+  sessionId: string | undefined,
   environment?: NodeJS.ProcessEnv,
   options: { stopHookActive?: boolean } = {},
 ): {
