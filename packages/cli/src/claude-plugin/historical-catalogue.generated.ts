@@ -108,7 +108,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/prompt-timestamp.ts':
         'd7939e98528717fed556adf65dcb9fd3c24fac530ba76be2db9c5faebbac27f3',
       '.safeword/hooks/session-architecture-heal.ts':
-        '2288bfca27f7a039fafd5a60c4e3cf8c3e07b2f387ec2502545a16bc3005346e',
+        '8eedd3ac81844dd2676505d313135c24c8d9ad0b7eec2f7f7734c0870cb7ae90',
       '.safeword/hooks/session-auto-upgrade.ts':
         '58403ff9922ae1423becd4e9a682fb91d9b68db4881f4c0d8c5e46edc3ea8fc2',
       '.safeword/hooks/session-bun-check.sh':
