@@ -81,7 +81,7 @@ function checkGate(
       cwd: cli.cwd,
       env: trustedEnvironment(root),
       encoding: 'utf8',
-      timeout: 30_000,
+      timeout: operation === 'retrospective-close' ? 120_000 : 30_000,
       maxBuffer: 2 * 1024 * 1024,
     },
   );

@@ -69,6 +69,25 @@ describe('installed retrospective closing gate', () => {
     expect(retrospectiveCloseDenial(project, 'CKWE2D', ledger)).toBeUndefined();
   });
 
+  it('still refuses an individual row response after its shorter deadline', () => {
+    const claim = {
+      ticketId: 'CKWE2D',
+      scenario: 'example',
+      ledger,
+      eligibilityId: '11111111-1111-4111-8111-111111111111',
+      proofId: '22222222-2222-4222-8222-222222222222',
+    };
+    const output = JSON.stringify({ state: 'healthy', data: { ...claim, status: 'approved' } });
+    const cli = stub(outside, output);
+    writeFileSync(
+      cli,
+      `setTimeout(() => process.stdout.write(${JSON.stringify(output)}), 11_000);\n`,
+    );
+    expect(retrospectiveGateDenial(project, claim)).toBe(
+      'Retrospective review gate could not return a verified result.',
+    );
+  });
+
   it.each([
     [
       'blocked state',

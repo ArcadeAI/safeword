@@ -407,7 +407,7 @@
     },
     {
       "path": "runtime/hooks/lib/retrospective-gate.ts",
-      "sha256": "ba07fb2054720890885a620fb8d8977c715c7d89df697db5b65035cd5305f972"
+      "sha256": "00dfb543d541906687107bf85967c720f5300b0f58f10e1f14e5c3f39a9a3377"
     },
     {
       "path": "runtime/hooks/lib/review-ledger.ts",
@@ -1403,7 +1403,7 @@
     },
     {
       "path": "templates/hooks/lib/retrospective-gate.ts",
-      "sha256": "ba07fb2054720890885a620fb8d8977c715c7d89df697db5b65035cd5305f972"
+      "sha256": "00dfb543d541906687107bf85967c720f5300b0f58f10e1f14e5c3f39a9a3377"
     },
     {
       "path": "templates/hooks/lib/review-ledger.ts",

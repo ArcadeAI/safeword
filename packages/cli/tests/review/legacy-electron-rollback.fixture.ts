@@ -66,7 +66,7 @@ export function legacyElectronRollback() {
           '--project',
           root,
         ],
-        { encoding: 'utf8', timeout: 120_000 },
+        { encoding: 'utf8', timeout: 240_000 },
       );
       if (preflight.status !== 0)
         throw new Error(`Current real all-row authorization is required: ${preflight.stderr}`);
