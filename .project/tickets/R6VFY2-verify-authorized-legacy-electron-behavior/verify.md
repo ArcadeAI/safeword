@@ -5,12 +5,49 @@ The reporting follow-up changes verification documents and records existing real
 refactor commits only; it does not change production code, tests, dependencies,
 policy enrollment, or the missing original histories.
 
+A subsequent CI reliability follow-up changes collector file scheduling, startup
+diagnostics and the outer CI job budget. Production code, test assertions,
+individual test deadlines, dependencies and generated runtimes remain unchanged.
+
+## CI reliability investigation
+
+At reporting head 3da2eaca2, CI run 45485362001 exposed two infrastructure limits.
+The Node 22 collector startup check remained `waiting` beyond its one-second
+deadline. Collector production and assertion code was identical to previously
+passing 9ed3d020; isolated packaged-collector protection passed all seven tests.
+The small integration suite now runs files serially to remove competing fixture
+processes, and all 153 collector tests pass under that configuration. The original
+failure did not capture child stderr, so a particular transient startup cause is
+not presented as proven. Startup failures now include a bounded stderr tail and
+signal state. Existing readiness assertions and startup deadlines stay intact.
+Unused child stdout is ignored so its pipe cannot block startup. The root test
+script runs relay, collector and CLI with sequential `&&` commands; the setting
+removes overlap between collector files, not all possible host contention.
+
+The Node 24 package lane passed all 12337 CLI tests, but took 25 minutes 57 seconds.
+Acceptance began 27 minutes 6 seconds after job start, leaving under three minutes
+of its 30-minute cap for a lane previously measured above five minutes plus the
+release gate. GitHub cancelled it at the job limit. The outer cap is now 45 minutes;
+all lanes remain required, and full-CLI file parallelism is unchanged. A new
+exact-head CI run must finish green before any Ready action.
+
+This rules out an introduced collector production/assertion change and records
+the directly measured job-capacity failure. Transient fixture contention remains
+an environment risk rather than a fabricated application defect. The CI failures
+are preserved separately from passing local behavior and missing original TDD
+history. [CI run](https://github.com/ArcadeAI/safeword/actions/runs/45485362001),
+[Vitest file scheduling](https://vitest.dev/config/fileparallelism), and
+[GitHub job timeout semantics](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idtimeout-minutes).
+
 ## Verify Checklist
 
 **Test Suite:** ✓ 12333/12333 tests pass, with 14 pre-existing local skips, across
-770 CLI files. Relay: 198 passed / 1 skipped; collector: 153 passed. Current-code
-CI on Node 22 and 24 passed 12337 CLI tests / 10 skips, plus physical installation
-and 81 release-gate tests. Each unique root-delegated suite ran once locally.
+770 CLI files at 9ed3d020. Relay: 198 passed / 1 skipped; collector: 153 passed.
+All 153 collector tests also pass after the CI-fixture scheduling/diagnostic
+changes. Prior CI at 9ed3d020 passed 12337 CLI tests / 10 skips on Node 22 and 24,
+plus physical installation and 81 release-gate tests. Each unique root-delegated
+suite ran once locally. Final delivery-head CI is separate evidence; this report
+does not claim a hosted green result for an untested reporting/configuration head.
 
 **Gherkin:** ✅ The canonical serialized acceptance rerun passed all 602
 scenarios / 12451 steps. The separate proof inventory passed all 53 checks.
