@@ -268,3 +268,9 @@ Six more local Claude Code and Codex rows are bound. The installed adapters keep
 A settled-notes Claude probe initially asked the owner to reconfirm recorded behavior. The installed guidance now tells promoted tasks to use settled notes directly, ask only about a missing decision, and consume the approved destination with `ticket resume`. Claude's open-decision probe `80afe1a9-9ba7-4704-bc2c-9eb6275b383b` asked only about the unreachable-service response. The updated settled-notes probe `cf10c771-f2a8-4200-a97c-ffa23e824300` began preparing scenarios directly without posing a confirmation question. It reached the harness turn limit. Initial Codex planning probes timed out before attempting the edit. These observations leave the four settle-versus-ask bindings open.
 
 All 72 focused tests and five generated-surface checks passed. Independent review `869f3747-2b55-4331-8e43-d2cc07750b65` approved the promotion guidance. Fifteen of 130 expanded examples now have executable proof links. The acceptance dry run reports 115 undefined examples. No RED, GREEN, or REFACTOR boxes were changed.
+
+### Native design decision observations
+
+The disposable Claude Code sessions `42e24008-993f-4acb-91bf-f8cc104c2369` and `ba578ff3-2d7c-41b6-a97d-2d5be6d7de01` exercised the settled and open decision cases at `3ae06eb2b`. The settled run wrote two scenarios without requesting confirmation. The open run asked only how to report an unreachable service and held scenario review.
+
+Codex session `01a20bbe-32f2-7a11-b382-ea66a7c445be` exercised the open case at `67e00cefe`. The native ticket edit advanced the existing ticket to behavior definition and kept Implementation Planning pending. Codex prepared the settled scenario, asked only how to report an unreachable service, and held scenario review. The settled Codex run timed out before it could complete the checkpoint edit. Executable bindings for these cases remain open.
