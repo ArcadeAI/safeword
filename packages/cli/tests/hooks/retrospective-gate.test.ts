@@ -58,6 +58,17 @@ describe('installed retrospective closing gate', () => {
     expect(retrospectiveCloseDenial(project, 'CKWE2D', 'other.md')).toBeDefined();
   });
 
+  it('accepts a valid combined closing check after the individual-row deadline', () => {
+    const cli = stub(outside, envelope());
+    // The external process deliberately crosses the old 10s deadline. No real
+    // review records or project authority are involved in this transport fixture.
+    writeFileSync(
+      cli,
+      `setTimeout(() => process.stdout.write(${JSON.stringify(envelope())}), 11_000);\n`,
+    );
+    expect(retrospectiveCloseDenial(project, 'CKWE2D', ledger)).toBeUndefined();
+  });
+
   it.each([
     [
       'blocked state',
