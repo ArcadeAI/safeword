@@ -42,7 +42,7 @@ example results; partial example execution cannot complete an outline.
 ### Scenario: The public command observes independently rebuilt original and mutant Electron snapshots
 
 - [x] RED 21aca3867
-- [ ] GREEN
+- [x] GREEN 2185c1d77
 - [ ] REFACTOR
 
 ### Scenario: A non-discriminating execution does not earn verification
