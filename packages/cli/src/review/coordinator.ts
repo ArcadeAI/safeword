@@ -32,6 +32,7 @@ import { reviewerPromptInstructions } from './review-rubric.js';
 import {
   type ConfirmedReviewerModel,
   minimumRouteMs,
+  reviewOutputSchema,
   ReviewRuntimeError,
   runBoundMs,
   runHeadlessReviewerWithProvenance,
@@ -1001,6 +1002,7 @@ function hostContinuationResult(input: {
   // fresh-context review rather than blocking, whatever stopped the routes:
   // failure, unavailability, or a run budget too small to fund the rest.
   if (!input.planning || input.degraded !== undefined) return undefined;
+  const { packet } = input.prepared;
   const headlessRoute = input.evidence.some(route => route.independence === 'degraded');
   return createResult({
     state: 'action_required',
@@ -1025,12 +1027,12 @@ function hostContinuationResult(input: {
       review_routes: input.evidence,
       continuation: {
         tier: 'fresh-context',
-        instructions: reviewerPromptInstructions(
-          input.input.kind,
-          input.author,
-          input.prepared.packet.planning_phase,
-        ),
-        packet: input.prepared.packet,
+        instructions: [
+          reviewerPromptInstructions(packet.kind, input.author, packet.planning_phase),
+          'Return an object matching this JSON Schema:',
+          reviewOutputSchema(packet.kind, packet.planning_phase, packet.dispatch_id, input.author),
+        ].join('\n'),
+        packet,
       },
     },
   });
