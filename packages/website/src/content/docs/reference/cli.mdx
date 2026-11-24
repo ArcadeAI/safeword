@@ -6,6 +6,32 @@ description: Safeword command-line interface reference
 All commands run via `bunx safeword@latest` (or just `safeword` when installed
 locally). Bare `safeword` is a read-only alias for `safeword status`.
 
+## Historical Electron observation
+
+```bash
+safeword review observe retrospective --request path/to/committed.request.json --json
+```
+
+This non-authorizing observation is restricted to the source-enrolled SGWMBS
+migration and its fixed repository, cutoff, ledger, feature, and 17 scenarios.
+Use a clean committed checkout and a committed typed request naming one Electron
+test, a unique production mutation, and its exact expectation. Commands, working
+directories, and live build paths cannot be supplied by the request.
+
+The runner creates two committed archives, performs independent frozen pnpm
+installs, and rebuilds main, preload, and renderer code. Each execution has its
+own renderer port, profile directory, and fresh structured report. It requires
+one normal original pass and one mutant failure at the declared expectation.
+Setup failures, crashes, timeouts, skips, retries, and unrelated assertions are
+refused; a retrying matcher at the declared expectation may discriminate behavior.
+
+An observation cannot grant separate `VERIFIED` credit. Independent eligibility
+and proof reviews and a fresh signed replay remain required. Keep missing original RED
+records and original GREEN/REFACTOR entries unchanged. Closing additionally
+requires a fresh replay of every required row at the final committed view.
+Ordinary work still requires its original test-first evidence; existing CKWE2D
+authorization retains its original contract.
+
 ## Stable command model
 
 Safeword has one canonical lifecycle. Retained aliases remain executable
@@ -66,6 +92,7 @@ canonical commands below.
 | `review status`                         | mutate      | Collect a durable independent review                                                                                                             |
 | `review continue`                       | mutate      | Complete a sealed planning review continuation                                                                                                   |
 | `review gate executable-red`            | observe     | Check whether a scenario may claim GREEN                                                                                                         |
+| `review observe retrospective`          | mutate      | Observe isolated historical Electron proof without granting credit                                                                               |
 | `review gate retrospective`             | observe     | Check CKWE2D retrospective receipts                                                                                                              |
 | `review attest retrospective`           | mutate      | Replay one CKWE2D proof before checking its row                                                                                                  |
 | `review attest retrospective-close`     | mutate      | Replay CKWE2D proofs for closing                                                                                                                 |

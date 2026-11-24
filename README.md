@@ -142,6 +142,29 @@ legacy content is preserved and reported instead.
 
 ---
 
+## Scoped historical Electron observations
+
+The source-enrolled SGWMBS migration can observe one committed proof request:
+
+```bash
+safeword review observe retrospective --request path/to/committed.request.json --json
+```
+
+Each run archives clean committed source twice, installs frozen pnpm dependencies
+independently, and rebuilds the Electron main, preload, and renderer bundles.
+Original and mutant executions use distinct renderer ports and private profiles.
+Requests cannot supply a command, working directory, or existing build.
+Setup failures, crashes, skipped or retried tests, and failures at another
+assertion are refused. A mutant must fail the declared scenario expectation.
+
+An observation never grants separate `VERIFIED` credit. That requires independent
+eligibility and proof reviews plus fresh signed replay. Preserve every missing original RED
+record and the original GREEN/REFACTOR entries; current discrimination cannot
+reconstruct historical test-first evidence. Enrollment is fixed in trusted source
+to the approved repository, cutoff, ticket, ledger, feature, and 17 scenarios.
+Project configuration cannot enroll another migration or weaken its reviews.
+Existing CKWE2D receipts and ordinary test-first requirements retain their meaning.
+
 ## How It Fits Your Project
 
 **Stack-agnostic** — Safeword is a process layer, not a framework opinion. It works alongside any stack — Next, Elysia, Astro, Django, Gin, whatever you use. Your application code and runtime dependencies are never touched.

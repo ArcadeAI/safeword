@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { expect, it } from 'vitest';
@@ -9,6 +9,19 @@ import {
   electronRequest,
   electronRunnerFixture,
 } from '../review/legacy-electron-runner.fixture.js';
+
+it.each(['README.md', 'packages/website/src/content/docs/reference/cli.mdx'])(
+  'documents the public observation and its limits in %s',
+  relative => {
+    const root = path.resolve(import.meta.dirname, '../../../..');
+    const source = readFileSync(path.join(root, relative), 'utf8');
+    expect(source).toContain('review observe retrospective --request');
+    expect(source).toMatch(/separate\s+`VERIFIED`/u);
+    expect(source).toMatch(/missing\s+original\s+RED/u);
+    expect(source).toMatch(/Setup\s+failures/u);
+    expect(source).toContain('SGWMBS');
+  },
+);
 
 it.runIf(process.platform !== 'win32')(
   'observes through the real public parser and fixed runner without creating verification credit',
