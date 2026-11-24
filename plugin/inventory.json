@@ -23,7 +23,7 @@
     },
     {
       "path": "resources/guides/architecture-guide.md",
-      "sha256": "9fe1062f24185b58a80f0b794954440ac95640295894c89525c9a6065a5ca082"
+      "sha256": "db4378d366ee1c92d0f9910645dc93f30dc8848e622c442141a30d026e9aa98b"
     },
     {
       "path": "resources/guides/cold-start-check.md",
@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "5f4c71476512b9fcadf1ce4b0842cc2740cfad00393270f03eedadde98a1b6f1"
+      "sha256": "776c0c040ee4cde069c854588e342dc5fd79d1e4ca2570d1135df75335d2bd17"
     },
     {
       "path": "runtime/dispatch.js",
@@ -1047,7 +1047,7 @@
     },
     {
       "path": "templates/guides/architecture-guide.md",
-      "sha256": "9fe1062f24185b58a80f0b794954440ac95640295894c89525c9a6065a5ca082"
+      "sha256": "db4378d366ee1c92d0f9910645dc93f30dc8848e622c442141a30d026e9aa98b"
     },
     {
       "path": "templates/guides/cold-start-check.md",
@@ -1819,11 +1819,11 @@
     },
     {
       "path": "templates/workflows/pr-review-worker.yml",
-      "sha256": "f03e0e570921b230384d73ff549e9fd461dc5598e301be9319a9c5ce4a14177b"
+      "sha256": "ac47e1b6364adc3b509b533ebc1c00895852d5b4cf5a4a184491eff8792bfb2b"
     },
     {
       "path": "templates/workflows/pr-review.yml",
-      "sha256": "c2d7b7b36ae72b255104cd0b2720c8708b4d4e01348d912622431041d643d881"
+      "sha256": "f3c00e2ee4b4e01500cb05652287c7ffc225afa486b89addeab32d1c4995f652"
     },
     {
       "path": "templates/workflows/remote-tests.yml",

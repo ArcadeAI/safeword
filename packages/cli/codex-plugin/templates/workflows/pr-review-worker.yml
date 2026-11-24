@@ -46,6 +46,7 @@ jobs:
       name: safeword-pr-review-model
       deployment: false
     permissions:
+      actions: read
       contents: read
       issues: read
       pull-requests: read
@@ -112,9 +113,19 @@ jobs:
             exit 1
           fi
           gh api "repos/$GITHUB_REPOSITORY/commits/$head_sha/check-runs?per_page=100" --paginate --jq '.check_runs[]' | jq -s . > check-runs.json
+          # The default check list is filtered to latest. Verify name uniqueness against all jobs
+          # before allowing an older cancellation to be superseded.
+          if jq -e 'any(.[]; .conclusion == "cancelled")' check-runs.json >/dev/null; then
+            gh api "repos/$GITHUB_REPOSITORY/commits/$head_sha/check-runs?filter=all&per_page=100" --paginate --jq '.check_runs[]' | jq -s . > all-checks.json
+          else
+            cp check-runs.json all-checks.json
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$head_sha&per_page=100" --paginate --jq '.workflow_runs[]' | jq -s . > workflow-runs.json
           gh api "repos/$GITHUB_REPOSITORY/commits/$head_sha/status?per_page=100" --paginate --jq '.statuses[]' | jq -s . > statuses.json
-          jq -n --slurpfile files pull-files-with-context.json --slurpfile pull pull.json --slurpfile checks check-runs.json --slurpfile statuses statuses.json --slurpfile comments comments.json '
+          jq -n --slurpfile files pull-files-with-context.json --slurpfile pull pull.json --slurpfile checks check-runs.json --slurpfile runs workflow-runs.json --slurpfile allChecks all-checks.json --slurpfile statuses statuses.json --slurpfile comments comments.json '
             ($pull[0]) as $pr |
+            ($allChecks[0] | group_by([.check_suite.id, .name]) | map(select(length == 1) | {key: (.[0].id | tostring), value: true}) | from_entries) as $uniqueJobs |
+            ($runs[0] | map(select(.event == "pull_request" and .head_sha == $pr.head.sha and any(.pull_requests[]?; .number == $pr.number)) | {key: (.check_suite_id | tostring), value: {workflow: .path, runNumber: .run_number}}) | from_entries) as $workflowBySuite |
             ([ $comments[0][] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- safeword:pr-review-receipt:v1 -->"))) ]) as $owned |
             {
               schemaVersion: 1,
@@ -135,7 +146,7 @@ jobs:
                   {kind: "unreadable_text", path: .filename}
                 end
               ],
-              checks: [$checks[0][] | {name, status, conclusion}],
+              checks: [$checks[0][] | {name, status, conclusion} + (if $uniqueJobs[(.id | tostring)] then ($workflowBySuite[(.check_suite.id | tostring)] // {}) else {} end)],
               statuses: [$statuses[0][] | {context, state}]
             }
           ' > inspection-input.json

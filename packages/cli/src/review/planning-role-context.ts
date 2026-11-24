@@ -7,6 +7,7 @@ import { resolveConfiguredPath } from '../utils/configured-paths.js';
 import { collectExecutableFeatureFiles, featureSourceFileName } from '../utils/feature-source.js';
 import { parseTicketMetadata } from '../utils/ticket-metadata.js';
 import type { ReviewKind, ReviewPacket } from './contract.js';
+import { citedArchitectureRecords } from './planning-architecture-citations.js';
 import {
   PLANNING_CONTEXT_ROLES,
   PlanningContextError,
@@ -142,17 +143,24 @@ function configuredArchitectureLocation(cwd: string): string {
 function architectureSources(
   cwd: string,
   plan: CapturedFile,
+  files: readonly CapturedFile[],
+  executionPlan?: CapturedFile,
 ): {
   dependencies: PlanningContextDependency[];
   absences: JustifiedAbsence[];
 } {
   const path = configuredArchitectureLocation(cwd);
   const records = listArchitectureRecords(path);
-  if (records.records.length > 0)
+  const configured = records.records.map(source => nodePath.relative(cwd, source));
+  const overview =
+    records.kind === 'file'
+      ? captured(files, 'architecture', nodePath.relative(cwd, path))
+      : undefined;
+  const cited = citedArchitectureRecords(executionPlan ? [plan, executionPlan] : [plan], overview);
+  const paths = [...new Set([...configured, ...cited])].toSorted((a, b) => a.localeCompare(b));
+  if (paths.length > 0)
     return {
-      dependencies: records.records
-        .toSorted((a, b) => a.localeCompare(b))
-        .map(source => ({ role: 'architecture', path: nodePath.relative(cwd, source) })),
+      dependencies: paths.map(source => ({ role: 'architecture', path: source })),
       absences: [],
     };
   const reason = sectionSkip(plan, 'architecture');
@@ -259,7 +267,7 @@ export function resolvePlanningRoleContext(
   } else {
     dependencies.push(dimensions.dependency);
   }
-  const architecture = architectureSources(cwd, plan);
+  const architecture = architectureSources(cwd, plan, files);
   dependencies.push(...architecture.dependencies);
   absences.push(...architecture.absences);
   const dataSkip = sectionSkip(plan, 'data');
@@ -324,7 +332,7 @@ function resolveExecutionRoleContext(
   const dimensions = optionalDimensions(cwd, directory, ticketPath);
   if (dimensions.dependency === undefined) absences.push(dimensions.absence);
   else dependencies.push(dimensions.dependency);
-  const architecture = architectureSources(cwd, upstream);
+  const architecture = architectureSources(cwd, upstream, files, plan);
   dependencies.push(...architecture.dependencies);
   absences.push(...architecture.absences);
   const dataSkip = sectionSkip(upstream, 'data');
