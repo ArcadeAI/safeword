@@ -6,6 +6,6 @@
 | Patch proof | existing targeted check; non-behavioral edit; feature trigger hidden in small diff |
 | Task proof | inline behavior and test; RED/GREEN/REFACTOR; scope grows beyond task |
 | Decision discovery | none; reversible local choice; shared or durable choice; proof-boundary change |
-| Promotion | before RED; after investigation; after test evidence; resume phase |
+| Promotion | before RED; after investigation; after test evidence; design-only with current applicable approval enters Implementation Planning immediately; design-only with missing current applicable approval defers through behavior definition and scenario review; fresh invocation stays at the gate while approval is missing and enters the saved destination once approved |
 | Ceremony | no formal plans for patch/task; feature contracts after promotion |
 | Delivery checklist | applicable contributor obligation; concrete not-applicable reason; human-owned dependency; attempted merge-authority claim |

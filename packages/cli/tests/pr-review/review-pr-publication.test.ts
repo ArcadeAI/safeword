@@ -29,7 +29,12 @@ describe('review-pr publication command wiring', () => {
         inspectionAudit: {
           checkout: false,
           customerCodeExecution: false,
-          githubPermissions: { contents: 'read', issues: 'read', pullRequests: 'read' },
+          githubPermissions: {
+            actions: 'read',
+            contents: 'read',
+            issues: 'read',
+            pullRequests: 'read',
+          },
           githubWriteCredential: false,
         },
         kind: 'receipt',
@@ -131,7 +136,12 @@ describe('review-pr publication command wiring', () => {
         inspectionAudit: {
           checkout: false,
           customerCodeExecution: false,
-          githubPermissions: { contents: 'read', issues: 'read', pullRequests: 'read' },
+          githubPermissions: {
+            actions: 'read',
+            contents: 'read',
+            issues: 'read',
+            pullRequests: 'read',
+          },
           githubWriteCredential: false,
         },
         kind: 'receipt',

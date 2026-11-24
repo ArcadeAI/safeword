@@ -72,7 +72,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/ticket-system/SKILL.md':
         '5a8ce171c60dc7ab07d641dc66d43ae3730d1a2401df86a02250ce82cf53a800',
       '.claude/skills/verify/SKILL.md':
-        'd6b1f8cfa6ad1ccc5fd84a8b7f96cf3a13e13561088eb1de9a5b0ee5045759c5',
+        '440496033f496153e5514028643123b5603bde3ba540750f91aaf8849e8b2675',
     },
     hook_files: {
       '.safeword/hooks/post-tool-bypass-warn.ts':
@@ -82,7 +82,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/post-tool-lint.ts':
         'a1779513108c3f0dc6296bb765752507c65f3ff9c29af35e1e28878ace079f06',
       '.safeword/hooks/post-tool-quality.ts':
-        'b2779b9d64941ee5a7dff082a27d2391260c2600c4d641b08658dd4cb3aec428',
+        '27162fc9d5b74d2f1964b83a50acd652f3a4689583ebaa514639a38d9ee46e40',
       '.safeword/hooks/post-tool-skill-nudge.ts':
         'd71158796facccdd5cbf7b64f460b36ebef0b92c41ee3a2f2a09625483e7af39',
       '.safeword/hooks/post-tool-sync-learnings.ts':
@@ -108,7 +108,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/prompt-timestamp.ts':
         'd7939e98528717fed556adf65dcb9fd3c24fac530ba76be2db9c5faebbac27f3',
       '.safeword/hooks/session-architecture-heal.ts':
-        '2288bfca27f7a039fafd5a60c4e3cf8c3e07b2f387ec2502545a16bc3005346e',
+        '8eedd3ac81844dd2676505d313135c24c8d9ad0b7eec2f7f7734c0870cb7ae90',
       '.safeword/hooks/session-auto-upgrade.ts':
         '58403ff9922ae1423becd4e9a682fb91d9b68db4881f4c0d8c5e46edc3ea8fc2',
       '.safeword/hooks/session-bun-check.sh':
@@ -130,7 +130,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/session-version.ts':
         '7480f836ec466c06b9bc81384710fa32e33fce67070788b1766965282d778e72',
       '.safeword/hooks/stop-quality.ts':
-        'f02e31d37039957088f08b91394962268dd6f3c50c52228ae39aced8ac58dbd3',
+        'd3423c9619b9c116580457a1ad0b075334377cdddd50ca01bdb9c95d2a68dc08',
       '.safeword/hooks/stop-reentry.ts':
         'a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5',
       '.safeword/hooks/stop-retro-filing.ts':

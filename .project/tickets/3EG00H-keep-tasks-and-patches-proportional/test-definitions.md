@@ -202,6 +202,24 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario Outline: Design-only promotion defers Implementation Planning when behavior approval is missing
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Cloud promotion records the missing decision and returns without waiting
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Restart follows the saved design destination only after behavior approval
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Work already promoted to a feature routes a sequencing-only change to Execution Planning
 
 - [ ] RED

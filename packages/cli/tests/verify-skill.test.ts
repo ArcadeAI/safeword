@@ -63,6 +63,17 @@ describe('verify.md artifact step (7PG694)', () => {
   });
 });
 
+describe('feature Delivery Checklist at verification', () => {
+  it.each(allVerifySurfaces)('%s requires current contributor readiness', (_name, content) => {
+    expect(content).toContain('safeword ticket delivery-checklist <ticket-id> --json');
+    expect(content).toContain(
+      'safeword ticket record-delivery-proof <ticket-id> <item-id> <proof-id>',
+    );
+    expect(content).toContain('`contributor_work_incomplete` blocks the ready verdict');
+    expect(content).toContain('Contributor readiness leaves merge authorization pending.');
+  });
+});
+
 describe('verify current-ticket resolution (#2083)', () => {
   it.each(allVerifySurfaces)(
     '%s runs the installed current-work resolver with the project root',

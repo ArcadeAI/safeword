@@ -1,6 +1,6 @@
 {
   "originMainCommit": "f22e2997ba8ef68d3d198ca2d937bfbf35fdab87",
-  "templatesSha256": "823369527cd854b84e9931a0ea765edbebd8428099283598abbfe499d26ea9bd",
+  "templatesSha256": "61a930662e24e6f63eb780b0b878033fe9ba2180e985599dcdd5d06b239f9404",
   "fixtures": {
     "claude-install": "fcc7df0c2c5f4e95aae0b2d1881131cc93c717fb4213c99fbae63bf556962683",
     "claude-check": "176cfa5b7e6ec1fe18915af5a8a6ca6b4a66559483a48531c34d7975030c16b8",
@@ -10,9 +10,9 @@
     "codex-check": "aca618fed680947930908f1a384607fc0777d741ead5c0fe7a6705c3e6fc610a",
     "codex-upgrade": "951d1453cd619a259446a1d1e528aaca32a9e8c090523f537fc77cd2a82e60aa",
     "codex-uninstall": "effa1ef02f2b7e7a8deeb74b1affb9161b9c220641cacf5ef935ddad156792ef",
-    "cursor-install": "5f55bd031fb0fd96251db8379f084b3eb09ee1b4fc9ff2c3032f38f2ac01cfb5",
-    "cursor-check": "ca4be36faf94f528b58b84c758ed2043a6f26b1b1596799e07c1943cc7cd635b",
-    "cursor-upgrade": "0e34d436644a92c23cd325bdb9726202fa1f1461a1bbb1f990fbee677b2e3ba0",
+    "cursor-install": "8485421777d6eb6130b9ab39f33422f90a56839e47c34eb1f0a03d14f4f46682",
+    "cursor-check": "612512e8f6e53e26df42600491c1e4b4c64bc593c4c5ef0892de7026e1a4ef90",
+    "cursor-upgrade": "b2ff4085e11ba8d613e91c8f5799cd94231fafeaa95ea55dddf61ff0d91cb8a5",
     "cursor-uninstall": "6a73248fc7e1e2f260ffb6146715ac806084639ecaa08a66265a16b0fdbac10b"
   }
 }
