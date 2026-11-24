@@ -391,3 +391,74 @@ it.each<[string, ReportOverrides, number]>([
 it('refuses a coherent failing original execution', () => {
   expect(() => evaluateElectronReport(killedReport(), selection, 'passed', 1)).toThrow(/Electron/u);
 });
+
+it('accepts an explicit absent-locator mismatch at the reviewed behavioral expectation', () => {
+  // Actual Playwright 1.62.1 shape captured from the drift-save mutation.
+  // The engine reports the received empty locator as an error, without a Received label.
+  const failure = [
+    'Error: expect(locator).toBeVisible() failed',
+    '',
+    'Locator: getByText(/requires repair/i)',
+    'Expected: visible',
+    'Timeout: 10000ms',
+    'Error: element(s) not found',
+    '',
+    `    at ${selection.mutation.assertionLocation}:3`,
+  ].join('\n');
+  const selected = {
+    ...selection,
+    mutation: { ...selection.mutation, expectedFailure: 'requires repair' },
+  };
+  expect(
+    evaluateElectronReport(killedReport({ error: { message: failure } }), selected, 'failed', 1),
+  ).toEqual({ exitCode: 1, failure });
+});
+
+it.each([
+  ['a browser launch error', 'Error: browser closed'],
+  ['a locator timeout without an explicit received absence', 'Timeout: waiting for locator'],
+])('refuses %s instead of a locator mismatch', (_name, actual) => {
+  const failure = [
+    'Error: expect(locator).toBeVisible() failed',
+    'Locator: getByText(/requires repair/i)',
+    'Expected: visible',
+    actual,
+    `    at ${selection.mutation.assertionLocation}:3`,
+  ].join('\n');
+  const selected = {
+    ...selection,
+    mutation: { ...selection.mutation, expectedFailure: 'requires repair' },
+  };
+  expect(() =>
+    evaluateElectronReport(killedReport({ error: { message: failure } }), selected, 'failed', 1),
+  ).toThrow(/Electron/u);
+});
+
+it.each([
+  ['missing locator', 'Error: expect(locator).toBeVisible() failed', ''],
+  [
+    'a negative matcher',
+    'Error: expect(locator).not.toBeVisible() failed',
+    'Locator: getByText(/requires repair/i)',
+  ],
+  [
+    'an unsupported matcher',
+    'Error: expect(locator).toHaveText(expected) failed',
+    'Locator: getByText(/requires repair/i)',
+  ],
+])('refuses %s on the absent-locator evidence path', (_name, header, locator) => {
+  const failure = [
+    header,
+    locator,
+    'Expected: visible',
+    'Error: element(s) not found',
+    `    at ${selection.mutation.assertionLocation}:3`,
+  ].join('\n');
+  const selected = {
+    ...selection,
+    mutation: { ...selection.mutation, expectedFailure: 'requires repair' },
+  };
+  expect(() =>
+    evaluateElectronReport(killedReport({ error: { message: failure } }), selected, 'failed', 1),
+  ).toThrow(/Electron/u);
+});

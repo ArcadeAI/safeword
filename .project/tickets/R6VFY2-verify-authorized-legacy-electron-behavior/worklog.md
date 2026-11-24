@@ -1,5 +1,42 @@
 # Implementation work log
 
+## Current continuation: real-host calibration and proof protection
+
+The current-main cased-suffix original/mutant observation passed at Soulless
+c446674a. Six additional real mutations reached their declared behavioral
+expectation but were refused because locked Playwright omits its Received label
+when an explicit empty-locator error is present. Its pinned toBeTruthy formatter
+confirms that shape. The source evaluator rejected the actual captured failure
+before the correction and accepted it afterward in a standalone probe. No Vitest
+RED is claimed for that probe. Narrow positive matcher headers, Locator and
+Expected lines, exact absent-element diagnostic, and all existing structured
+selection/location/outcome checks remain required. Independent review
+b5cd4412-1128-405c-8100-53a4c4d9ec97 approved the correction and pending-owner
+publication protection; its suggested absent-locator guard cases were added.
+
+The supported generator verified all five surfaces; the supported local plugin
+install was used after the first batch ended. Fresh real reruns are in progress.
+The package test wrapper has not acquired another checkout's live Vitest lock;
+queued tests are not reported as passed. The actual old generated bundle did
+pass the portable rollback refusal/preservation test. Real-record rollback still
+requires final current all-17 authorization.
+
+The new proof tests now register unconditionally in the existing POSIX package
+test lane. Their external tool fixtures require that lane's shell/toolchain;
+no Windows fixture execution is claimed. Acceptance proof is never silently
+skipped. Changed-input protection retains fresh successful observations in a
+different artifact so unchanged old review targets still exercise executable
+input binding, rather than merely detecting an overwritten observation.
+
+Historical eligibility review in Soulless requested complete flow evidence;
+mutation anchors alone did not establish classification, sidecar restore, or
+close confirmation. Actual immutable producer/consumer excerpts were added.
+The ordinary-paragraph mutation also initially removed the wrong callback:
+trackChangesPlugin handles structural document edits with unchanged textContent
+through markReviewDataDirty, independently of the markdown listener. The
+original diagnostic passed. A targeted removal of that structural callback is
+prepared for fresh execution; its earlier refused result remains a failure.
+
 ## Root Cause: policy imported the private cutoff mechanism
 
 The existing import-boundary regression failed during the snapshot protection

@@ -61153,7 +61153,8 @@ function hasMatcherDifference(message) {
 `).map((line) => line.trim());
   const expected = /Expected[^\r\n]*:/u.test(message) || lines.some((line) => /^- Expected\s+-\s+\d+$/u.test(line));
   const received = /Received[^\r\n]*:/u.test(message) || lines.some((line) => /^\+ Received\s+\+\s+\d+$/u.test(line));
-  return expected && received;
+  const absentLocator = /^Error: expect\(locator\)\.(?:toBeVisible|toContainText)\(/u.test(message) && lines.some((line) => /^Locator: .+$/u.test(line)) && lines.includes("Error: element(s) not found");
+  return expected && (received || absentLocator);
 }
 function mutationFailure(result, selection) {
   const errors = array(result.errors);

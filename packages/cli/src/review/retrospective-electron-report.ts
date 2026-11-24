@@ -122,7 +122,13 @@ function hasMatcherDifference(message: string): boolean {
   const received =
     /Received[^\r\n]*:/u.test(message) ||
     lines.some(line => /^\+ Received\s+\+\s+\d+$/u.test(line));
-  return expected && received;
+  // Locked Playwright reports an empty locator through errorMessage and omits
+  // printedReceived. Its explicit absence is the actual value, not a setup timeout.
+  const absentLocator =
+    /^Error: expect\(locator\)\.(?:toBeVisible|toContainText)\(/u.test(message) &&
+    lines.some(line => /^Locator: .+$/u.test(line)) &&
+    lines.includes('Error: element(s) not found');
+  return expected && (received || absentLocator);
 }
 
 function mutationFailure(result: JsonObject, selection: ElectronReportSelection): string {
