@@ -283,8 +283,14 @@
       "reads a pinned pre-extension CKWE2D row without minting replacement credit"
     ],
     "Ordinary work still needs its original test-first evidence": [
-      "packages/cli/tests/hooks/done-gate.test.ts",
-      "does not count a checked VERIFIED row with invented review IDs as completion"
+      [
+        "packages/cli/tests/hooks/done-gate.test.ts",
+        "does not count a checked VERIFIED row with invented review IDs as completion"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-policy-receipts.test.ts",
+        "authenticated SGWMBS review and row records cannot authorize CKWE2D"
+      ]
     ],
     "Migration records cannot authorize another policy": [
       [

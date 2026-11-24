@@ -5,6 +5,7 @@ import path from 'node:path';
 
 import { expect, it, vi } from 'vitest';
 
+import { electronLedgerClaims } from '../../src/review/retrospective-electron-admission.js';
 import {
   attestElectronRetrospectiveRow,
   electronRetrospectiveGate,
@@ -146,6 +147,14 @@ it('attests an enrolled row using real authenticated reviews and isolated extern
       eligibilityId: await fixture.review('retrospective-eligibility'),
       proofId: await fixture.review('retrospective-proof'),
     };
+    const originalLedger = readFileSync(path.join(fixture.root, request.ledger), 'utf8');
+    const verifiedLine = `- [x] VERIFIED eligibility=${request.eligibilityId} proof=${request.proofId}\n`;
+    const heading = `### Scenario: ${request.scenario}\n`;
+    const claimedLedger = originalLedger.replace(heading, () => `${heading}${verifiedLine}`);
+    expect(claimedLedger).not.toBe(originalLedger);
+    fixture.write(request.ledger, claimedLedger);
+    fixture.git('add', request.ledger);
+    fixture.git('commit', '-qm', 'author records separate reviewed verification claim');
     expect(electronRetrospectiveGate(fixture.root, request).state).toBe('action_required');
     const result = await attestElectronRetrospectiveRow(fixture.root, request);
     expect(result.state, JSON.stringify(result)).toBe('changed');
@@ -177,6 +186,10 @@ it('attests an enrolled row using real authenticated reviews and isolated extern
       state: 'healthy',
       data: { command: 'review gate retrospective', status: 'approved', ...request },
     });
+    expect(electronLedgerClaims(fixture.root)).toEqual([request]);
+    const afterAttestation = readFileSync(path.join(fixture.root, request.ledger), 'utf8');
+    expect(afterAttestation).toBe(claimedLedger);
+    expect(afterAttestation.replace(verifiedLine, '')).toBe(originalLedger);
     expect(fixture.events().filter(event => event.event === 'test')).toHaveLength(4);
     expect(fixture.observation().commit).not.toBe(fixture.git('rev-parse', 'HEAD'));
   } finally {

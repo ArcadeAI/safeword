@@ -1,6 +1,7 @@
 # Impl Plan: Verify authorized legacy Electron behavior
 
-**Status:** planned
+**Status:** implemented
+**Implemented on:** 2026-11-24
 **Planned on:** 2026-11-23
 
 ## Approach
@@ -45,14 +46,21 @@ audit records. Neither tests nor AI review grant merge or release authority.
 ### Current and target truth
 
 Pre-change baseline: Safeword source 3f5353165 and its original generated 1.2.0
-bundle supported CKWE2D only. Current local implementation adds SGWMBS enrollment,
-isolated Electron execution and public observation. The supported local 1.2.0
-installation generated from 2185c1d77 produced all 17 real observations and row
-attestations; this is a local source extension, not an npm release. Original
-missing test histories remain unchanged. The actual renderer-module-throw probe
-was refused before its declared behavioral assertion. Remaining work: enforce
-whole-test exception monitoring, verify the after-readiness negative case, install
-the supported final bundle, and replay all 17 rows at the final delivery HEAD.
+bundle supported CKWE2D only. The implementation adds SGWMBS enrollment, isolated
+Electron execution, public observation and whole-test exception monitoring.
+The supported monitored bundle at SHA-256
+48de020dce911c7b0a39be666649eba7621a27ef5c20e5ab24ea1d20079506ad
+completed all 17 actual original/mutant replays and authenticated aggregate
+closing at Soulless f7a1d907c08787908772c5d228c20fb586a5baf8 before PR 188 merged.
+Both module-load and after-readiness invalid exception probes were refused;
+their earlier false-positive observation remains explicitly uncredited.
+The measured closing-client budget correction also passed the actual installed
+shared completion check. This is a supported local source installation, not an
+npm release. Original missing histories remain unchanged. Current closeout adds
+semantic reviewer calibration, stronger ledger preservation assertions, a real
+disposable marketplace installation test, and current-main verification/review.
+Formal source-ticket completion still requires truthful original TDD provenance;
+implementation status does not claim that its unchecked histories are complete.
 
 ## Decisions
 
