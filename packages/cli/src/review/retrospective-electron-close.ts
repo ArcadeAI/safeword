@@ -70,6 +70,15 @@ function exactClaims(root: string): RetrospectiveGateRequest[] {
   return claims;
 }
 
+function prepareClosingRow(root: string, claim: RetrospectiveGateRequest) {
+  try {
+    return prepareElectronRow(root, claim);
+  } catch (error: unknown) {
+    const reason = error instanceof Error ? error.message : 'invalid row evidence';
+    throw new Error(`Electron closing row ${claim.scenario}: ${reason}`, { cause: error });
+  }
+}
+
 function closingView(root: string) {
   const sourceCommit = currentProofCommit(root);
   const claims = exactClaims(root);
@@ -83,7 +92,7 @@ function closingView(root: string) {
     path.posix.join(path.posix.dirname(policy.ledger), 'ticket.md'),
   ]);
   for (const claim of claims) {
-    const row = prepareElectronRow(root, claim);
+    const row = prepareClosingRow(root, claim);
     rows.push({ claim, prepared: row });
     for (const input of [
       row.eligibilityPath,

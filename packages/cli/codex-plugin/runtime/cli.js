@@ -62811,7 +62811,7 @@ function committedElectronInput(root, relative) {
 function electronReviewTargets(root, id, kind, count) {
   const targets = approvedRetrospectiveReview(root, id, kind);
   if (targets?.length !== count)
-    throw new Error("Both current, independent review receipts are required.");
+    throw new Error(`Both current, independent review receipts are required: ${kind} review ${id} is missing, stale, or not independent.`);
   return targets.map((target) => {
     const relative = path10.relative(root, path10.resolve(root, target)).split(path10.sep).join("/");
     if (!relative.endsWith(".json"))
@@ -63079,24 +63079,29 @@ function requireObservedMutation(observation) {
 }
 function prepareElectronRow(root, request) {
   const admission = prepareElectronAdmission(root, request);
-  const observationBytes = committedElectronInput(root, admission.observationPath);
-  const observation = JSON.parse(observationBytes.toString("utf8"));
-  if (JSON.stringify(observation.request) !== JSON.stringify(admission.proof))
-    throw new Error("The reviewed Electron observation does not bind the exact proof request.");
-  requireObservedOutcome(observation);
-  git2(root, ["merge-base", "--is-ancestor", observation.commit, "HEAD"]);
-  for (const [input, digest] of Object.entries(observation.supportSha256)) {
-    if (sha2565(readProofInput(root, input)) !== digest)
-      throw new Error(`Reviewed Electron executable input changed: ${input}`);
+  try {
+    const observationBytes = committedElectronInput(root, admission.observationPath);
+    const observation = JSON.parse(observationBytes.toString("utf8"));
+    if (JSON.stringify(observation.request) !== JSON.stringify(admission.proof))
+      throw new Error("The reviewed Electron observation does not bind the exact proof request.");
+    requireObservedOutcome(observation);
+    git2(root, ["merge-base", "--is-ancestor", observation.commit, "HEAD"]);
+    for (const [input, digest] of Object.entries(observation.supportSha256)) {
+      if (sha2565(readProofInput(root, input)) !== digest)
+        throw new Error(`Reviewed Electron executable input changed: ${input}`);
+    }
+    const requestDigest = sha2565(committedElectronInput(root, admission.requestPath));
+    const journal = {
+      proofId: request.proofId,
+      scenario: request.scenario,
+      inputSha256: sha2565(JSON.stringify([requestDigest, sha2565(observationBytes)]))
+    };
+    const content = `electron-row-v1\x00${admission.commit}\x00${rowIdentity(request)}\x00${stableObservation(observation)}`;
+    return { ...admission, observation, journal, content };
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "invalid proof evidence";
+    throw new Error(`Could not validate Electron proof review ${request.proofId} for ${request.scenario}: ${reason}`, { cause: error });
   }
-  const requestDigest = sha2565(committedElectronInput(root, admission.requestPath));
-  const journal = {
-    proofId: request.proofId,
-    scenario: request.scenario,
-    inputSha256: sha2565(JSON.stringify([requestDigest, sha2565(observationBytes)]))
-  };
-  const content = `electron-row-v1\x00${admission.commit}\x00${rowIdentity(request)}\x00${stableObservation(observation)}`;
-  return { ...admission, observation, journal, content };
 }
 function requireElectronRowAuthorization(root, request, row) {
   let tag;
@@ -63391,6 +63396,14 @@ function exactClaims(root) {
     throw new Error("Electron closing requires the exact 17 distinct enrolled VERIFIED rows.");
   return claims;
 }
+function prepareClosingRow(root, claim) {
+  try {
+    return prepareElectronRow(root, claim);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "invalid row evidence";
+    throw new Error(`Electron closing row ${claim.scenario}: ${reason}`, { cause: error });
+  }
+}
 function closingView(root) {
   const sourceCommit = currentProofCommit(root);
   const claims = exactClaims(root);
@@ -63401,7 +63414,7 @@ function closingView(root) {
     path13.posix.join(path13.posix.dirname(SOULLESS_RETROSPECTIVE_POLICY.ledger), "ticket.md")
   ]);
   for (const claim of claims) {
-    const row = prepareElectronRow(root, claim);
+    const row = prepareClosingRow(root, claim);
     rows.push({ claim, prepared: row });
     for (const input of [
       row.eligibilityPath,

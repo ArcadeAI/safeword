@@ -49,7 +49,9 @@ export function electronReviewTargets(
 ): string[] {
   const targets = approvedRetrospectiveReview(root, id, kind);
   if (targets?.length !== count)
-    throw new Error('Both current, independent review receipts are required.');
+    throw new Error(
+      `Both current, independent review receipts are required: ${kind} review ${id} is missing, stale, or not independent.`,
+    );
   return targets.map(target => {
     const relative = path.relative(root, path.resolve(root, target)).split(path.sep).join('/');
     if (!relative.endsWith('.json'))

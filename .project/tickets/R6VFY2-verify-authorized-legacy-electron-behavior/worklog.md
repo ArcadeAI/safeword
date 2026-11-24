@@ -276,3 +276,23 @@ validation. This remains correct dispatcher behavior after an upstream fix;
 there is no temporary version workaround to remove. Regression plus unchanged
 legacy row protections: 16 passed. The failed live proof ID remains consumed;
 recovery needs a fresh observation and independent review, never a journal reset.
+
+### Closing diagnostics: observed RED and GREEN
+
+Independent executable-RED review 62dea904-2444-4b9e-8fca-e69913ce6449
+approved the stale-proof diagnostic regression in commits 0a9b90048 and
+86dc17f0b. Renewed eligibility and a separate successful current execution must
+not conceal the old proof review. Closing now identifies the scenario, proof
+review ID, and changed input. Admission failures also retain scenario context.
+The two closing files passed all four tests in 568.38 seconds, including exact
+17-row replay and refusal after a previously signed row fails replay. The heavy
+cases use bounded ten-minute deadlines; the public closing child has two minutes.
+Assertions and required replay counts are unchanged. Log:
+`/tmp/issue163-safeword-closing-final-green.log`.
+
+Soulless's fresh Explorer recovery observation passed under pinned Node 24.18.1;
+independent proof review f17a366a-63f1-4980-97e3-947e4d74310c approved it.
+The actual installed attestor reran both snapshots successfully. A separate
+VERIFIED entry was added with its eligibility and proof IDs; original RED,
+GREEN and REFACTOR text remains unchanged. This is the first live authorized row,
+not all-row closure. The old failed proof ID remains consumed.

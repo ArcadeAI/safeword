@@ -112,26 +112,34 @@ function requireObservedMutation(observation: ElectronProofObservation): void {
 
 export function prepareElectronRow(root: string, request: RetrospectiveGateRequest) {
   const admission = prepareElectronAdmission(root, request);
-  const observationBytes = committedElectronInput(root, admission.observationPath);
-  const observation = JSON.parse(observationBytes.toString('utf8')) as ElectronProofObservation;
-  if (JSON.stringify(observation.request) !== JSON.stringify(admission.proof))
-    throw new Error('The reviewed Electron observation does not bind the exact proof request.');
-  requireObservedOutcome(observation);
-  proofGit(root, ['merge-base', '--is-ancestor', observation.commit, 'HEAD']);
-  for (const [input, digest] of Object.entries(observation.supportSha256)) {
-    // Replay established committed membership; its row tag also binds HEAD.
-    // Cheap hook reads verify bytes without spawning Git once per source file.
-    if (proofSha256(readProofInput(root, input)) !== digest)
-      throw new Error(`Reviewed Electron executable input changed: ${input}`);
+  try {
+    const observationBytes = committedElectronInput(root, admission.observationPath);
+    const observation = JSON.parse(observationBytes.toString('utf8')) as ElectronProofObservation;
+    if (JSON.stringify(observation.request) !== JSON.stringify(admission.proof))
+      throw new Error('The reviewed Electron observation does not bind the exact proof request.');
+    requireObservedOutcome(observation);
+    proofGit(root, ['merge-base', '--is-ancestor', observation.commit, 'HEAD']);
+    for (const [input, digest] of Object.entries(observation.supportSha256)) {
+      // Replay established committed membership; its row tag also binds HEAD.
+      // Cheap hook reads verify bytes without spawning Git once per source file.
+      if (proofSha256(readProofInput(root, input)) !== digest)
+        throw new Error(`Reviewed Electron executable input changed: ${input}`);
+    }
+    const requestDigest = proofSha256(committedElectronInput(root, admission.requestPath));
+    const journal = {
+      proofId: request.proofId,
+      scenario: request.scenario,
+      inputSha256: proofSha256(JSON.stringify([requestDigest, proofSha256(observationBytes)])),
+    };
+    const content = `electron-row-v1\0${admission.commit}\0${rowIdentity(request)}\0${stableObservation(observation)}`;
+    return { ...admission, observation, journal, content };
+  } catch (error: unknown) {
+    const reason = error instanceof Error ? error.message : 'invalid proof evidence';
+    throw new Error(
+      `Could not validate Electron proof review ${request.proofId} for ${request.scenario}: ${reason}`,
+      { cause: error },
+    );
   }
-  const requestDigest = proofSha256(committedElectronInput(root, admission.requestPath));
-  const journal = {
-    proofId: request.proofId,
-    scenario: request.scenario,
-    inputSha256: proofSha256(JSON.stringify([requestDigest, proofSha256(observationBytes)])),
-  };
-  const content = `electron-row-v1\0${admission.commit}\0${rowIdentity(request)}\0${stableObservation(observation)}`;
-  return { ...admission, observation, journal, content };
 }
 
 /** Consume only a preparation from this invocation, never a serialized caller value. */
