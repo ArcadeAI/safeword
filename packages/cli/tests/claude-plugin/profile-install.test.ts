@@ -14,6 +14,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('node:fs', { spy: true });
 
+import { CLAUDE_MIGRATION_SCHEMA } from '../../src/claude-plugin/inventory.js';
 import {
   claudeInstallRequiresMutation,
   installClaudePlugin,
@@ -21,7 +22,7 @@ import {
 } from '../../src/claude-plugin/profile.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 import { compareVersions } from '../../src/utils/version.js';
-import { createTemporaryDirectory } from '../helpers.js';
+import { createTemporaryDirectory, initGitRepo, runCliSync } from '../helpers.js';
 import { normalizeClaudeSkillHeader } from '../helpers/claude-skill-header.js';
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
@@ -419,6 +420,35 @@ afterEach(() => {
 });
 
 describe('Claude marketplace update enrollment', () => {
+  it('reads Claude status from the enrolled worktree even when launched from the primary', () => {
+    const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, undefined, {
+      installedVersion: false,
+    });
+    const linked = nodePath.join(nodePath.dirname(project), 'linked');
+    initGitRepo(project);
+    mkdirSync(nodePath.join(project, '.safeword'));
+    writeFileSync(nodePath.join(project, '.safeword/enrolled'), '');
+    execFileSync('git', ['add', '.safeword/enrolled'], { cwd: project });
+    execFileSync('git', ['-c', 'commit.gpgsign=false', 'commit', '-qm', 'Enroll fixture'], {
+      cwd: project,
+    });
+    execFileSync('git', ['worktree', 'add', '--quiet', '--detach', linked], { cwd: project });
+
+    const transaction = nodePath.join(project, CLAUDE_MIGRATION_SCHEMA.legacy.transaction);
+    mkdirSync(nodePath.dirname(transaction), { recursive: true });
+    writeFileSync(transaction, '{}');
+    const env = {
+      CLAUDE_PROJECT_DIR: project,
+      CLAUDE_PLUGIN_DATA: nodePath.join(nodePath.dirname(project), 'plugin-data'),
+    };
+    const status = (cwd: string) =>
+      JSON.parse(runCliSync(['claude', 'status', '--json'], { cwd, env }).stdout).data
+        .classification;
+
+    expect(status(project)).toBe('recovery-required');
+    expect(status(linked)).toBe('missing');
+  });
+
   it('plans project-scope installation from the canonical project root', () => {
     const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, {
       CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '1',

@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 
+import { resolveProjectDirectory } from '../../templates/hooks/lib/project-directory.js';
 import { canonicalDirectory } from '../utils/fs.js';
 
 export function canonicalClaudeProjectRoot(cwd: string): string {
@@ -12,6 +13,8 @@ export function canonicalClaudeProjectRoot(cwd: string): string {
     });
     const gitRoot = result.status === 0 ? result.stdout?.trim() : undefined;
     candidate = gitRoot === '' || gitRoot === undefined ? cwd : gitRoot;
+  } else {
+    candidate = resolveProjectDirectory({ cwd, launchDirectory: candidate });
   }
   const canonical = canonicalDirectory(candidate);
   if (canonical === undefined) {
