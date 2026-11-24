@@ -98,7 +98,7 @@ so a contributor cannot enter a route whose proof or handoff is unavailable.
 
 Create `packages/cli/tests/fixtures/small-work-hosts` with a checked-in
 fixture builder, a scenario-to-fixture manifest and one plain prompt per
-installed outline row. The builder creates fresh enrolled Git projects
+installed outline row and each standalone local case in the proof inventory below. The builder creates fresh enrolled Git projects
 with the baseline command, caller, ticket, and pre-edit proofs appropriate
 to each row. The R12 partial-notes row contains a design discovery and
 exactly one unsettled behavior, with no approval. Reuse the same fixture
@@ -209,6 +209,30 @@ validates the record and outcomes, not who produced them.
 - Inline contributor checklist: unchanged.
 
 Existing ticket creation accepts explicit types. Reuse the existing execution observer, feature phase gates and checklist semantics described in the Implementation Plan. Small-work binding, classifier, promotion and checklist admission are target work. Commands for new tests are prospective. The local host integration test launches installed adapters in the live lane. The default suite runs credential-free tests only. Missing hosts or credentials fail the live proof. The separate cloud proof checks the actual hosted job evidence. A simulated runner supplies structural evidence only.
+
+## Local Claude Code and Codex proof inventory
+
+The `hosts` fixture manifest covers standalone scenarios as well as outlines. For
+each local host, keep a named case for each acceptance outcome below. Observe the
+native edit decision and the resulting ticket and source files.
+
+| Rule | Fixture and required assertion |
+| --- | --- |
+| R1 | Classified patch and task tickets remain lightweight. A classified feature rejects implementation until both plans have current review. |
+| R6 | A bounded edit is admitted. Separate file-only and surface-only growth each deny the next source edit. |
+| R7 | A task retains the agreed behavior, proof boundary, and test command on the same ticket. |
+| R8 | The first production edit is denied with absent RED and admitted with the current meaningful RED on the same fixture. |
+| R11 | A public-contract discovery with current scenario approval reaches Implementation Planning and retains linked RED. |
+| R12 | An unresolved product choice returns to behavior definition and denies a production edit. A design choice without applicable approval keeps Implementation Planning pending and follows the separate settled and open scenarios. |
+
+Run the R2 classification replay through
+`scripts/dev bun run test packages/cli/tests/commands/small-work-classification.test.ts`.
+Capture each host's actual classifier request, session ID, and observed route for
+patch, task, and feature. Store the sanitized six-input fixture in
+`packages/cli/tests/fixtures/small-work-hosts/cold-classification.json`. Replay
+each input through a fresh built CLI process. Require the same route for all six
+inputs and assert that no ticket was created by any replay. Record the command
+result alongside the capture provenance in the delivery evidence.
 
 ## Proof specifications
 
