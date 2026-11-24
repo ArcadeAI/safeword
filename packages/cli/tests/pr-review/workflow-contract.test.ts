@@ -869,6 +869,65 @@ describe('check-run evidence projection', () => {
     ]);
   });
 
+  // GitHub leaves `pull_requests` empty on workflow runs for a fork's pull request, so a fork run
+  // is matched by coming from the inspected PR's own head repository instead.
+  it.each([
+    ['installed', workerPath],
+    ['dogfood', dogfoodWorkerPath],
+  ])(
+    'forwards run identity for a fork PR whose runs list no pull requests in the %s worker',
+    (_name, path) => {
+      const source = readFileSync(path, 'utf8');
+      const suffix = ' as $workflowBySuite |';
+      const workflowMap = source
+        .split('\n')
+        .find(line => line.endsWith(suffix))
+        ?.trim()
+        .slice(0, -suffix.length);
+      expect(workflowMap).toBeDefined();
+      const forkRun = {
+        check_suite_id: 20,
+        event: 'pull_request',
+        head_repository: { full_name: 'contributor/safeword' },
+        head_sha: 'head',
+        path: '.github/workflows/ci.yml',
+        pull_requests: [],
+        run_number: 41,
+      };
+      const workflowRuns = [
+        forkRun,
+        { ...forkRun, check_suite_id: 21, head_repository: { full_name: 'someone-else/safeword' } },
+        { ...forkRun, check_suite_id: 22, head_repository: { full_name: 'ArcadeAI/safeword' } },
+      ];
+      const pr = {
+        base: { repo: { full_name: 'ArcadeAI/safeword' } },
+        head: { repo: { full_name: 'contributor/safeword' }, sha: 'head' },
+        number: 7,
+      };
+
+      const result = spawnSync(
+        'jq',
+        [
+          '-n',
+          '-c',
+          '--argjson',
+          'pr',
+          JSON.stringify(pr),
+          '--argjson',
+          'runs',
+          JSON.stringify([workflowRuns]),
+          workflowMap ?? '',
+        ],
+        { encoding: 'utf8' },
+      );
+
+      expect(result.status).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual({
+        '20': { runNumber: 41, workflow: '.github/workflows/ci.yml' },
+      });
+    },
+  );
+
   it.each([
     ['installed', workerPath],
     ['dogfood', dogfoodWorkerPath],
