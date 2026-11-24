@@ -52,6 +52,15 @@ lineage parsing to satisfy a cosmetic heading rule. -->
 
 #### plan-implementability.TBU3.3EG00H.R12 — Newly discovered decisions return to the right layer
 
+A design-only promotion enters Implementation Planning immediately only when
+the applicable feature behavior already has current approval. Otherwise keep
+the same ticket and its evidence, use the task notes to define and review only
+the missing feature behavior through the existing scenario gate, and record
+Implementation Planning as the pending destination on the ticket. After restart,
+resume at the outstanding behavior step and enter the saved destination once
+the existing gate confirms current approval. Ask the user only for genuinely
+missing behavior or scope decisions.
+
 #### plan-implementability.TBU3.3EG00H.R13 — Structural enforcement does not claim semantic classification
 
 #### plan-implementability.TBU3.3EG00H.R14 — Tasks and patches carry a proportionate Delivery Checklist in their existing inline work record, with each applicable obligation proven, concretely skipped, or assigned as a human dependency without creating feature plans or claiming merge authority
@@ -66,11 +75,12 @@ Affected:
 - Claude Code
 - Claude Code Cloud
 - OpenAI Codex
-- OpenCode — profile catalogue only; Desktop remains advisory until native hook support exists
 - Cursor
 - Cursor Cloud Agents
 
 Unaffected:
+
+- OpenCode — CLI, TUI and Desktop excluded from this epic by the user on November 14. Follow-up #7491.
 
 - Claude Code on the Web — no browser-entry-point behavior changes
 - OpenAI Codex Cloud — repository instructions are advisory and cannot enforce the local phase gate
