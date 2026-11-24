@@ -99,13 +99,19 @@ example results; partial example execution cannot complete an outline.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Failed row replay cannot renew prior credit
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Closing replays every required verified row against the final committed view
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Failed required replay cannot renew prior credit
+### Scenario: Failed closing replay cannot renew prior credit
 
 - [ ] RED
 - [ ] GREEN
@@ -123,13 +129,31 @@ example results; partial example execution cannot complete an outline.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: The legacy migration and ordinary test-first work retain their existing rules
+### Scenario: Existing CKWE2D receipts retain their original authorization
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Shared installed runtime gates agree on an authorized closing view
+### Scenario: Ordinary work still needs its original test-first evidence
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Migration records cannot authorize another policy
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Supported generated installation exposes the trusted observation route
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: The shared installed closing gate accepts only a signed view
 
 - [ ] RED
 - [ ] GREEN

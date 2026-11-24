@@ -6,7 +6,7 @@ Feature: Verify authorized legacy Electron behavior without inventing test histo
   @legacy-electron.TBU1.R1
   Rule: legacy-electron.TBU1.R1 — Permission is specific and history stays honest
 
-    @requires.real-electron-proof
+    @demo @requires.real-electron-proof
     Scenario: An approved legacy Electron scenario earns separate verified credit
       Given the user authorized the trusted migration policy for the named historical scenario
       And independent eligibility review approves its real baseline and missing-RED explanation
@@ -18,15 +18,16 @@ Feature: Verify authorized legacy Electron behavior without inventing test histo
     @rejection
     Scenario Outline: Both independent approvals are required before row attestation
       Given a project has the trusted migration policy and declares retrospective opt-in
-      But <approval> is missing
+      But <approval> does not authorize its request
       When the Technical Builder requests verified credit
       Then row authorization is refused before attestation replay and ledger completion
 
       Examples:
         | approval                         |
-        | both independent approvals       |
-        | independent eligibility approval |
-        | independent proof approval       |
+        | neither independent review       |
+        | only independent eligibility     |
+        | only independent proof           |
+        | a declined independent proof     |
 
     @rejection
     Scenario: Project configuration cannot weaken the independent reviewer requirement
@@ -140,6 +141,7 @@ Feature: Verify authorized legacy Electron behavior without inventing test histo
 
       Examples:
         | input                | review      |
+        | policy identity      | proof       |
         | implementation       | proof       |
         | selected test source | proof       |
         | test selection       | proof       |
@@ -180,6 +182,23 @@ Feature: Verify authorized legacy Electron behavior without inventing test histo
         | another scenario             |
         | a missing authentic signature |
 
+    @rejection
+    Scenario Outline: Failed row replay cannot renew prior credit
+      Given a previously credited row retains unchanged reviewed inputs and authentic receipts
+      And required replay uses the same strict execution evaluator as initial observation
+      When a required replay for row authorization at a new HEAD produces <outcome>
+      Then no fresh row authorization is issued
+      And the failing row is identified
+      And an earlier successful observation cannot replace that failed replay
+
+      Examples:
+        | outcome               |
+        | a failing original    |
+        | a surviving mutant    |
+        | a different assertion |
+        | a setup failure       |
+        | retry recovery        |
+
   @legacy-electron.TBU1.R4
   Rule: legacy-electron.TBU1.R4 — Closing checks every row at the current committed view
 
@@ -195,21 +214,21 @@ Feature: Verify authorized legacy Electron behavior without inventing test histo
       And original missing RED entries remain visibly absent in the closed view
 
     @rejection
-    Scenario Outline: Failed required replay cannot renew prior credit
+    Scenario Outline: Failed closing replay cannot renew prior credit
       Given a previously credited row retains unchanged reviewed inputs and authentic receipts
       And required replay uses the same strict execution evaluator as initial observation
-      When a required replay for a new HEAD or closing produces <outcome>
-      Then no fresh row authorization is issued
-      And closing remains blocked with that row identified
+      When a required replay for closing authorization produces <outcome>
+      Then closing is blocked without fresh authorization for the failing row
+      And the failing row is identified
       And an earlier successful observation cannot replace that failed replay
 
       Examples:
-        | outcome                   |
-        | a failing original        |
-        | a surviving mutant        |
-        | a different assertion     |
-        | a setup failure           |
-        | retry recovery            |
+        | outcome               |
+        | a failing original    |
+        | a surviving mutant    |
+        | a different assertion |
+        | a setup failure       |
+        | retry recovery        |
 
     @rejection
     Scenario: Closing refuses a stale review even when fresh executions succeed
@@ -236,17 +255,37 @@ Feature: Verify authorized legacy Electron behavior without inventing test histo
   @legacy-electron.SWM1.R1
   Rule: legacy-electron.SWM1.R1 — Existing enforcement and installed surfaces retain their contract
 
-    Scenario: The legacy migration and ordinary test-first work retain their existing rules
-      Given existing CKWE2D migration receipts and ordinary test-first work
-      When the new migration policy is installed through supported generated surfaces
-      Then an existing valid CKWE2D receipt still authorizes its original row
-      And ordinary work missing RED remains blocked at closure
-      And CKWE2D records cannot authorize SGWMBS credit
-      And SGWMBS records cannot authorize CKWE2D credit
-      And installed hooks use the trusted runtime for the new separate verified rows
-      And the generated Codex runtime exposes the public observation command through supported installation
+    Scenario: Existing CKWE2D receipts retain their original authorization
+      Given an existing valid CKWE2D review and row authorization
+      When the new trusted runtime evaluates that original row
+      Then the original row remains authorized under the unchanged CKWE2D policy
 
-    Scenario: Shared installed runtime gates agree on an authorized closing view
+    @rejection
+    Scenario: Ordinary work still needs its original test-first evidence
+      Given an ordinary ticket lacks its required original RED evidence
+      When the Technical Builder requests closure using retrospective credit instead
+      Then ordinary closure remains blocked
+
+    @rejection
+    Scenario Outline: Migration records cannot authorize another policy
+      Given an otherwise valid <source> record
+      When that record is offered for a <target> row
+      Then row authorization is refused for the policy mismatch
+
+      Examples:
+        | source | target |
+        | CKWE2D | SGWMBS |
+        | SGWMBS | CKWE2D |
+
+    @surface.openai-codex
+    Scenario: Supported generated installation exposes the trusted observation route
+      Given the source policy and public observation route have been generated
+      When the Technical Builder installs that bundle through the supported local marketplace
+      Then the installed Codex runtime exposes the public observation command
+      And its hooks ask that trusted runtime about separate verified credit
+      And no plugin cache is patched by hand
+
+    Scenario: The shared installed closing gate accepts only a signed view
       Given a trusted-runtime-signed current SGWMBS closing view
       When the shared trusted runtime gate used by installed hosts evaluates that view
       Then the shared closing gate accepts its exact authenticated ticket identity

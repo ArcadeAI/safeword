@@ -3,7 +3,7 @@ id: R6VFY2
 slug: verify-authorized-legacy-electron-behavior
 type: feature
 product_plan_contract: v1
-phase: implement
+phase: plan-execution
 phase_anchors:
   - define-behavior: packages/cli/features/verify-authorized-legacy-electron-behavior.feature
   - scenario-gate: packages/cli/features/verify-authorized-legacy-electron-behavior.feature
@@ -37,3 +37,5 @@ done_when:
 - 2026-11-23: User explicitly answered “Implement the supported exception” after the installed readiness path refused SGWMBS. This supersedes the earlier decision to defer the separate Safeword change. The original missing histories remain disclosed.
 - 2026-11-23: Created an isolated worktree from origin/main 3f5353165. The user's dirty harbor-evaluation checkout is untouched. Two read-only discovery passes mapped authorization, replay chronology, runner restrictions, test coverage and supported marketplace installation.
 - 2026-11-23: Scope is a reviewed migration profile plus a host proof adapter, not removal of a ticket-ID check. Product intent and the essential proof boundaries follow the user's explicit approved proposal; there are no unresolved product choices to reconfirm.
+- 2026-11-23: Pending return implement → scenario-gate before production edits. The earlier coding authorization was invalidated by a ledger heading correction. Canonical scenario review then required separate row and closing failed-replay examples. A bounded return review approved the explanation, but its stamp was refused because the phase-exit coverage also requires ARCHITECTURE.md and the feature as targets. No implementation completion or skipped review is claimed.
+- 2026-11-23: Returned implement → scenario-gate after bounded independent review bc4185ac-7834-4609-a5dc-ebd4e81774ab covered all required current artifacts. That review approved the backward repair only. The ticket phase change invalidates its exact target bytes; it grants no later implementation-completion evidence. No production code exists yet.
