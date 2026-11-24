@@ -93,6 +93,66 @@ function requireSingleExecution(report: JsonObject, test: JsonObject): JsonObjec
   return result;
 }
 
+function requireAssertionLocation(error: JsonObject, selection: ElectronReportSelection): void {
+  const location = object(error.location);
+  const declared = /^(.*):(\d+)$/u.exec(selection.mutation.assertionLocation);
+  const file = typeof location.file === 'string' ? location.file.replaceAll('\\', '/') : '';
+  if (
+    declared?.[1] !== selection.testFile ||
+    !file.endsWith(`/${selection.testFile}`) ||
+    location.line !== Number(declared?.[2])
+  )
+    throw new Error('Electron mutation error location differs from the declared expectation.');
+}
+
+function mutationFailure(result: JsonObject, selection: ElectronReportSelection): string {
+  const errors = array(result.errors);
+  if (errors.length !== 1) throw new Error('Electron mutation needs exactly one assertion error.');
+  const error = object(errors[0]);
+  requireAssertionLocation(error, selection);
+  const message = typeof error.message === 'string' ? error.message : '';
+  if (
+    !message.includes(selection.mutation.expectedFailure) ||
+    !message.includes(selection.mutation.assertionLocation) ||
+    !/expect\([^\r\n]*\)\.[a-zA-Z]/u.test(message) ||
+    !/Expected[^\r\n]*:/u.test(message) ||
+    !/Received[^\r\n]*:/u.test(message)
+  )
+    throw new Error('Electron mutation did not fail at the declared scenario expectation.');
+  return message;
+}
+
+function requireStatistics(stats: JsonObject, passing: boolean): void {
+  if (
+    stats.expected !== (passing ? 1 : 0) ||
+    stats.unexpected !== (passing ? 0 : 1) ||
+    stats.flaky !== 0 ||
+    stats.skipped !== 0
+  )
+    throw new Error('Electron proof statistics do not describe exactly one normal result.');
+}
+
+function requireOutcome(
+  stats: JsonObject,
+  test: JsonObject,
+  result: JsonObject,
+  expected: 'passed' | 'failed',
+  exitCode: number,
+): void {
+  const passing = expected === 'passed';
+  requireStatistics(stats, passing);
+  if (
+    !Number.isSafeInteger(exitCode) ||
+    exitCode < 0 ||
+    (passing ? exitCode !== 0 : exitCode === 0) ||
+    result.status !== expected ||
+    test.status !== (passing ? 'expected' : 'unexpected')
+  )
+    throw new Error(
+      `The declared ${passing ? 'original' : 'mutated'} Electron test did not ${expected} normally.`,
+    );
+}
+
 /** Interpret a fresh Playwright JSON report, never subprocess output alone. */
 export function evaluateElectronReport(
   input: unknown,
@@ -100,22 +160,13 @@ export function evaluateElectronReport(
   expected: 'passed' | 'failed',
   exitCode: number,
 ): { exitCode: number; failure: string } {
-  if (expected !== 'passed') throw new Error('Electron mutation evaluation is not supported.');
   const report = object(input);
   const selected = requireSelection(report, selection);
   const result = requireSingleExecution(report, selected.test);
   const stats = object(report.stats);
-  if (
-    exitCode !== 0 ||
-    result.status !== 'passed' ||
-    selected.test.status !== 'expected' ||
-    stats.expected !== 1 ||
-    stats.unexpected !== 0 ||
-    stats.flaky !== 0 ||
-    stats.skipped !== 0 ||
-    array(result.errors).length > 0
-  ) {
-    throw new Error('The declared original Electron test did not pass normally.');
-  }
+  requireOutcome(stats, selected.test, result, expected, exitCode);
+  if (expected === 'failed') return { exitCode, failure: mutationFailure(result, selection) };
+  if (array(result.errors).length > 0)
+    throw new Error('The original Electron test reported errors.');
   return { exitCode, failure: '' };
 }

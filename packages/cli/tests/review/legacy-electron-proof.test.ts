@@ -50,3 +50,57 @@ it('accepts exactly one normal original pass for the declared Electron selection
     failure: '',
   });
 });
+
+function killedReport() {
+  const original = report();
+  const suite = original.suites[0];
+  const spec = suite?.specs[0];
+  const test = spec?.tests[0];
+  const result = test?.results[0];
+  if (!suite || !spec || !test || !result)
+    throw new Error('The original report fixture is incomplete.');
+  const failure = `Error: expect(received).toContain(expected)\nExpected substring: ${selection.mutation.expectedFailure}\nReceived string: "{}"\n    at ${selection.mutation.assertionLocation}:3`;
+  return {
+    ...original,
+    suites: [
+      {
+        ...suite,
+        specs: [
+          {
+            ...spec,
+            tests: [
+              {
+                ...test,
+                status: 'unexpected',
+                results: [
+                  {
+                    ...result,
+                    status: 'failed',
+                    errors: [
+                      {
+                        message: failure,
+                        location: {
+                          file: `/isolated/source/${selection.testFile}`,
+                          line: 39,
+                          column: 3,
+                        },
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    stats: { expected: 0, unexpected: 1, skipped: 0, flaky: 0 },
+  };
+}
+
+it('accepts one mutant failure at the declared expectation', () => {
+  const result = evaluateElectronReport(killedReport(), selection, 'failed', 1);
+  expect(result.exitCode).toBe(1);
+  expect(result.failure).toContain(selection.mutation.assertionLocation);
+  expect(result.failure).toContain(selection.mutation.expectedFailure);
+});
