@@ -66,16 +66,15 @@ it('composes the actual quality prompt without changing severity or planning aut
   expect(planningAuthorCopies(packageRoot, 'templates')).toEqual(PLANNING_AUTHOR_COPIES);
 });
 
-// Captured from the unchanged non-quality prompt functions at 931cc95d6;
-// the source diff changes only the quality focus/composition, not these paths.
+// Captured from the non-quality prompt functions on the delivery base (56ebefab9).
 it.each([
   ['scenario-gate', '3f6db75273de2eafecb96366b20ca85081fbf2a2896274f9282eef6a224a11fe'],
-  ['plan-implementation', 'ee5f3dd776a38d49f5d853b7668666a5ed90d7115aa3a146bb00eae711fc0de7'],
-  ['plan-execution', '4cc38db52651b7073d8677ff89b94d896ba0b2321125d8eaef31c6152543e533'],
+  ['plan-implementation', '6eaef13b2e9cef8d30bd449b578623f376be6c9f8f1f1c713f5f4494a89126a9'],
+  ['plan-execution', '0007a2f66fdc391067505a162be398fd6e51c4812b7ba0fef852fb35e854c62b'],
   ['delivery-compatibility', 'a75ed7bb1c4b64b5563a816c0d718e96012ddb2f781e74f07a7106fe628b35fd'],
   ['executable-red', '22a817a735d42dbb7b6d0e6c27e07711d1fe33025c4380079f388d729982c5fe'],
-  ['retrospective-eligibility', '244a158426ec11e190133cc540915b2ed592b21f4325eb5e145aaf38c3b1d4dc'],
-  ['retrospective-proof', 'e407521fcded0e710ad6bd5c16cf06554ea584da259521c77f1db64f27d0e26a'],
+  ['retrospective-eligibility', 'efdd5e15d6a70ac1f2e45b3c69254f40e5f9642f2411bdccb1283a944ae26142'],
+  ['retrospective-proof', 'b16c07600cfdfc08f38cf6bdb1277e9f06c1cdc0f9686c747424081914efede4'],
 ] as const)('retains the %s prompt identity', (kind, expected) => {
   expect(createHash('sha256').update(reviewPromptContract(kind)).digest('hex')).toBe(expected);
 });
