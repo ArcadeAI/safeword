@@ -379,6 +379,8 @@ jobs:
           retention-days: 7
 
       - name: Lint
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
         run: bun run lint
 
       - name: Shellcheck
