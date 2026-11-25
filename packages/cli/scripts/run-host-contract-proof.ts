@@ -15,7 +15,7 @@ import {
 } from '../tests/fixtures/host-contract/native-contract-cases.js';
 import {
   assertHeadlessContinuation,
-  runOriginalAuthorControl,
+  runArchitectureReceiptControls,
 } from './lib/headless-completion-controls.js';
 import {
   gradeOpenCodePopulation,
@@ -582,11 +582,11 @@ function runHeadlessQualification(): number {
   assert.equal(git(['rev-parse', 'HEAD']), sourceHead, 'Qualification source revision changed');
   assert.equal(trackedChanges(), '', 'Qualification ended with uncommitted tracked changes');
   assert.equal(inputs.source_head, sourceHead, 'Propagation used a different source revision');
-  const authorReport = 'original-author-control.json';
-  runOriginalAuthorControl(repoRoot, nodePath.join(directory, authorReport));
+  const receiptReport = 'architecture-receipt-controls.json';
+  runArchitectureReceiptControls(repoRoot, nodePath.join(directory, receiptReport));
   assert.equal(git(['rev-parse', 'HEAD']), sourceHead, 'Qualification source revision changed');
-  assert.equal(trackedChanges(), '', 'Original-author control changed tracked source');
-  const reports = ['inputs.json', 'resource-results.json', 'opencode-cases.json', authorReport];
+  assert.equal(trackedChanges(), '', 'Architecture receipt controls changed tracked source');
+  const reports = ['inputs.json', 'resource-results.json', 'opencode-cases.json', receiptReport];
   const reportDigests = Object.fromEntries(
     reports.map(report => [report, reportDigest(nodePath.join(directory, report))]),
   );
@@ -601,7 +601,7 @@ function runHeadlessQualification(): number {
         case_ids: completed.ids.toSorted((left, right) => left.localeCompare(right)),
         controls: {
           continuation_limits: ['claude', 'codex'],
-          original_author: 'unknown-author-fails-closed',
+          architecture_receipts: 'reduced-current-approved-stale-and-unapproved-refused',
         },
         report_sha256: { ...reportDigests, ...completed.reports },
       },

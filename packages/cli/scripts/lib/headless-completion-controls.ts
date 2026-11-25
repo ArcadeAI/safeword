@@ -75,8 +75,12 @@ function assertTerminal(
   }
 }
 
-export function runOriginalAuthorControl(repoRoot: string, report: string): void {
-  const control = 'blocks under cross-model when the author model is unknown (fails closed)';
+export function runArchitectureReceiptControls(repoRoot: string, report: string): void {
+  const controls = [
+    'accepts an authenticated reduced receipt at the opt-in architecture gate',
+    'blocks when the stamp is stale (plan edited after review)',
+    'rejects a hand-written coordinator claim when the receipt did not approve',
+  ];
   const result = spawnSync(
     nodePath.join(repoRoot, 'scripts/dev'),
     [
@@ -87,13 +91,13 @@ export function runOriginalAuthorControl(repoRoot: string, report: string): void
       'test',
       'tests/integration/architecture-review-gate.test.ts',
       '--testNamePattern',
-      'blocks under cross-model when the author model is unknown',
+      controls.map(title => title.replaceAll(/[.*+?^$(){}|[\]\\]/gu, String.raw`\$&`)).join('|'),
       '--reporter=json',
       `--outputFile=${report}`,
     ],
     { cwd: repoRoot, stdio: 'inherit', timeout: 120_000 },
   );
-  assert.equal(result.status, 0, 'Original-author fail-closed control did not pass');
+  assert.equal(result.status, 0, 'Architecture receipt controls did not pass');
   const output = JSON.parse(readFileSync(report, 'utf8')) as {
     numPassedTests: number;
     numFailedTests: number;
@@ -102,10 +106,10 @@ export function runOriginalAuthorControl(repoRoot: string, report: string): void
   const passed = output.testResults
     .flatMap(file => file.assertionResults)
     .filter(test => test.status === 'passed');
-  assert.equal(output.numPassedTests, 1);
+  assert.equal(output.numPassedTests, controls.length);
   assert.equal(output.numFailedTests, 0);
   assert.deepEqual(
-    passed.map(test => test.title),
-    [control],
+    passed.map(test => test.title).toSorted((left, right) => left.localeCompare(right)),
+    controls.toSorted((left, right) => left.localeCompare(right)),
   );
 }

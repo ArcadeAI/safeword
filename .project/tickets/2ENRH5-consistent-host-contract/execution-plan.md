@@ -1,5 +1,28 @@
 # Execution Plan: Reduce duplicated maintenance and agent drift
 
+## Current-main architecture review qualification
+
+Main’s `da2778353` retired the cross-model requirement and the
+author-model capture hook. For current qualification, this supersedes every
+earlier `Q-author-origin`, `architecture-author-origin`, and
+`crossModelReview` requirement in this plan. Earlier observations retain
+their original scope.
+
+Prove through the installed Stop hook that an authenticated current reduced
+review satisfies the opt-in architecture gate. Prove that stale and
+unapproved receipts are refused. Keep the separate native Stop, configured
+settings, continuation-limit, and lifecycle requirements. Keep the isolated
+wiring grader’s own model-pair check. The headless runner retains the
+three named receipt cases in `architecture-receipt-controls.json`; this is
+source-level evidence for the receipt gate.
+
+The two normal headless propagation reviews retain their full union of
+work targets and contexts. Review shared Codex source in the code role.
+Review headless propagation orchestration with the raw A/B deltas in the
+second role. This split applies only to headless propagation. Both roles
+must fit the existing packet limit, receive exact current approvals, and
+pass the existing receipt checks before any native action.
+
 ## OpenCode 2.4.1 execution amendment — 2026-11-23
 
 Scenario review `95620ecc-325b-4226-91a7-e8357c983aa7` and approach review
@@ -1172,7 +1195,7 @@ case IDs to the independent expected list.
 
 Reuse retained actors for policy-only and resource-only changes, stale lane and
 repair. Require every applicable catalogue, allow/deny, portable, continuation,
-settings and Q-author-origin observation or named fail-closed control. For the
+settings and the current architecture receipt controls described above. For the
 Claude and Codex exhausted-cap cases, reuse their continuation actors to observe
 unmet verification, cap reached and no extra response, then prove that public
 status/completion reports the bound. Source tests do not substitute for live

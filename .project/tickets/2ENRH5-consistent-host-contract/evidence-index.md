@@ -24,6 +24,6 @@ These results apply to the source and package revisions in their records.
 Main removed the cross-model review requirement in `da2778353`. The shared
 architecture gate follows main’s current rule and still checks the plan and its
 receipt. The archival original-author control exercised the old requirement.
-That control needs reconciliation with the accepted qualification scope before a
-new headless qualification can complete. The wiring grader remains an isolated
+Current qualification checks an authenticated reduced receipt and refuses stale
+and unapproved receipts. Native qualification still requires a current run. The wiring grader remains an isolated
 test and retains the existing model-pair check.
