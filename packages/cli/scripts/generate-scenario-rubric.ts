@@ -1,8 +1,8 @@
-import { extractScenarioReviewRubric } from '../src/review/scenario-rubric.js';
 import {
   defineGeneratedRubric,
   isDirectGeneratorInvocation,
 } from './lib/reconcile-generated-file.js';
+import { extractScenarioReviewRubric } from './lib/scenario-rubric.js';
 
 export const generateScenarioRubric = defineGeneratedRubric({
   exportName: 'SCENARIO_REVIEW_RUBRIC',

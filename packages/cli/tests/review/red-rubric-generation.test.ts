@@ -3,8 +3,8 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { extractExecutableRedRubric } from '../../scripts/lib/red-rubric.js';
 import { EXECUTABLE_RED_REVIEW_RUBRIC } from '../../src/review/red-rubric.generated.js';
-import { extractExecutableRedRubric } from '../../src/review/red-rubric.js';
 
 describe('executable RED rubric generation', () => {
   it('keeps runtime attribution rules equal to the canonical TDD-review skill', () => {

@@ -7,9 +7,9 @@ import nodePath from 'node:path';
 import { afterEach, expect, it } from 'vitest';
 
 import { planningAuthorCopies } from '../../scripts/lib/planning-author-copies.js';
+import { extractQualityReviewRubric } from '../../scripts/lib/quality-rubric.js';
 import { PLANNING_AUTHOR_COPIES } from '../../src/planning/contracts.generated.js';
 import { QUALITY_REVIEW_RUBRIC } from '../../src/review/quality-rubric.generated.js';
-import { extractQualityReviewRubric } from '../../src/review/quality-rubric.js';
 import {
   reviewerPromptInstructions,
   reviewPromptContract,

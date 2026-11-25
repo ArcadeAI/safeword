@@ -1,4 +1,4 @@
-import { extractQualityReviewRubric } from '../src/review/quality-rubric.js';
+import { extractQualityReviewRubric } from './lib/quality-rubric.js';
 import {
   defineGeneratedRubric,
   isDirectGeneratorInvocation,

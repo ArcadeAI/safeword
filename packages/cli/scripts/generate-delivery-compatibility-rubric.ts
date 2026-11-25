@@ -1,4 +1,4 @@
-import { extractDeliveryCompatibilityReviewRubric } from '../src/review/delivery-compatibility-rubric.js';
+import { extractDeliveryCompatibilityReviewRubric } from './lib/delivery-compatibility-rubric.js';
 import {
   defineGeneratedRubric,
   isDirectGeneratorInvocation,
