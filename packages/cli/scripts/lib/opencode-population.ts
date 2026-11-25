@@ -69,9 +69,7 @@ const v2Policy = [
 export function openCodePopulation(
   source = readFileSync(hostContractFeature, 'utf8'),
 ): OpenCodeCase[] {
-  const result = (['OpenCode V2'] as const).flatMap(host =>
-    (['CLI', 'TUI'] as const).flatMap(runtime => laneCases(host, runtime, source)),
-  );
+  const result = (['CLI', 'TUI'] as const).flatMap(runtime => laneCases(runtime, source));
   assert.equal(
     new Set(result.map(row => row.id)).size,
     result.length,
@@ -79,11 +77,8 @@ export function openCodePopulation(
   );
   return result;
 }
-function laneCases(
-  host: OpenCodeCase['host'],
-  runtime: OpenCodeCase['runtime'],
-  source: string,
-): OpenCodeCase[] {
+function laneCases(runtime: OpenCodeCase['runtime'], source: string): OpenCodeCase[] {
+  const host = 'OpenCode V2';
   const result: OpenCodeCase[] = [];
   const rows = nativeCases(host, runtime, source);
   const version = rows[0]?.version;
@@ -112,18 +107,17 @@ function laneCases(
     });
   for (const kind of ['allowed-write', 'denied-write', 'catalogue-helper'])
     assert.ok(
-      result.some(row => row.host === host && row.runtime === runtime && row.kind === kind),
+      result.some(row => row.kind === kind),
       `OPENCODE_POPULATION_MISSING: ${prefix}/${kind}`,
     );
-  if (host === 'OpenCode V2')
-    result.push({
-      id: `${prefix}-coexistence`,
-      host,
-      version,
-      runtime,
-      kind: 'coexistence',
-      authority: 'execution-plan.md PR2 task3: both versions in shared profile',
-    });
+  result.push({
+    id: `${prefix}-coexistence`,
+    host,
+    version,
+    runtime,
+    kind: 'coexistence',
+    authority: 'execution-plan.md PR2 task3: both versions in shared profile',
+  });
   return result;
 }
 export interface OpenCodeResult {
