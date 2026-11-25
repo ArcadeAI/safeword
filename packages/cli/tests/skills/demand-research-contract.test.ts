@@ -65,8 +65,10 @@ describe('bounded demand research contract', () => {
   });
 
   it('routes Product Bet research conditionally and reconciles children at intake exit', () => {
-    expect(discovery).toContain('safeword ticket reconcile-parent <ticket-id>');
-    expect(discovery).toContain('Immediately before changing a child');
+    expect(discovery).toContain('Use `/demand-research` only when Why now');
+    expect(discovery).toContain(
+      'Before requesting intake review for a child, run: ```bash safeword ticket reconcile-parent <ticket-id>',
+    );
   });
 
   it('uses existing decision-bearing evidence before external research', () => {

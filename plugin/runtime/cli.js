@@ -3562,7 +3562,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/agents/safeword-retro-filer.md": "008fa4b5777834118ba0efd008862df52dd32d3feec2218537d7c90cbfdfd904",
         ".claude/agents/safeword-reviewer.md": "54f2b47dec3639b711b7c2557b017c452b4667aa7092296a01328c7b5668efaf",
         ".claude/skills/audit/SKILL.md": "379473dba1ec5a9322adcc4f46a827811b1caa90991cd7b6a14c32234515332c",
-        ".claude/skills/bdd/DISCOVERY.md": "8b0eda3825d2755f44eb840c154a6894b00c3e70c92ab9a6d21f80567af72558",
+        ".claude/skills/bdd/DISCOVERY.md": "5b2a830cc9c027d81e5f804e353b2f737041fabd5093e80350f9bfd056567c0c",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
         ".claude/skills/bdd/PLAN_EXECUTION.md": "b32e1b0778773165d0a66bd49d0a57ffc7653c8707381d89090268b3dc56853d",
         ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "da25a09d6caa34f1e1f7ff3e33c64c5c4a59797145a0c6346b5efec46193f62b",
@@ -35216,7 +35216,7 @@ var init_contracts_generated = __esm(() => {
   PLANNING_AUTHOR_COPIES = {
     "product-plan": {
       relativePath: "templates/skills/bdd/DISCOVERY.md",
-      sha256: "8b0eda3825d2755f44eb840c154a6894b00c3e70c92ab9a6d21f80567af72558"
+      sha256: "5b2a830cc9c027d81e5f804e353b2f737041fabd5093e80350f9bfd056567c0c"
     },
     "plan-implementation": {
       relativePath: "templates/skills/bdd/PLAN_IMPLEMENTATION.md",
@@ -35254,7 +35254,7 @@ function readPlanningAuthor(root, phase, identity, verifyWholeCopy = true) {
   return bytes.toString("utf8");
 }
 function packagedPlanningAuthor(phase, verifyWholeCopy = true) {
-  const copies = typeof { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "ea28f7d8b566a2c7b7f88c820d9539bfcfe18024f7e26664277644214da3f881" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "f3575bc1573d498b0d21927ae2c9229bbc72926fe7f56aa06194cac32d73d8e1" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "2c04a8957a40a26484f001038840406b239d16de33826b7574a63a5f29b72b67" } } === "object" ? { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "ea28f7d8b566a2c7b7f88c820d9539bfcfe18024f7e26664277644214da3f881" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "f3575bc1573d498b0d21927ae2c9229bbc72926fe7f56aa06194cac32d73d8e1" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "2c04a8957a40a26484f001038840406b239d16de33826b7574a63a5f29b72b67" } } : PLANNING_AUTHOR_COPIES;
+  const copies = typeof { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "f376f3c74e7b1cc06da8bf6d4936f7d0270c04e06494f996b434f3158e7e7fa9" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "f3575bc1573d498b0d21927ae2c9229bbc72926fe7f56aa06194cac32d73d8e1" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "2c04a8957a40a26484f001038840406b239d16de33826b7574a63a5f29b72b67" } } === "object" ? { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "f376f3c74e7b1cc06da8bf6d4936f7d0270c04e06494f996b434f3158e7e7fa9" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "f3575bc1573d498b0d21927ae2c9229bbc72926fe7f56aa06194cac32d73d8e1" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "2c04a8957a40a26484f001038840406b239d16de33826b7574a63a5f29b72b67" } } : PLANNING_AUTHOR_COPIES;
   return readPlanningAuthor(packageRoot(), phase, copies[phase], verifyWholeCopy);
 }
 function assertActivePlanningAuthorCopy(cwd, phase) {

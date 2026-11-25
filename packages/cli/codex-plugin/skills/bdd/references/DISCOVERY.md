@@ -8,7 +8,11 @@ default.
 
 ## Intake exit
 
-1. Finish and confirm the Product Plan and scope. Name the changed behavior,
+1. Walk through one real use with the information the user has supplied. If
+   the next action depends on guessing what someone enters, sees, or uses to
+   choose the right item, ask them to walk through that step. Use their answer
+   in the plan. Reuse an example that already settles the choice.
+   Finish and confirm the Product Plan and scope. Name the changed behavior,
    preserved behavior, and observable done state. Resolve each JTBD persona
    against the configured personas file. Save `dimensions.md` with the agreed
    behavioral boundaries, or a justified `skip:` for one obvious dimension.
