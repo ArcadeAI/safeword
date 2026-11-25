@@ -1,0 +1,42 @@
+[
+  {
+    "id": "page-size",
+    "request": "The page-size setting accepts strings of digits. Right now it also accepts values like '12px' as 12. Reject malformed input. Keep accepting digit strings with surrounding whitespace or leading zeros, and keep the existing range of 1 through 100.",
+    "before": "export function pageSize(value) { const n = Number.parseInt(value, 10); return n >= 1 && n <= 100 ? n : null; }",
+    "fixed": "export function pageSize(value) { if (!/^\\d+$/.test(value.trim())) return null; const n = Number(value); return n >= 1 && n <= 100 ? n : null; }",
+    "fix": "assert.equal(api.pageSize('12px'), null); assert.equal(api.pageSize('1.2'), null);",
+    "preserve": "assert.equal(api.pageSize(' 007 '), 7); assert.equal(api.pageSize('100'), 100); assert.equal(api.pageSize('101'), null);"
+  },
+  {
+    "id": "page-link",
+    "request": "When changing the page in a relative search URL, replace the existing page parameter rather than adding a second one. The other search filters and the fragment must survive.",
+    "before": "export function pageLink(input, page) { const url = new URL(input, 'https://example.invalid'); url.searchParams.append('page', page); return url.pathname + url.search + url.hash; }",
+    "fixed": "export function pageLink(input, page) { const url = new URL(input, 'https://example.invalid'); url.searchParams.set('page', page); return url.pathname + url.search + url.hash; }",
+    "fix": "assert.equal(api.pageLink('/search?page=1&page=2', 3), '/search?page=3');",
+    "preserve": "assert.equal(api.pageLink('/search?tag=a&tag=b#results', 2), '/search?tag=a&tag=b&page=2#results');"
+  },
+  {
+    "id": "event-order",
+    "request": "The activity feed sorts events by increasing timestamp, but events with the same timestamp are reversed. Keep ties in input order and keep the input array unchanged.",
+    "before": "export function orderEvents(events) { return [...events].reverse().sort((a, b) => a.time - b.time); }",
+    "fixed": "export function orderEvents(events) { return [...events].sort((a, b) => a.time - b.time); }",
+    "fix": "assert.deepEqual(api.orderEvents([{time:1,id:'a'},{time:1,id:'b'}]).map(x=>x.id), ['a','b']);",
+    "preserve": "const input=[{time:3,id:'c'},{time:1,id:'a'}]; const out=api.orderEvents(input); assert.deepEqual(out.map(x=>x.id),['a','c']); assert.deepEqual(input.map(x=>x.id),['c','a']);"
+  },
+  {
+    "id": "delivery-fee",
+    "request": "Customers should get free delivery at exactly $50, as well as above $50. Below $50, preserve the current fee schedule: $5 for standard delivery and $10 for express.",
+    "before": "export function deliveryFee(cents, express = false) { return cents > 5000 ? 0 : express ? 1000 : 500; }",
+    "fixed": "export function deliveryFee(cents, express = false) { return cents >= 5000 ? 0 : express ? 1000 : 500; }",
+    "fix": "assert.equal(api.deliveryFee(5000),0); assert.equal(api.deliveryFee(5000,true),0);",
+    "preserve": "assert.equal(api.deliveryFee(4999),500); assert.equal(api.deliveryFee(4999,true),1000); assert.equal(api.deliveryFee(5001,true),0);"
+  },
+  {
+    "id": "cache-expiry",
+    "request": "A cached value must expire at its exact expiry time. Keep returning valid cached values before expiry, even if they are false or zero, and return undefined for missing or expired entries.",
+    "before": "export function readCache(entry, now) { if (!entry || now > entry.expiresAt) return undefined; return entry.value; }",
+    "fixed": "export function readCache(entry, now) { if (!entry || now >= entry.expiresAt) return undefined; return entry.value; }",
+    "fix": "assert.equal(api.readCache({value:'stale',expiresAt:10},10),undefined);",
+    "preserve": "assert.equal(api.readCache({value:false,expiresAt:10},9),false); assert.equal(api.readCache({value:0,expiresAt:10},9),0); assert.equal(api.readCache(null,9),undefined); assert.equal(api.readCache({value:1,expiresAt:10},11),undefined);"
+  }
+]

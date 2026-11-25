@@ -1,0 +1,1 @@
+Change checkout(total, stock, paid) to return "sold-out" when stock is zero, "payment-required" when stock is available but payment is missing, and "confirmed" otherwise. A sold-out item takes priority over missing payment. Add executable BDD scenarios covering these outcomes and run them before handing off.

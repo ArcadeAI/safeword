@@ -1,0 +1,1 @@
+Build a reservation feature. Customers can reserve an item when stock is available. A successful reservation reduces the available stock. If the item is sold out, tell the customer and leave inventory unchanged. If they retry the same request, don’t reserve a second item.

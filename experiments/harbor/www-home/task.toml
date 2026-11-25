@@ -1,0 +1,9 @@
+version = "1.0"
+
+[verifier]
+timeout_sec = 360
+
+[environment]
+build_timeout_sec = 900
+cpus = 4
+memory_mb = 8192
