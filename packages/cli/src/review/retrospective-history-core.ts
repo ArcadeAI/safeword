@@ -14,7 +14,7 @@ export interface RetrospectiveHistoryResult {
   readonly reason?: string;
 }
 
-function git(
+export function inspectHistoryGit(
   projectRoot: string,
   args: string[],
 ): { status: number | null; stdout: string; error: boolean } {
@@ -32,7 +32,12 @@ function git(
 
 function requiredCommitError(projectRoot: string, sha: string): string | undefined {
   const commitSuffix = '^{commit}';
-  const resolved = git(projectRoot, ['rev-parse', '--verify', '--quiet', `${sha}${commitSuffix}`]);
+  const resolved = inspectHistoryGit(projectRoot, [
+    'rev-parse',
+    '--verify',
+    '--quiet',
+    `${sha}${commitSuffix}`,
+  ]);
   if (resolved.error || resolved.status === null) return 'Git could not inspect migration history.';
   if (resolved.status !== 0 || resolved.stdout.trim() !== sha)
     return `Required commit ${sha} is unavailable.`;
@@ -45,30 +50,45 @@ function ancestorError(
   descendant: string,
   orderingError: string,
 ): string | undefined {
-  const result = git(projectRoot, ['merge-base', '--is-ancestor', ancestor, descendant]);
+  const result = inspectHistoryGit(projectRoot, [
+    'merge-base',
+    '--is-ancestor',
+    ancestor,
+    descendant,
+  ]);
   if (result.error || result.status === null || result.status > 1)
     return 'Git could not inspect migration history.';
   return result.status === 1 ? orderingError : undefined;
 }
 
-/** Internal history mechanism; the production entry point supplies the fixed cutoff. */
+function historyInputError(
+  request: RetrospectiveHistoryRequest,
+  trustedCutoff: string,
+  trustedTicket: string,
+): string | undefined {
+  if (request.ticketId !== trustedTicket) return `Only ${trustedTicket} may use VERIFIED.`;
+  if (!/^[0-9a-f]{40}$/u.test(trustedCutoff))
+    return 'The trusted cutoff must be a full lowercase commit SHA.';
+  if (request.cutoff !== trustedCutoff) return 'The migration cutoff changed.';
+  if (!/^[0-9a-f]{40}$/u.test(request.baseline))
+    return 'The baseline must be a full lowercase commit SHA.';
+  if (request.rationale.trim() === '') return 'The RED-unavailability explanation is missing.';
+  return undefined;
+}
+
+/** Internal history mechanism; production supplies the trusted policy's cutoff and ticket. */
 export function checkHistoryAgainstTrustedCutoff(
   projectRoot: string,
   request: RetrospectiveHistoryRequest,
   trustedCutoff: string,
+  trustedTicket: string = RETROSPECTIVE_TICKET,
 ): RetrospectiveHistoryResult {
   const deny = (reason: string): RetrospectiveHistoryResult => ({
     eligibleForReview: false,
     reason,
   });
-  if (request.ticketId !== RETROSPECTIVE_TICKET) return deny('Only CKWE2D may use VERIFIED.');
-  if (!/^[0-9a-f]{40}$/u.test(trustedCutoff))
-    return deny('The trusted cutoff must be a full lowercase commit SHA.');
-  if (request.cutoff !== trustedCutoff) return deny('The migration cutoff changed.');
-  if (!/^[0-9a-f]{40}$/u.test(request.baseline))
-    return deny('The baseline must be a full lowercase commit SHA.');
-  if (request.rationale.trim() === '')
-    return deny('The RED-unavailability explanation is missing.');
+  const inputError = historyInputError(request, trustedCutoff, trustedTicket);
+  if (inputError !== undefined) return deny(inputError);
 
   for (const sha of [trustedCutoff, request.baseline]) {
     const error = requiredCommitError(projectRoot, sha);

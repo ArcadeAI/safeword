@@ -219,6 +219,35 @@ The approval owner binds new human decisions to the exact plan and its authentic
 
 ### [Go lint package loading preserves configuration context](.project/architecture/go-lint-package-loading-preserves-configuration-context.md)
 
+## Scoped retrospective migration authorization
+
+**Status:** proposed
+**Date:** 2026-11-23
+**Supersedes:** none
+
+**Context.** A second explicitly approved migration needs Electron proof while
+existing CKWE2D receipts must keep their authorization meaning. Project-authored
+opt-in cannot safely define its own exception or executable commands.
+
+**Decision.** Enroll migrations in trusted reviewed source, binding repository,
+fixed cutoff ancestry, ticket, feature, ledger and exact scenario set. Select a
+typed runner and bind its policy identity to new proof and authorization records.
+Reuse authenticated independent reviews and current-commit execution before row
+and aggregate closing authorization. Preserve original missing history; VERIFIED
+is separate. Keep existing CKWE2D formats and meaning compatible.
+
+**Alternatives.** Project-configured enrollment permits self-authorization; merely
+adding a ticket allowlist misses runner and repository binding; rewriting old
+receipt semantics breaks legacy audit evidence. These alternatives are rejected.
+
+**Consequences.** Each additional migration needs source review and meaningful
+runner evidence. Removing a policy stops new authorizations without rewriting
+retained records. A failed replay cannot renew a row or produce aggregate success.
+This is a local trusted-project execution boundary, not an OS sandbox against
+malicious project code. Ticket R6VFY2 owns the proposed implementation; its
+implementation plan owns detailed choices, and plan approval does not claim
+shipped or verified behavior.
+
 ## References
 
 - Language Pack Spec: `packages/cli/src/packs/LANGUAGE_PACK_SPEC.md`

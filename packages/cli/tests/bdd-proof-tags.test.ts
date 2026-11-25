@@ -718,6 +718,9 @@ describe('BDD proof provenance', () => {
     // Current baseline after exposing the previously feature-level-@manual local-retro
     // scenarios, plus two real-CLI table declarations shared by the A639WN
     // evidence/readiness and disposition examples: 75 reused declarations.
+    // The authorized legacy-Electron feature adds 13 declarations shared by
+    // selected rejection cases or by a contract and its matching wiring proof.
+    // Its 25 scenarios retain explicit case mappings and independent fixtures.
     // The selected cases retain distinct fixtures and assertions; sharing avoids
     // duplicating process/receipt setup. Maximum fan-in remains fourteen.
     // These remain ratchets—lower them as proofs become scenario-specific.
@@ -737,7 +740,7 @@ describe('BDD proof provenance', () => {
       maximumFanIn = Math.max(maximumFanIn, fanIn);
     }
 
-    expect(sharedProofs).toBeLessThanOrEqual(75);
+    expect(sharedProofs).toBeLessThanOrEqual(88);
     expect(maximumFanIn).toBeLessThanOrEqual(14);
   });
 

@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "f8b5deddbac7325125a215e98ef04619d2f3ea35f9c902536d0e27d49e5bb48e"
+      "sha256": "05a2fbff0823a7ad60ad37ddea106df4d2fa42eeeb48f31b2de7e46ebc316d47"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "bdd5d7568638bf063456748fcc2e3f47f8c3f8f2fa5501c322cd69f3de29726b"
+      "sha256": "837e54af952eb27d3e4008de65dbcccdf943401573ecadd74a31334b11d4449f"
     },
     {
       "path": "runtime/event-groups.json",
@@ -407,7 +407,7 @@
     },
     {
       "path": "runtime/hooks/lib/retrospective-gate.ts",
-      "sha256": "ba07fb2054720890885a620fb8d8977c715c7d89df697db5b65035cd5305f972"
+      "sha256": "00dfb543d541906687107bf85967c720f5300b0f58f10e1f14e5c3f39a9a3377"
     },
     {
       "path": "runtime/hooks/lib/review-ledger.ts",
@@ -599,7 +599,7 @@
     },
     {
       "path": "runtime/hooks/session-lint-check.ts",
-      "sha256": "fd8520c78e491419251654cf7124213c77fd3a2291cb25c5b0f0592c43eaa772"
+      "sha256": "7278a5b62db029b9eb7f4438a7a58d60fe9790c57b6e2fa8a8be645ae8bda88b"
     },
     {
       "path": "runtime/hooks/session-reply-format.ts",
@@ -1403,7 +1403,7 @@
     },
     {
       "path": "templates/hooks/lib/retrospective-gate.ts",
-      "sha256": "ba07fb2054720890885a620fb8d8977c715c7d89df697db5b65035cd5305f972"
+      "sha256": "00dfb543d541906687107bf85967c720f5300b0f58f10e1f14e5c3f39a9a3377"
     },
     {
       "path": "templates/hooks/lib/review-ledger.ts",
@@ -1595,7 +1595,7 @@
     },
     {
       "path": "templates/hooks/session-lint-check.ts",
-      "sha256": "fd8520c78e491419251654cf7124213c77fd3a2291cb25c5b0f0592c43eaa772"
+      "sha256": "7278a5b62db029b9eb7f4438a7a58d60fe9790c57b6e2fa8a8be645ae8bda88b"
     },
     {
       "path": "templates/hooks/session-reply-format.ts",
@@ -1827,7 +1827,7 @@
     },
     {
       "path": "templates/workflows/remote-tests.yml",
-      "sha256": "06334293ca35675e5fb3f42282c7a9a341345c4d88701356d8108ff56a35212e"
+      "sha256": "9ca43d7204421ca4b50bec87e4c7e0b850616ddddc8db768da29047bd3f20bb2"
     }
   ]
 }

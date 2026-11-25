@@ -1,0 +1,12 @@
+{
+  "modelVersion": "opus (Claude CLI selected alias; provider identity retained separately)",
+  "decodingConfiguration": {
+    "effort": "high",
+    "tools": "disabled",
+    "claudeCli": "2.1.330",
+    "maxCaseRuntimeMs": 120000
+  },
+  "responseFormat": "retrospective-review-decision-facts-v1",
+  "rubricLoader": "exported-retrospective-proof-and-eligibility-v1",
+  "toolsDisabled": true
+}

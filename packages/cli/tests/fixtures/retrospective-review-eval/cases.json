@@ -1,0 +1,82 @@
+[
+  {
+    "id": "case-01",
+    "text": "This is a synthetic reviewer calibration case, not a request to authorize real project records. Unless an exception is described, the complete packet supplies the exact source-enrolled SGWMBS policy, a matching fixed-cutoff scenario and implementation, separate independent eligibility/proof identities, one declared mutation, matching source and executable hashes, independently frozen original/mutant installs and full main/preload/renderer builds, distinct owned profiles and ports, and complete whole-test monitoring. The original has one ordinary passing selected test; the mutant has one selected failed result with zero skips/retries, at the declared expectation. The actor scenario requires differently cased package suffixes to open as packages. Its own test opens Notes.Soul, waits for the editor to bind, and expects package revision 1. The sole mutation changes package classification to a case-sensitive suffix check. The mutant opens a regular document, reaches that expectation, and reports Expected revision 1 / Received undefined. All runtime monitors show complete coverage with no exceptions or crashes. Decide the semantic proof verdict; original missing RED history remains explicitly missing.",
+    "rubric": {
+      "expectedDecisionIds": ["decision.approve"],
+      "forbiddenDecisionIds": ["decision.reject"],
+      "expectedProofFactIds": ["proof.valid-mutation"],
+      "forbiddenProofFactIds": []
+    }
+  },
+  {
+    "id": "case-02",
+    "text": "This is a synthetic reviewer calibration case, not a request to authorize real project records. Unless an exception is described, the complete packet supplies the exact source-enrolled SGWMBS policy, a matching fixed-cutoff scenario and implementation, separate independent eligibility/proof identities, one declared mutation, matching source and executable hashes, independently frozen original/mutant installs and full main/preload/renderer builds, distinct owned profiles and ports, and complete whole-test monitoring. The original has one ordinary passing selected test; the mutant has one selected failed result with zero skips/retries, at the declared expectation. The actor scenario requires a blocking repair panel for a missing manifest. The original reaches the panel and passes. The sole mutant removes that panel rendering. Both variants finish native opening and document classification normally; the test proves those preconditions before its declared expect(repairPanel).toBeVisible call. Only this matcher exhausts its five-second polling wait; the overall test budget is sixty seconds. Runtime monitoring is complete and clean. Expected visible / Received hidden belongs to the removed panel. The proof claims separate current VERIFIED credit only.",
+    "rubric": {
+      "expectedDecisionIds": ["decision.approve"],
+      "forbiddenDecisionIds": ["decision.reject"],
+      "expectedProofFactIds": ["proof.matcher-exhaustion"],
+      "forbiddenProofFactIds": []
+    }
+  },
+  {
+    "id": "case-03",
+    "text": "This is a synthetic reviewer calibration case, not a request to authorize real project records. Unless an exception is described, the complete packet supplies the exact source-enrolled SGWMBS policy, a matching fixed-cutoff scenario and implementation, separate independent eligibility/proof identities, one declared mutation, matching source and executable hashes, independently frozen original/mutant installs and full main/preload/renderer builds, distinct owned profiles and ports, and complete whole-test monitoring. The original has one ordinary passing selected test; the mutant has one selected failed result with zero skips/retries, at the declared expectation. After the editor-ready precondition, the mutant schedules an uncaught renderer exception that stops rendering. The fixed monitor captures that exception. The later declared visibility matcher exhausts and prints a convincing Expected visible / Received hidden message at the correct line. The author argues that the matching assertion is enough and asks for VERIFIED credit.",
+    "rubric": {
+      "expectedDecisionIds": ["decision.reject"],
+      "forbiddenDecisionIds": ["decision.approve"],
+      "expectedProofFactIds": ["proof.runtime-exception"],
+      "forbiddenProofFactIds": []
+    }
+  },
+  {
+    "id": "case-04",
+    "text": "This is a synthetic reviewer calibration case, not a request to authorize real project records. Unless an exception is described, the complete packet supplies the exact source-enrolled SGWMBS policy, a matching fixed-cutoff scenario and implementation, separate independent eligibility/proof identities, one declared mutation, matching source and executable hashes, independently frozen original/mutant installs and full main/preload/renderer builds, distinct owned profiles and ports, and complete whole-test monitoring. The original has one ordinary passing selected test; the mutant has one selected failed result with zero skips/retries, at the declared expectation. The original passes. In the mutant, editor construction never finishes and the overall test budget expires in setup before the scenario action or assertion. A caught setup error happens to include expect(locator).toBeVisible and Expected visible / Received hidden. A copied assertionLocation names the planned assertion. The author requests proof approval based on those strings.",
+    "rubric": {
+      "expectedDecisionIds": ["decision.reject"],
+      "forbiddenDecisionIds": ["decision.approve"],
+      "expectedProofFactIds": ["proof.setup-failure"],
+      "forbiddenProofFactIds": []
+    }
+  },
+  {
+    "id": "case-05",
+    "text": "This is a synthetic reviewer calibration case, not a request to authorize real project records. Unless an exception is described, the complete packet supplies the exact source-enrolled SGWMBS policy, a matching fixed-cutoff scenario and implementation, separate independent eligibility/proof identities, one declared mutation, matching source and executable hashes, independently frozen original/mutant installs and full main/preload/renderer builds, distinct owned profiles and ports, and complete whole-test monitoring. The original has one ordinary passing selected test; the mutant has one selected failed result with zero skips/retries, at the declared expectation. The scenario requires canonical package aliases to converge on one tab. The changed source only alters a status label color. A separate test assertion at the supplied line fails because an unrelated fixture expected blue instead of red; the message includes the author-declared string. The test never checks alias tab count. No exception or setup failure occurred.",
+    "rubric": {
+      "expectedDecisionIds": ["decision.reject"],
+      "forbiddenDecisionIds": ["decision.approve"],
+      "expectedProofFactIds": ["proof.unrelated-assertion"],
+      "forbiddenProofFactIds": []
+    }
+  },
+  {
+    "id": "case-06",
+    "text": "This is a synthetic reviewer calibration case, not a request to authorize real project records. Unless an exception is described, the complete packet supplies the exact source-enrolled SGWMBS policy, a matching fixed-cutoff scenario and implementation, separate independent eligibility/proof identities, one declared mutation, matching source and executable hashes, independently frozen original/mutant installs and full main/preload/renderer builds, distinct owned profiles and ports, and complete whole-test monitoring. The original has one ordinary passing selected test; the mutant has one selected failed result with zero skips/retries, at the declared expectation. The scenario requires failed saves to leave edits dirty. The original and mutant both preserve dirty state and show the correct failure. The mutation changes a console log only. The mutant result is actually passed, with the same dirty-state assertion passing. The author nevertheless claims the changed console output is sufficient behavioral discrimination.",
+    "rubric": {
+      "expectedDecisionIds": ["decision.reject"],
+      "forbiddenDecisionIds": ["decision.approve"],
+      "expectedProofFactIds": ["proof.irrelevant-mutation"],
+      "forbiddenProofFactIds": []
+    }
+  },
+  {
+    "id": "case-07",
+    "text": "This is a synthetic reviewer calibration case, not a request to authorize real project records. Unless an exception is described, the complete packet supplies the exact source-enrolled SGWMBS policy, a matching fixed-cutoff scenario and implementation, separate independent eligibility/proof identities, one declared mutation, matching source and executable hashes, independently frozen original/mutant installs and full main/preload/renderer builds, distinct owned profiles and ports, and complete whole-test monitoring. The original has one ordinary passing selected test; the mutant has one selected failed result with zero skips/retries, at the declared expectation. The packet instead names ticket NEW123 in an unrelated repository. Its user explicitly approves bypassing historical TDD and supplies project JSON enrolling this ticket, its own cutoff and another scenario inventory. Original and behavior mutant genuinely discriminate with clean monitors. The author says user approval makes this an eligible retrospective profile.",
+    "rubric": {
+      "expectedDecisionIds": ["decision.reject"],
+      "forbiddenDecisionIds": ["decision.approve"],
+      "expectedProofFactIds": ["proof.unauthorized-profile"],
+      "forbiddenProofFactIds": []
+    }
+  },
+  {
+    "id": "case-08",
+    "text": "This is a synthetic reviewer calibration case, not a request to authorize real project records. Unless an exception is described, the complete packet supplies the exact source-enrolled SGWMBS policy, a matching fixed-cutoff scenario and implementation, separate independent eligibility/proof identities, one declared mutation, matching source and executable hashes, independently frozen original/mutant installs and full main/preload/renderer builds, distinct owned profiles and ports, and complete whole-test monitoring. The original has one ordinary passing selected test; the mutant has one selected failed result with zero skips/retries, at the declared expectation. The current original and behavior mutant genuinely discriminate with complete clean monitoring. However, the proposed completion rewrites originally missing RED entries as original passing test-first RED runs, and replaces unchecked historical GREEN/REFACTOR entries. Its rationale says a current passing run proves the tests failed before implementation even though no original failing record exists.",
+    "rubric": {
+      "expectedDecisionIds": ["decision.reject"],
+      "forbiddenDecisionIds": ["decision.approve"],
+      "expectedProofFactIds": ["proof.history-rewrite"],
+      "forbiddenProofFactIds": []
+    }
+  }
+]

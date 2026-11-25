@@ -1,0 +1,296 @@
+{
+  "kind": "operator-captured-closeout-output",
+  "authority": "None. This is not a review receipt, observation, replay journal, closing tag or readiness receipt. It does not repair original test-first history.",
+  "code_head": "9ed3d02010f2410c6cdba0fba14dc27f05818a16",
+  "installed_runtime_sha256": "d8552927ed14a4f398a3dfb1eaa437982c1130f72670b4d37df982f4cad78ff5",
+  "log_excerpts": {
+    "issue163-closeout-final-full-verification.log": {
+      "sha256": "f6c6e4be60fe9f99cdf743fa78ebec54c9823f1a050e227d60fb19a316f29369",
+      "actual_summary_lines": [
+        " Test Files  9 passed (9)",
+        "      Tests  198 passed | 1 skipped (199)",
+        "   Start at  11:32:04",
+        "   Duration  5.24s (tests 87%, transform 8%, import 6%)",
+        " Test Files  4 passed (4)",
+        "      Tests  153 passed (153)",
+        "   Start at  11:32:10",
+        "   Duration  1.30s (tests 91%, transform 6%, import 2%)",
+        " Test Files  770 passed (770)",
+        "      Tests  12333 passed | 14 skipped (12347)",
+        "   Start at  11:32:14",
+        "   Duration  2915.42s (tests 99%, import 1%)",
+        "602 scenarios (600 passed, 2 failed)",
+        "12451 steps (12449 passed, 2 failed)"
+      ]
+    },
+    "issue163-closeout-bdd-focused-reproduction.log": {
+      "sha256": "f6d6f9f585c48bde3472218e826ee82328b95e0bbdde86e6a86c28673c37b244",
+      "actual_summary_lines": [
+        "577 scenarios (577 passed)",
+        "11951 steps (11951 passed)"
+      ]
+    },
+    "issue163-closeout-serialized-acceptance.log": {
+      "sha256": "86dfc01759d56132949124618987974fe41dcd63ab607204b8f700ffdb7ea4f6",
+      "actual_summary_lines": [
+        "602 scenarios (602 passed)",
+        "12451 steps (12451 passed)"
+      ]
+    },
+    "issue163-closeout-final-installed-smoke.log": {
+      "sha256": "75f7515c49deed57a46a35e76b91bbe63ad00d8ec49d8fe784f7d1352fba988f",
+      "actual_summary_lines": [
+        " Test Files  1 passed (1)",
+        "      Tests  1 passed (1)",
+        "   Start at  12:21:04",
+        "   Duration  935ms (tests 95%, transform 3%, import 2%)"
+      ]
+    },
+    "issue163-closeout-final-proof-inventory.log": {
+      "sha256": "b1486dc812e61c92bed51ab66da7153ec4e23ebb382d9a98c8bd6c9a8a774535",
+      "actual_summary_lines": [
+        " Test Files  1 passed (1)",
+        "      Tests  53 passed (53)",
+        "   Start at  12:43:39",
+        "   Duration  1.25s (tests 82%, import 13%, transform 5%)"
+      ]
+    }
+  },
+  "refactor_git_inspection": [
+    {
+      "commit": "7f5ae9ca2ab396c2ef0cde9a5f8e2720d44f820a",
+      "green_commit": "2185c1d77d1e5eea4fd7203896171e4557992f4f",
+      "green_is_ancestor_exit_code": 0,
+      "changed_paths": [
+        "packages/cli/codex-plugin/runtime/cli.js",
+        "packages/cli/src/cli-protocol/review-handlers.ts",
+        "plugin/identity.json",
+        "plugin/inventory.json",
+        "plugin/runtime/cli.js"
+      ]
+    },
+    {
+      "commit": "ca2cb66bf66fbbe9f6ba87222082d478c38875bf",
+      "green_commit": "2185c1d77d1e5eea4fd7203896171e4557992f4f",
+      "green_is_ancestor_exit_code": 0,
+      "changed_paths": [
+        "packages/cli/src/review/retrospective-electron-admission.ts",
+        "packages/cli/src/review/retrospective-electron-request.ts"
+      ]
+    }
+  ],
+  "actual_read_only_installed_delivery_stdout": {
+    "policyId": "soulless-electron-20261123-v1",
+    "ticketId": "SGWMBS",
+    "ledger": ".project/tickets/SGWMBS-open-save-soul-electron/test-definitions.md",
+    "sourceCommit": "f7a1d907c08787908772c5d228c20fb586a5baf8",
+    "rows": [
+      {
+        "ticketId": "SGWMBS",
+        "ledger": ".project/tickets/SGWMBS-open-save-soul-electron/test-definitions.md",
+        "scenario": "Explorer presents package roots and aliases as documents",
+        "eligibilityId": "63c3fa36-624a-4468-b715-3711ebfc8ec5",
+        "proofId": "f17a366a-63f1-4980-97e3-947e4d74310c",
+        "status": "approved"
+      },
+      {
+        "ticketId": "SGWMBS",
+        "ledger": ".project/tickets/SGWMBS-open-save-soul-electron/test-definitions.md",
+        "scenario": "Package path variants share one tab",
+        "eligibilityId": "63c3fa36-624a-4468-b715-3711ebfc8ec5",
+        "proofId": "42a7a36f-6500-45f0-8a53-07467e856f6d",
+        "status": "approved"
+      },
+      {
+        "ticketId": "SGWMBS",
+        "ledger": ".project/tickets/SGWMBS-open-save-soul-electron/test-definitions.md",
+        "scenario": "A differently cased soul suffix opens as a package",
+        "eligibilityId": "63c3fa36-624a-4468-b715-3711ebfc8ec5",
+        "proofId": "ad8120ef-a797-434d-ae64-cfb6db9364e6",
+        "status": "approved"
+      },
+      {
+        "ticketId": "SGWMBS",
+        "ledger": ".project/tickets/SGWMBS-open-save-soul-electron/test-definitions.md",
+        "scenario": "Ordinary folders remain folders",
+        "eligibilityId": "63c3fa36-624a-4468-b715-3711ebfc8ec5",
+        "proofId": "95bf26c8-fb83-47d0-99a4-37b49b90a988",
+        "status": "approved"
+      },
+      {
+        "ticketId": "SGWMBS",
+        "ledger": ".project/tickets/SGWMBS-open-save-soul-electron/test-definitions.md",
+        "scenario": "A regular soul text file retains plain-text saves",
+        "eligibilityId": "63c3fa36-624a-4468-b715-3711ebfc8ec5",
+        "proofId": "77fff323-6b20-4ce8-89d9-2adbbeca87cd",
+        "status": "approved"
+      },
+      {
+        "ticketId": "SGWMBS",
+        "ledger": ".project/tickets/SGWMBS-open-save-soul-electron/test-definitions.md",
+        "scenario": "Creating a soul document over a regular file is refused",
+        "eligibilityId": "63c3fa36-624a-4468-b715-3711ebfc8ec5",
+        "proofId": "6f452b71-b518-4ee7-8b90-a88cee90d9f5",
+        "status": "approved"
+      },
+      {
+        "ticketId": "SGWMBS",
+        "ledger": ".project/tickets/SGWMBS-open-save-soul-electron/test-definitions.md",
+        "scenario": "Creating a soul document over a directory is refused",
+        "eligibilityId": "63c3fa36-624a-4468-b715-3711ebfc8ec5",
+        "proofId": "e1585446-bc05-4b63-8fda-6a66c61ff5a4",
+        "status": "approved"
+      },
+      {
+        "ticketId": "SGWMBS",
+        "ledger": ".project/tickets/SGWMBS-open-save-soul-electron/test-definitions.md",
+        "scenario": "Closing immediately after a package edit asks to preserve it",
+        "eligibilityId": "63c3fa36-624a-4468-b715-3711ebfc8ec5",
+        "proofId": "9fb80fc2-53e4-4f89-86b0-35f90967cd55",
+        "status": "approved"
+      },
+      {
+        "ticketId": "SGWMBS",
+        "ledger": ".project/tickets/SGWMBS-open-save-soul-electron/test-definitions.md",
+        "scenario": "Switching immediately after a package edit preserves a rejected save",
+        "eligibilityId": "63c3fa36-624a-4468-b715-3711ebfc8ec5",
+        "proofId": "81e7b93b-5536-4069-a34a-d6c52e7d656f",
+        "status": "approved"
+      },
+      {
+        "ticketId": "SGWMBS",
+        "ledger": ".project/tickets/SGWMBS-open-save-soul-electron/test-definitions.md",
+        "scenario": "Saving package Markdown preserves existing review state",
+        "eligibilityId": "63c3fa36-624a-4468-b715-3711ebfc8ec5",
+        "proofId": "83902618-70fb-4142-8849-5bdd28b2cbbe",
+        "status": "approved"
+      },
+      {
+        "ticketId": "SGWMBS",
+        "ledger": ".project/tickets/SGWMBS-open-save-soul-electron/test-definitions.md",
+        "scenario": "An ordinary Markdown document keeps its file workflow",
+        "eligibilityId": "63c3fa36-624a-4468-b715-3711ebfc8ec5",
+        "proofId": "afd20c92-5247-475c-b527-1468394ba9b3",
+        "status": "approved"
+      },
+      {
+        "ticketId": "SGWMBS",
+        "ledger": ".project/tickets/SGWMBS-open-save-soul-electron/test-definitions.md",
+        "scenario": "A trailing blank paragraph marks reopened Markdown unsaved",
+        "eligibilityId": "63c3fa36-624a-4468-b715-3711ebfc8ec5",
+        "proofId": "23643ba6-8d8f-4fd5-9bbb-9cbef7d06dd2",
+        "status": "approved"
+      },
+      {
+        "ticketId": "SGWMBS",
+        "ledger": ".project/tickets/SGWMBS-open-save-soul-electron/test-definitions.md",
+        "scenario": "Ordinary Markdown reopens its review sidecars",
+        "eligibilityId": "63c3fa36-624a-4468-b715-3711ebfc8ec5",
+        "proofId": "2bb9768a-4447-4d90-b0c7-4c050b0a3ac2",
+        "status": "approved"
+      },
+      {
+        "ticketId": "SGWMBS",
+        "ledger": ".project/tickets/SGWMBS-open-save-soul-electron/test-definitions.md",
+        "scenario": "Package drift discovered at save refuses the edit",
+        "eligibilityId": "63c3fa36-624a-4468-b715-3711ebfc8ec5",
+        "proofId": "efef0e56-c506-4afa-a3cf-805e5b23295f",
+        "status": "approved"
+      },
+      {
+        "ticketId": "SGWMBS",
+        "ledger": ".project/tickets/SGWMBS-open-save-soul-electron/test-definitions.md",
+        "scenario": "External Markdown drift opens a blocking repair tab",
+        "eligibilityId": "63c3fa36-624a-4468-b715-3711ebfc8ec5",
+        "proofId": "1aabbc90-50c1-48a1-b686-12d4d597b24c",
+        "status": "approved"
+      },
+      {
+        "ticketId": "SGWMBS",
+        "ledger": ".project/tickets/SGWMBS-open-save-soul-electron/test-definitions.md",
+        "scenario": "A blocked package can be revealed",
+        "eligibilityId": "63c3fa36-624a-4468-b715-3711ebfc8ec5",
+        "proofId": "40b57397-339b-4a89-ba00-80da10c3adc9",
+        "status": "approved"
+      },
+      {
+        "ticketId": "SGWMBS",
+        "ledger": ".project/tickets/SGWMBS-open-save-soul-electron/test-definitions.md",
+        "scenario": "A blocked package can be closed without writing",
+        "eligibilityId": "63c3fa36-624a-4468-b715-3711ebfc8ec5",
+        "proofId": "a298f268-b82b-42d8-8849-b0dc45623742",
+        "status": "approved"
+      }
+    ],
+    "closingStatus": "approved"
+  },
+  "limits": [
+    "The first aggregate verification invocation exited 1 after two acceptance failures; its passing CLI/build/type/dependency results are retained separately.",
+    "The first recovery command selected 577 scenarios; only the subsequent canonical serialized command passed all 602 scenarios.",
+    "Local output provenance and unchanged review-record bytes are operator observations, not independently authenticated provider execution attestations.",
+    "Original Electron observations remain attributed to Soulless f7a1d907; the current installed gate only reads and validates existing authenticated records.",
+    "No private key, authentic review receipt, journal or signed row/closing record is copied here.",
+    "Twenty-four original source RGR histories remain unavailable and unchecked."
+  ],
+  "operator_refactor_validation": {
+    "tested_head": "9ed3d02010f2410c6cdba0fba14dc27f05818a16",
+    "refactors_are_ancestors_of_tested_head": [
+      {
+        "commit": "7f5ae9ca2ab396c2ef0cde9a5f8e2720d44f820a",
+        "exit_code": 0
+      },
+      {
+        "commit": "ca2cb66bf66fbbe9f6ba87222082d478c38875bf",
+        "exit_code": 0
+      }
+    ],
+    "historical_log_excerpts": {
+      "issue163-closeout-refactor-import-green.log": {
+        "sha256": "4b8b7e5c4074f627c68efab20c16006baa2828d0f0bb2e2896fa401b6859cb27",
+        "actual_invocation_line": "$ node scripts/run-vitest-with-build-lock.mjs tests/cli-protocol/retrospective-observe.test.ts tests/cli-protocol/catalog.test.ts \"--maxWorkers=1\"",
+        "actual_summary_lines": [
+          " Test Files  2 passed (2)",
+          "      Tests  12 passed (12)",
+          "   Start at  10:44:31",
+          "   Duration  2.09s (tests 87%, transform 10%, import 3%)"
+        ]
+      },
+      "issue163-closeout-private-helpers-proof.log": {
+        "sha256": "26c34f505cf27e3fa319bcad55173c849f18c1c3981d12837e57b46216386874",
+        "actual_invocation_line": "$ node scripts/run-vitest-with-build-lock.mjs tests/review/legacy-electron-proof.test.ts \"--maxWorkers=1\"",
+        "actual_summary_lines": [
+          " Test Files  1 passed (1)",
+          "      Tests  84 passed (84)",
+          "   Start at  10:57:29",
+          "   Duration  78ms (transform 56%, import 20%, tests 17%, worker 7%)"
+        ]
+      },
+      "issue163-closeout-private-helpers-admission.log": {
+        "sha256": "a51269df8f58a70009a8970012f69b282fca1358537a985ca93ef86960d17cb2",
+        "actual_invocation_line": "$ node scripts/run-vitest-with-build-lock.mjs tests/review/legacy-electron-authorization.test.ts --testNamePattern \"attests an enrolled row using real authenticated reviews\" \"--maxWorkers=1\"",
+        "actual_summary_lines": [
+          " Test Files  1 passed (1)",
+          "      Tests  1 passed | 8 skipped (9)",
+          "   Start at  10:57:32",
+          "   Duration  7.72s (tests 95%, transform 3%, import 1%)"
+        ]
+      },
+      "issue163-closeout-refactor-import-generation.log": {
+        "sha256": "506dac0919d9ab9c5664597d6e152fa5a2b41fddf0658ccf4317474a36e015d1",
+        "first_log_line": "\u2192 generate-cursor-wrappers.ts",
+        "actual_summary_lines": [
+          "Regenerated all 5 surfaces and verified them. Stage the result."
+        ]
+      },
+      "issue163-closeout-private-helpers-generation.log": {
+        "sha256": "39b13a7f9577025a3c5a3b1f721f7e917abe29040dc15a019eb190e44320ba5d",
+        "actual_invocation_line": "$ bun scripts/check-generated-surfaces.ts --fix",
+        "actual_summary_lines": [
+          "Regenerated all 5 surfaces and verified them. Stage the result."
+        ]
+      }
+    },
+    "actual_identity_inventory_patch": "diff --git a/plugin/identity.json b/plugin/identity.json\nindex 6296074a2..545247329 100644\n--- a/plugin/identity.json\n+++ b/plugin/identity.json\n@@ -2,5 +2,5 @@\n   \"schema_version\": 1,\n   \"plugin_version\": \"1.2.0\",\n   \"hook_manifest_sha256\": \"8022c493baec10b9f4c1a9b92780841fc340583892fffe9c71b48bfd30c67218\",\n-  \"inventory_sha256\": \"a85825e7d2606584e5134f117ea3ee4c4ea33a5e602cba162e654428568c6c26\"\n+  \"inventory_sha256\": \"2a15215b2a2933139716f88c7c9f773f07f275fd66ae78dc7d5e06816daec891\"\n }\ndiff --git a/plugin/inventory.json b/plugin/inventory.json\nindex 599a52316..db5ff46e6 100644\n--- a/plugin/inventory.json\n+++ b/plugin/inventory.json\n@@ -155,7 +155,7 @@\n     },\n     {\n       \"path\": \"runtime/cli.js\",\n-      \"sha256\": \"872d6005f4ba7c6a420c1931bf9cef267acaccec1f85e68b7e024f50ecb13c42\"\n+      \"sha256\": \"a7fd7ca93fe7e17cdb1afc32a1d5cef3b00135254a6cf932375aa5a2b62ed164\"\n     },\n     {\n       \"path\": \"runtime/dispatch.js\",\n",
+    "interpretation": "The generated inventory and identity hashes change the installed integrity seal for the rebuilt CLI bytes. The plugin version and hook manifest are unchanged. The supported generator verified all five surfaces; no enrollment or approval requirement is changed by this hash refresh."
+  }
+}

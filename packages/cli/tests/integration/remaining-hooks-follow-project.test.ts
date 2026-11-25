@@ -74,6 +74,7 @@ describe('remaining hooks act on the resolved project (#5467)', () => {
   });
 
   it('session-lint-check checks the lint setup of the worktree the session starts in', () => {
+    writeFileSync(nodePath.join(worktree, 'package.json'), '{}\n');
     const result = runHook('session-lint-check.ts', launch, {
       session_id: `lint-check-${process.pid}`,
       hook_event_name: 'SessionStart',
