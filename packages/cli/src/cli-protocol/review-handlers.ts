@@ -26,6 +26,7 @@ import type {
 } from '../review/packet.js';
 import { reviewRoutePlan } from '../review/policy.js';
 import { ReviewConfigReadError, ReviewUserConfigPathError } from '../review/preferences.js';
+import { SOULLESS_RETROSPECTIVE_POLICY } from '../review/retrospective-policy.js';
 import { ReviewRouteConfigError } from '../review/route-config.js';
 import { resolveTicketsDirectory } from '../utils/configured-paths.js';
 import type { CommandInvocation } from './handler.js';
@@ -139,6 +140,69 @@ export async function executableRedGateHandler(invocation: CommandInvocation): P
   return executableRedGate(invocation.cwd, scenario, ledger);
 }
 
+export async function retrospectiveObserveHandler(
+  invocation: CommandInvocation,
+): Promise<CliResult> {
+  const command = 'review observe retrospective';
+  if (invocation.offline) return onlineRequired(command);
+  const requestPath = invocation.options.request;
+  if (typeof requestPath !== 'string' || requestPath.trim() === '') {
+    return invalidOperand(command, 'A committed proof request path is required.');
+  }
+  try {
+    const { readProofInput } = await import('../review/retrospective-proof.js');
+    const { parseElectronProofRequest } =
+      await import('../review/retrospective-electron-request.js');
+    const { checkRetrospectiveHistory } = await import('../review/retrospective-history.js');
+    const { runElectronProof } = await import('../review/retrospective-electron-proof.js');
+    const request = parseElectronProofRequest(
+      JSON.parse(readProofInput(invocation.cwd, requestPath).toString('utf8')),
+    );
+    const history = checkRetrospectiveHistory(invocation.cwd, {
+      ticketId: SOULLESS_RETROSPECTIVE_POLICY.ticketId,
+      cutoff: SOULLESS_RETROSPECTIVE_POLICY.cutoff,
+      baseline: SOULLESS_RETROSPECTIVE_POLICY.cutoff,
+      rationale:
+        'Observe only the source-enrolled migration; historical eligibility is reviewed separately.',
+    });
+    if (!history.eligibleForReview)
+      throw new Error(history.reason ?? 'Migration history is unavailable.');
+    const observation = await runElectronProof(invocation.cwd, request, requestPath);
+    return createResult({
+      state: 'healthy',
+      effects: {
+        packages: [
+          {
+            kind: 'temporary-proof-dependencies',
+            target: 'independent original and mutant snapshots',
+            operation: 'frozen-install',
+          },
+        ],
+        network: [
+          {
+            kind: 'dependency-registry',
+            target: 'pnpm frozen dependency resolution',
+            operation: 'read',
+          },
+        ],
+      },
+      data: { command, status: 'observed', observation },
+    });
+  } catch (error: unknown) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'RETROSPECTIVE_OBSERVATION_FAILED',
+          message: error instanceof Error ? error.message : String(error),
+          retryable: false,
+        },
+      ],
+      data: { command, status: 'blocked' },
+    });
+  }
+}
+
 export async function retrospectiveGateHandler(invocation: CommandInvocation): Promise<CliResult> {
   return retrospectiveHandler(invocation, false);
 }
@@ -154,6 +218,7 @@ async function retrospectiveHandler(
   replay: boolean,
 ): Promise<CliResult> {
   const command = replay ? 'review attest retrospective' : 'review gate retrospective';
+  if (replay && invocation.offline) return onlineRequired(command);
   const { ticket, scenario, ledger, eligibility, proof } = invocation.options;
   if (
     [ticket, scenario, ledger, eligibility, proof].some(
@@ -164,24 +229,39 @@ async function retrospectiveHandler(
       command,
       'Ticket, scenario, ledger, eligibility, and proof are required.',
     );
-  const { retrospectiveGate, attestRetrospectiveRow } =
-    await import('../review/retrospective-gate.js');
-  const check = replay ? attestRetrospectiveRow : retrospectiveGate;
-  return check(invocation.cwd, {
+  const request = {
     ticketId: ticket as string,
     scenario: scenario as string,
     ledger: ledger as string,
     eligibilityId: eligibility as string,
     proofId: proof as string,
-  });
+  };
+  if (ticket === SOULLESS_RETROSPECTIVE_POLICY.ticketId) {
+    const { electronRetrospectiveGate, attestElectronRetrospectiveRow } =
+      await import('../review/retrospective-electron-gate.js');
+    return replay
+      ? attestElectronRetrospectiveRow(invocation.cwd, request)
+      : electronRetrospectiveGate(invocation.cwd, request);
+  }
+  const { retrospectiveGate, attestRetrospectiveRow } =
+    await import('../review/retrospective-gate.js');
+  return replay
+    ? attestRetrospectiveRow(invocation.cwd, request)
+    : retrospectiveGate(invocation.cwd, request);
 }
 
 export async function retrospectiveCloseAttestHandler(
   invocation: CommandInvocation,
 ): Promise<CliResult> {
+  if (invocation.offline) return onlineRequired('review attest retrospective-close');
   const { ticket, ledger } = invocation.options;
   if (typeof ticket !== 'string' || typeof ledger !== 'string')
     return invalidOperand('review attest retrospective-close', 'Ticket and ledger are required.');
+  if (ticket === SOULLESS_RETROSPECTIVE_POLICY.ticketId) {
+    const { attestElectronRetrospectiveClose } =
+      await import('../review/retrospective-electron-close.js');
+    return attestElectronRetrospectiveClose(invocation.cwd, ticket, ledger);
+  }
   const { attestRetrospectiveClose } = await import('../review/retrospective-close.js');
   return attestRetrospectiveClose(invocation.cwd, ticket, ledger);
 }
@@ -192,6 +272,11 @@ export async function retrospectiveCloseGateHandler(
   const { ticket, ledger } = invocation.options;
   if (typeof ticket !== 'string' || typeof ledger !== 'string')
     return invalidOperand('review gate retrospective-close', 'Ticket and ledger are required.');
+  if (ticket === SOULLESS_RETROSPECTIVE_POLICY.ticketId) {
+    const { electronRetrospectiveCloseGate } =
+      await import('../review/retrospective-electron-close.js');
+    return electronRetrospectiveCloseGate(invocation.cwd, ticket, ledger);
+  }
   const { retrospectiveCloseGate } = await import('../review/retrospective-close.js');
   return retrospectiveCloseGate(invocation.cwd, ticket, ledger);
 }

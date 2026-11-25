@@ -101,7 +101,8 @@ describe('Go lint process boundary', () => {
     expect(packageCommands[1]).toContain(`${path.dirname(file)}|run --config `);
     expect(trace).toContain(`${path.dirname(file)}|run --config `);
     expect(trace).toContain(`--path-prefix ${root} .`);
-    expect(trace).not.toContain('--fix');
+    expect(trace).toContain('--fix=false');
+    expect(trace).not.toMatch(/(?:^|\s)--fix(?:=true)?(?:\s|$)/u);
     expect(readdirSync(root).some(name => name.startsWith('.safeword-go-lint-'))).toBe(false);
   });
 

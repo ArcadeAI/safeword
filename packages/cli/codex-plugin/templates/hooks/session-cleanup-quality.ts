@@ -6,8 +6,9 @@
 import { readdirSync, statSync, unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
+import { readSessionProjectDirectory } from './lib/project-directory.ts';
 
-const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const projectDirectory = readSessionProjectDirectory();
 const stateDirectory = nodePath.join(resolveNamespaceRoot(projectDirectory));
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 

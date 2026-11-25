@@ -9,7 +9,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import { parseFrontmatter } from './hierarchy.js';
+import { isEmptyFrontmatterValue, parseFrontmatter, REQUIRED_INTAKE_FIELDS } from './hierarchy.js';
 import { inspirationContractProvenance } from './feature-provenance.js';
 import { evaluateProductInspiration } from './inspiration.js';
 import { evaluateCriteriaGate, evaluateJtbdGate } from './jtbd.js';
@@ -58,8 +58,6 @@ export interface FeatureTicketReadiness {
   issues: FeatureTicketReadinessIssue[];
 }
 
-const REQUIRED_READINESS_FRONTMATTER = ['scope', 'out_of_scope', 'done_when'] as const;
-
 function frontmatterScalar(
   meta: Record<string, string | string[]>,
   field: string,
@@ -105,16 +103,6 @@ function childSpecIssues(
     );
   }
   return issues;
-}
-
-/**
- * A required frontmatter field counts as missing when it is absent, the literal
- * string `'null'`, or empty — including an empty block sequence (which parses to
- * `[]`) or a list of only blank items.
- */
-function isMissingReadinessFrontmatterField(value: string | string[] | undefined): boolean {
-  if (value === undefined || value === 'null') return true;
-  return Array.isArray(value) ? value.every(item => item.trim() === '') : value.trim() === '';
 }
 
 function addReadinessIssue(
@@ -177,9 +165,7 @@ export function evaluateFeatureTicketReadiness(
   } else {
     const meta = parseFrontmatter(frontmatterMatch[1] ?? '');
     ticketMeta = meta;
-    const missing = REQUIRED_READINESS_FRONTMATTER.filter(field =>
-      isMissingReadinessFrontmatterField(meta[field]),
-    );
+    const missing = REQUIRED_INTAKE_FIELDS.filter(field => isEmptyFrontmatterValue(meta[field]));
     if (missing.length > 0) {
       addReadinessIssue(
         issues,
@@ -304,34 +290,44 @@ export function formatFeatureTicketReadiness(readiness: FeatureTicketReadiness):
  * mechanism; lookup just refuses to guess.
  */
 export function getTicketInfo(projectDirectory: string, ticketId: string): TicketDetails {
-  const ticketsDirectory = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets');
-  if (!existsSync(ticketsDirectory)) return EMPTY_DETAILS;
-
   try {
-    const folders = readdirSync(ticketsDirectory);
-    const matches = findTicketFolderMatches(folders, ticketId);
-    if (matches.length === 0) return EMPTY_DETAILS;
-    if (matches.length > 1) {
-      process.stderr.write(`Ambiguous ticket ID "${ticketId}": ${matches.join(', ')}\n`);
-      return EMPTY_DETAILS;
-    }
-
-    const [match] = matches;
-    if (match === undefined) return EMPTY_DETAILS;
-    const content = readFileSync(nodePath.join(ticketsDirectory, match, 'ticket.md'), 'utf8');
-    const slug =
-      content.match(/^slug:\s*(\S+)/m)?.[1] ??
-      (match.startsWith(`${ticketId}-`) ? match.slice(ticketId.length + 1) : undefined);
-    return {
-      phase: content.match(/^phase:\s*(\S+)/m)?.[1],
-      status: content.match(/^status:\s*(\S+)/m)?.[1],
-      type: content.match(/^type:\s*(\S+)/m)?.[1],
-      folder: match,
-      slug,
-    };
-  } catch {
+    return readTicketInfo(projectDirectory, ticketId);
+  } catch (error) {
+    if (error instanceof Error) process.stderr.write(`${error.message}\n`);
     return EMPTY_DETAILS;
   }
+}
+
+/** Owed gates must distinguish a missing folder from a ticket they cannot inspect. */
+export function readTicketInfo(projectDirectory: string, ticketId: string): TicketDetails {
+  const ticketsDirectory = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets');
+
+  let folders: string[];
+  try {
+    folders = readdirSync(ticketsDirectory);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return EMPTY_DETAILS;
+    throw error;
+  }
+  const matches = findTicketFolderMatches(folders, ticketId);
+  if (matches.length === 0) return EMPTY_DETAILS;
+  if (matches.length > 1) {
+    throw new Error(`Ambiguous ticket ID "${ticketId}": ${matches.join(', ')}`);
+  }
+
+  const [match] = matches;
+  if (match === undefined) return EMPTY_DETAILS;
+  const content = readFileSync(nodePath.join(ticketsDirectory, match, 'ticket.md'), 'utf8');
+  const slug =
+    content.match(/^slug:\s*(\S+)/m)?.[1] ??
+    (match.startsWith(`${ticketId}-`) ? match.slice(ticketId.length + 1) : undefined);
+  return {
+    phase: content.match(/^phase:\s*(\S+)/m)?.[1],
+    status: content.match(/^status:\s*(\S+)/m)?.[1],
+    type: content.match(/^type:\s*(\S+)/m)?.[1],
+    folder: match,
+    slug,
+  };
 }
 
 function findTicketFolderMatches(folders: string[], ticketId: string): string[] {

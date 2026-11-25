@@ -8,6 +8,7 @@ import process from 'node:process';
 import {
   readHookInput,
   readSafewordContext,
+  reportMissingPackagedHandbook,
   resolveProjectDir,
   withCodexAuthority,
 } from './lib/safeword-context.ts';
@@ -16,7 +17,12 @@ import { claimCodexCloseoutHandoff } from './lib/closeout-binding.ts';
 
 const hookInput = await readHookInput();
 const projectDir = resolveProjectDir(hookInput);
-const context = readSafewordContext(projectDir);
+let context: string | null;
+try {
+  context = readSafewordContext(projectDir);
+} catch (error) {
+  process.exit(reportMissingPackagedHandbook(error));
+}
 const sessionId = typeof hookInput.session_id === 'string' ? hookInput.session_id : '';
 const handoff = claimCodexCloseoutHandoff({ projectDirectory: projectDir, sessionId });
 const closeoutScript = process.env.CLAUDE_PLUGIN_ROOT

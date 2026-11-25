@@ -57,6 +57,7 @@ vi.mock(import('../../src/utils/install.js'), async importOriginal => {
     '@types/node': ['@types/node', '^26.4.1'],
     prettier: ['prettier', '^3.9.6'],
     tsx: ['tsx', '^4.23.13'],
+    'typescript@~6.0.0': ['typescript', '~6.0.3'],
   };
 
   function applyPackages(cwd: string, packages: string[], remove: boolean) {

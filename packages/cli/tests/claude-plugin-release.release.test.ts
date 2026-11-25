@@ -4,20 +4,29 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { TIMEOUT_ACCEPTANCE_LANE } from './helpers';
+
 const CLI_ROOT = nodePath.resolve(import.meta.dirname, '..');
 const REPO_ROOT = nodePath.resolve(CLI_ROOT, '../..');
 
 describe('Claude plugin release contract', () => {
-  it('binds the committed catalogue to package version, hooks, inventory, and guidance', () => {
-    const result = spawnSync('bun', ['scripts/check-claude-plugin-release.ts'], {
-      cwd: CLI_ROOT,
-      encoding: 'utf8',
-    });
-    expect(`${result.stdout}${result.stderr}`).toContain(
-      'Claude plugin release contract is aligned',
-    );
-    expect(result.status).toBe(0);
-  }, 30_000);
+  it(
+    'binds the committed catalogue to package version, hooks, inventory, and guidance',
+    () => {
+      const result = spawnSync('bun', ['scripts/check-claude-plugin-release.ts'], {
+        cwd: CLI_ROOT,
+        encoding: 'utf8',
+      });
+      expect(`${result.stdout}${result.stderr}`).toContain(
+        'Claude plugin release contract is aligned',
+      );
+      expect(result.status).toBe(0);
+      // The check spawns two generator `--check` runs (historical catalogue and
+      // plugin bundle), ~15s on an idle machine. Slow CI runners have pushed it
+      // past 30s on Node 22, so give it acceptance-lane headroom.
+    },
+    TIMEOUT_ACCEPTANCE_LANE,
+  );
 
   it('documents the real-host upgrade gate in the maintainer release path', () => {
     const readme = readFileSync(nodePath.join(REPO_ROOT, 'README.md'), 'utf8');

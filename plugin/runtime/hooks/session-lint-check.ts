@@ -11,8 +11,9 @@ import {
   shouldWarnMissingPrettier,
 } from './lib/lint-config.ts';
 import { BIOME_CONFIG_FILES, resolveHostToolchain } from './lib/host-toolchain.ts';
+import { readSessionProjectDirectory } from './lib/project-directory.ts';
 
-const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const projectDir = readSessionProjectDirectory();
 const safewordDir = `${projectDir}/.safeword`;
 
 // Not a safeword project, skip silently

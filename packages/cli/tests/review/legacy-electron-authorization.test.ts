@@ -1,0 +1,263 @@
+import { createHash } from 'node:crypto';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
+import { expect, it, vi } from 'vitest';
+
+import { electronLedgerClaims } from '../../src/review/retrospective-electron-admission.js';
+import {
+  attestElectronRetrospectiveRow,
+  electronRetrospectiveGate,
+} from '../../src/review/retrospective-electron-gate.js';
+import { runElectronProof } from '../../src/review/retrospective-electron-proof.js';
+import { SOULLESS_RETROSPECTIVE_POLICY } from '../../src/review/retrospective-policy.js';
+import { runCliWithLiteralArguments } from '../helpers.js';
+import { electronAuthorizationFixture } from './legacy-electron-authorization.fixture.js';
+import { electronRequest } from './legacy-electron-runner.fixture.js';
+
+it('requires both independent reviews for the enrolled Electron row at the public boundary', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'safeword-electron-authorization-'));
+  try {
+    const result = await runCliWithLiteralArguments(
+      [
+        '--cwd',
+        root,
+        '--json',
+        '--no-input',
+        'review',
+        'attest',
+        'retrospective',
+        '--ticket',
+        SOULLESS_RETROSPECTIVE_POLICY.ticketId,
+        '--ledger',
+        SOULLESS_RETROSPECTIVE_POLICY.ledger,
+        '--scenario',
+        SOULLESS_RETROSPECTIVE_POLICY.scenarios[2],
+        '--eligibility',
+        '11111111-1111-4111-8111-111111111111',
+        '--proof',
+        '22222222-2222-4222-8222-222222222222',
+      ],
+      { cwd: root },
+    );
+    expect(result.exitCode).not.toBe(0);
+    const payload = JSON.parse(result.stdout);
+    expect(payload).toMatchObject({
+      ok: true,
+      data: { command: 'review attest retrospective', status: 'blocked' },
+    });
+    expect(payload.findings[0].message).toContain('Both current, independent review receipts');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+it('revokes prior credit after a same-HEAD failed replay until a fresh proof review', async () => {
+  const fixture = await electronAuthorizationFixture();
+  try {
+    const request = {
+      ticketId: SOULLESS_RETROSPECTIVE_POLICY.ticketId,
+      ledger: SOULLESS_RETROSPECTIVE_POLICY.ledger,
+      scenario: SOULLESS_RETROSPECTIVE_POLICY.scenarios[2],
+      eligibilityId: await fixture.review('retrospective-eligibility'),
+      proofId: await fixture.review('retrospective-proof'),
+    };
+    const initial = await attestElectronRetrospectiveRow(fixture.root, request);
+    expect(initial.state).toBe('changed');
+    const head = fixture.git('rev-parse', 'HEAD');
+    vi.stubEnv('SAFEWORD_ELECTRON_FIXTURE_MODE', 'surviving-mutation');
+    const failed = await attestElectronRetrospectiveRow(fixture.root, request);
+    expect(failed.state).toBe('action_required');
+    expect(fixture.git('rev-parse', 'HEAD')).toBe(head);
+    expect(electronRetrospectiveGate(fixture.root, request).state).toBe('action_required');
+    vi.stubEnv('SAFEWORD_ELECTRON_FIXTURE_MODE', '');
+    const count = fixture.events().length;
+    const retry = await attestElectronRetrospectiveRow(fixture.root, request);
+    expect(retry.state).toBe('action_required');
+    expect(fixture.events()).toHaveLength(count);
+    const observed = await runElectronProof(fixture.root, electronRequest, fixture.requestPath);
+    fixture.write(fixture.observationPath, JSON.stringify(observed));
+    fixture.git('add', fixture.observationPath);
+    fixture.git('commit', '-qm', 'retain fresh proof observation');
+    const renewed = { ...request, proofId: await fixture.review('retrospective-proof') };
+    expect(renewed.proofId).not.toBe(request.proofId);
+    const attested = await attestElectronRetrospectiveRow(fixture.root, renewed);
+    expect(attested.state, JSON.stringify(attested)).toBe('changed');
+    expect(electronRetrospectiveGate(fixture.root, renewed).state).toBe('healthy');
+    const directory = path.join(fixture.root, '.safeword/state/reviews');
+    const states = readdirSync(directory)
+      .filter(file => /^electron-replay-.*\.json$/u.test(file))
+      .map(file => JSON.parse(readFileSync(path.join(directory, file), 'utf8')).record.state);
+    expect(states).toContain('failed');
+    expect(states).toContain('passed');
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+it.each(['eligibility', 'proof', 'declined', 'author'] as const)(
+  'refuses %s-only or nonindependent approval before replay',
+  async mode => {
+    const fixture = await electronAuthorizationFixture();
+    try {
+      if (mode === 'author') {
+        fixture.write(
+          '.safeword/config.json',
+          JSON.stringify({
+            crossAgentReview: 'off',
+            crossAgentReviewRoutes: { codex: [{ reviewer: 'codex' }] },
+          }),
+        );
+        fixture.git('add', '.safeword/config.json');
+        fixture.git('commit', '-qm', 'request author-only project review');
+      }
+      const eligibilityId =
+        mode === 'proof'
+          ? '11111111-1111-4111-8111-111111111111'
+          : await fixture.review('retrospective-eligibility');
+      const reviewMode = mode === 'author' || mode === 'declined' ? mode : 'independent';
+      const proofId =
+        mode === 'eligibility'
+          ? '22222222-2222-4222-8222-222222222222'
+          : await fixture.review('retrospective-proof', reviewMode);
+      const result = await attestElectronRetrospectiveRow(fixture.root, {
+        ticketId: SOULLESS_RETROSPECTIVE_POLICY.ticketId,
+        ledger: SOULLESS_RETROSPECTIVE_POLICY.ledger,
+        scenario: SOULLESS_RETROSPECTIVE_POLICY.scenarios[2],
+        eligibilityId,
+        proofId,
+      });
+      expect(result.state).toBe('action_required');
+      expect(result.findings[0]?.message).toContain('Both current, independent review receipts');
+      expect(fixture.events().filter(event => event.event === 'test')).toHaveLength(2);
+    } finally {
+      fixture.cleanup();
+    }
+  },
+);
+
+it('attests an enrolled row using real authenticated reviews and isolated external process replay', async () => {
+  const fixture = await electronAuthorizationFixture();
+  try {
+    const request = {
+      ticketId: SOULLESS_RETROSPECTIVE_POLICY.ticketId,
+      ledger: SOULLESS_RETROSPECTIVE_POLICY.ledger,
+      scenario: SOULLESS_RETROSPECTIVE_POLICY.scenarios[2],
+      eligibilityId: await fixture.review('retrospective-eligibility'),
+      proofId: await fixture.review('retrospective-proof'),
+    };
+    const originalLedger = readFileSync(path.join(fixture.root, request.ledger), 'utf8');
+    const verifiedLine = `- [x] VERIFIED eligibility=${request.eligibilityId} proof=${request.proofId}\n`;
+    const heading = `### Scenario: ${request.scenario}\n`;
+    const claimedLedger = originalLedger.replace(heading, () => `${heading}${verifiedLine}`);
+    expect(claimedLedger).not.toBe(originalLedger);
+    fixture.write(request.ledger, claimedLedger);
+    fixture.git('add', request.ledger);
+    fixture.git('commit', '-qm', 'author records separate reviewed verification claim');
+    expect(electronRetrospectiveGate(fixture.root, request).state).toBe('action_required');
+    const result = await attestElectronRetrospectiveRow(fixture.root, request);
+    expect(result.state, JSON.stringify(result)).toBe('changed');
+    expect(electronRetrospectiveGate(fixture.root, request).state).toBe('healthy');
+    const publicGate = await runCliWithLiteralArguments(
+      [
+        '--cwd',
+        fixture.root,
+        '--json',
+        '--no-input',
+        'review',
+        'gate',
+        'retrospective',
+        '--ticket',
+        request.ticketId,
+        '--scenario',
+        request.scenario,
+        '--ledger',
+        request.ledger,
+        '--eligibility',
+        request.eligibilityId,
+        '--proof',
+        request.proofId,
+      ],
+      { cwd: fixture.root, env: fixture.environment },
+    );
+    expect(publicGate.exitCode, `${publicGate.stdout}\n${publicGate.stderr}`).toBe(0);
+    expect(JSON.parse(publicGate.stdout)).toMatchObject({
+      state: 'healthy',
+      data: { command: 'review gate retrospective', status: 'approved', ...request },
+    });
+    expect(electronLedgerClaims(fixture.root)).toEqual([request]);
+    const afterAttestation = readFileSync(path.join(fixture.root, request.ledger), 'utf8');
+    expect(afterAttestation).toBe(claimedLedger);
+    expect(afterAttestation.replace(verifiedLine, '')).toBe(originalLedger);
+    expect(fixture.events().filter(event => event.event === 'test')).toHaveLength(4);
+    expect(fixture.observation().commit).not.toBe(fixture.git('rev-parse', 'HEAD'));
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+it('requires a fresh proof review after row-tag publication fails', async () => {
+  const fixture = await electronAuthorizationFixture();
+  try {
+    const request = {
+      ticketId: SOULLESS_RETROSPECTIVE_POLICY.ticketId,
+      ledger: SOULLESS_RETROSPECTIVE_POLICY.ledger,
+      scenario: SOULLESS_RETROSPECTIVE_POLICY.scenarios[2],
+      eligibilityId: await fixture.review('retrospective-eligibility'),
+      proofId: await fixture.review('retrospective-proof'),
+    };
+    const rowIdentity = JSON.stringify([
+      request.ticketId,
+      request.ledger,
+      request.scenario,
+      request.eligibilityId,
+      request.proofId,
+    ]);
+    const key = createHash('sha256').update(rowIdentity).digest('hex');
+    const destination = path.join(
+      fixture.root,
+      '.safeword/state/reviews',
+      `electron-row-${key}.tag`,
+    );
+    mkdirSync(destination);
+    const failed = await attestElectronRetrospectiveRow(fixture.root, request);
+    expect(failed.state).toBe('action_required');
+    rmSync(destination, { recursive: true });
+    const count = fixture.events().length;
+    const retry = await attestElectronRetrospectiveRow(fixture.root, request);
+    expect(retry.state).toBe('action_required');
+    expect(retry.findings[0]?.message).toContain('fresh proof review');
+    expect(fixture.events()).toHaveLength(count);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+it('requires real replay at a metadata HEAD while preserving the producing observation', async () => {
+  const fixture = await electronAuthorizationFixture();
+  try {
+    const request = {
+      ticketId: SOULLESS_RETROSPECTIVE_POLICY.ticketId,
+      ledger: SOULLESS_RETROSPECTIVE_POLICY.ledger,
+      scenario: SOULLESS_RETROSPECTIVE_POLICY.scenarios[2],
+      eligibilityId: await fixture.review('retrospective-eligibility'),
+      proofId: await fixture.review('retrospective-proof'),
+    };
+    const producingCommit = fixture.observation().commit;
+    const initial = await attestElectronRetrospectiveRow(fixture.root, request);
+    expect(initial.state).toBe('changed');
+    fixture.write('metadata.md', 'A later metadata commit\n');
+    fixture.git('add', 'metadata.md');
+    fixture.git('commit', '-qm', 'advance only metadata');
+    expect(electronRetrospectiveGate(fixture.root, request).state).toBe('action_required');
+    expect(fixture.events().filter(event => event.event === 'test')).toHaveLength(4);
+    const replay = await attestElectronRetrospectiveRow(fixture.root, request);
+    expect(replay.state, JSON.stringify(replay)).toBe('changed');
+    expect(electronRetrospectiveGate(fixture.root, request).state).toBe('healthy');
+    expect(fixture.events().filter(event => event.event === 'test')).toHaveLength(6);
+    expect(fixture.observation().commit).toBe(producingCommit);
+  } finally {
+    fixture.cleanup();
+  }
+});

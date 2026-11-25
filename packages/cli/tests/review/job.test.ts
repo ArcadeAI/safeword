@@ -1628,6 +1628,23 @@ describe('durable review jobs', () => {
       state: 'healthy',
       data: { command: 'review gate executable-red', status: 'approved' },
     });
+    // The write-time gate requires the GREEN SHA to name a real commit (#6987).
+    spawnSync('git', ['init', '-q'], { cwd });
+    const greenSha = spawnSync(
+      'git',
+      ['commit-tree', '--no-gpg-sign', '4b825dc642cb6eb9a060e54bf8d69288fbee4904', '-m', 'green'],
+      {
+        cwd,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          GIT_AUTHOR_NAME: 'T',
+          GIT_AUTHOR_EMAIL: 't@example.com',
+          GIT_COMMITTER_NAME: 'T',
+          GIT_COMMITTER_EMAIL: 't@example.com',
+        },
+      },
+    ).stdout.slice(0, 7);
     const hookResult = spawnSync('bun', [PRE_TOOL_QUALITY], {
       cwd,
       env: {
@@ -1652,7 +1669,7 @@ describe('durable review jobs', () => {
             '### Scenario: exact actor boundary',
             '',
             '- [x] RED abc1234',
-            '- [x] GREEN def5678',
+            `- [x] GREEN ${greenSha}`,
           ].join('\n'),
         },
       }),

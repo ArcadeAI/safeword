@@ -3,10 +3,15 @@
  * Used by both post-tool-quality.ts (observer) and pre-tool-quality.ts (enforcer).
  */
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
-import { getTicketInfo, type TicketDetails } from './active-ticket.js';
-import { resolveNamespaceRoot } from './namespace-root.js';
+import {
+  DONE_GATED_TICKET_TYPES,
+  getTicketInfo,
+  readTicketInfo,
+  type TicketDetails,
+} from './active-ticket.js';
+import { canonicalPathForGate, resolveNamespaceRoot } from './namespace-root.js';
 import { getRunStorageKey, resolveRunIdentity, type RunIdentity } from './run-identity.js';
 import { captureGateEscalation } from './self-report.js';
 
@@ -73,7 +78,30 @@ export function isMetaPath(filePath: string, projectDirectory: string): boolean 
     : filePath;
   if (relative.startsWith('..')) return true; // outside the project — not ours to gate
   const normalized = relative.split(nodePath.sep).join('/');
-  return META_PATHS.some(meta => normalized.startsWith(meta) || normalized === meta.slice(0, -1));
+  return projectMetaPaths(projectDirectory).some(
+    meta => normalized.startsWith(meta) || normalized === meta.slice(0, -1),
+  );
+}
+
+/**
+ * META_PATHS plus a configured `paths.projectRoot` (e.g. `knowledge/`) inside
+ * the project, in both its configured and its real (symlink-resolved)
+ * spelling. A root that is the project itself (`.`) or lies outside it adds
+ * nothing — `.` would exempt every file. Shared by the pre-tool exemption and
+ * the post-tool LOC count so the two never disagree.
+ */
+export function projectMetaPaths(projectDirectory: string): readonly string[] {
+  const root = resolveNamespaceRoot(projectDirectory);
+  const spellings = [
+    nodePath.relative(projectDirectory, root),
+    nodePath.relative(canonicalPathForGate(projectDirectory), canonicalPathForGate(root)),
+  ]
+    .filter(
+      relative => relative !== '' && !relative.startsWith('..') && !nodePath.isAbsolute(relative),
+    )
+    .map(relative => `${relative.split(nodePath.sep).join('/')}/`)
+    .filter(prefix => !META_PATHS.includes(prefix));
+  return [...new Set([...META_PATHS, ...spellings])];
 }
 
 export interface FailureEntry {
@@ -132,6 +160,22 @@ export interface QualityState {
    * never by bumping `last_modified`, which is also the active-ticket mtime.
    */
   replanPromptedHead?: string;
+}
+
+/**
+ * The identity a hook keys this run's quality state by. Codex's adapter marks
+ * its child processes with the runtime, so resolve the durable Codex run
+ * identity there — session_id, else CODEX_THREAD_ID when Desktop omits it — and
+ * PostToolUse and Stop address one state file (#5633). Other adapters keep
+ * their raw session_id. `undefined` means the run has no identity at all.
+ */
+export function resolveQualityStateIdentity(
+  input: { session_id?: string },
+  env: Record<string, string | undefined> = process.env,
+): string | RunIdentity | undefined {
+  if (env.SAFEWORD_AGENT_RUNTIME !== 'codex') return input.session_id;
+  const identity = resolveRunIdentity(input, { runtime: 'codex', env });
+  return identity.sessionKey === null ? undefined : identity;
 }
 
 /**
@@ -210,6 +254,93 @@ export function readSessionState(
     }
   }
   return null;
+}
+
+/**
+ * Read-modify-write this run's state file, best effort. The state is Partial:
+ * the file may be absent (fresh session) or predate a field, and a torn or
+ * user-edited file recovers to an empty root rather than crashing the hook.
+ */
+export function updateSessionState(
+  projectDirectory: string,
+  sessionId: string | RunIdentity | undefined,
+  mutate: (state: Partial<QualityState>) => void,
+): void {
+  if (!sessionId) return;
+  const stateFile = getStateFilePath(projectDirectory, sessionId);
+  try {
+    mkdirSync(nodePath.dirname(stateFile), { recursive: true });
+    let parsed: unknown = {};
+    if (existsSync(stateFile)) {
+      try {
+        parsed = JSON.parse(readFileSync(stateFile, 'utf8'));
+      } catch {
+        // Recover to an empty root and replace it below.
+      }
+    }
+    const state: Partial<QualityState> =
+      typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? parsed : {};
+    mutate(state);
+    writeFileSync(stateFile, JSON.stringify(state, null, 2));
+  } catch {
+    // Best effort — a state write failure must not crash the hook.
+  }
+}
+
+/** A done gate this run owes for a ticket it closed by an edit (#5546). */
+export interface OwedDoneGate {
+  ticketId: string;
+  type: string;
+  folder: string;
+  /** Other closes still owed after this one; each gets its own Stop. */
+  later: string[];
+}
+
+/**
+ * The first owed done gate that still describes a closed build ticket or epic.
+ * PostToolUse cleared the run's activeTicket on close, so Stop finds the ticket
+ * here. Entries that no longer qualify (reopened, deleted, a patch) are settled
+ * so they cannot shadow the run's real binding. Shared by stop-quality.ts and
+ * the Codex Stop adapter so both honor one contract.
+ */
+export function nextOwedDoneGate(
+  projectDirectory: string,
+  sessionId: string | RunIdentity | undefined,
+  owedTickets: string[] | undefined,
+): OwedDoneGate | { blockReason: string } | undefined {
+  const owed = owedTickets ?? [];
+  for (const [index, ticketId] of owed.entries()) {
+    let ticket: TicketDetails;
+    try {
+      ticket = readTicketInfo(projectDirectory, ticketId);
+    } catch (error) {
+      return {
+        blockReason: `Done gate for ${ticketId}: cannot read ticket details (${error instanceof Error ? error.message : String(error)}). Restore the ticket, then stop again.`,
+      };
+    }
+    const { status, type, folder } = ticket;
+    if (status === 'done' && type && DONE_GATED_TICKET_TYPES.has(type) && folder) {
+      return { ticketId, type, folder, later: owed.slice(index + 1) };
+    }
+    settleOwedDoneGate(projectDirectory, sessionId, ticketId);
+  }
+  return undefined;
+}
+
+/** Settle an owed done gate: it passed every check, or no longer applies. */
+export function settleOwedDoneGate(
+  projectDirectory: string,
+  sessionId: string | RunIdentity | undefined,
+  ticketId: string,
+): void {
+  updateSessionState(projectDirectory, sessionId, state => {
+    state.doneGateOwedTickets = state.doneGateOwedTickets?.filter(id => id !== ticketId);
+  });
+}
+
+/** Continuation after one owed gate passes while others closed this run remain. */
+export function laterOwedDoneGatesMessage(gate: OwedDoneGate): string {
+  return `Done gate passed for ${gate.ticketId}. Ticket(s) ${gate.later.join(', ')} were also closed this session and still need their done gate — stop again to run it.`;
 }
 
 export function readSessionActiveTicket(

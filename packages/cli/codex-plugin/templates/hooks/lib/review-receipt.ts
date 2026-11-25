@@ -195,28 +195,56 @@ function coversPhase(
   if (phase === 'verify') return ticketTargets.includes('verify.md');
   if (phase === 'done') return ticketTargets.includes('ticket.md');
   if (phase === 'implement') {
-    if (claim.implementationFiles === undefined) return false;
     // Without a current Git change set there is no independent evidence that
     // a reviewed file is the implementation this phase produced.
-    if (claim.implementationFiles.length === 0) return false;
-    const excluded = new Set(
-      excludedTargets
-        .map(target => resolveTarget(target, claim.projectDirectory))
-        .filter((target): target is string => target !== undefined),
-    );
-    const changed = claim.implementationFiles.filter(target => {
-      const resolved = resolveTarget(target, claim.projectDirectory);
-      return (
-        relativeTicketTarget(target, claim) === undefined &&
-        (resolved === undefined || !excluded.has(resolved))
-      );
-    });
+    const changed = implementationChanges(claim, excludedTargets);
     if (changed.length === 0) return false;
-    return changed.every(file =>
-      targets.some(target => targetCoversFile(target, file, claim.projectDirectory)),
-    );
+    return uncoveredFiles(changed, targets, claim.projectDirectory).length === 0;
   }
   return false;
+}
+
+/** Changed implementation files outside the ticket folder and coordinator exclusions. */
+function implementationChanges(claim: StampClaim, excludedTargets: readonly string[]): string[] {
+  if (claim.implementationFiles === undefined) return [];
+  const excluded = new Set(
+    excludedTargets
+      .map(target => resolveTarget(target, claim.projectDirectory))
+      .filter((target): target is string => target !== undefined),
+  );
+  return claim.implementationFiles.filter(target => {
+    const resolved = resolveTarget(target, claim.projectDirectory);
+    return (
+      relativeTicketTarget(target, claim) === undefined &&
+      (resolved === undefined || !excluded.has(resolved))
+    );
+  });
+}
+
+/** The changed files no review target covers. */
+function uncoveredFiles(
+  files: readonly string[],
+  targets: readonly string[],
+  projectDirectory: string,
+): string[] {
+  return files.filter(
+    file => !targets.some(target => targetCoversFile(target, file, projectDirectory)),
+  );
+}
+
+/** For an implement rejection, the changed files the review must still cover. */
+function uncoveredSuffix(
+  claim: StampClaim,
+  targets: readonly string[],
+  excluded?: readonly string[],
+): string {
+  if (claim.phase !== 'implement') return '';
+  const missing = uncoveredFiles(
+    implementationChanges(claim, excluded ?? []),
+    targets,
+    claim.projectDirectory,
+  );
+  return missing.length === 0 ? '' : `; not reviewed: ${missing.join(', ')}`;
 }
 
 /**
@@ -280,7 +308,7 @@ export function receiptGateVerdict(claim: StampClaim, receipt?: ReviewReceipt): 
     if (!coversPhase(targets, claim, claim.phase, receipt.excludedTargets))
       return {
         ok: false,
-        reason: `review ${receipt.reviewId} did not cover the work produced by the "${claim.phase}" phase in ${claim.ticketFolder} — it covered ${targets.join(', ') || 'nothing'}`,
+        reason: `review ${receipt.reviewId} did not cover the work produced by the "${claim.phase}" phase in ${claim.ticketFolder} — it covered ${targets.join(', ') || 'nothing'}${uncoveredSuffix(claim, targets, receipt.excludedTargets)}`,
       };
   }
 

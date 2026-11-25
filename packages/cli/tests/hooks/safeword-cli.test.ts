@@ -1,4 +1,7 @@
+import { spawnSync } from 'node:child_process';
 import {
+  cpSync,
+  existsSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -18,6 +21,11 @@ import {
   trustedSafewordClis,
 } from '../../templates/hooks/lib/safeword-cli.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers';
+
+const SHARED_MODULE = nodePath.join(
+  import.meta.dirname,
+  '../../templates/hooks/lib/safeword-cli.ts',
+);
 
 // Ticket 8VG20K: every hook finds the Safeword CLI through one shared lookup.
 const directories: string[] = [];
@@ -58,20 +66,72 @@ describe('trusted Safeword CLI lookup', () => {
   }
   const real = (path: string) => realpathSync(path);
 
-  it('prefers the plugin bundle, then bun x pinned to the project version from home', () => {
+  // Issue #7501: once the running plugin's CLI is known, a trust check must not
+  // fall back to another build that merely shares its version string.
+  it('trusts only the running plugin bundle when one is known', () => {
     const root = project();
     const plugin = pluginRoot();
+    const codexHome = scratchDirectory();
+    write(codexHome, 'plugins/cache/safeword/safeword/1.2.3/runtime/cli.js');
     const bun = runtime();
     const cli = real(nodePath.join(plugin, 'runtime/cli.js'));
 
-    expect(trustedSafewordClis(root, { CLAUDE_PLUGIN_ROOT: plugin }, bun)).toEqual([
+    expect(
+      trustedSafewordClis(root, { CLAUDE_PLUGIN_ROOT: plugin, CODEX_HOME: codexHome }, bun),
+    ).toEqual([
       { command: real(bun.path), args: ['--no-env-file', cli], cwd: nodePath.dirname(cli) },
-      {
-        command: real(bun.path),
-        args: ['x', '--bun', 'safeword@1.2.3'],
-        cwd: homedir(),
-        downloads: true,
-      },
+    ]);
+  });
+
+  /**
+   * Install the shared module under `installRoot/moduleDirectory` and ask it,
+   * from a real Bun process with no plugin variables, which CLIs it trusts.
+   * Returns each candidate's last argument: a script path, or the bun x package.
+   */
+  function trustedClisInstalledAt(installRoot: string, moduleDirectory: string): unknown {
+    const root = project();
+    const module = write(
+      installRoot,
+      nodePath.join(moduleDirectory, 'safeword-cli.ts'),
+      readFileSync(SHARED_MODULE, 'utf8'),
+    );
+    const codexHome = scratchDirectory();
+    write(codexHome, 'plugins/cache/safeword/safeword/1.2.3/runtime/cli.js');
+    const probe = write(
+      scratchDirectory(),
+      'probe.ts',
+      `import { trustedSafewordClis } from ${JSON.stringify(module)};
+const clis = trustedSafewordClis(${JSON.stringify(root)}, { CODEX_HOME: ${JSON.stringify(codexHome)} });
+console.log(JSON.stringify(clis.map(cli => cli.args.at(-1))));`,
+    );
+    const run = spawnSync('bun', ['--no-env-file', probe], { encoding: 'utf8' });
+    expect(run.stderr).toBe('');
+    return JSON.parse(run.stdout);
+  }
+
+  // Issue #7501: a skill runs the stamp writer from its Bash tool, where neither
+  // SAFEWORD_PLUGIN_CLI nor CLAUDE_PLUGIN_ROOT is set. The bundled module must
+  // still find the plugin it ships in, not the Codex cache of another build.
+  it('finds the plugin it ships in when no plugin variable is set', () => {
+    const plugin = pluginRoot();
+
+    expect(trustedClisInstalledAt(plugin, 'runtime/hooks/lib')).toEqual([
+      real(nodePath.join(plugin, 'runtime/cli.js')),
+    ]);
+  });
+
+  it('answers nothing when the plugin it ships in has lost its CLI', () => {
+    expect(trustedClisInstalledAt(scratchDirectory(), 'runtime/hooks/lib')).toEqual([]);
+  });
+
+  it('does not take a cli.js beside a project-local hooks copy for a plugin bundle', () => {
+    const install = scratchDirectory();
+    write(install, 'cli.js');
+    write(install, 'hooks/cli.js');
+
+    expect(trustedClisInstalledAt(install, 'hooks/lib')).toEqual([
+      expect.stringMatching(/plugins\/cache\/safeword\/safeword\/1\.2\.3\/runtime\/cli\.js$/u),
+      'safeword@1.2.3',
     ]);
   });
 
@@ -100,13 +160,32 @@ describe('trusted Safeword CLI lookup', () => {
     });
   });
 
+  // A configured plugin that cannot be trusted fails closed: falling back would
+  // ask another build that shares only the version string (#7501).
   it('refuses a plugin path inside the project, which project code could edit', () => {
     const root = project();
     const inside = write(root, 'evil/runtime/cli.js');
 
-    expect(
-      trustedSafewordClis(root, { SAFEWORD_PLUGIN_CLI: inside }, runtime()).map(cli => cli.args[0]),
-    ).toEqual(['x']);
+    expect(trustedSafewordClis(root, { SAFEWORD_PLUGIN_CLI: inside }, runtime())).toEqual([]);
+  });
+
+  it.each([
+    {
+      name: 'SAFEWORD_PLUGIN_CLI',
+      configure: (missing: string) => ({
+        SAFEWORD_PLUGIN_CLI: nodePath.join(missing, 'runtime/cli.js'),
+      }),
+    },
+    {
+      name: 'CLAUDE_PLUGIN_ROOT',
+      configure: (missing: string) => ({ CLAUDE_PLUGIN_ROOT: missing }),
+    },
+  ])('answers nothing when the plugin $name names has no CLI', ({ configure }) => {
+    const codexHome = scratchDirectory();
+    write(codexHome, 'plugins/cache/safeword/safeword/1.2.3/runtime/cli.js');
+    const environment = { ...configure(scratchDirectory()), CODEX_HOME: codexHome };
+
+    expect(trustedSafewordClis(project(), environment, runtime())).toEqual([]);
   });
 
   it("runs a symlinked plugin CLI from its real directory, not the link's", () => {
@@ -153,6 +232,62 @@ describe('trusted Safeword CLI lookup', () => {
 
   it('returns nothing for a project with no pinned version and no plugin', () => {
     expect(trustedSafewordClis(scratchDirectory(), {}, runtime())).toEqual([]);
+  });
+});
+
+// Issue #7501, end to end: the stamp writer verifies a review through
+// readReviewReceipt. Run from a plugin's bundled hooks with no plugin variable,
+// it must ask that plugin's CLI even when a same-version build is cached.
+describe('bundled stamp-writer receipt wiring', () => {
+  /** A fake CLI answering `review status` with `status`, recording that it was asked. */
+  function fakeCli(root: string, relative: string, status: string, marker: string): void {
+    write(
+      root,
+      relative,
+      `require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'asked');
+const id = process.argv[process.argv.indexOf('status') + 1];
+console.log(JSON.stringify({ data: { review_id: id, status: ${JSON.stringify(status)},
+  review_kind: 'quality-review', review_targets: ['src/a.ts'], independence: 'cross-agent' } }));`,
+    );
+  }
+
+  it('asks the plugin it ships in, not a cached build with the same version', () => {
+    const root = project();
+    const plugin = scratchDirectory();
+    cpSync(
+      nodePath.join(import.meta.dirname, '../../templates/hooks'),
+      nodePath.join(plugin, 'runtime/hooks'),
+      {
+        recursive: true,
+      },
+    );
+    const markers = scratchDirectory();
+    const pluginAsked = nodePath.join(markers, 'plugin');
+    const cacheAsked = nodePath.join(markers, 'cache');
+    fakeCli(plugin, 'runtime/cli.js', 'approved', pluginAsked);
+    const codexHome = scratchDirectory();
+    fakeCli(codexHome, 'plugins/cache/safeword/safeword/1.2.3/runtime/cli.js', 'stale', cacheAsked);
+    const probe = write(
+      scratchDirectory(),
+      'probe.ts',
+      `import { readReviewReceipt } from ${JSON.stringify(nodePath.join(plugin, 'runtime/hooks/lib/read-receipt.ts'))};
+console.log(JSON.stringify(readReviewReceipt('review-7501', ${JSON.stringify(root)})?.status ?? null));`,
+    );
+    const environment = Object.fromEntries(
+      Object.entries(process.env).filter(
+        ([name]) => name !== 'SAFEWORD_PLUGIN_CLI' && name !== 'CLAUDE_PLUGIN_ROOT',
+      ),
+    );
+
+    const run = spawnSync('bun', ['--no-env-file', probe], {
+      encoding: 'utf8',
+      env: { ...environment, CODEX_HOME: codexHome },
+    });
+
+    expect(run.stderr).toBe('');
+    expect(JSON.parse(run.stdout)).toBe('approved');
+    expect(existsSync(pluginAsked)).toBe(true);
+    expect(existsSync(cacheAsked)).toBe(false);
   });
 });
 

@@ -135,7 +135,7 @@ describe('selected authority lifecycle reconciliation', () => {
     profileState.codex = true;
     const installed = await installLifecycle(invocation(cwd, 'codex'), adapters);
     expect(installed.errors).toEqual([]);
-    expect(existsSync(nodePath.join(cwd, '.safeword/SAFEWORD.md'))).toBe(true);
+    expect(existsSync(nodePath.join(cwd, '.safeword/enrolled'))).toBe(true);
     mkdirSync(nodePath.join(cwd, '.project'), { recursive: true });
     writeFileSync(nodePath.join(cwd, '.project/authored.md'), 'authored knowledge\n');
 
@@ -144,7 +144,7 @@ describe('selected authority lifecycle reconciliation', () => {
     const result = await uninstallLifecycle(invocation(cwd, 'none', { yes: true, plan }));
 
     expect(result.errors).toEqual([]);
-    expect(existsSync(nodePath.join(cwd, '.safeword/SAFEWORD.md'))).toBe(false);
+    expect(existsSync(nodePath.join(cwd, '.safeword/enrolled'))).toBe(false);
     expect(profileState.claude).toBe(true);
     expect(profileState.codex).toBe(true);
     expect(projectBytes(cwd, '.project/authored.md')).toBe('authored knowledge\n');
@@ -164,7 +164,7 @@ describe('selected authority lifecycle reconciliation', () => {
       const installed = await installLifecycle(invocation(cwd, removed), adapters);
       expect(installed.errors).toEqual([]);
       expect(existsSync(nodePath.join(cwd, '.cursor'))).toBe(removed === 'cursor');
-      const preserved = ['.safeword/SAFEWORD.md', '.safeword/config.json'];
+      const preserved = ['.safeword/enrolled', '.safeword/config.json'];
       const before = new Map(preserved.map(path => [path, projectBytes(cwd, path)]));
 
       const preview = await uninstallLifecycle(invocation(cwd, removed));

@@ -117,8 +117,8 @@ Both tools coexist cleanly — ESLint handles code analysis (bugs, security, com
 
 Your project's chosen SQL formatter owns SQL formatting; safeword adapts to it:
 
-- **If your project formats SQL with Prettier** (`prettier-plugin-sql` in your dependencies), safeword defers entirely: install skips the SQLFluff configs (`.sqlfluff`, `.safeword/sqlfluff.cfg`), and the edit-time hook runs _your_ Prettier with _your_ config — so `.prettierignore` carve-outs (like frozen DDL migrations) are honored. Adopting `prettier-plugin-sql` in a repo that already has safeword-generated SQLFluff configs? Delete `.sqlfluff` and `.safeword/sqlfluff.cfg`; upgrades won't recreate them.
-- **Otherwise**, safeword lints SQL with SQLFluff: the edit-time hook runs `sqlfluff lint` and reports violations to the agent. In-place rewriting is opt-in — set `"sql": { "fix": true }` in `.safeword/config.json` to have the hook run `sqlfluff fix` on edited files. SQLFluff honors `.sqlfluffignore`, so you can exclude files (e.g. applied migrations) from rewriting.
+- **If your project formats SQL with Prettier** (`prettier-plugin-sql` in your dependencies), install skips the SQLFluff configs (`.sqlfluff`, `.safeword/sqlfluff.cfg`), and the edit-time hook checks formatting with _your_ Prettier and _your_ config without rewriting the file. `.prettierignore` carve-outs (like frozen DDL migrations) are honored. Adopting `prettier-plugin-sql` in a repo that already has safeword-generated SQLFluff configs? Delete `.sqlfluff` and `.safeword/sqlfluff.cfg`; upgrades won't recreate them.
+- **Otherwise**, safeword runs `sqlfluff lint` and reports violations to the agent without rewriting edited files. The legacy `"sql": { "fix": true }` setting no longer enables post-edit rewriting. Run `sqlfluff fix` explicitly when you want fixes; SQLFluff honors `.sqlfluffignore`, so you can exclude files such as applied migrations.
 
 ## Hook Configuration
 
@@ -330,7 +330,7 @@ With `designApprovalGate` off (the default), a current, independently reviewed I
 }
 ```
 
-When a new decision is required, `safeword ticket approve-plan <ticket-id>` presents the reviewed approach in an interactive terminal and records approval or decline. A current human decision is reused for unchanged plan bytes after semantic review is current. A headless invocation without required approval returns promptly with a pending ledger receipt and keeps the ticket in Implementation Planning. The agent surfaces the reviewed approach and pending action in its session output; pending status does not permit advancement.
+When a new decision is required, `safeword ticket approve-plan <ticket-id>` presents the reviewed approach in an interactive terminal and records approval or decline. If the plan or its semantic review changes while the prompt is open, the answer is not recorded and the ticket stays in Implementation Planning; obtain a current review and run the command again. A current human decision is reused for unchanged plan bytes after semantic review is current. A headless invocation without required approval returns promptly with a pending ledger receipt and keeps the ticket in Implementation Planning. The agent surfaces the reviewed approach and pending action in its session output; pending status does not permit advancement.
 
 ### Other settings
 
@@ -369,7 +369,7 @@ Safeword has two types of files:
 
 **Partially updated** (your customizations preserved, safeword keys re-merged):
 
-- `AGENTS.md`, `CLAUDE.md` — cleanup only: install removes an obsolete Safeword link block left by older releases and never adds one; `.safeword/SAFEWORD.md` reaches agents through a SessionStart hook
+- `AGENTS.md`, `CLAUDE.md` — cleanup only: install removes an obsolete Safeword link block left by older releases and never adds one; the Safeword handbook (`SAFEWORD.md`) reaches agents through a SessionStart hook
 - `.cursor/hooks.json` — safeword hooks updated, your custom hooks preserved
 - `package.json` — lint/format/`test:bdd` scripts and devDependencies merged (every project; created minimal + private if missing)
 - `.mcp.json` (and `.cursor/mcp.json` with Cursor) — MCP server config merged

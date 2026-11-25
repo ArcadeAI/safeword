@@ -94,13 +94,32 @@ describe('pre-tool-stale-main hook (real git)', () => {
     git(cwd, 'commit', '-m', message);
   }
 
-  function runHook(cwd: string, command: string): SpawnSyncReturns<string> {
+  function runHook(cwd: string, command: string, shellCwd?: string): SpawnSyncReturns<string> {
     return spawnSync('bun', [STALE_MAIN_HOOK], {
       cwd,
       env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
-      input: JSON.stringify({ tool_name: 'Bash', tool_input: { command } }),
+      input: JSON.stringify({
+        tool_name: 'Bash',
+        tool_input: { command },
+        ...(shellCwd !== undefined && { cwd: shellCwd }),
+      }),
       encoding: 'utf8',
     });
+  }
+
+  /** Advance origin/main from a second clone, then fetch so local main is behind. */
+  function putLocalMainBehind(): void {
+    const other = createTemporaryDirectory();
+    try {
+      git(other, 'clone', remote, '.');
+      git(other, 'config', 'user.email', 'o@example.com');
+      git(other, 'config', 'user.name', 'Other');
+      commit(other, 'README.md', 'v2\n', 'upstream advance');
+      git(other, 'push', 'origin', 'main');
+      git(workdir, 'fetch', 'origin');
+    } finally {
+      removeTemporaryDirectory(other);
+    }
   }
 
   beforeEach(() => {
@@ -149,6 +168,51 @@ describe('pre-tool-stale-main hook (real git)', () => {
     } finally {
       removeTemporaryDirectory(other);
     }
+  });
+
+  it("does not warn about the launch checkout's branch from a shell in another repository (#5467)", () => {
+    putLocalMainBehind();
+    // The shell is in an unrelated, unenrolled repository: its checkout is not
+    // the launch checkout's, so the launch checkout's stale main is irrelevant.
+    const unrelated = createTemporaryDirectory();
+    try {
+      git(unrelated, 'init');
+      git(unrelated, 'checkout', '-b', 'main');
+
+      const result = runHook(workdir, 'git checkout main', unrelated);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout.trim()).toBe('');
+    } finally {
+      removeTemporaryDirectory(unrelated);
+    }
+  });
+
+  it('stays silent when the command changes repository before the checkout (#5467)', () => {
+    putLocalMainBehind();
+    // The shell starts in the stale launch checkout, but the checkout runs in
+    // another repository: the launch checkout's stale main is irrelevant.
+    const other = createTemporaryDirectory();
+    try {
+      git(other, 'init');
+      git(other, 'checkout', '-b', 'main');
+
+      const result = runHook(workdir, `cd ${other} && git checkout main`, workdir);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout.trim()).toBe('');
+    } finally {
+      removeTemporaryDirectory(other);
+    }
+  });
+
+  it('warns about the shell repository when the shell is in the launch checkout', () => {
+    putLocalMainBehind();
+
+    const result = runHook(workdir, 'git checkout main', workdir);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('behind origin/main');
   });
 
   it('stays silent for a non-checkout command', () => {

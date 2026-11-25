@@ -21,6 +21,7 @@ scope:
   - keep accepted plans current when implementation-time decisions change the approach or execution, preserving still-valid work and evidence before resuming
   - prove that a plain feature request can travel automatically from intake through contract-quality plans and tested delivery into a completed review-ready pull request
 out_of_scope:
+  - OpenCode CLI, TUI and Desktop delivery and proof for this epic, excluded by the user on 2026-11-14; follow-up https://github.com/ArcadeAI/safeword/issues/7491
   - external tracker storage or tracker-specific project-management ceremony
   - splitting the two plans by human versus agent audience
   - adding formal planning artifacts or independent planning reviews to tasks and patches
@@ -59,6 +60,10 @@ workflow phases with distinct, canonical author-review contracts.
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-11-19 Policy reconciliation: recorded the user's #6786 review rule and November 14 OpenCode scope exclusion in the active Product Plan. Historical reviews and proof remain tied to their original artifacts. See [owned completion evidence](./evidence/owned-completion-2026-11-19.md).
+
+- 2026-11-09 Completion evidence reconciliation: mapped all 17 existing done_when obligations to the saved main-only CSV trial and earlier bounded proof inventory in [completion-evidence-2026-11-09.md](./completion-evidence-2026-11-09.md). Claude's local feature journey and a behavior-change/replan instance have bounded evidence; selective invalidation, exact receipt checks, migration/dispute coverage, native host boundaries and PR preparation retain explicit gaps. Corrected acceptance counts to 16 converter scenarios plus one starter. No ledger, status, historical RED, failed result or 33-case deferral was changed; no new tests, qualification or implementation performed.
 
 - 2026-09-24T21:44:25.000Z Independent Product Plan review found two blocking lineage gaps. Bound each phase approval to the exact canonical contract digest so changed contract bytes require fresh dependent review, and made ZSHVEB's already accepted writing-guide and decision-conversation work an explicit parent scope, completion, and Rule obligation. The corrected exact packet requires fresh review; no approval is carried forward.
 

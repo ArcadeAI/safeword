@@ -309,7 +309,23 @@ If PR scope fails, do not collapse to "Ready to mark done." Put the concrete spl
 
 ### 7. Write verify.md (skip if no ticket)
 
-The done gate blocks on this **artifact**, not on your chat report: `<ticket folder>/verify.md` must exist and contain a `**PR Scope:**` line whose status is passing (`done-gate.ts` rejects `❌`/piggybacked). Write the full Status checklist (step 8's Verify Checklist block, every line) to `$NS_ROOT/tickets/{ID}-{slug}/verify.md`, and once $safeword:audit has run, include its one-line result (`Audit passed …`) there too.
+For a feature whose Execution Plan uses the versioned Delivery Checklist, run
+`safeword ticket delivery-checklist <ticket-id> --json` with the CLI resolved
+above. Read `data.readiness_state` and the findings. If the current plan cannot
+be admitted, follow the reported recovery action. For an open contributor row,
+complete its reviewed obligation and use
+`safeword ticket record-delivery-proof <ticket-id> <item-id> <proof-id>` when
+its reviewed proof is an executable command. Resolve stale or partial proof at
+the required boundary. Recheck readiness after the final change. An absent
+readiness result or `contributor_work_incomplete` blocks the ready verdict.
+Record pending human dependencies with their owner and requested action.
+Contributor readiness leaves merge authorization pending.
+
+Write the full Status checklist (step 8) to
+`$NS_ROOT/tickets/{ID}-{slug}/verify.md`. Include the Delivery Checklist result
+when applicable and the one-line audit result once $safeword:audit has run. Preserve
+failed checks in the report. The done gate rejects explicit checklist failures and
+missing PR scope evidence.
 
 The all-green collapse in step 8 applies to the **chat report only** — verify.md always carries the full checklist, even when everything is green.
 
@@ -319,7 +335,7 @@ Structure the report in three sections, in this order. **Empty sections are hidd
 
 #### Status (the existing Verify Checklist — facts only)
 
-The Status section uses the existing Verify Checklist format. Format with these EXACT patterns (the done-gate hook validates them):
+The Status section uses the existing Verify Checklist format. Use these status patterns so the report is consistent and the done gate can recognize failed checks:
 
 ```
 ## Verify Checklist
@@ -368,7 +384,7 @@ the input quality review uses to challenge parity.
 - `**PR Scope:**` — proves the final diff was checked against ticket scope
 - `Audit passed` — proves $safeword:audit ran (run $safeword:audit separately)
 
-Without the required patterns in Status, the done phase will hard block.
+Resolve every required failure before marking the ticket done.
 
 #### Decisions needed (spec / scope / value)
 
@@ -402,7 +418,7 @@ Only include this section when there are concrete forward actions the agent will
 
 #### All-green collapse
 
-When **all Status checks pass, PR Scope is ✅/skipped for a valid reason, Evidence limits is ✅ None, AND zero decisions AND zero actions**, collapse the entire report to a single-line verdict:
+When **all Status checks pass, PR Scope is ✅/skipped for a valid reason, Evidence limits is ✅ None, AND zero decisions AND zero actions**, collapse the entire report to a single-line verdict. If a Delivery Checklist applies, this also requires a successful readiness result with every contributor item satisfied:
 
 > Ready to mark done.
 

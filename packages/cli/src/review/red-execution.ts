@@ -44,9 +44,9 @@ function containedWorkingDirectory(root: string, requested: string): string {
   return canonicalCwd;
 }
 
-function proofEnvironment(): NodeJS.ProcessEnv {
+function proofEnvironment(environment: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
   return Object.fromEntries(
-    Object.entries(process.env).filter(([name]) => !name.startsWith('SAFEWORD_REVIEW_')),
+    Object.entries(environment).filter(([name]) => !name.startsWith('SAFEWORD_REVIEW_')),
   );
 }
 
@@ -129,6 +129,7 @@ export async function executeNoShellCommand(input: {
   readonly cwd: string;
   readonly timeoutMs: number;
   readonly expectedOutput?: string;
+  readonly environment?: NodeJS.ProcessEnv;
 }): Promise<NoShellExecutionResult> {
   const cwd = containedWorkingDirectory(input.projectRoot, input.cwd);
   const executable = input.argv[0];
@@ -136,7 +137,7 @@ export async function executeNoShellCommand(input: {
   const started = Date.now();
   const stdout = new StreamEvidence(input.expectedOutput);
   const stderr = new StreamEvidence(input.expectedOutput);
-  const environment = proofEnvironment();
+  const environment = proofEnvironment(input.environment);
   const termination = await new Promise<{
     exitCode: number | null;
     signal: NodeJS.Signals | null;
@@ -170,7 +171,9 @@ export async function executeNoShellCommand(input: {
     }, input.timeoutMs);
     child.once('close', (exitCode, signal) => {
       clearTimers();
-      if (!timedOut) terminateProofTree(child);
+      // POSIX descendants retain the owned process group. Windows taskkill
+      // cannot safely identify an already exited parent whose PID may be reused.
+      if (!timedOut && process.platform !== 'win32') terminateProofTree(child);
       resolve({ exitCode, signal, timedOut });
     });
   });

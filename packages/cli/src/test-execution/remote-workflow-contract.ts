@@ -12,13 +12,13 @@ type Mapping = Record<string, unknown>;
 const FULL_SHA = /^[0-9a-f]{40}$/u;
 const CHECKOUT = 'actions/checkout';
 const CHECKOUT_ACTION = 'actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0';
-const SETUP_NODE_ACTION = 'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020';
+const SETUP_NODE_ACTION = 'actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1';
 const SETUP_BUN_ACTION = 'oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6';
-const SETUP_UV_ACTION = 'astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7';
+const SETUP_UV_ACTION = 'astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d';
 const INPUT_SHA = '${{ inputs.target_sha }}';
 const INPUT_LANE = '${{ inputs.lane }}';
 const RESULT_FILE = 'safeword-remote-test-result.json';
-const UPLOAD_ACTION = 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a';
+const UPLOAD_ACTION = 'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9';
 const VALIDATE_COMMAND =
   '[[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1\n' +
   '[[ "$LANE" == "done" || "$LANE" == "full" ]] || exit 1\n';

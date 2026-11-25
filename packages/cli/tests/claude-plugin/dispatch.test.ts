@@ -409,12 +409,58 @@ describe('Claude plugin dispatcher', () => {
     );
 
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain('the packaged Safeword handbook');
-    expect(result.stdout).toContain('the packaged Safeword guides');
+    expect(result.stdout).toMatch(
+      /First, Read `\/[^`]*\/(?:templates|resources)\/SAFEWORD\.md` in full, even for trivial requests or right after compaction; a summary or earlier read does not count\./,
+    );
     expect(result.stdout).not.toContain('.safeword/SAFEWORD.md');
     expect(result.stdout).not.toContain('.safeword/guides/');
     expect(result.stdout).not.toContain('PROJECT-LOCAL INSTRUCTIONS MUST NOT APPEAR');
   });
+
+  it('fails loudly without naming the project handbook when the plugin lacks its own', () => {
+    const projectDirectory = temporary('safeword-plugin-missing-handbook-project-');
+    const pluginData = temporary('safeword-plugin-missing-handbook-data-');
+    const pluginRoot = nodePath.join(temporary('safeword-plugin-missing-handbook-root-'), 'plugin');
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+    rmSync(nodePath.join(pluginRoot, 'resources', 'SAFEWORD.md'));
+    mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(projectDirectory, '.safeword', 'SAFEWORD.md'), '# Stale copy\n');
+
+    const result = dispatchEvent(projectDirectory, pluginData, undefined, 'missing-handbook', {
+      event: 'SessionStart',
+      hookInput: { source: 'startup' },
+      pluginRoot,
+    });
+
+    expect(result.stderr).toContain('resources/SAFEWORD.md');
+    expect(`${result.stdout}${result.stderr}`).not.toContain('.safeword/SAFEWORD.md');
+    expect(result.stdout).not.toMatch(/First, Read `/);
+  });
+
+  it.each([
+    { source: 'startup', instructsRead: true },
+    { source: 'compact', instructsRead: true },
+    { source: 'resume', instructsRead: false },
+  ])(
+    'the installed SessionStart event group instructs the handbook read on $source: $instructsRead',
+    ({ source, instructsRead }) => {
+      const projectDirectory = temporary(`safeword-plugin-session-${source}-project-`);
+      const pluginData = temporary(`safeword-plugin-session-${source}-data-`);
+      mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+      writeFileSync(nodePath.join(projectDirectory, '.safeword', 'SAFEWORD.md'), '# Handbook\n');
+
+      const result = dispatchEvent(projectDirectory, pluginData, undefined, `session-${source}`, {
+        event: 'SessionStart',
+        hookInput: { source },
+      });
+
+      expect(result.status, result.stderr).toBe(0);
+      const readLine =
+        /First, Read `\/[^`]*\/resources\/SAFEWORD\.md` in full, even for trivial requests or right after compaction; a summary or earlier read does not count\./;
+      if (instructsRead) expect(result.stdout).toMatch(readLine);
+      else expect(result.stdout).not.toMatch(/First, Read `/);
+    },
+  );
 
   it('does not let stale Setup metadata suppress SessionStart proof', () => {
     const projectDirectory = temporary('safeword-plugin-stale-smoke-project-');

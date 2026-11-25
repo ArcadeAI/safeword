@@ -86,3 +86,55 @@ describe('JS-app-only tooling is gated on real JS source (BE7C7B)', () => {
     expect(generator?.(withJs)).toBeDefined();
   });
 });
+
+describe('TypeScript toolchain for the scaffolded lane (#6966)', () => {
+  const requestsTypescript = (packages: string[]) =>
+    packages.some(name => name === 'typescript' || name.startsWith('typescript@'));
+
+  it('installs a typescript-eslint-compatible compiler with the TypeScript BDD lane', () => {
+    const packages = computePackagesToInstall(SAFEWORD_SCHEMA, projectType({}), {});
+    expect(packages).toContain('typescript@~6.0.0');
+  });
+
+  it('leaves typescript alone when the repo keeps its own cucumber harness', () => {
+    const packages = computePackagesToInstall(
+      SAFEWORD_SCHEMA,
+      projectType({ scaffoldBddLane: false }),
+      {},
+    );
+    expect(requestsTypescript(packages)).toBe(false);
+  });
+
+  it('never re-pins a typescript the project already has', () => {
+    const packages = computePackagesToInstall(SAFEWORD_SCHEMA, projectType({}), {
+      typescript: '^7.0.0',
+    });
+    expect(requestsTypescript(packages)).toBe(false);
+  });
+
+  it("keeps a monorepo's hoisted workspace typescript instead of pinning a root one", () => {
+    const packages = computePackagesToInstall(
+      SAFEWORD_SCHEMA,
+      projectType({ typescriptAvailable: true }),
+      {},
+    );
+    expect(requestsTypescript(packages)).toBe(false);
+  });
+
+  it('scaffolds a strict no-emit tsconfig with node types alongside the lane', () => {
+    const generator = SAFEWORD_SCHEMA.managedFiles?.['tsconfig.json']?.generator;
+    const laneContext = ctxWith(projectType({}));
+    const generated = generator?.(laneContext);
+    expect(generated).toBeDefined();
+    const { compilerOptions } = JSON.parse(generated ?? '{}') as {
+      compilerOptions: Record<string, unknown>;
+    };
+    expect(compilerOptions).toMatchObject({ strict: true, noEmit: true, types: ['node'] });
+  });
+
+  it('skips tsconfig for a JS repo with neither the lane nor typescript', () => {
+    const generator = SAFEWORD_SCHEMA.managedFiles?.['tsconfig.json']?.generator;
+    const noLaneContext = ctxWith(projectType({ scaffoldBddLane: false }));
+    expect(generator?.(noLaneContext)).toBeUndefined();
+  });
+});
