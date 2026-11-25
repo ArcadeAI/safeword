@@ -22,11 +22,12 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 
 import {
-  CURSOR_COMMAND_WRAPPERS,
-  CURSOR_RULE_WRAPPERS,
+  readCursorRuleWrappers,
   renderCursorCommandWrapper,
   renderCursorRuleWrapper,
 } from '../src/cursor-wrappers.js';
+import { readCanonicalCommandWrappers } from '../src/host-contract/catalogue.js';
+import { generateTestingCore } from './generate-testing-core.js';
 import { LIFECYCLE_FIXTURE_ROOT, lifecycleFixtureSurface } from './lib/lifecycle-fixtures.js';
 
 const execFileAsync = promisify(execFile);
@@ -105,11 +106,11 @@ function cursorWrapperExpectations(): readonly {
   readonly content: string;
 }[] {
   return [
-    ...CURSOR_RULE_WRAPPERS.map(wrapper => ({
+    ...readCursorRuleWrappers(path.join(cliRoot, 'templates')).map(wrapper => ({
       paths: wrapperDestinations(`.cursor/rules/${wrapper.name}.mdc`),
       content: renderCursorRuleWrapper({ wrapper }),
     })),
-    ...CURSOR_COMMAND_WRAPPERS.map(wrapper => ({
+    ...readCanonicalCommandWrappers(path.join(cliRoot, 'templates')).map(wrapper => ({
       paths: wrapperDestinations(`.cursor/commands/${wrapper.name}.md`),
       content: renderCursorCommandWrapper({ wrapper }),
     })),
@@ -166,6 +167,7 @@ const GENERATORS_IN_ORDER = [
 ] as const;
 
 const fixMode = process.argv.includes('--fix');
+generateTestingCore(!fixMode);
 
 if (fixMode) {
   for (const script of GENERATORS_IN_ORDER) {

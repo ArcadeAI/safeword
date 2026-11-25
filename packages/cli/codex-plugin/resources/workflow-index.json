@@ -1,0 +1,263 @@
+{
+  "version": 1,
+  "workflows": [
+    {
+      "name": "audit",
+      "description": "Run a diff-scoped code audit for architecture, dead code, and test quality. Uses the change from main to focus feature reviews; request a repository audit for whole-codebase discovery.",
+      "userInvocable": true,
+      "allowImplicitInvocation": true,
+      "path": "skills/audit/SKILL.md",
+      "resources": [
+        "skills/audit/SKILL.md"
+      ]
+    },
+    {
+      "name": "bdd",
+      "description": "Behavior-first feature development — use when building new capabilities, continuing feature work, or when work introduces new state or multiple user flows. Discovers desired behavior through examples and scenarios before implementation. Do NOT use for bug fixes, typos, or small isolated changes.",
+      "userInvocable": true,
+      "allowImplicitInvocation": true,
+      "path": "skills/bdd/SKILL.md",
+      "resources": [
+        "skills/bdd/references/DISCOVERY.md",
+        "skills/bdd/references/DONE.md",
+        "skills/bdd/references/PLAN_EXECUTION.md",
+        "skills/bdd/references/PLAN_IMPLEMENTATION.md",
+        "skills/bdd/references/SCENARIOS.md",
+        "skills/bdd/SKILL.md",
+        "skills/bdd/references/SPLITTING.md",
+        "skills/bdd/references/TDD.md",
+        "skills/bdd/references/VERIFY.md",
+        "skills/bdd/references/adr-template.md",
+        "skills/bdd/references/execution-plan-template.md",
+        "skills/bdd/references/impl-plan-template.md"
+      ]
+    },
+    {
+      "name": "brainstorm",
+      "description": "Use when the user wants to explore options, weigh approaches, or think through uncertainty before committing to a direction. Collaborative brainstorming and rubber ducking — divergence-first thinking partner.",
+      "userInvocable": true,
+      "allowImplicitInvocation": true,
+      "path": "skills/brainstorm/SKILL.md",
+      "resources": [
+        "skills/brainstorm/SKILL.md"
+      ]
+    },
+    {
+      "name": "cleanup-zombies",
+      "description": "Kill zombie dev servers and test processes. Use when ports are blocked, processes are hanging, or test runners won't start.",
+      "userInvocable": true,
+      "allowImplicitInvocation": true,
+      "path": "skills/cleanup-zombies/SKILL.md",
+      "resources": [
+        "skills/cleanup-zombies/SKILL.md"
+      ]
+    },
+    {
+      "name": "closeout",
+      "description": "Close a completed local delivery safely. Use when wrapping up a finished coding session by verifying it, merging only with explicit authority, capturing retrospective learning, and cleaning the exact merged branch and worktree. Do NOT use for cloud-agent tasks, unmerged work, or cleanup without a pull request.",
+      "userInvocable": true,
+      "allowImplicitInvocation": true,
+      "path": "skills/closeout/SKILL.md",
+      "resources": [
+        "skills/closeout/SKILL.md"
+      ]
+    },
+    {
+      "name": "debug",
+      "description": "Root cause debugging before fixes. Use when investigating bugs, diagnosing test failures, troubleshooting unexpected behavior, or when previous fix attempts failed. Enforces investigate-first discipline.",
+      "userInvocable": true,
+      "allowImplicitInvocation": true,
+      "path": "skills/debug/SKILL.md",
+      "resources": [
+        "skills/debug/SKILL.md"
+      ]
+    },
+    {
+      "name": "demand-research",
+      "description": "Tests whether a proposed product bet has credible demand. Use when Why now depends on an unresolved, decision-critical demand claim or when the user explicitly asks for demand research. Do NOT use for child features, mandated work, parity work, or when a cheaper experiment can answer the question before research.",
+      "userInvocable": true,
+      "allowImplicitInvocation": true,
+      "path": "skills/demand-research/SKILL.md",
+      "resources": [
+        "skills/demand-research/SKILL.md"
+      ]
+    },
+    {
+      "name": "elicit",
+      "description": "Extract tacit knowledge through non-obvious microquestions — things only the user knows that can't be found in code, docs, or research. Use when you're about to guess at intent, context, or constraints during SAFEWORD's understanding flow. Also use when user says 'ask me', 'what do you need to know', or when another skill (bdd, brainstorm, debug) needs user context before proceeding. Do NOT use for questions answerable by reading the codebase or searching the web.",
+      "userInvocable": true,
+      "allowImplicitInvocation": true,
+      "path": "skills/elicit/SKILL.md",
+      "resources": [
+        "skills/elicit/SKILL.md"
+      ]
+    },
+    {
+      "name": "explain",
+      "description": "Use when you need safeword's dense artifacts or current state translated into plain English — what this is, why it matters, what to do next, with the internal jargon stripped. Targets a safeword ticket, a blocked gate, or a verdict; with no target it recaps where you are in the current safeword work. Read-only. Do NOT use to explain code diffs or PRs (base Claude handles those), for general status questions unrelated to safeword artifacts, or to make any change.",
+      "userInvocable": true,
+      "allowImplicitInvocation": false,
+      "path": "skills/explain/SKILL.md",
+      "resources": [
+        "skills/explain/SKILL.md",
+        "skills/explain/agents/openai.yaml"
+      ]
+    },
+    {
+      "name": "figure-it-out",
+      "description": "Explore and debate options with fresh documentation and research before committing. Use for a real decision with multiple plausible approaches — library/framework choice, architecture, API/schema design, algorithm selection, or a costly communication/strategy call. Enumerates research domains, checks current docs and evidence-based methods, and weighs options on correctness, elegance, and bloat. Do NOT use for divergent ideation (brainstorm), extracting user intent (elicit), or reviewing finished work (quality-review).",
+      "userInvocable": true,
+      "allowImplicitInvocation": true,
+      "path": "skills/figure-it-out/SKILL.md",
+      "resources": [
+        "skills/figure-it-out/SKILL.md"
+      ]
+    },
+    {
+      "name": "finish-review",
+      "description": "Finish an exhausted review through a sealed planning continuation or non-planning supplemental feedback. Use only when the coordinator names the applicable fallback; internal, not user-invocable.",
+      "userInvocable": false,
+      "allowImplicitInvocation": true,
+      "path": "internal/finish-review/SKILL.md",
+      "resources": [
+        "internal/finish-review/references/REVIEWER.md",
+        "internal/finish-review/SKILL.md"
+      ]
+    },
+    {
+      "name": "lint",
+      "description": "Run linters and formatters to fix code style issues. Use when cleaning up style violations, formatting code, or after implementation to ensure code meets project standards.",
+      "userInvocable": true,
+      "allowImplicitInvocation": true,
+      "path": "skills/lint/SKILL.md",
+      "resources": [
+        "skills/lint/SKILL.md"
+      ]
+    },
+    {
+      "name": "pr-readiness",
+      "description": "Prepare a pull request for human review and decide whether it may leave Draft. Use when creating or rewriting a PR description, marking a PR ready, responding to review, or checking whether a change is mergeable. Keeps incomplete evidence Draft. Do NOT use as a substitute for human approval or repository merge policy.",
+      "userInvocable": true,
+      "allowImplicitInvocation": true,
+      "path": "skills/pr-readiness/SKILL.md",
+      "resources": [
+        "skills/pr-readiness/SKILL.md"
+      ]
+    },
+    {
+      "name": "quality-review",
+      "description": "Deep review of any work-product — code, docs, specs, plans, decisions — grounded in current authoritative sources. Use when double-checking against latest docs, verifying versions or claims, checking security, or pressure-testing correctness and elegance before something ships. Complements the automatic quality hook with ecosystem verification. NOT for divergent ideation (brainstorm), weighing still-open options (figure-it-out), your own spec's framing (self-review), or scenario review (review-spec).",
+      "userInvocable": true,
+      "allowImplicitInvocation": true,
+      "path": "skills/quality-review/SKILL.md",
+      "resources": [
+        "skills/quality-review/SKILL.md"
+      ]
+    },
+    {
+      "name": "refactor",
+      "description": "Improve code structure without changing behavior. Use when refactoring, restructuring, simplifying, or extracting code. Also for reducing duplication, renaming for clarity, or addressing code smells. Enforces one change → test → commit when the commit can stay scoped. NOT for style/formatting (use /lint), features, or bug fixes.",
+      "userInvocable": true,
+      "allowImplicitInvocation": true,
+      "path": "skills/refactor/SKILL.md",
+      "resources": [
+        "skills/refactor/SKILL.md"
+      ]
+    },
+    {
+      "name": "retro-filer",
+      "description": "Files Safeword's sanitized retro spool upstream. Only when a trusted Stop continuation or authenticated closeout guard names a spool path.",
+      "userInvocable": false,
+      "allowImplicitInvocation": true,
+      "path": "internal/retro-filer/SKILL.md",
+      "resources": [
+        "internal/retro-filer/SKILL.md"
+      ]
+    },
+    {
+      "name": "retro",
+      "description": "Run a safeword retrospective on the current session on demand — pull friction (bugs / rough edges / gaps) out of the session transcript and file it upstream through the outbound safety check. Use when the user says \"run a retro\", \"/retro\", \"retrospective on this session\", or wants to capture friction before the session ends. The retro also auto-fires at Stop; this is the manual, on-demand path.",
+      "userInvocable": true,
+      "allowImplicitInvocation": true,
+      "path": "skills/retro/SKILL.md",
+      "resources": [
+        "skills/retro/SKILL.md"
+      ]
+    },
+    {
+      "name": "review-spec",
+      "description": "Use when authoring or reviewing a ticket's scenarios (`.feature` source, with legacy test-definitions.md fallback). Authoring mode gives define-behavior the same standard before drafting that Review mode applies independently at scenario-gate. NOT for spec.md JTBD/criteria/persona framing — that is self-review.",
+      "userInvocable": true,
+      "allowImplicitInvocation": true,
+      "path": "skills/review-spec/SKILL.md",
+      "resources": [
+        "skills/review-spec/SKILL.md"
+      ]
+    },
+    {
+      "name": "self-review",
+      "description": "Runs when safeword's review gate asks for a spec review — an inline self-review of the just-authored spec.md that earns its Tier 1 review stamp. Not a user-facing entry point, and never spawns a sub-agent.",
+      "userInvocable": false,
+      "allowImplicitInvocation": true,
+      "path": "internal/self-review/SKILL.md",
+      "resources": [
+        "internal/self-review/SKILL.md"
+      ]
+    },
+    {
+      "name": "spike",
+      "description": "Run a bounded disposable experiment to resolve one build-only technical uncertainty before production planning. Use only when explicitly invoked.",
+      "userInvocable": true,
+      "allowImplicitInvocation": false,
+      "path": "skills/spike/SKILL.md",
+      "resources": [
+        "skills/spike/SKILL.md",
+        "skills/spike/agents/openai.yaml"
+      ]
+    },
+    {
+      "name": "tdd-review",
+      "description": "Quality check for a completed TDD step. Runs when safeword's TDD flow finishes RED, GREEN, or REFACTOR; not a user-facing entry point.",
+      "userInvocable": false,
+      "allowImplicitInvocation": true,
+      "path": "internal/tdd-review/SKILL.md",
+      "resources": [
+        "internal/tdd-review/SKILL.md"
+      ]
+    },
+    {
+      "name": "testing",
+      "description": "How to write good tests. Use when writing tests, improving test coverage, or evaluating test quality. Also invoked by other skills — BDD at RED phase, tdd-review at GREEN gate, refactor at PROTECT phase, and debug. Core test quality knowledge across all workflows.",
+      "userInvocable": false,
+      "allowImplicitInvocation": true,
+      "path": "internal/testing/SKILL.md",
+      "resources": [
+        "internal/testing/SKILL.md"
+      ]
+    },
+    {
+      "name": "ticket-system",
+      "description": "Ticket system and work logs for context anchoring. Use when creating tickets, managing work logs, or anchoring context across multi-step tasks or sessions. Do NOT use for simple patches or single-step tasks.",
+      "userInvocable": false,
+      "allowImplicitInvocation": true,
+      "path": "internal/ticket-system/SKILL.md",
+      "resources": [
+        "internal/ticket-system/SKILL.md"
+      ]
+    },
+    {
+      "name": "verify",
+      "description": "Verify ticket completion criteria — use when finishing a ticket, before marking work done, or checking acceptance criteria. Runs tests, build, lint, scenarios, and dependency drift checks.",
+      "userInvocable": true,
+      "allowImplicitInvocation": true,
+      "path": "skills/verify/SKILL.md",
+      "resources": [
+        "skills/verify/SKILL.md"
+      ]
+    }
+  ],
+  "resourceRevision": {
+    "version": 1,
+    "sha256": "91fcc45711aeb83b96341c70bfb91ef80aa8b5b1d70efc84ee79d8a435631e5b"
+  }
+}

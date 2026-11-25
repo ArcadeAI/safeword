@@ -53,11 +53,11 @@ surfaces.md from packages/cli/templates/surfaces-template.md and then own it.
 ## OpenCode
 
 **Kind:** Agent runtime
-**Delivery status:** Implemented for stable OpenCode CLI/TUI 1.x after exact-version conformance; CI pins 1.18.23, and Desktop remains advisory until native hook dispatch is reliable.
-**Description:** The OpenCode CLI, terminal UI, or desktop app running against a developer's project, with a Safeword-managed profile catalogue extending the agent's behavior.
+**Delivery status:** OpenCode V2 2.4.1 CLI/TUI is the sole active qualification target. The OpenCode 2.2.6 entry in the 2026-11-07 inventory and its native observations are historical. Admission and native activation require fresh 2.4.1 evidence for each runtime. Older host releases and V1 active delivery are retired.
+**Description:** OpenCode running against a developer's selected project through the isolated Promise SDK V2 package and canonical Safeword resources.
 **Audience:** Technical Builder (TBU), Non-Technical Builder (NTB), Safeword Maintainer (SWM)
-**Examples:** profile-level `plugins/safeword.js`, `commands/safeword-*`, `agents/safeword-*`, `skills/safeword-*`, `opencode.json`, OpenCode CLI and TUI
-**Coverage notes:** Tag feature scenarios with `@surface.opencode` when behavior must work through OpenCode's installed profile catalogue, plugin events, or workflow on a developer's machine. Project reconciliation does not install OpenCode commands, agents, skills, or executable runtime. Treat Desktop plugin registration as advisory until real hook dispatch is proven.
+**Examples:** V2 package `plugins` registration, canonical bundled skills/commands, OpenCode CLI and TUI
+**Coverage notes:** Tag scenarios with `@surface.opencode` for installed package events, resources or workflows. CLI and TUI have separate current proof identities. Enrollment or package discovery alone cannot prove guard activity, conformance or customer admission. Retired V1 profile files/results are historical, not active delivery or proof requirements.
 **Do not confuse with:** OpenAI Codex — a separate agent runtime whose current Safeword workflows ship through a packaged plugin and whose lifecycle, configuration, and trust model differ.
 
 ## Cursor
@@ -78,6 +78,15 @@ surfaces.md from packages/cli/templates/surfaces-template.md and then own it.
 **Coverage notes:** Tag feature scenarios with `@surface.cursor-cloud-agents` when behavior depends on the cloud VM lifecycle rather than local IDE mechanics. Project-level `.cursor/rules`, `.cursor/commands`, and command-based `.cursor/hooks.json` still apply; user-level hooks and IDE-only events do not.
 **Do not confuse with:** Cursor — runs in the IDE on the developer's machine with full local environment access.
 
+## Agent Plugins 1.0
+
+**Kind:** Portable plugin format
+**Description:** Agent Plugins 1.0 packages reusable skills and their resources for supporting agent hosts. Safeword's portable core is loaded by Codex and Cursor; host extensions provide additional native capabilities.
+**Audience:** Technical Builder (TBU), Non-Technical Builder (NTB), Safeword Maintainer (SWM)
+**Examples:** Root plugin manifest, packaged skills, referenced guides and helpers, package-contained resources
+**Coverage notes:** Tag scenarios with `@surface.agent-plugins-1-0` when portable package discovery or resource loading is the boundary being proved.
+**Do not confuse with:** Host hook or worker enforcement — portable loading alone does not prove either guarantee.
+
 ## Safeword CLI
 
 **Kind:** CLI
@@ -85,7 +94,7 @@ surfaces.md from packages/cli/templates/surfaces-template.md and then own it.
 **Audience:** Technical Builder (TBU), Non-Technical Builder (NTB), Safeword Maintainer (SWM)
 **Examples:** `safeword install`, `safeword install --agents=opencode`, `safeword conformance --agents=opencode`, `safeword status`, `safeword doctor`, `safeword plan`, `safeword uninstall`, project subcommands, the managed-file reconcile contract, generated `INDEX.md`
 **Coverage notes:** Tag feature scenarios with `@surface.safeword-cli` when the behavior is the CLI tool's own — file scaffolding/reconciliation, config validation, index generation — rather than something that must work through a specific agent runtime.
-**Do not confuse with:** Claude Code / OpenAI Codex / OpenCode / Cursor — the agent runtimes that *invoke* safeword during a session. `@surface.safeword-cli` marks behavior that must hold no matter which agent (or a plain terminal) runs the command.
+**Do not confuse with:** Claude Code / OpenAI Codex / OpenCode / Cursor — the agent runtimes that _invoke_ safeword during a session. `@surface.safeword-cli` marks behavior that must hold no matter which agent (or a plain terminal) runs the command.
 
 ## Closeout Cleanup Guard
 

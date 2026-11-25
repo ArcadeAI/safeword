@@ -225,6 +225,7 @@ export default defineConfig({
   noExternal: ['smol-toml', 'prettier/plugins/markdown'],
   skipNodeModulesBundle: true,
   define: {
+    __SAFEWORD_ISOLATED_GRADER_BINDING__: 'undefined',
     __SAFEWORD_BUILD_COMMIT__: JSON.stringify(buildCommit),
     __SAFEWORD_LOCAL_RETRO_CANARY_HARNESS__:
       LOCAL_RETRO_CANARY_HARNESS === undefined

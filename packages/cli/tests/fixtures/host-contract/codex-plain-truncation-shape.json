@@ -1,0 +1,8 @@
+{
+  "classification": "NONRECEIPT: captured native transport shape; substituted unit payload is not execution evidence",
+  "origin": "internal-workflows-X9kZhu turn-1 call_8279fcb93d344ae8913e81ef99818fda",
+  "raw_part_sha256": "f13c0d4bec8624bb9a0bd35a7b99244ab994942ddd3e7c9fd55b39082db3c4cc",
+  "notice": "Warning: truncated output (original token count: 10908)\nTotal output lines: 404\n\n",
+  "omission": "…908 tokens truncated…",
+  "preamble": "Script completed\nWall time 0.7 seconds\nOutput:\n"
+}

@@ -1,5 +1,6 @@
 ---
-description: USE WHEN in BDD verify phase OR all scenarios marked [x]. Evidence gate — cross-scenario refactor, then /verify and /audit.
+description: |-
+  USE WHEN in BDD verify phase OR all scenarios marked [x]. Evidence gate — cross-scenario refactor, then /verify and /audit.
 alwaysApply: false
 ---
 

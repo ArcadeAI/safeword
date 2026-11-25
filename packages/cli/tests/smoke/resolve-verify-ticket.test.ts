@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { VERSION } from '../../src/version.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
+import { codexRuntimeBinding } from '../helpers/codex-runtime-binding.js';
 
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
 const installedHelper = nodePath.join(repoRoot, '.safeword/hooks/resolve-verify-ticket.ts');
@@ -68,17 +69,27 @@ function loadVerifySurface(surface: string, projectDirectory: string): string {
   return readFileSync(nodePath.join(projectDirectory, pointer?.groups?.path ?? ''), 'utf8');
 }
 
-function localVerifyCommand(authority: 'plugin' | 'project', source: string): string | undefined {
+function localVerifyCommand(
+  authority: 'plugin' | 'project',
+  source: string,
+  project: string,
+): string | undefined {
   const projectCommand =
     /^bun "\$PROJECT_DIR\/\.safeword\/hooks\/resolve-verify-ticket\.ts" "\$PROJECT_DIR"$/mu.exec(
       source,
     )?.[0];
   if (authority === 'project') return projectCommand;
 
-  const expectedPluginCommand = `bun "\${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/${VERSION}/runtime/cli.js" project runtime resolve-verify-ticket --cwd "$PROJECT_DIR" --`;
+  const expectedPluginCommand =
+    'bun "$SAFEWORD_PLUGIN_RUNTIME" project runtime resolve-verify-ticket --cwd "$PROJECT_DIR" --';
   const pluginCommand = source.split('\n').find(line => line === expectedPluginCommand);
   expect(pluginCommand).toBeDefined();
-  return `bun "${nodePath.join(repoRoot, 'packages/cli/src/cli.ts')}" project runtime resolve-verify-ticket --cwd "$PROJECT_DIR" --`;
+  const installed = nodePath.join(project, '.codex-home/plugins/cache/safeword/safeword', VERSION);
+  mkdirSync(nodePath.dirname(installed), { recursive: true });
+  cpSync(nodePath.join(repoRoot, 'packages/cli/codex-plugin'), installed, { recursive: true });
+  const asset = nodePath.join(installed, 'skills/verify/SKILL.md');
+  expect(readFileSync(asset, 'utf8')).toBe(source);
+  return `${codexRuntimeBinding(asset, nodePath.join(installed, 'runtime/cli.js'))}${pluginCommand}`;
 }
 
 describe('installed resolve-verify-ticket.ts smoke', () => {
@@ -124,13 +135,19 @@ describe('installed resolve-verify-ticket.ts smoke', () => {
     'executes the installed $name verify surface against current-work evidence',
     ({ authority, surface }) => {
       const surfaceSource = loadVerifySurface(surface, projectDirectory);
-      const executableCommand = localVerifyCommand(authority, surfaceSource);
+      const executableCommand = localVerifyCommand(authority, surfaceSource, projectDirectory);
       expect(executableCommand).toBeDefined();
 
       const result = spawnSync('/bin/bash', ['-c', executableCommand ?? 'exit 127'], {
         cwd: projectDirectory,
         encoding: 'utf8',
-        env: { ...isolatedGitEnvironment(), PROJECT_DIR: projectDirectory },
+        env: {
+          ...isolatedGitEnvironment(),
+          PROJECT_DIR: projectDirectory,
+          ...(authority === 'plugin' && {
+            CODEX_HOME: nodePath.join(projectDirectory, '.codex-home'),
+          }),
+        },
       });
 
       expect(result.status).toBe(0);

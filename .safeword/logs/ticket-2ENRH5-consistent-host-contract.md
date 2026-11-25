@@ -1,0 +1,1288 @@
+# Execution log for 2ENRH5
+
+## Implementation entry
+
+The current Implementation Plan passed independent review
+d2bb1201-0276-4325-b04d-3c21d843261d. Execution Plan review
+d8fbcf54-e86c-4ced-bda6-3578faedb95b approved four safe local slices,
+13 delivery items and 19 proof definitions. Scenario review
+460df2fc-3fa1-4c45-8218-d33557ca97b7 approved the unchanged 58 definitions.
+All reviewers were Claude Opus, cross-agent from Codex author.
+
+Canonical coding authorization passed, then the ticket entered implement on
+branch codex/consistent-host-contract. No production code, primary RED proof,
+scenario checkbox or commit exists yet.
+
+## Review currency investigation
+
+Adding the implementation-entry progress note to ticket.md invalidated all
+three receipts. Source investigation confirmed semanticTicketIdentity retains
+the entire Markdown body and ignores only selected progress frontmatter.
+The current ticket semantic digest is
+6b24d8b6c928ace962c8dfe24256fb37d7514646570ec6c5239669695b256b73;
+removing only that note transiently produces the reviewed digest
+6f15bdded866ddbce5c9a72f4a8f53414a8012ec3b4c9b2248ee73e8559d3e9a.
+No receipt or guard was changed. Preserve the chronology, complete the two
+required phase anchors, and refresh all three reviews against the settled
+ticket context. Keep ongoing execution scratch notes here, as the ticket-system
+skill specifies, rather than repeatedly editing reviewed context.
+
+The first attempt to add a test helper was blocked before the file was written.
+No test ran, and no feature failure or passing scenario is claimed.
+
+## Exact host setup and live boundary
+
+See host-target-preflight.md in the ticket for exact vendor artifacts, versions,
+signature checks and the isolated OpenCode V2 postinstall repair. All required
+binary versions are obtainable; this is not native behavior evidence.
+
+Computer Use reported that the Mac is locked and automatic unlock failed.
+An asynchronous request asks the user to unlock it. Do not work around the
+lock or grant trust/OS permissions. Native Cursor proof cannot start until the
+real UI is available. Prepare only safe test infrastructure independently.
+
+## 2026-10-20 06:57:40 UTC — Current retained state
+
+- Current scenario review: e715f6f5-bc82-429b-a636-0490948001ce, approved/stamped.
+- Current Implementation Plan: bf8d54ee-b3a8-4a50-b2cb-a5b5d3bf876b,
+  approved/stamped after adding retained legacy Cursor project-hook status proof.
+- Current Execution Plan: 89d6f5db-b0f2-41a4-8952-0ccc19e2321e,
+  approved/stamped; 14 open delivery items and 20 retained proof definitions.
+- All achieved cross-agent review with Claude Opus. Canonical coding authorization
+  passes with identity 9b50312574bba9726c25570022fce93eebb9d86108dd16d24d8cdaa0f3706ee8.
+- Current phase anchor resolves to this ticket's execution-plan.md and passes.
+
+Test-only setup added: fixtures/host-contract/targets.json records five exact
+versions and seven runtime rows, with separate Cursor delivery variants. The
+archived Cursor arm64 URL, digest and signing team are pinned as test inputs.
+The host-contract-version helper accepts known version-only formats and rejects
+wrong, ambiguous or prerelease output. Its first five positive cases failed on
+the initial unavailable stub, then passed. The newer-binary regression failed
+when a recognizable 3.25.9 was accepted for 3.8.23, then passed after comparison.
+Final matrix: 11/11 pass. This helper is not yet wired into the required host
+runner and does not establish host identity or native conformance.
+
+Verification completed sequentially, with only one Vitest process at a time:
+
+- phase-provenance.test.ts: 36/36 pass.
+- SAFEWORD_RUN_OPENCODE_CONFORMANCE=1 conformance-command.test.ts: 9/9 pass,
+  including the existing real V1 host boundary. This is baseline, not new V2,
+  TUI, native Cursor or shared-contract completion evidence.
+- host-contract/target-version.test.ts: 11/11 pass.
+- Targeted ESLint and Prettier checks: pass. Package TypeScript check: pass.
+- Plan parsing and git diff --check: pass.
+
+No production contract implementation, primary executable RED receipt, commit,
+PR, release or scenario checkbox exists. All 58 feature scenarios remain
+unchecked. Mac unlock request is still pending; do not claim that a locked UI
+is a failing product test. Next: observe exact Cursor 3.8.23 through Computer
+Use once the user unlocks the Mac, then finish and run the first native proof
+harness according to PR 1. Never use shell UI automation in place of the
+computer-use API. Avoid changing reviewed ticket.md context for routine notes.
+
+## 2026-10-20 11:46 UTC — Isolated Cursor startup
+
+The Mac is unlocked; native Accessibility reads succeed. Canonical coding
+authorization remains authorized with the same reviewed input identity.
+The official archived executable's own CLI reports 3.8.23,
+7cf19b7482706625cdb70db3211b7dd035b7aa30, arm64.
+
+Created a synthetic workspace and separate profile/extensions directories under
+/tmp/safeword-2enrh5-targets.aOFAud/cursor-native-preflight. Used the vendor's
+documented CLI flags --user-data-dir, --extensions-dir, --sync off and
+--new-window. No existing profile or credentials were copied. The Accessibility
+tree identifies the window as SAFEWORD isolated 3.8.23 — workspace and its
+workbench URL points into the archived application. The profile shows Log In
+and explicitly requires authentication before AI features work. A user request
+for sign-in is pending; no Agent turn or host conformance test ran.
+
+The current UI driver is unsafe for automated isolation: a getApp binding by
+archived app path read the synthetic window, but a subsequent keyboard command
+opened a palette in the regular Cursor Agents window. A click and an attempt to
+dismiss the palette also returned ScreenCaptureKit invalid-parameter errors.
+Stopped input rather than risk operating in the user's workspace. The tool's
+documented macOS API has no process-ID targeting. Requested explicit user
+authorization for process-bound AppleScript Accessibility automation, because
+the computer-use tool prohibits alternative UI technologies unless the user
+specifically requests them. Do not run that alternative before authorization,
+and do not approve OS permissions on the user's behalf.
+
+These are setup/automation prerequisites, not the missing-product RED. No
+production code, new review receipt, scenario completion, commit or PR exists.
+
+## 2026-10-20 11:50 UTC — Process-bound driver authorized
+
+The user's yes authorizes the proposed AppleScript alternative. Identified the
+isolated main process as PID 56039 by its exact archived executable path and
+--user-data-dir argument; no other Cursor process is a substitute. A read-only
+System Events query restricted to that PID exited 1 with error -1728:
+osascript is not allowed assistive access. The CLI process ancestry is
+CodexCLI.app/Contents/MacOS/codex under ChatGPT.app. Requested that the user
+enable Accessibility for the nested CodexCLI.app helper; no permission toggle
+was changed. The existing Accessibility pane shows ChatGPT and Codex Computer
+Use enabled, which did not authorize this AppleScript invocation.
+
+Added the read-only cursor-ide-inspect.applescript setup probe under the
+host-contract test fixtures. It requires a PID plus a test-prefixed exact
+window title, rejects absent or ambiguous windows, returns only setup/login
+flags and explicitly reports conformance=not_run. osacompile succeeds. It has
+not executed successfully; compilation is not a host behavior test.
+
+Independently prepared the existing project-hook control with the local source
+CLI's install --agents cursor --offline --no-input --no-modify --json against
+the synthetic workspace. It exited 0 with selected_agents cursor, healthy
+Cursor postcondition, no package/network/destructive effects, and installed the
+existing project hooks/resources. This is installation setup, not real Agent
+dispatch or conformance. Sign-in and process-bound Accessibility access remain
+unverified. All feature scenarios remain unchecked and production is unchanged.
+
+## 2026-10-20 — Native Cursor setup now runs
+
+The user's try now followed the Accessibility change. System Events can now
+query the isolated process. Its initial window was Cursor Agents, not the test
+editor; reopening the synthetic folder restored the expected editor. The
+profile is authenticated. Native reads and keyboard input are now available.
+
+Live existing-hook control passed on archived Cursor 3.8.23: the Agent's file
+editing tool created .host-contract/allowed.txt containing exactly
+SAFEWORD_CURSOR_BASELINE_ALLOWED_2ENRH5 followed by one newline. The test-only
+cursor-hook-observer.ts wrapper preserved each installed command, stdin,
+stdout and exit status. Its trace contains preToolUse, afterFileEdit, two
+postToolUse handlers and stop, all exit 0. The preToolUse stdout digest equals
+SHA256 of the actual allow JSON plus newline. The visible conversation showed
+the existing stop hook's terminal-format correction and a subsequent Agent
+reply. This is current legacy baseline evidence, not native Safeword completion.
+
+Independent native discovery control also passed. Added a test-only plugin from
+fixtures/host-contract/discovery-control outside the global auto-load directory.
+A project workspaceOpen probe returned its absolute path. Cursor's own hook log
+recorded successful registration; its native slash menu exposed the control
+skill. Invoking it read control-guide.md and the visible Agent response contained
+SAFEWORD_NATIVE_DISCOVERY_CONTROL_2ENRH5. No Safeword shared-contract feature or
+enforcement guarantee is inferred from that independent control.
+
+Observed host/setup constraints:
+
+- Initial workspaceOpen requests can find no hooks while another hook reload
+  is in progress. The exact binary clears its per-project hook maps at reload
+  start. Logs show startup requests between reload start and completion, with
+  no script execution. Invalid script/runtime is ruled out for this observation:
+  the unchanged probe executes after a later folder change. Reload timing is a
+  supported hypothesis, not a complete upstream root-cause proof or shipped fix.
+- A named synthetic .code-workspace file gives a stable editor title and avoids
+  unsaved-workspace dialogs. Changing its folders through the actual watched
+  configuration triggers workspaceOpen; restoring the single real test root
+  lets the strict probe return paths. Do not call internal host stores or inject
+  lifecycle events. The eventual lifecycle proof must cover initial failure and
+  retain legacy authority; do not advertise startup reliability from this control.
+- AXValue is advertised writable for the Agent input but setting it does not
+  retain text. Keyboard input works. The input updates asynchronously and slash
+  suggestions replace its AX ancestors, invalidating cached references. Keep
+  exact prompt assertions and reacquire current controls. A menu press alone is
+  not proof the skill was selected; inspect the resulting native state.
+- The test scripts refuse multiple Cursor processes and ambiguous matching
+  windows. Native profile restoration initially reopened extra test windows;
+  only windows carrying the test prefix were closed. Two explicit native save
+  dialogs were verified to concern synthetic workspace configuration only before
+  choosing Don't Save. No OS trust, shell approval or other security permission
+  was auto-granted. Never choose a user's unrelated window for cleanup.
+
+Current test environment and candidate:
+
+- Cache: /tmp/safeword-2enrh5-targets.aOFAud.
+- Current archived main PID observed: 54834; always recheck executable and
+  --user-data-dir before using it. Earlier PIDs 56039 and 61335 are gone.
+- Isolated profile/extensions and project live under cursor-native-preflight.
+  Current sole editor title: SAFEWORD isolated 3.8.23 — native-test.
+- Named workspace: cursor-native-preflight/host-contract.code-workspace, one
+  folder ending in /workspace. Existing project hooks remain installed. Original
+  project commands/rules are retained outside that project as baseline-commands
+  and baseline-rules, to distinguish native catalogue invocation.
+- Restarted the owned test process with scripts/dev and empty foreign Codex,
+  Claude and OpenCode profile directories; the wrong-host cache cannot reach the
+  real Codex installation. Set autoUpgrade false in this synthetic project and
+  disabled its generated optional MCP servers. The real applications/profiles,
+  shell configuration and production source were not changed.
+- Current candidate: catalogue-probe-EVRxeo/candidate, markers in its sibling
+  probe.json. cursor-catalogue-probe.ts copies the complete canonical graph,
+  instruments an existing explain workflow/guide and existing allowlisted audit
+  helper only in that disposable graph, and runs the unchanged production
+  renderer. A minimal test-owned portable manifest supplies metadata only, never
+  path repairs. This is not a shipped-manifest proof. The helper's dedicated
+  self-check passes through candidate/runtime/cli.js from a separate enrolled
+  scratch project; its marker and import.meta.url identify the candidate helper.
+  Main workspace native-helper.json is still absent before native invocation.
+- Candidate body visibly addresses the Codex-only versioned cache. The intended
+  actor failure is that the native workflow cannot invoke its packaged helper,
+  despite that helper's successful independent availability control. Do not count
+  missing package.json or enrollment in preliminary self-checks as product RED.
+- On a future production portable-core module, the same candidate builder uses
+  writePortableCoreCatalogue from src/host-contract/portable-core.ts; until then
+  it exposes the current renderer's bytes in the independent carrier. Default
+  shipped Codex assets are not changed in this pilot. Independent RED review must
+  assess this fixture and its fidelity before authorizing implementation.
+- Both the independent control and candidate were actually registered through
+  workspaceOpen on the named workspace. The UI slash menu shows the candidate's
+  /explain entry with the distinctive contract-probe description, alongside an
+  existing stock explain entry. Select by the full candidate description; typing
+  /explain alone or accepting the first match cannot prove candidate origin.
+  Latest action pressed the candidate menu entry; no candidate helper invocation
+  or behavioral RED has been claimed. Inspect native selection before submission.
+
+Test-only additions so far include three compiled AppleScript probes, two hook
+instrumentation/discovery helpers, independent control assets and the candidate
+builder. TypeScript passed after replacing Bun.stdin with node:fs stdin reads;
+run it again for later builder changes. Targeted formatting/lint passed before
+the latest builder changes. No Vitest is running. No Cucumber step binding,
+required proof runner, primary executable-RED receipt, production change,
+scenario checkbox, commit or PR exists yet. All 58 definitions remain incomplete.
+
+## Native actor retry — 2026-10-20
+
+Accessibility now works. The exact isolated Cursor 3.8.23 actually registered
+both the independent control plugin and the candidate portable carrier through
+workspaceOpen. The independent native control loaded its referenced guide and
+emitted SAFEWORD_NATIVE_DISCOVERY_CONTROL_2ENRH5. The candidate explain workflow
+loaded its workflow and guide markers, but its actual Bun command addressed the
+empty foreign-codex-profile versioned cache and failed Module not found. Its
+packaged helper independently succeeds from its own runtime in a separate enrolled
+scratch project. This is preliminary observed behavior, not an executable RED
+receipt, shipped manifest proof, or completed scenario.
+
+Thin Cucumber steps now select the actual Cursor example in the source feature.
+Dry-run binds all four steps. Live runs reached real allowed edits through the
+existing preToolUse hook (allow-output digest asserted), but actor readiness bugs
+interrupted later progress. Fixed launcher/editor process overlap, AppleScript
+reserved-name coercion, stale input ancestry at submission, and restored drafts
+not being a readiness failure. These setup failures are not product RED. The
+required runner retains Cucumber status, distinguishes the intended failing Then
+from setup failures, and cannot report full native conformance while other native
+obligations remain unwired. Latest run is still in progress. Added typed native
+afterShellExecution observation so shell result cannot rely on model prose alone.
+
+Targeted ESLint and all package typechecks passed. Full-suite attempt previously
+passed relay (198 + one existing skipped) and collector (153); CLI tests did not
+start because another checkout held the build/test lock. No full-suite pass.
+
+The requested bootstrap retry ran once through scripts/dev. Registry latest
+resolved to Safeword 1.1.0, which refused the already installed 1.2.0 plugin with
+a version mismatch and said project hooks were unchanged. No retry loop or
+production changes. Current branch/workspace status remains the accepted feature
+artifacts and test-only support. All 58 definitions / 91 cases remain incomplete;
+no primary executable RED receipt, production change, commit, or PR exists.
+
+### Executable Cursor RED reached; independent retry pending
+
+Required runner finally reached the actual failing Then: three passed steps,
+one failed, exit 2, NATIVE_HELPER_ORIGIN_MISMATCH. Native workflow/guide markers
+were visible and the real afterShellExecution event independently confirmed the
+foreign Codex cache module failure. Report identity:
+/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-host-contract-proof-GZibNK/cucumber.json.
+This is still an author run, not authorization for production changes.
+
+Read-only Swift Accessibility handles avoid AppleScript's stale ancestry for
+snapshot/input reads. Keyboard actions remain guarded native Cursor controls.
+Synthetic fixture selfReport capture/surface/file are off to prevent optional
+retro work obscuring the catalogue result or making outbound reports. Real
+project guard hooks remain enabled; ordinary write and exact allow-output digest
+are observed first. The Node/tsx Cucumber subprocess follows the existing harness;
+Bun drives the required runner. Runner timeout is now 540 seconds, below the
+600-second execution attestation boundary.
+
+Independent review 1fbdcef4-c46c-406f-90b6-96cb35db7a4e (Claude Opus,
+cross-agent) requested changes: its own run hit a Native Agent input-not-focused
+setup race, so it correctly refused RED. It confirmed the proof distinguishes
+setup from the intended behavioral failure. The exact focus-not-yet-settled
+error is now retried before turn submission. Foreground loss, permission failure,
+and unrelated errors still fail setup. Fresh independent review
+4ac1654e-3ef3-40d2-ad78-a7ff9ca9cb0d is pending. Keep that ID; do not redispatch
+unchanged sources while pending. No production changes or scenario checkboxes.
+
+The formerly locked full CLI suite is now running (one Vitest process). Do not
+start another Vitest or treat it as passed until completion. Relay and collector
+passed in the earlier root run. Targeted new-source lint and package typechecks
+passed before the last focus-retry/timeout-only changes.
+
+### Later review outcomes and host capability controls
+
+Full CLI suite finished: 687 files passed, 11,356 tests passed, 14 existing
+skipped (911.14 seconds). No Vitest is running now. Subsequent changes are limited
+to the native live harness; rerun its targeted lint/typecheck and actual boundary.
+
+Review 4ac1654e-3ef3-40d2-ad78-a7ff9ca9cb0d requested changes after a genuine
+foreign-cache helper failure whose visible runtime path wrapped between AX nodes
+(runtime/ then cli.js). The test's strict unnormalized path check rejected it.
+Whitespace-only normalization now handles rendering, and the completion predicate
+requires the foreign-cache path as well as the visible module failure. The actual
+shell event is still mandatory. Added baseline renderer assertions proving its
+project-hook command becomes the runtime invocation the observer recognizes.
+The bounded native-resource-proof.md context explains the independent carrier.
+
+Review 68335763-4446-4fdd-96bd-0562d37fefff requested changes on a transient
+zero/two-input state while the old/new chat changed. Readiness now retries only
+that named input-count error before submission. The allowed preflight also waits
+for its actual Stop-hook observation before the next chat is created.
+
+Review 9edb9813-717d-4b39-aae3-f88995e3c51b requested changes: workspace discovery
+never dispatched the probe. Exact native hook log window17 confirms workspaceOpen
+requests while hooks were reloading, before Loaded 10 project hooks. This is the
+previously observed 3.8.23 startup/reload race, not evidence that the event is
+unsupported. Added sanitized probe invocation records (event/version/roots only)
+and bounded Given-only folder-change preparation, observing actual hook reloads
+before proceeding. Never retry the scenario When or call private host stores.
+No production receipt has been approved. Leave all scenario checkboxes untouched.
+
+Important isolation limit: that same native log shows Cursor importing the user's
+existing global Claude Safeword 1.1.0 hook commands in addition to the synthetic
+project hooks. No global Claude cache or profile was edited. The distinct candidate
+workflow/guide markers and own hook command traces still identify this resource
+proof, but it is not evidence of single policy authority. The accepted full
+inventory/duplicate-activation work must account for Cursor's automatic Claude
+plugin imports; do not claim global foreign profiles are fully isolated merely
+because CLAUDE_CONFIG_DIR was set. Do not print raw host inputs (they include an
+account email) into review packets; retained sanitized observations omit it.
+
+Codex 0.160.0 native capability controls passed independently of product changes.
+Private fixture: /tmp/safeword-2enrh5-targets.aOFAud/codex-root-preflight-JOfRjP.
+Its private profile contains a native auth-file copy with mode 0600; never include
+that profile in source, review targets or printed output. No primary profile was
+modified and no hook trust was granted. Native plugin add accepted root plugin.json
+without a compatibility overlay. A real read-only Codex turn loaded its cached
+skill and referenced guide and returned ROOT_FORMAT_PREFLIGHT_2ENRH5 plus
+GUIDE_ROOT_PREFLIGHT_2ENRH5. This is a host capability control, not product RED.
+
+Generated the exact binary's experimental JSON schemas into that private fixture.
+Native app-server plugin/read requires marketplacePath to name the marketplace
+JSON file, not its directory. Actual native responses verified: inline OpenAI
+interface replaces the decoy compatibility overlay entirely (overlay-only
+properties remained null); removing the inline extension selects the overlay.
+In both modes skills stayed in canonical root skills/ despite the overlay's
+legacy-skills decoy. Native API metadata plus the earlier actual cached resource
+turn establish the pinned host capability; still need the planned production
+projection/root-origin RED and attestation before generating the shared core.
+
+### Resume after the user's Cursor upgrade
+
+The user upgraded Cursor and requested resume at 2026-10-20T14:34Z. The running
+installed app reports 3.24.18, build be4c9e5350d77747b42cd467cbd3370a753d4640,
+arm64, vendor VDXQ22DGB9; strict deep signature verification passed. Native target
+is explicitly updated to 3.24.18; retain 3.8.23 project-hook compatibility. The
+matrix now has six versions / eight runtime rows. Earlier native 3.8.23 evidence
+cannot satisfy the new native target. Updated ADR, ticket engineering boundary,
+dimensions, feature and plans. No production implementation or scenario checkbox.
+
+Scenario review 26d22252-e637-43fe-8f43-0554b113e79a caught four old target
+examples. Corrected them; cross-agent Claude Opus review
+d88e93db-038a-4b33-a226-aa47de0ece6c approved the current scenarios and its
+scenario-gate stamp was written. Explicit lower-level cursor-legacy proof in
+dimensions retains the 3.8.23 regression. Nonblocking warnings remain visible.
+
+Implementation review ca468afa-8f25-43bc-b8d5-38a17217f185 requested changes:
+customer status version-applicability is not decided consistently with exact
+engineering targets and the no-upgrade-friction promise. Research this decision
+before revising: compare exact matching, explicit compatibility-family/range
+admission preserving current support policies, and automatic per-customer full
+conformance. Research domains: existing lifecycle/version semantics; vendor
+protocol/backward-compatibility guarantees; evidence applicability/identity; and
+upgrade/status/recovery usability. No decision authorizes claiming exact tests
+on untested versions. Also clarify old-package result envelopes and the extra
+legacy runtime row. This is an agent-owned planning gap, not a user decision.
+
+The old live run 58655 completed with the intended Then failure, 3 passed steps,
+exit 2; report safeword-host-contract-proof-tAbdWu/cucumber.json. It was an author
+run only and its 3.8.23 version is now historical. No independent executable RED
+has been approved.
+
+Created owned test profile cursor-native-3.24.18 from the earlier test profile's
+User/ and Local State (not the user's normal profile). Archived the old owned
+cursor-fixture.json as .3.8.23 and pointed the current owned fixture at the new
+profile. The running user app PID 42715 and isolated test PID 64464 coexist.
+Never close or modify the user's app/profile. Current own window label is
+SAFEWORD isolated — catalogue-4gZCna. AppleScript coerces same-named process
+references to the other process; the new PID guard correctly refused before
+input. Replacing those controls with one native Swift AX/keyboard helper keyed
+by PID, exact test window and foreground checks. Native helper is test-only and
+not yet fully wired/verified. No new OS or host trust was granted.
+
+### Resumed native Cursor and compatibility policy
+
+Cursor 3.24.18 required run (88076) stopped in Given: existing allowed control
+never produced its file. This is setup-unavailable, not product RED. Subsequent
+native AX inventory and CUA explicitly report the Mac is locked; asked user to
+unlock asynchronously and continued planning. No production edits or proof claim.
+The isolated 3.24 profile/window remains separate from the regular user instance.
+
+Resolved implementation-review ca468afa customer-version gap by choosing explicit
+publisher-owned binding compatibility families for existing support predicates,
+separate exact-target engineering receipts, and scoped exact initial support for
+new native Cursor/V2. Rejected customer pinning, automatic full customer suites
+and blanket semver extrapolation. AIP-180 and SemVer are methodological evidence,
+not vendor promises. Version-matched OpenCode v2.0.32 migration documentation
+explicitly says V1 implementations do not run in V2; actual populated-profile
+coexistence controls remain mandatory. Added upgraded-host controls, truthful
+observed/reference version reporting and old-package/new-CLI status/exit behavior.
+Target fixture includes eight runtime rows and nine delivery cases, because
+Cursor 3.24.18 now also has an explicit retained project-hooks proof obligation.
+
+Further review de5eb9f6-10c2-4f73-80ad-59d604986cd5 rejected an undefined
+customer-side renewal-receipt writer/key. Simplified the design: no renewal
+record/key/controller. Shared status derives renewal each read from immutable
+release proof/policy and fresh exact-observed activation written by the existing
+native writer. Stale activation remains not active even for compatible versions.
+Recorded both reject/accept discriminating controls and new-contract marker
+classification; current third refreshed review is pending (exec session 77253).
+
+Native UI helper now uses one PID/window-scoped Swift implementation. Removed
+five unused test-only AppleScript/Swift predecessors. Mutating UI actions cannot
+be repeated after dispatch due to a transient subsequent read. Native Return
+includes explicit carriage-return Unicode and a short run-loop drain; needs live
+confirmation after unlock. TypeScript, ESLint and updated exact-version tests
+pass (12 target-version cases; root command also ran existing retro suites).
+
+Fresh current production Codex bundle generated outside checkout, installed in
+owned isolated codex-production-root-preflight profile, and native read-only
+workflow/guide markers returned successfully without hook trust bypass. Native
+plugin/read observes a compatibility-overlay-only decoy; current bundle lacks
+root plugin.json. This is diagnostic preparation, not approved primary RED.
+No production source changed. Mac-unlock request is still pending.
+
+Review cb36694c-f93f-43d4-b613-cc8d5d311a80 accepted the compatibility
+writer resolution but found a Cursor authority gap: hook gating cannot suppress
+project-loaded rules/commands. Chose one registration owner per component:
+retained generated project wrappers alone register rules/commands; thin native
+extension registers only hooks/worker projections; shared active-origin resolver
+routes wrapper resources. Real IDE catalogue/origin checks must reject duplicate
+public workflows or content sources. Added explicit V2 worker isolation/authority
+E2E proof row. Follow-up review **cf81fe6b-bc47-4de4-a394-d3ff8d677bf9** is
+REVIEW_PENDING; collect with runtime review status, do not redispatch or stamp
+before terminal approval. Execution plan still needs refreshed independent review
+after implementation-plan approval. No production coding authorization or RED
+receipt earned; all 58/91 scenario cases remain unchecked.
+
+Current handoff: Mac unlock response pending. Resume native Cursor 3.24.18
+required runner only after unlock, using the updated single Swift helper; then
+independent executable-RED review. Separate Codex production-root primary harness
+still needed; observations in host-target-preflight.md are not its RED receipt.
+
+### After user unlocked the Mac
+
+Cursor 3.24.18 positive edit control passed. Its picker requires a physical slash
+key event: bulk Unicode insertion populated text but did not open the menu. The
+single Swift actor now sends that event, waits for the candidate's exact unique
+description, and selects it without refocusing/closing the picker. Fresh required
+run 31162 reached 3 passed steps and the intended Then failure (report
+safeword-host-contract-proof-ibnURI/cucumber.json), exit 2.
+
+Independent RED review ee9207bd-8762-4e0c-b4ab-4de78af0f1bb APPROVED after its
+own exact command (78.6s): actual native workflow/guide loaded and observed helper
+shell hit foreign Codex cache. No full scenario/conformance completion claimed.
+The runner subsequently gained URI/example host/version/runtime assertions and
+the separate Codex portable proof group; refresh this source-bound receipt before
+GREEN. No production implementation has started.
+
+Implementation-plan review 7fb89e1f-a940-4ddc-8d8b-fa9f7656c0a4 APPROVED and
+stamp written. Canonical approve-plan refused because ticket is already implement
+(expected; no phase reset). Review warning clarified invocation-time wrapper
+resolution: invariant tracked bytes, schema-owned mechanical helper, existing
+single CLI resolver, validated native core origin or retained project origin,
+legacy authority restored on native failure. New Cursor activation is explicitly
+unsealed same-user runtime observation, not conformance.
+
+Execution review 85c584e7-c5a1-4225-8c29-9cad49b894fa requested explicit required
+3.24.18 legacy cases. Fixed two version-prefixed sets of five cases, nine delivery
+population (seven native plus two legacy); real upgraded-host controls go through
+required all-hosts, not admission-only Vitest. Refresh review
+1231d9a8-049a-47ce-88af-d042e74a133d is pending. Coding-authorization remains
+denied until current execution review/admission.
+
+Added a separate Codex portable scenario actor/steps/config and required runner
+group. Full production generator, only disposable resource/overlay metadata probes,
+native marketplace/API/native read-only turn, no root-manifest repair or hook
+trust bypass. First author run is session41935; initial lint/type issues fixed,
+ESLint/typecheck now pass. Needs intended RED and independent review. Private
+fixture config outside repository references only an already provisioned test
+auth profile; no auth contents are in sources or review packets.
+
+Codex author run 41935 did not start a turn because execFile left stdin open;
+Codex appends piped stdin even with a prompt argument. Closing the unused child
+stdin fixed this prerequisite. Fresh run 39892 reached the intended actor-visible
+CODEX_COMPATIBILITY_OVERLAY_FALLBACK with 2 passed steps/Then failed, exit 2,
+report safeword-host-contract-proof-wpDQuT/cucumber.json (22.4s).
+Independent Codex RED review c07187f7-45b3-4a13-8c02-643c2517b2d0 APPROVED after
+its own 16.4s execution. Current refreshed Cursor RED review
+**e6dc1e66-47db-4b27-b0ef-8c286d860b6a** is REVIEW_PENDING; collect via status.
+This refresh includes runner URI/example-row validation added after old approval.
+
+Execution review 1231d9a8-049a-47ce-88af-d042e74a133d returned
+REVIEW_ROUTES_EXHAUSTED, blocked, independence none, review_policy prefer:
+Claude/opus process_failed before a result. Its recovery requires_human=true.
+Asked user asynchronously to authorize rerunning the independent execution
+review; answer still pending. Applied finish-review exactly once: fresh-context
+subagent execution_plan_supplement returned approve with no findings. Reported
+same-agent/degraded, prefer complete; no independent stamp or coding authority
+was fabricated. Coding-authorization still denied pending admitted independent
+execution review. Do not automatically retry the exhausted coordinator; the
+pending human question names the required recovery. New distinct RED proof
+reviews are not substitutes for that execution-plan review.
+
+No production code, commit, PR, GREEN checkbox or completed scenario yet. All
+58 definitions /91 cases remain unchecked. ESLint and CLI TypeScript pass for
+new support code. Existing full CLI suite last passed 687 files/11,356 tests;
+updated version parser has 12 passing cases. Source changes only test support,
+feature/ticket/architecture docs and scratch log.
+
+### Authorized retry and first production checkpoint
+
+User explicitly authorized the independent execution-review retry. Review
+db1ccd92-938e-49d5-87a6-17e1729874a9 completed with two execution gaps (Claude
+native cases and Codex continuation). Added exact fixtures/case IDs/signals,
+required native-claude group, PR1 byte-unchanged project-hook scope and explicit
+human native-hook-trust dependency. Follow-up execution review
+1d5b44bc-cc84-4d38-b7fb-4d79b4b61c9d APPROVED; plan-execution stamp written.
+Coding-authorization now authorized with cross-agent independence, identity
+fd81ffc5b60affdda1474c219a814d1ca46042861aac9db69837a87b1565b651.
+
+Refreshed Cursor RED e6dc1e66-47db-4b27-b0ef-8c286d860b6a APPROVED (119.9s).
+Refreshed Codex RED fffba64c-7cdd-414b-b2f1-995c32de6c21 APPROVED (14s), with
+production generator correctly excluded from the frozen test-source targets:
+production is what GREEN changes. Earlier Codex receipt c071... had included
+that generator and would stale on its expected production edit.
+
+First production increment adds schema-owned portable layout and typed delivery
+manifest contract. Explicit isolated Codex outputs use a root manifest/OpenAI
+extension; default checked-in projection stays legacy until PR4. The native Codex
+portable example passed (3/3), report host-contract-proof-xc3TEM; group still exits
+3 honestly because remaining conformance obligations are unwired. Extracted
+canonical resource rendering to src/host-contract/catalogue.ts with a compatibility
+re-export, rather than authoring another renderer. New portable-core writer
+supplies host-neutral workflow references and package-origin runtime instructions,
+complete canonical templates and one portable identity. Default legacy render
+output remains unchanged. Source-bound native proofs exercise actual origins.
+
+After shared renderer extraction: exact Codex portable case passes 3/3 (report
+host-contract-proof-tQze05) and exact Cursor resource case passes 4/4 with bundled
+helper origin/nonce (host-contract-proof-cziJTG). Both required groups still exit
+HOST_CONTRACT_PROOF_INCOMPLETE (3); no full scenario or enforcement claim.
+Targeted schema/catalogue/generation tests pass 51/51; ESLint/typecheck pass.
+All five generated surfaces regenerated and verified after the source move.
+Full CLI regression suite is currently RUNNING in session28308; never start
+another Vitest before collecting it. No commit or GREEN scenario checkbox yet.
+
+### Explicit pilot compatibility and checkpoint review
+
+Full regression 28308 found three existing Codex custom-output version tests
+failing because custom output had implicitly selected portable rendering. Fixed
+the production boundary with explicit --portable-core (requires both --version
+and --output, disallows --check); default and historical custom output remain
+legacy. Targeted four-file regression passed 71/71. Fresh independently approved
+Codex RED d22115ef-4ab6-4d96-922a-c23a1e1a2f79 includes exact installed-cache tree
+matching before the native turn. Current native Codex passes 3/3, report
+host-contract-proof-mU0euz; current native Cursor passes 4/4 after regeneration,
+report host-contract-proof-Ow0kNV. Required groups still return incomplete (3).
+The Codex case proves manifest precedence and fixture resources, not rendered
+helper execution; Cursor proves that additional production-renderer boundary.
+
+Full regression rerun 40873 PASSED: 687 files, 11,358 passed tests, 14 skipped;
+769.17 seconds. No Vitest process remains from this run.
+All five generated surfaces are current; ESLint/typecheck passed.
+Quality-review invocation observed quality-review checkmark. Independent
+Claude/opus review da5cba7d-e9c2-4b73-b579-56441e05a759 APPROVED, no errors.
+Non-blocking limitations are recorded in portable-checkpoint-review.md. No
+feature completion, native enforcement, activation or conformance claim.
+
+Read-only native hooks/list on the latest isolated Codex pilot returns no hooks,
+including with hooks/plugins feature flags enabled. No hook trust was granted
+or bypassed. Investigate the actual installed activation boundary before writing
+the guard fixture or asking for a concrete trust action.
+
+Pre-commit formatting normalizes the Codex fixture's import whitespace and the
+targets JSON layout. No behavioral change or new production work is authorized
+from a receipt whose frozen source identity those formatting edits invalidate;
+retain the prior RED/partial-GREEN history and review any future changed primary
+proof against its current sources before subsequent production integration.
+
+### Return to planning after Codex format discovery
+
+Saved first checkpoint 0d1061ae6; pre-commit checks and all five generated-surface
+checks passed. No Vitest remains running. Native read-only format comparison
+codex-hook-format-tdZICY installed identical payloads in two fresh unauthenticated
+profiles: portable root discovers zero hooks; removing only root plugin.json
+discovers all five expected events, enabled but untrusted. Pinned Codex source
+rust-v0.160.0 loader.rs explicitly suppresses hooks for AgentPlugin format.
+No trust granted or bypassed; see codex-hook-discovery.md for ruled-out causes.
+
+Fresh checkpoint quality review 4eac303f-2142-49b3-867e-5060c1620636 independently
+APPROVED (Claude). An implement phase stamp could not bind because implementation
+files were already committed and there was no current Git implementation diff.
+Recorded a truthful implement-exit skip solely for returning to planning, not
+completion, then moved the ticket back to plan-implementation. Revised the Codex
+packaging choice to one existing native compatibility container deriving content
+from the shared renderer; no companion registration and no Product/target change.
+New superseding ADR records that choice. Current implementation/execution stamps
+do not authorize more production work until refreshed reviews pass.
+
+Scenario refresh d3ba2a37-3640-48fa-a18b-c25bfeef206b independently APPROVED
+(Claude/opus); scenario-gate stamp observed. Definitions remain 58/91 unchanged.
+Implementation review 0f71fb96-d0ed-4875-93f2-c5788a9a1067 requested changes:
+static Cursor wrappers could not execute the proposed origin resolver, and its
+failure path risked weakening legacy/Cloud guidance. No production resumed.
+
+Investigated Cursor public hooks/rules/plugin APIs and tested IDE 3.24.18 using
+a fresh disposable visibility-control package in owned catalogue-pE45oA. Actual
+workspaceOpen returned its new package path; both user-invocable:true and false
+skills appeared in the native slash menu. Thus CLI visibility metadata is not
+an IDE suppression solution. Restored the original candidate skill after that
+separate control. These are research observations, not conformance receipts.
+
+Revised the plan: preserve legacy static references and select verified legacy
+when project registrations would compete; native clean-project registration
+must expose one public workflow owner. No dynamic shell-running markdown, no
+user packaging choice, and no profile-local retirement of shared wrappers.
+Necessary generated compatibility resources remain single-authored and checked.
+New superseding Cursor loading ADR records the changed engineering decision.
+Fresh implementation review still required before execution-plan refresh/coding.
+
+Revised implementation review 5a9a9659-b391-47a5-a0bb-483da00669d6 APPROVED
+(independent Claude/opus), stamp observed. Canonical approve-plan advanced to
+plan-execution with approval_status not-required. Execution review
+5dcb57cd-73db-4d58-a055-b5e301888d53 requested one documentation mapping repair;
+added .project/surfaces.md task and documentation targets plus native-cursor PR4
+rerun. Follow-up 1f297442-d8f4-4c59-828e-e2ee173e47c5 APPROVED, stamp observed.
+Scenario refresh 66974aa1-459a-49ec-89bf-0c9c0ae86dcf APPROVED and stamped after
+the final plan edits (earlier scenario receipts were stale). Current coding
+authorization is authorized, cross-agent, input identity
+ab8db893aacd067ace70616cfb14d52ccb83ac182c32bb9bfd8587a981d6349b.
+
+Prepared actual generated Codex compatibility carrier in isolated profile
+codex-guard-KbebbV, retaining exact 0.160.0. Native hooks/list shows all five
+expected hooks enabled and untrusted. Hook manifest SHA256
+8c980427a949a53696c5f5354290f019fec733b6ce3bf482352e7402fb13f489.
+Requested explicit human authorization for those exact test-profile hooks;
+answer pending. No hook trust granted or bypassed. Native TUI session61208 is
+at the fixture folder-access prompt; do not activate it while approval is pending.
+Other native TUI probe sessions were closed. No Vitest currently running.
+Return to implement starts with current native guard proof scaffolding and its
+fresh executable RED review, not new production code from old resource receipts.
+
+Human authorized the exact five hooks in codex-guard-KbebbV. Accepted only its
+disposable project folder and used the native TUI Hooks trust-all action. Native
+hooks/list then returned all five expected hooks enabled and trusted, with their
+previously recorded hashes unchanged and no warnings/errors. No trust bypass.
+
+Native Codex 0.160.0 compatibility-container baseline, actual model/tool turns:
+- Allowed thread 01a15a9b-2416-76d1-871d-c8f177992987: one shell command completed
+  with exit 0; allowed-sentinel.txt contains exact safeword-allowed-KbebbV.
+- Denied thread 01a15a9b-8755-79b3-b841-6fff5aeb77eb: native router stderr reports
+  Command blocked by PreToolUse hook for the exact synthetic ticket shell write,
+  with the shared shell-ticket policy reason; ticket.md remains absent.
+Evidence: /tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/
+allowed-events.jsonl, denied-events.jsonl, denied-stderr.log. These passing
+existing guard controls are baseline evidence, not a fabricated RED, admitted
+conformance receipt, continuation proof, or complete outline/scenario.
+
+Required automatic profile-install retry ran once; safeword@latest requested
+1.1.0 but found installed plugin 1.2.0 and exited 1, leaving project hooks
+unchanged. Subsequent coding authorization reports missing_accepted_scenarios
+(identity 500eee5eac3c99ec91a80d537e436351c43a8560b2fbe93fe91674daa51a3b09).
+Adding the live baseline test was blocked before mutation. Independent scenario
+refresh dispatched; collect its terminal result before any further dispatch.
+
+Scenario refresh f68148fc-1d02-414c-aa7a-b05b0819be27 requested re-dispatch with
+the complete existing context. Follow-up f04f662d-400c-4488-84cd-ebb9f88cff43
+APPROVED independently (Claude/opus), stamped, and restored coding authorization
+ab8db893aacd067ace70616cfb14d52ccb83ac182c32bb9bfd8587a981d6349b.
+Added opt-in paired native controls at the execution plan's path,
+packages/cli/tests/smoke/host-contract.live.test.ts. Checks package byte identity,
+native exact version and enabled/trusted hooks before nonce allow/deny actions.
+Preserves actual host output even on timeout/nonzero exit; strips Vitest's
+source-CLI override so package helpers retain their own runtime origin.
+Lint/typecheck pass. Independent quality review
+6d1cd216-a6de-4e9e-a907-818da8ac715f APPROVED this bounded baseline, with explicit
+limits: no admitted receipt, continuation or full required-group completion.
+The authored live run is queued behind another checkout's package test lock;
+no second Vitest process was started. No scenario ledger boxes checked.
+
+The shared lock released normally. Authored native live baseline completed:
+1 file / 2 tests passed in 21.97s, using the actual trusted compatibility package.
+Artifacts: /tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/guard-run-kQSZb5/.
+Both required write case IDs passed; their future required-group registration,
+continuation and admission are not implemented. This checkpoint changes only
+live test infrastructure and proof notes, not production behavior or scenarios.
+
+Resumed Cursor guard work. Located the actual native Agents settings page in
+owned Cursor 3.24.18 PID64464/window SAFEWORD isolated — catalogue-LkLSIB.
+Changed only that disposable profile's exact Include Third-Party Plugins, Skills,
+and Other Configs checkbox from 1 to 0 through Accessibility. Its hook logs now
+explicitly say Claude Code hooks disabled (thirdPartyExtensibilityEnabled off).
+Regular Cursor PID42715 and global Claude files were not changed.
+
+Extracted the existing owned-window/version/launch/transport methods into
+cursor-native-window.ts so catalogue and upcoming guard actors share one driver.
+Preserved the catalogue's setup, actual workflow invocation and assertions.
+Lint/typecheck pass. Existing exact-version native catalogue rerun passed all
+4 steps in 60.69s, report
+/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-host-contract-proof-GKxNSx/cucumber.json.
+Required group still exits 3 HOST_CONTRACT_PROOF_INCOMPLETE, as designed.
+Independent review of this bounded test-support extraction is pending. No new
+production guard code, guard RED or scenario completion claimed.
+
+Review requested the existing probe/observer collaborators, then found a
+pre-existing evidence-correlation weakness. Strengthened the success assertion
+to require the helper command and expected marker in the same native shell row.
+Fresh catalogue rerun: all 4 steps passed in 75.2s, report
+/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-host-contract-proof-x5tiw9/cucumber.json.
+Independent follow-up c40076af-7e9e-4dcd-b4e8-3e05136a0e74 APPROVED (Claude/opus).
+Known pilot limits remain: catalogue fixture retains legacy project delivery,
+so it proves resources only, not sole authority or native eligibility. Guard
+work will use a separate clean workspace and current exact-version observations.
+
+## Cursor IDE guard RED and CLI-first test execution — 2026-10-20
+
+Resolved native IDE hook setup: the owned profile's third-party import switch
+also gates native plugin hooks in Cursor 3.24.18. Restored it on and disabled
+imported Claude plugins only in each synthetic workspace's local config.
+Added version 1 to native hook configuration and waited for actual native
+workspaceOpen execution before attempting the write. Both IDE guard rows now
+pass their Given/When steps and fail Then with NATIVE_GUARD_DISPATCH_MISSING.
+Report: /tmp/safeword-2enrh5-targets.aOFAud/cursor-native-guard-ready.json.
+This RED still requires independent executable-RED review before production
+guard integration. No scenario boxes checked.
+
+User selected Cursor CLI for the main automated runs, retaining small IDE
+integration checks. Installed CLI 2026.09.28-64d2043 supports --plugin-dir;
+CURSOR_CONFIG_DIR isolates test settings while existing authentication works
+without copying credentials. New run-cursor-cli-controls.ts executes four
+sequential real CLI/plugin cases: test allow/deny controls and relayed existing
+Safeword adapter fast-allow/shared ticket-write denial. No policy duplicated.
+Composer-2.5 selected only for the test process; no force flag or global settings
+changes. All four passed, including same-ticket-path positive/negative controls:
+/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-cursor-cli-controls-kBr3eH/.
+Quality reviews 754d2c10-0cce-4b25-9d1d-3b849c3f918e and
+fbbcac73-b04d-4ab0-b6e3-546ffed6d355 APPROVED the bounded supporting harness.
+Review warnings recorded in cursor-cli-proof.md. Added actual matching native
+afterShellExecution checks for allowed runs; all four final cases passed:
+/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-cursor-cli-controls-USOajL/.
+CLI package typecheck, targeted ESLint and formatting checks passed.
+Final CLI harness review 75be618e-a235-433a-9101-64ef7912165f APPROVED.
+These are supporting transport controls, not generated-production package or
+IDE conformance proof. Existing accepted plans/scenarios remain unchanged.
+
+## Connect actual Cursor CLI plugin proofs — 2026-10-21
+
+User authorized the next actual-plugin implementation with "go". Added exact
+Cursor CLI 2026.09.28-64d2043 rows to the existing denied/allowed/catalogue
+outlines, retaining every IDE row. Actual Gherkin parser confirms 58 definitions
+and 94 expanded cases. Target fixture, compatibility decision, dimensions and
+plans now account for seven version lanes, nine runtime rows and ten delivery
+cases. No customer activation/status guarantee is inferred from this engineering
+CLI lane or its explicit --plugin-dir fixture registration.
+
+Current scenario review 28c7bc42-0bb9-40e2-84f8-f17e1d68cebb APPROVED and stamped.
+Implementation review a5442545-00c0-4601-aa52-5ca8275e8945 requested exact coverage
+population repair; revised review 78fa2cb0-2fd1-4721-b5cb-5c11dcbd71b8 APPROVED
+and stamped. The canonical approve-plan command refuses the already-implement
+phase; no phase or approval is fabricated. Execution reviews c7e59687-0210-4593-b4f9-917c10584e1f
+and 1c5b501d-e9f6-4c5c-8e31-308ff8f8ca04 requested explicit CLI task order,
+case IDs and catalogue proof mechanics, plus the retained IDE continuation case.
+Those details are repaired; efda73d8-f7eb-4f3d-aeb6-973ea3a983af is pending.
+No new production edits or scenario completion while this authority is pending.
+
+Execution review efda73d8-f7eb-4f3d-aeb6-973ea3a983af APPROVED and stamped.
+Coding authorization is healthy, identity
+aec24ff7bc5ed0ad1adbcbebf4990b233cfc4e7548274489dcf7007994869e6f.
+Bound both actual CLI write rows through the shared thin Cucumber write steps
+and a CLI-specific process actor. No project hooks or test permission relay.
+Native observer must see the exact real Shell attempt at the expected version;
+assertions use native stream-json tool results and actual filesystem outcomes.
+Required runner returns 2 only for intended assertion failures, 3 for setup or
+unwired catalogue, and does not claim conformance for the paired write pilot.
+
+Normal cursor-agent launcher now points at auto-updated 2026.10.19-6bbf2c4.
+Its wrong-version setup correctly failed with exit 3. The retained versioned
+2026.09.28-64d2043 binary remains available and is used explicitly, without
+changing the normal launcher. Actual CLI RED: 2 scenarios, allowed passed,
+denied reached Then and failed NATIVE_GUARD_DISPATCH_MISSING with sentinel on
+disk; 7 of 8 steps passed, 29.929s, required-mode exit 2. Report:
+/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-host-contract-proof-wGeNa1/cucumber.json.
+Independent executable-RED review dispatched on the exact command and all CLI
+proof support; its terminal receipt is required before production integration.
+
+Executable RED review 8658ec69-c4f2-41d3-88e6-cb3771f92af8 APPROVED its attested
+26.352s exit-2 run. Added opt-in fresh-directory Cursor plugin generator,
+schema-owned extension layout, canonical CURSOR_HOOKS binding projection and
+package-origin dispatcher. Dispatch executes existing packaged adapters/shared
+policy, preserving native flags and malformed-input decisions. It ships no
+top-level duplicate skills/commands, and leaves default project delivery intact.
+
+Actual generated-package guard GREEN: 2 scenarios / 8 steps passed, 27.512s,
+report /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-host-contract-proof-uHJUCe/cucumber.json.
+Both fixture manifests confirm generatedCandidate=true. The real denied Shell
+result carries the shared policy rejection, with no sentinel; allowed Shell
+reports exit 0 and exact content. Required group remains exit 3 until catalogue
+joins. No full-outline ledger completion or customer activation claim.
+
+Quality reviews ce388bee-90a9-45c1-98f6-dc074024fd8d and
+bc612785-16bb-4fd8-97b7-0b6b6a212099 APPROVED with bounded pilot warnings.
+Fixed missing schema-generated owned-paths resource, stdout flush, and preserved
+the shared malformed-input policy. Follow-up 0b6c02be-5f0e-4a5a-92c6-3fba9185a557
+APPROVED dispatcher and relocation/resource tests. Those tests cover relocation,
+project shadow, all eight declared handler imports and malformed-input behavior;
+they are queued, not yet passing evidence. Current Vitest queue session 52326 is
+waiting for foreign checkout e24e owner PID3965; no second Vitest is started.
+Earlier queue exited 75 without starting a test. Typecheck, targeted ESLint,
+formatting and all five generated-surface checks passed. Broader customer
+coexistence/enrollment, non-shell semantics and continuation remain unproved.
+
+The queued relocation/parser/version run completed: 31 tests passed. Full CLI
+suite subsequently passed 689 files / 11,377 tests, 14 existing skips, 846.75s.
+Production checkpoint ae8410e0b contains the generated native Cursor extension.
+The same 264-file generated package passed real IDE 3.24.18 guard cases (2/8,
+96.63s) and CLI guard cases; sorted-path/NUL/content digest
+5991120ab77042945092f0805e16854ea34f17aaa0ac3d737ec8ea881e5f2794 matched.
+IDE report /tmp/safeword-cursor-ide-generated-guard.json.
+
+CLI required population now derives from actual feature rows, including future
+matching rows; five coverage-discovery tests passed. Added the actual native
+CLI catalogue/helper actor. Reviews 7b7d4c16-085f-4065-a598-bcb64b01c26a and
+0144f63a-6c8a-48d0-9375-4169b13b0ffc exposed proof flaws: model-only/refused
+execution could masquerade as RED, and a direct helper plus forged runtime
+environment could satisfy substring origin checks. Repaired with an actual
+Shell execution prerequisite, parsed executable/argument binding, prohibited
+foreign assignments, installed-resource byte snapshots and explicit assertion
+codes. Protocol unit tests are separate from real host proof.
+
+Repaired live CLI group passed 3 scenarios / 12 steps, 80.874s, exit zero.
+Report /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-host-contract-proof-6ExyVB/cucumber.json.
+Generated surfaces, typecheck and formatting passed. Required-case output is
+diagnostic-only and admission-ineligible. No 58-outline/94-case completion,
+customer activation, IDE continuation, release or merge is claimed.
+
+Final targeted regression run passed both files / 13 tests (coverage discovery
+and native invocation evidence). Typecheck and targeted ESLint passed; root
+Cucumber steps are excluded by repository ESLint configuration. All five
+generated surfaces remain current. Independent final review is pending.
+
+Review 824600ea-a18c-4559-852c-1f5d8ccd112b confirmed the observer repairs but
+found a fixture runtime substitution: the carrier copied codex-plugin/runtime
+after catalogue rendering. Production catalogue writing deliberately does not
+bundle the runtime; its caller does. The fixture now invokes that production
+portable generator first, asserts its emitted runtime exists, renders only the
+synthetic catalogue, and checks runtime bytes unchanged. Baseline copying is
+confined to the historical no-production-module branch. Final rerun passed
+3 scenarios / 12 steps in 52.516s, required-mode exit zero. Report:
+/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-host-contract-proof-eclkml/cucumber.json.
+Catalogue evidence cursor-cli-catalogue-S2Y8bv; write fixtures
+safeword-cursor-cli-write-nKlI2a and safeword-cursor-cli-write-B08qWv.
+Typecheck and targeted lint passed again. Final follow-up review is running.
+
+Final independent cross-agent quality review
+738aab5a-368c-4944-a14a-8cb47c67b1a8 APPROVED. It confirms executable/runtime
+binding, permission-refusal classification and actual packaged-helper dispatch.
+Retained limitations: catalogue markers establish packaged content reachability,
+not a separately observable native skill-registration event; four-file snapshots
+are diagnostics, not tamper protection; malformed native output fails setup but
+can lack a typed diagnostic. Baseline-carrier fallback and additional parser
+boundary tests remain follow-ups. No public admission is inferred from this
+bounded engineering proof. Unit regression result remains 13/13 and the final
+live group remains 3/3 scenarios, 12/12 steps.
+
+Resume 2026-10-21: started the next PR 1 obligation, Cursor IDE completion.
+Extracted the existing native-plugin setup into CursorNativePluginActor within
+the write helper; write assertions remain in its derived actor. The new
+continuation actor reuses that setup, observes actual native Stop decisions,
+binds a synthetic unfinished verification task during Given, then submits one
+finish request. Its Then requires the native package follow-up, a subsequent
+host loop in the same conversation, and the unmet requirement in the real
+assistant response and UI. Added thin steps for the accepted completion outline
+and a diagnostic native-cursor-continuation runner. A passing component still
+cannot certify the incomplete native-cursor group.
+
+Regular Cursor auto-updated to 3.26.13. Restored an exact signed 3.24.18 copy at
+/tmp/safeword-2enrh5-targets.aOFAud/Cursor-3.24.18.app, verified version before
+use, and disabled automatic updates only in the existing isolated profile.
+The golden version URL unexpectedly returned 3.26.13; inspected its manifest
+and rejected it, then fetched the exact official production/build URL. The
+regular application was untouched.
+
+Actual continuation trial failed during Given, not at the product assertion:
+macOS refused activation of the owned isolated window. OS session reports
+CGSSessionScreenIsLocked=true. Runner returned 3 unavailable, 1 failed setup
+step / 3 skipped steps, 7.306s. Report:
+/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-host-contract-proof-6Uh4nT/cucumber.json.
+No live RED receipt, GREEN, completed outline, or production completion change.
+Asked user to unlock; independent observer/parser tests passed 14/14 across two
+files. The root test script also ran relay 198 passed/1 existing skipped and
+collector 153 passed sequentially. Targeted lint, typecheck and formatting passed.
+
+Quality-review bf303c06-7e14-4ead-991b-180027b868c4 was dispatched but returned
+REVIEW_AUTHENTICATION_REQUIRED, assigned Claude/opus, independence none. No
+review coverage was earned. Executed its exact recovery command, claude auth
+login, which opened the browser and waits for user sign-in. Asked user to finish
+that sign-in. After successful auth, retry the same coordinator command once;
+the future live RED also needs its own executable review before production work.
+The requested one-time profile-install retry failed without changes because
+another Safeword task held the Codex profile lock; no repeated retry or bypass.
+
+2026-10-21 resumed after user unlocked the desktop. Exact native IDE setup now
+works. First live trial FmgaKf reached the final expected assertion: 3/4 steps
+passed, HOST_CONTINUATION_MISSING, exit 2, 37.751s. Self-check aligned the fixture
+with the existing shared completion predicate (phase done/status in_progress),
+preserving its missing verify.md evidence and removing a potential new rule for
+ordinary verification work. No production behavior changed.
+
+One author rerun lost foreground during Given and returned unavailable (3),
+report safeword-host-contract-proof-UIu7qw/cucumber.json; do not count it as RED.
+The executable-review controller then reran the current refined fixture for
+38.945s: all setup/action steps passed, Then failed HOST_CONTINUATION_MISSING,
+exit 2, report safeword-host-contract-proof-jf9Rhj/cucumber.json under the usual
+temporary root. Fixture unfinished-ticket-stop-9Mx4ao. Its execution attestation
+records source fingerprint
+70f67f1005e9f9a32cac9300981345100543734f507568f7321f4aac103bc0fc.
+
+Executable review deb05b0e-17ec-4680-9cdf-d1aa072e6471 returned
+REVIEW_AUTHENTICATION_REQUIRED after retaining that attestation. Actual Claude
+auth status is loggedIn=false; the existing claude auth login process remains
+waiting for user sign-in. Reminded the user through the input tool. No
+independent review was earned, no production integration began, and all outline
+checkboxes remain unchecked. Retry the exact coordinator command after auth
+succeeds; do not substitute a reviewer or bypass the receipt gate.
+
+2026-10-21 Claude login succeeded. Initial refreshed executable review
+6b754561-3c94-42d9-9e03-ccfed6515dd5 rejected an unavailable run: the Given
+lost foreground. Made draft fill retryable only for transient foreground loss;
+submission remains single-shot with exact PID/window/input checks. Commit
+6eaa1ab21 records that harness repair. Executable review
+50585e69-c4a6-4174-96e8-b9899ee0e20f APPROVED the fresh exact-target failure:
+exit 2, first three steps passed, only HOST_CONTINUATION_MISSING failed, about
+35.19s; report safeword-host-contract-proof-c2dK4G/cucumber.json, fixture HDcEpn.
+
+Implemented evaluateSessionDoneEvidence in the existing shared done-gate owner;
+Codex and Cursor now reuse its session ownership, completion-phase eligibility
+and evidence verdict. Cursor emits a bounded follow-up; Codex retains its status
+writer. No native enrollment/default delivery switch. Generated plugin carriers
+and dogfood mirrors were refreshed. Actual Cursor IDE component GREEN: all four
+steps passed in 56.578s, fixture unfinished-ticket-stop-YVIrIM, report
+safeword-host-contract-proof-s3TY3g/cucumber.json. Component runner correctly
+remains incomplete (3), since the aggregate native-cursor group is still unwired.
+
+Independent quality review a7c25f5f-b67d-455c-908d-97e83996b66b APPROVED
+shared completion implementation with warnings. Ten additional real adapter
+subprocess controls passed across Cursor/Codex: missing evidence, valid evidence,
+unbound session, ordinary verify work, and custom namespace. Cursor never changed
+ticket status; Codex changed status only on its passing completion case.
+
+The foreign live suite held the package lock. Generation's first lifecycle
+verification exited 75 without starting Vitest. Reordered only this task's
+queued wrapper to update lifecycle fixtures before targeted tests; no foreign
+process or lock was modified. The lifecycle update command then passed. Targeted
+regression run: seven files passed, one failed; 105 tests passed, one failed.
+Existing cursor-stop-review expects the architecture reminder during done-phase
+work; the new evidence follow-up currently omits it. Repair will preserve the
+evidence reason first and the existing reminder in the same follow-up. No GREEN
+ledger transition or whole-ticket completion is claimed. A local partial
+checkpoint is required by the 400-LOC gate before that regression repair.
+
+Checkpoint 2ecef6168 saved the reviewed shared wiring and refreshed fixtures.
+Repaired the architecture regression by appending the existing advisory after
+the missing-evidence reason in the same Cursor follow-up. Expanded real-process
+Cursor controls for valid evidence/no status mutation, other or absent session,
+quiet ordinary verification, aborted/error stop, custom namespace and later
+loop. Targeted rerun passed all eight files / 114 tests. Quality review
+43060cc6-5f7a-431f-87b3-4bd3fe0f1fb8 APPROVED the repaired implementation.
+
+The native-cursor required group now collects every exact native IDE row from
+the Gherkin source, using the same parser/result path as CLI. It includes all
+four required cases rather than the old catalogue-only incomplete pilot. A
+first aggregate attempt had setup focus failures and correctly returned 3,
+report safeword-host-contract-proof-FuX4Li/cucumber.json; do not count it passing.
+Made activation/read readiness retry bounded, and reacquire the exact owned
+input before the single submission key. No submitted request is retried.
+Automation quality review 0ed53011-a0a8-4894-a840-2e874d270137 APPROVED.
+Group collector/result quality review dfd9f8c6-0851-414d-8a4e-4d72a3317a25
+APPROVED, with diagnostic-only/non-admission limits retained.
+
+Final actual Cursor IDE group passed 4 scenarios / 16 steps in 210.52s, exit 0.
+Report /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-host-contract-proof-Pvyppp/cucumber.json.
+Case IDs: cursor-3.24.18-native-denied-write,
+cursor-3.24.18-native-allowed-write, cursor-3.24.18-bounded-continuation,
+cursor-3.24.18-catalogue-helper. Continuation fixture CjI1or. Its completion
+record is explicitly diagnostic-only, admission_eligible=false.
+Final exact CLI regression passed 3 scenarios / 12 steps in 72.255s, exit 0,
+report safeword-host-contract-proof-aY1h7X/cucumber.json under the same temp root.
+No CLI continuation or customer activation is inferred.
+
+Typecheck, targeted lint, formatting, 277 parity pairs/11 contracts and all five
+generated surfaces passed. Lifecycle fixtures changed installed tree hashes
+only; result_sha256 values remained unchanged. The full CLI suite is currently
+running (log /tmp/safeword-completion-full-suite.log); no full-suite pass yet.
+Gracefully stopped only the exact owned isolated Cursor 3.24.18 process after
+all GUI proofs completed, retaining its profile and evidence. The regular
+application was untouched. Remaining ticket obligations include Codex native
+continuation, OpenCode lanes, inventory/ownership adoption and activation/admission
+lifecycle; all scenario-definition ledger checkboxes remain unchecked.
+
+Full CLI run completed in 1016.90s: 692 files passed / one failed, 11,405 tests
+passed / one failed / fourteen existing skips (11,420 total). The failing
+degraded-explanation timeout case expected a degraded fallback, but the fixture's
+fallback compatibility probe itself exceeded its two-second budget and returned
+probe_timed_out, correctly leaving independence none. See
+/tmp/safeword-completion-full-suite.log:415. The changed completion helpers do
+not own this route, and git diff confirms neither the review implementation nor
+that test changed. Auth failure is ruled out by the typed probe timeout and the
+fixture's fake reviewer binaries, rather than actual Claude authentication.
+Scheduling pressure is plausible but not established as the physical cause.
+
+Unchanged isolated rerun of tests/review/degraded-explanation.test.ts passed
+both tests in 3.41s, log /tmp/safeword-degraded-review-isolation.log. No assertion
+was weakened and no unrelated review fix was made. Preserve the distinction:
+the full run failed one timing-sensitive fixture; the isolated follow-up passed.
+All changed completion behavior passed its real-host and targeted regressions.
+The local checkpoint remains part of an open feature, not release readiness.
+Both task-owned installer disk images were gracefully unmounted after the GUI
+proof, retaining downloaded binaries and all evidence files.
+
+### 2026-10-21 — Clarify shared verification and Cursor proof obligations
+
+Applied the quality-reviewed testing proposal after user authorization. The plan
+keeps shared policy/scenarios authored once, derives coverage automatically, and
+retains each exact runtime/delivery boundary. Explicitly reconciled legacy Cursor
+bounded-completion proof for both 3.8.23 and 3.24.18 with the existing status
+requirement. Updated native status to the four passing IDE/three CLI diagnostics;
+sealed admission, customer activation and lifecycle claims remain open. Removed
+stale duplicated lane counts. No new cloud or universal subagent scope.
+
+Independent Claude/opus plan reviews 22ae7676-9153-41db-a35d-467c1855c5f7 and
+e2ca4150-e9ce-4700-b0f7-9e62ce015844 approved; second result recovered via status
+after interruption. Optional wording notes and source-preservation verification
+are retained in evidence/cursor-testing-proposal-review/review.md under the ticket.
+Both original Cucumber reports remain present and all their scenario steps pass.
+No runtime code or scenarios changed; no runtime tests were rerun for this prose
+clarification. This completes the clarification, not the accepted feature.
+
+### 2026-10-21 — Resume Codex continuation proof; shared-runtime mismatch
+
+Resumed the accepted native Codex continuation obligation. Refreshed only the
+disposable codex-guard-KbebbV marketplace's generated package and used the pinned
+0.160.0 native plugin add command to refresh its cache. The hook manifest was
+byte-identical; no hook trust record or regular profile setting was changed.
+
+The existing native guard regression did not start: the package test wrapper
+timed out after 60 seconds waiting for PID 248 in worktree dba0, running an
+execution-plan live test. No concurrent Vitest was launched and that process
+was not interrupted. This is unavailable setup, not failing product evidence.
+
+The attempted new continuation observer/actor patch was rejected before any
+file was written. Installed Safeword coding authorization reports
+canonical_contract_copy_mismatch for .safeword/skills/bdd/PLAN_IMPLEMENTATION.md.
+This checkout's dogfood/template hashes agree (248b11fd…), while the installed
+1.2.0 distribution expects a newer contract (7097df93…). Native marketplace list
+shows the shared safeword source now points at the active dba0 worktree. This
+is not local template drift. No rejected implementation was written elsewhere.
+
+Asked the user whether to keep dba0 as shared plugin owner and align this branch
+with its committed contracts, or restore ffcf as plugin source. No shared runtime
+replacement or foreign-worktree edits were attempted. Source-owned coding
+authorization also reports missing accepted approach/delivery-checklist evidence
+after the authorized plan clarifications; once distribution consistency is
+resolved, refresh the required planning reviews/admission before code edits.
+The repository is unchanged except this record; no new runtime proof or
+feature completion is claimed.
+
+### 2026-10-21 — Restart recovery and current-main integration
+
+After the user restarted Codex, the shared marketplace was restored to the
+official Git source. The installed planning contract now matches origin/main
+9f6ac6fce (20f3b847…), rather than dba0's experimental contract. This feature's
+older local contract still differed. Kept the dedicated worktree and branch;
+checkpointed the earlier blocker as 022415749 and began a normal merge of
+origin/main without touching another worktree or the shared plugin. One source
+conflict is in schema.ts; the other eight conflicts are generated carriers or
+lifecycle fixtures. The merge remains in progress until normal planning
+authorization permits source conflict repair and regeneration.
+
+The pre-merge native Codex guard regression ran once: hooks were discovered and
+trusted, but both turns failed at model access with token_expired / 401 before
+their assertions. Artifacts are guard-run-HMhrrM in the disposable fixture.
+Refreshed only that fixture's auth using the established test setup, without
+printing credentials. A subsequent real no-tool native turn completed; see
+/tmp/safeword-codex-fixture-auth-retry.jsonl. No guard/continuation pass is
+inferred from that auth recovery.
+
+Fresh scenario review 0ed45d57-b844-4545-802d-2eb7d34961c7 approved the unchanged
+feature and was stamped. Actual reviewer Claude/opus, independence reduced:
+the host exposes no verified exact author-model identity. Returned through the
+normal planning phase to repair the architecture index's 262144-byte packet
+limit. Replaced this ticket's duplicate summary with an index link to its
+existing complete durable decision; no architectural decision was removed.
+
+Implementation review fb842f5a-74d0-4a97-ad37-f49ad7545d45 found the CLI authority
+gate treatment undecided. Clarified the existing engineering-only CLI lane:
+real controller enrollment and runtime-specific session handshake must exercise
+the same shared authority gate; --plugin-dir is no exemption, and no customer
+binding claim is added. Final gate-bearing controls cannot reuse pre-gate
+diagnostics. Updated stale current-state text. Review
+0c909541-ee02-46ad-b141-b0294b55d73f approved and was stamped with actual reduced
+independence. Canonical approve-plan returned not-required and advanced to
+plan-execution. Warnings include verifying the pinned CLI session-start event
+before relying on it; missing support must remain unavailable.
+
+Execution review 5340d25e-3270-44e8-ac1e-8b5d34535ef3 requested repair of obsolete
+instructions to reproduce already-fixed Cursor REDs. Updated current state,
+preserved historical receipts, classified current cases as regression proof,
+and retained Codex continuation as the next characterization. The next planned
+new-behavior RED is the exact V2 guard boundary in PR 2; setup failure is not RED.
+Moved final gate-bearing CLI confirmation to its PR 4 owner. Fresh execution
+review 3739c65d-458d-4749-b548-fdc4aadb93e5 is pending. Collect it through review
+status; do not redispatch unchanged sources or claim code authorization.
+
+Execution review 3739c65d-458d-4749-b548-fdc4aadb93e5 approved with reduced
+independence and was stamped. Coding authorization now reports authorized;
+returned the ticket to implement before source conflict resolution. Preserved
+the feature's two layout constants and main's planning-template classifier in
+schema.ts, then regenerated all five conflicting surfaces from canonical source.
+No unresolved merge paths remain. Typecheck, targeted schema/generator ESLint,
+277 parity pairs/11 contracts and generated-surface verification passed.
+Eight focused regression files passed 111 tests; schema passed 38 tests; two
+generator/catalogue files passed 14 tests. Logs use /tmp/safeword-contract-main-*.
+
+Refreshed only the disposable Codex marketplace source, retained its prior
+bundle, and reinstalled through native plugin add. The hook manifest remained
+byte-identical. Fresh native guard regression passed both exact 0.160.0 cases
+in 22.26 seconds after trusted native discovery and complete source/cache byte
+equality. The earlier auth-failed run remains preserved, not relabeled passing.
+
+Merge quality review ef875a0a-ba0a-430e-a9b9-67c3bd0b5c27 questioned the portable
+pilot because its option validator was omitted from context. Supplied that
+validator, its existing rejection tests, catalogue writer and accepted native-
+container decision: portable output is deliberate and only permitted at a fresh
+explicit destination, never the shipped native reconciliation path. Review
+cfe8ea9f-ca94-4f33-adaa-8b2c77e44463 approved the source integration with cross-
+agent independence (Claude). Its context and response are preserved at
+evidence/main-merge-review-context.md. No code was changed to weaken an output
+boundary. New Codex continuation observer/actor scaffolding is separate untracked
+work and is excluded from this integration checkpoint; it is not passing proof.
+
+## 2026-11-23 — Unattended headless propagation RED
+
+Resumed implementation on `codex/consistent-host-contract` at `f077cfbd2`.
+Coding authorization was healthy. The new staged integration test reuses
+generation and review validators for both adjacent pairs over three revisions.
+The external reviewer and Codex CLI/inventory are simulated. The shared fixture
+stager now includes unchanged synthetic catalogue and policy inputs in the
+captured raw files when their bytes differ from the repository baseline.
+
+The planned command from `packages/cli` exited 1 with
+`HOST_CONTRACT_PROOF_UNAVAILABLE: exact prepared fixture requires native hook trust`
+from the retained Codex actor. The final local RED and exported TMPDIR record
+are in `/private/tmp/2ENRH5-red-final.NMD88C`. CLI typecheck and scoped
+ESLint/Prettier passed. The staging, two-review binding and normal propagation
+factory regression run passed 28 tests in three files. Its log and TMPDIR
+record are in `/private/tmp/2ENRH5-staging-regression.wK3kih`.
+
+The packaged executable-RED coordinator independently executed the test and
+attested the intended failure before stopping with
+`REVIEW_AUTHENTICATION_REQUIRED`. Browser sign-in reported success, but the
+sandboxed retry returned the same result. The retry is
+`a451c080-c632-446c-bd47-ca7cdb744ff1`, recorded in
+`/private/tmp/2ENRH5-red-review-retry.2RbViE/review.json`. The later import
+sort and local variable rename were rerun locally. The proof still needs
+authenticated independent approval on the final bytes. GREEN, the four
+staging refusal controls, live qualification and historical ordinary-request
+qualification remain open. No native hook trust or Cursor IDE behavior changed.
+
+The unfiltered audit of the current lockfile exited 1 with 11 findings
+(seven moderate, four low). Advisory IDs are GHSA-g3hv-75wg-m249,
+GHSA-3g3m-2fjr-6pw4, GHSA-hrr3-gc8f-f4qj, GHSA-w74x-v6f9-j3xg,
+GHSA-xhq7-xmqj-769h, GHSA-wjr9-j795-jxcr, GHSA-333x-w4r6-6crp,
+GHSA-rj75-hqrm-r3gf, GHSA-mh32-jxcr-mh9f, GHSA-r3h5-4585-7x3w and
+GHSA-238p-pmpm-9mq7. The final lockfile audit and authorized dispositions
+remain open.
+
+### Unattended headless propagation source checkpoint
+
+Safeword authenticated receipt `5730b6db-394d-4f51-918d-eb6f74f87225`
+and returned `EXECUTABLE_RED_GATE_APPROVED` against its exact RED bytes.
+The type narrowing, import order and variable rename made it stale on the
+later tree. Verified those original bytes and restored the current working
+files before implementation. The recorded status is in
+`/private/tmp/2ENRH5-receipt-check.CzSb36/status.json`.
+
+Added the public headless preparation mode and the retained Codex staged
+execution path. Both adjacent pairs are authenticated before execution, with
+matching middle package and source inventories. Each Codex model invocation
+validates the selected package, its installed copy and five native bindings.
+All revisions use the same disposable installation, and closing it removes
+the copied child auth file. Normal native readiness still calls the original
+trust validator.
+
+The final planned staging test passed all five cases with a real generator,
+review validators and retained runner seam. Its selected-stage success and
+missing approval, unequal policy-only middle, installed drift, and disabled
+middle hook controls are in `/private/tmp/2ENRH5-green-final.CR7elK`. Eight
+existing suites passed 45 tests at `/private/tmp/2ENRH5-headless-regression.0gMR8R`.
+Both directories record the exported TMPDIR. CLI typecheck and build, scoped
+ESLint/Prettier, all five generated-surface checks, and parity passed. The
+public full-population entry still refused without its required evidence.
+
+The public `--prepare` command exited 0 with the owned five-delivery fixture
+map and wrote `/private/tmp/2ENRH5-headless-staging.LGbBEP/safeword-native-propagation-v3fTHn/propagation-plan.json`.
+Both middle inventories were byte-identical. Capture preflight verified all
+four exact packets with zero exclusions, no representations and no drift.
+The public run exited 3 on missing staged approval before native dispatch.
+The actual previous-policy code packet returned
+`REVIEW_AUTHENTICATION_REQUIRED`, review `4a1d5e0b-804b-473e-adc4-389559f594e6`.
+The four live staged approvals and the separate native trust proof remain
+open. Cursor IDE qualification remains in XHMWSC.
+
+### Live Claude and Cursor CLI catalogue repair
+
+The Claude failure came from a prior helper marker in a system hook response.
+Claude now extracts markers from the current capture's user and assistant events
+and returns the original JSONL as evidence. Cursor had appended `echo` and
+retried, which invalidated the Shell provenance check. Its prompt now asks for
+one unchanged helper Shell call with no added commands or retries.
+
+The two regressions failed as intended in
+`/private/tmp/2ENRH5-live-fixes-red.EuvfXq`. The focused CLI run passed 20 tests
+in six files at `/private/tmp/2ENRH5-live-fixes-green.0S6Ncy`. Scoped ESLint,
+CLI typechecking, and whitespace checks passed. An initial root test command
+entered the unrelated relay suite and was stopped before the focused runs.
+
+Verified four current cross-agent approvals and the exact staged scope before
+running. The status log is `/private/tmp/2ENRH5-live-approval-check.j0b4Hw/status.log`.
+The approved plan and fixture map hashes matched the prior live run, and those
+hashes and both changed helpers were checked again after execution.
+
+The live five-delivery rerun exited 0, with no failures. Every lane kept its
+installation across baseline, stale control and repair. The OpenCode TUI stale
+revision was rejected before repair. The run captured all five policy phases,
+30 design-setting observations and supported Claude/Codex continuation. Each
+of Cursor's three resource captures contained one successful Shell call with the
+same command. Codex recorded 29 inventories with five enabled hooks at each,
+three exact revisions and one installation. Its copied child auth was removed
+and both Claude package trees matched this run's original backups after close.
+
+The live result is
+`/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-native-propagation-FGaf3M/resource-results.json`.
+The terminal log and frozen input checksums are in
+`/private/tmp/2ENRH5-live-fixes-rerun.vD3QRd`. This result is diagnostic only
+and admission-ineligible. The separate normal trust proof and Cursor IDE scope
+did not run as part of this diagnostic.
+
+### Normal native Codex trust review preparation
+
+Commit `878246d54` records the five-delivery exit-0 diagnostic and both
+catalogue harness fixes. The diagnostic record carries its original evidence
+hashes and remains admission-ineligible.
+
+The focused restart fixture now accepts a verified staged pair in explicit
+normal qualification mode. It checks both trees and pins the manifest hash
+before the first install and the later refresh. The normal native readiness,
+operator review, callback and preservation checks remain in force.
+
+The normal-trust and staging regression run passed 45 tests. The final
+staging-only rerun passed 11 tests, including fixed-byte reuse and refusal on
+package drift. CLI typecheck and scoped ESLint passed. A and B were generated
+without native actor execution. The separate native check is staged in
+`/private/tmp/2ENRH5-normal-trust-ready.QgyAHN` for an operator session. The
+first review window has not started. Ticket 2ENRH5 remains open.

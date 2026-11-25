@@ -1,31 +1,23 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { accessSync, constants, lstatSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { accessSync, constants, readFileSync, realpathSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { type CliResult, createResult } from '../cli-protocol/result.js';
-import { VERSION } from '../version.js';
-import {
-  OPENCODE_EXPECTED_DISCOVERY,
-  type OpenCodeConformanceFault,
-  type OpenCodeConformanceProfile,
-  proveOpenCodeAllow,
-  proveOpenCodeCatalogue,
-  proveOpenCodeControl,
-  proveOpenCodeDenial,
-  proveOpenCodeSkillInvocation,
-} from './conformance-fixture.js';
-import { writePassingOpenCodeConformance } from './evidence.js';
-import { type OpenCodeIdentityV1, parseOpenCodeIdentity } from './identity.js';
-import { openCodeProfilePaths, resolveOpenCodeConfigRoot } from './profile.js';
+import hostReleases from '../lifecycle/host-releases.json' with { type: 'json' };
+import { resolveOpenCodeConfigRoot } from './config-root.js';
+import { captureOpenCodeV2, openCodeConformanceFixtureDigest } from './conformance-fixture.js';
+import { openCodeV2ConformanceIdentity, publishOpenCodeV2Attempt } from './evidence.js';
+import type { OpenCodeV2Enrollment } from './v2-enrollment.js';
+import { selectedOpenCodeV2Enrollment } from './v2-profile.js';
 
-function resolveExecutable(environment: NodeJS.ProcessEnv): string | undefined {
+function resolveExecutable(environment: NodeJS.ProcessEnv, name = 'opencode'): string | undefined {
   const extensions =
     process.platform === 'win32' ? (environment.PATHEXT ?? '.COM;.EXE;.BAT;.CMD').split(';') : [''];
   const pathEntries = (environment.PATH ?? '').split(nodePath.delimiter).filter(Boolean);
   for (const directory of pathEntries) {
     for (const extension of extensions) {
-      const candidate = nodePath.resolve(directory, `opencode${extension.toLowerCase()}`);
+      const candidate = nodePath.resolve(directory, `${name}${extension.toLowerCase()}`);
       try {
         accessSync(candidate, process.platform === 'win32' ? constants.F_OK : constants.X_OK);
         const resolved = realpathSync(candidate);
@@ -45,69 +37,13 @@ function executableRemediation(code: string, message: string): CliResult {
     nextActions: [
       {
         kind: 'human',
-        instruction:
-          'Install a stable OpenCode 1.x release and make `opencode` executable on PATH, then rerun conformance.',
+        instruction: `Install OpenCode ${hostReleases.opencode.version} and make \`opencode\` executable on PATH, then rerun conformance.`,
         mutates: false,
         requiresHuman: true,
       },
     ],
     data: { command: 'conformance', agent: 'opencode' },
   });
-}
-
-function profileRemediation(): CliResult {
-  return createResult({
-    state: 'action_required',
-    findings: [
-      {
-        code: 'OPENCODE_PROFILE_REQUIRED',
-        message: 'The managed Safeword OpenCode profile must be installed before conformance.',
-        severity: 'error',
-      },
-    ],
-    nextActions: [
-      {
-        command: 'safeword install --agents=opencode',
-        mutates: true,
-        requiresHuman: true,
-      },
-    ],
-    data: { command: 'conformance', agent: 'opencode' },
-  });
-}
-
-interface InstalledProfile extends OpenCodeConformanceProfile {
-  readonly identity: OpenCodeIdentityV1;
-  readonly root: string;
-}
-
-function sha256(value: Buffer): string {
-  return createHash('sha256').update(value).digest('hex');
-}
-
-function installedProfile(environment: NodeJS.ProcessEnv): InstalledProfile | undefined {
-  const root = resolveOpenCodeConfigRoot({
-    platform: process.platform === 'win32' ? 'windows' : 'unix',
-    env: environment,
-  });
-  if (root === undefined) return undefined;
-  const paths = openCodeProfilePaths(root);
-  try {
-    if (!lstatSync(paths.plugin).isFile() || !lstatSync(paths.identity).isFile()) return undefined;
-    const identity = parseOpenCodeIdentity(JSON.parse(readFileSync(paths.identity, 'utf8')));
-    if (identity?.safeword_version !== VERSION) return undefined;
-    const pluginBytes = readFileSync(paths.plugin);
-    const dispatcherBytes = readFileSync(identity.dispatcher_path);
-    if (
-      sha256(pluginBytes) !== identity.plugin_sha256 ||
-      sha256(dispatcherBytes) !== identity.dispatcher_sha256
-    ) {
-      return undefined;
-    }
-    return { dispatcherBytes, identity, pluginBytes, root };
-  } catch {
-    return undefined;
-  }
 }
 
 type ExecutableBoundary =
@@ -121,7 +57,13 @@ export function observeOpenCodeVersion(environment: NodeJS.ProcessEnv): string |
     env: { ...environment, OPENCODE_DISABLE_AUTOUPDATE: 'true' },
     timeout: 10_000,
   });
-  return version.status === 0 && version.error === undefined ? version.stdout.trim() : undefined;
+  return version.status === 0 && version.error === undefined
+    ? normalizedVersion(version.stdout)
+    : undefined;
+}
+
+function normalizedVersion(output: string): string {
+  return output.trim().replace(/^opencode v/u, '');
 }
 
 function executableBoundary(environment: NodeJS.ProcessEnv): ExecutableBoundary {
@@ -148,12 +90,12 @@ function executableBoundary(environment: NodeJS.ProcessEnv): ExecutableBoundary 
       ),
     };
   }
-  const observedVersion = version.stdout.trim();
-  if (!/^1\.\d+\.\d+$/.test(observedVersion)) {
+  const observedVersion = normalizedVersion(version.stdout);
+  if (observedVersion !== hostReleases.opencode.version) {
     return {
       result: executableRemediation(
         'OPENCODE_VERSION_UNSUPPORTED',
-        `OpenCode ${observedVersion || '<unknown>'} is not a stable 1.x release.`,
+        `OpenCode ${observedVersion || '<unknown>'} is not the supported ${hostReleases.opencode.version} release.`,
       ),
     };
   }
@@ -161,61 +103,139 @@ function executableBoundary(environment: NodeJS.ProcessEnv): ExecutableBoundary 
 }
 
 export interface OpenCodeConformanceOptions {
-  /** Test-only fault injected directly by the caller, never ambient process state. */
-  readonly fault?: OpenCodeConformanceFault;
+  readonly projectDirectory?: string;
+  readonly runtime?: 'CLI' | 'TUI';
 }
 
-function failedProof(code: string, message: string): CliResult {
-  return createResult({
-    state: 'failed',
-    errors: [{ code, message, retryable: true }],
-    data: { command: 'conformance', agent: 'opencode' },
-  });
+export function currentOpenCodeV2Identity(
+  enrollment: OpenCodeV2Enrollment,
+  version: string,
+  runtime: 'CLI' | 'TUI',
+) {
+  return openCodeV2ConformanceIdentity(
+    enrollment,
+    version,
+    runtime,
+    openCodeConformanceFixtureDigest(),
+    createHash('sha256')
+      .update(readFileSync(import.meta.filename))
+      .digest('hex'),
+  );
 }
 
-async function proveOpenCodeHost(
+async function captureSelectedV2(
   executable: string,
   environment: NodeJS.ProcessEnv,
-  profile: InstalledProfile,
-  fault: OpenCodeConformanceFault | undefined,
-): Promise<CliResult | undefined> {
-  if (!proveOpenCodeCatalogue(executable, environment, profile, fault)) {
-    return failedProof(
-      'OPENCODE_CATALOGUE_CONFORMANCE_FAILED',
-      'OpenCode did not discover the required Safeword catalogue.',
-    );
+  enrollment: OpenCodeV2Enrollment,
+  version: string,
+  { runtime }: { runtime: 'CLI' | 'TUI' },
+) {
+  let capture: Awaited<ReturnType<typeof captureOpenCodeV2>>;
+  let proofId: string | undefined;
+  let publicationError: string | undefined;
+  try {
+    const identity = currentOpenCodeV2Identity(enrollment, version, runtime);
+    capture = await captureOpenCodeV2(executable, environment, enrollment, {
+      runtime,
+      version,
+      realBun: resolveExecutable(process.env, 'bun'),
+      payloadSha256: identity.payload_sha256,
+    });
+    try {
+      const current = currentOpenCodeV2Identity(enrollment, version, runtime);
+      if (
+        capture.reason !== 'capture-error' &&
+        JSON.stringify(identity) !== JSON.stringify(current)
+      )
+        capture = {
+          ...capture,
+          outcome: 'unavailable',
+          reason: 'identity-changed',
+          guarantees: undefined,
+          registrations: undefined,
+          native_activation: undefined,
+          error: 'Conformance identity changed during capture.',
+        };
+      proofId = publishOpenCodeV2Attempt(identity, { ...capture }).id;
+    } catch (error) {
+      publicationError = error instanceof Error ? error.message : String(error);
+    }
+  } catch (error) {
+    capture = {
+      outcome: 'unavailable',
+      reason: 'capture-error',
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
-  if (!(await proveOpenCodeAllow(executable, environment, profile))) {
-    return failedProof(
-      'OPENCODE_ALLOW_CONFORMANCE_FAILED',
-      'OpenCode did not prove that the installed Safeword dispatcher permits safe covered work.',
-    );
-  }
-  const denial = await proveOpenCodeDenial(
+
+  return { capture, proofId, publicationError };
+}
+
+async function runSelectedV2Conformance(
+  executable: string,
+  environment: NodeJS.ProcessEnv,
+  options: OpenCodeConformanceOptions,
+  version: string,
+): Promise<CliResult> {
+  const root = resolveOpenCodeConfigRoot({
+    platform: process.platform === 'win32' ? 'windows' : 'unix',
+    env: environment,
+  });
+  const enrollment = root
+    ? selectedOpenCodeV2Enrollment(root, options.projectDirectory)
+    : undefined;
+  if (!enrollment)
+    return createResult({
+      state: 'action_required',
+      findings: [
+        {
+          code: 'OPENCODE_V2_ENROLLMENT_REQUIRED',
+          message: 'No current OpenCode V2 enrollment selects this project and package.',
+          severity: 'error',
+        },
+      ],
+      nextActions: [
+        {
+          kind: 'human',
+          instruction:
+            'OpenCode V2 conformance is unavailable without a current explicitly staged enrollment.',
+          mutates: false,
+          requiresHuman: true,
+        },
+      ],
+      data: { command: 'conformance', agent: 'opencode', lane: 2, conformant: false },
+    });
+  const runtime = options.runtime ?? 'CLI';
+  const { capture, proofId, publicationError } = await captureSelectedV2(
     executable,
     environment,
-    profile,
-    fault !== 'disarmed-denial',
+    enrollment,
+    version,
+    { runtime },
   );
-  if (!denial.denialSurfaced || !denial.sentinelAbsent) {
-    return failedProof(
-      'OPENCODE_DENIAL_CONFORMANCE_FAILED',
-      'OpenCode did not prove Safeword denial without a side effect.',
-    );
-  }
-  if (!(await proveOpenCodeControl(executable, environment, profile))) {
-    return failedProof(
-      'OPENCODE_CONTROL_CONFORMANCE_FAILED',
-      'The disarmed OpenCode sentinel did not produce its expected side effect.',
-    );
-  }
-  const skill = await proveOpenCodeSkillInvocation(executable, environment, profile);
-  return skill.argumentsObserved && skill.canonicalBodyObserved
-    ? undefined
-    : failedProof(
-        'OPENCODE_SKILL_CONFORMANCE_FAILED',
-        'OpenCode did not load the canonical skill with the exact command arguments.',
-      );
+  const admitted = capture.outcome === 'passed' && !!proofId;
+  return createResult({
+    state: admitted ? 'healthy' : 'action_required',
+    findings: admitted
+      ? []
+      : [
+          {
+            code: 'OPENCODE_V2_OBSERVATIONS_REQUIRED',
+            message: 'No validated native observations establish conformance for this run.',
+            severity: 'error',
+          },
+        ],
+    data: {
+      command: 'conformance',
+      agent: 'opencode',
+      lane: 2,
+      runtime,
+      conformant: admitted,
+      capture,
+      proof_id: proofId,
+      publication_error: publicationError,
+    },
+  });
 }
 
 export async function runOpenCodeConformance(
@@ -224,41 +244,5 @@ export async function runOpenCodeConformance(
 ): Promise<CliResult> {
   const boundary = executableBoundary(environment);
   if ('result' in boundary) return boundary.result;
-  const { executable, version } = boundary;
-  const { fault } = options;
-
-  const profile = installedProfile(environment);
-  if (profile === undefined) return profileRemediation();
-  const proofFailure = await proveOpenCodeHost(executable, environment, profile, fault);
-  if (proofFailure !== undefined) return proofFailure;
-
-  writePassingOpenCodeConformance(openCodeProfilePaths(profile.root).conformance, {
-    schema_version: 1,
-    safeword_version: profile.identity.safeword_version,
-    opencode_version: version,
-    platform: process.platform,
-    arch: process.arch,
-    plugin_sha256: profile.identity.plugin_sha256,
-    dispatcher_sha256: profile.identity.dispatcher_sha256,
-    command_catalogue: true,
-    agent_catalogue: true,
-    denial: true,
-    control: true,
-    checked_at: new Date().toISOString(),
-    result: 'passed',
-  });
-
-  return createResult({
-    state: 'changed',
-    data: {
-      command: 'conformance',
-      agent: 'opencode',
-      opencode_version: version,
-      conformant: true,
-      discovery: OPENCODE_EXPECTED_DISCOVERY,
-      denial: true,
-      control: true,
-      skill_invocation: true,
-    },
-  });
+  return runSelectedV2Conformance(boundary.executable, environment, options, boundary.version);
 }

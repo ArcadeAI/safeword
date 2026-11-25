@@ -1,3 +1,4 @@
+import { testingCoreBlock } from '../testing/shared-core.js';
 import type { ReviewKind, ReviewPacket } from './contract.js';
 import { DELIVERY_COMPATIBILITY_REVIEW_RUBRIC } from './delivery-compatibility-rubric.generated.js';
 import { EXECUTION_PLAN_REVIEW_RUBRIC } from './execution-plan-rubric.generated.js';
@@ -12,7 +13,7 @@ import {
 import { SCENARIO_REVIEW_RUBRIC } from './scenario-rubric.generated.js';
 
 const QUALITY_REVIEW_FOCUS =
-  'Check correctness, regressions, edge cases, security and trust boundaries, unnecessary complexity, claims stronger than their proof, and whether public wiring is proven through real collaborators.';
+  'Check correctness, regressions, edge cases, security and trust boundaries, unnecessary complexity, and claims stronger than their proof.';
 
 const RETROSPECTIVE_ELIGIBILITY_RUBRIC =
   'For every named scenario, compare its exact fixed-cutoff Given/When/Then body and cited baseline implementation blobs with current behavior. Cite each baseline implementation path and explain why the scenario behavior already existed at the named baseline commit. Reject a missing or changed scenario body, missing or mismatched baseline blob, ambiguous path mapping, post-cutoff-only implementation, or rationale that does not explain why ordinary RED evidence is unavailable. A passing current test alone does not prove historical implementation. Approval establishes historical eligibility only; each VERIFIED row still needs its own independently reviewed passing and behavior-removal proof.';
@@ -42,7 +43,7 @@ export function scenarioReviewRubric(): string {
 }
 
 export function qualityReviewRubric(): string {
-  return composeReviewRubric(QUALITY_REVIEW_FOCUS);
+  return composeReviewRubric(`${QUALITY_REVIEW_FOCUS}\n\n${testingCoreBlock()}`);
 }
 
 /** Generated from the canonical planning skill so author and reviewer cannot drift. */

@@ -29,7 +29,6 @@ export interface DataArchitectureDeliveryInput {
   readonly claude: DeliverySurface;
   readonly codex: DeliverySurface;
   readonly cursor: DeliverySurface;
-  readonly openCode: Omit<DeliverySurface, 'planningSourcePath'>;
   readonly projectAssets: Readonly<Record<string, string>>;
 }
 
@@ -172,31 +171,6 @@ function guideDeliveryDiagnostics(input: DataArchitectureDeliveryInput): string[
   return diagnostics;
 }
 
-function openCodeDeliveryDiagnostics(input: DataArchitectureDeliveryInput): string[] {
-  const diagnostics: string[] = [];
-  const openCodeGuidePaths = guidePaths(input.openCode.assets);
-  diagnostics.push(
-    ...openCodeGuidePaths.map(path => `OpenCode contains an unexpected guide copy at ${path}.`),
-  );
-  const projectGuidePath = input.inventory.projectPlanningTarget.replace(/^\.\//u, '');
-  const deliverySpecificReferences = Object.entries(input.openCode.assets)
-    .filter(([, content]) => {
-      const referencedGuidePaths = content
-        .split(/\s+/u)
-        .filter(token => token.includes(dataArchitectureGuideBasename));
-      return referencedGuidePaths.some(
-        reference => reference.includes('/') && !reference.includes(projectGuidePath),
-      );
-    })
-    .map(([path]) => path);
-  diagnostics.push(
-    ...deliverySpecificReferences.map(
-      path => `OpenCode contains an unexpected delivery-specific guide reference at ${path}.`,
-    ),
-  );
-  return diagnostics;
-}
-
 export function verifyDataArchitectureDelivery(
   input: DataArchitectureDeliveryInput,
 ): DeliveryVerificationResult {
@@ -265,8 +239,6 @@ export function verifyDataArchitectureDelivery(
       diagnostics.push(`${surface} planning target is missing at ${target.replace(/^\.\//u, '')}.`);
     }
   }
-
-  diagnostics.push(...openCodeDeliveryDiagnostics(input));
 
   return { accepted: diagnostics.length === 0, diagnostics };
 }

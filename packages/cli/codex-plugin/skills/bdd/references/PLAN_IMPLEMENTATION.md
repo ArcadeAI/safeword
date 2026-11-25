@@ -1,3 +1,15 @@
+---
+description: |-
+  USE WHEN in BDD plan-implementation phase. Author impl-plan.md, run figure-it-out on load-bearing choices, ADR lifecycle, review before implement.
+---
+
+## Packaged runtime
+
+Resolve [the bundled Safeword runtime](../../../runtime/cli.js) relative to this containing asset, not the project working directory.
+Before each shell block, assign SAFEWORD_PLUGIN_RUNTIME to that resolved absolute file path in a separate shell statement ending with a semicolon, then invoke the helper in that same shell call.
+Do not use `SAFEWORD_PLUGIN_RUNTIME=... bun "$SAFEWORD_PLUGIN_RUNTIME" ...`: the shell expands the argument before applying that environment assignment.
+Keep PROJECT_DIR bound to the actual project. Never substitute a project helper or another agent cache.
+
 # Plan Implementation: Design Before TDD
 
 **Entry:** Agent enters `plan-implementation` phase. Scenarios passed the scenario-gate; behavior is fixed. This phase produces the implementation design record — `impl-plan.md` — and nothing else ships from it. Application code stays untouched until `implement` (the pre-tool hook enforces this).
@@ -84,14 +96,14 @@ question does not apply. Keep each choice and its consequence in
 
 ## Author impl-plan.md
 
-Scaffold `impl-plan.md` next to `ticket.md` from `references/impl-plan-template.md`, status `planned`. Sections stay **content-or-skip** — every section gets real content or `skip: <non-empty reason>`:
+Scaffold `impl-plan.md` next to `ticket.md` from `impl-plan-template.md`, status `planned`. Sections stay **content-or-skip** — every section gets real content or `skip: <non-empty reason>`:
 
 - **Approach** — open with an architecture-at-a-glance view of the components and request/data path. Next name the riskiest assumption and the cheapest scenario that proves it; then the proof plan: for each scenario the behavior, real system boundary, proof type (`unit`, `integration`, `E2E`, or `eval` per the testing guide's cheapest sufficient real-boundary rule), confidence limitation, supporting proofs, and at least one wiring proof per new entry point. Identify the load-bearing proof to attempt first; Execution Planning owns the dependency-ordered build and test steps. Cover each **affected surface** the spec lists — name the proof that covers it or a per-surface `skip: <reason>`. Link separately owned detailed evidence when useful; leave test paths, commands, hashes, individual results, and the verification ledger to Execution Planning and verification.
 - **Data applicability** — state `Data applicability:`. When data guidance applies, cover each of its eleven subjects with a choice, reason, and consequence, or a concrete reason that subject does not apply. Use a whole-section `skip: <reason>` only when no store, schema, relationship, source-of-truth, ownership, access, lifecycle, migration, backfill, or cross-system-flow concern changes.
 - **Measurement applicability** — name the accepted quantitative promise and its origin, method, validity, and failure behavior; when Product makes no quantitative promise, write `Measurement applicability: skip: <reason>`.
 - **Persona consequences** — resolve each accepted Product Plan persona and name the consequential trust, operation, approval, recovery, and confidence-limit choices; a persona with no distinct consequence needs a reasoned `skip: <reason>`.
 - **Current and target truth** — label proposed decisions, implemented facts, available proof, known defects, and pending human authority separately. Do not call a target implemented or an unproven implementation verified.
-- **Decisions** — use either the packaged table structure or the labeled prose/bullet structure from Design the approach step 2 and `references/impl-plan-template.md`; record one complete evidence-bearing entry per significant technical choice. When there is no load-bearing choice, replace the evidence entry with `Decision evidence applicability: skip: <reason>` inside `### Recorded Decisions`; a local non-load-bearing choice may still be named elsewhere in the plan.
+- **Decisions** — use either the packaged table structure or the labeled prose/bullet structure from Design the approach step 2 and `impl-plan-template.md`; record one complete evidence-bearing entry per significant technical choice. When there is no load-bearing choice, replace the evidence entry with `Decision evidence applicability: skip: <reason>` inside `### Recorded Decisions`; a local non-load-bearing choice may still be named elsewhere in the plan.
 - **Design alignment** — record applicable project principles with their concrete consequence and proof. State `Architecture applicability:` here with a concrete component or shared-contract consequence, or `skip: <reason>`. Then consult the architecture record (resolve `paths.architecture` in `.safeword/config.json`; default `.project/architecture.md`; a directory holds one ADR per `.md`, README excluded). Records exist: list the decisions this design honors. With applicable principles but no records, write `None recorded yet` for the architecture sub-entry and offer to draft the first ADR for a significant decision. With neither applicable principles nor architecture records, write `skip: no applicable principles or ADRs` and offer to draft the first ADR for a significant decision (technology choices spanning features, data ownership, cross-service contracts).
 - **Known deviations** — where this deviates from guidance and why that's acceptable.
 - **Doc impact** — identify which configured `docs.sources` surfaces the customer-visible changes touch and the required documentation outcome; Execution Planning owns the tasks and their build order. Internal-only: `skip: <reason>`.
@@ -100,7 +112,7 @@ Scaffold `impl-plan.md` next to `ticket.md` from `references/impl-plan-template.
 ## ADR lifecycle
 
 - **Emit only when significant.** Offer an ADR when a decision changes shared structure or contracts, key quality attributes, data ownership or lifecycle, migration or compatibility behavior, or another difficult-to-reverse constraint. Routine choices live and die in the plan's Decisions table — no ceremony records. Keep the significant decision in the Implementation Plan too, with a resolvable link to its configured durable architecture record.
-- **Scaffold from the template into the configured location.** New ADRs scaffold from `references/adr-template.md` and land at the `paths.architecture` location: a file receives an appended entry; a directory receives one file per ADR with a merge-safe **date-prefixed** filename (`YYYYMMDD-slug.md` — sequential numbers collide across parallel sessions).
+- **Scaffold from the template into the configured location.** New ADRs scaffold from `adr-template.md` and land at the `paths.architecture` location: a file receives an appended entry; a directory receives one file per ADR with a merge-safe **date-prefixed** filename (`YYYYMMDD-slug.md` — sequential numbers collide across parallel sessions).
 - **Resolve before review.** Do not request Implementation Plan approval until every required durable architecture link resolves.
 - **Never into generated structure.** The generated root index and structural fields in per-package leaves describe current state; package-leaf module purpose prose is human-owned while its module remains present. Never put decision records in either place — the configured architecture record (_why_) is the destination.
 - **Keep records lean** — a page or two each; no mega-ADRs or second feature design plans. Link supporting diagrams or models when needed.
@@ -355,10 +367,10 @@ receipt controls eligibility for approval and phase advancement.
 
 ## Exit: review, then (optionally) the user
 
-1. **Independent review first.** At review time, run `bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.0/runtime/cli.js" project review-knowledge --json`. Resolve a review-capable Safeword CLI. Include the installed testing guide and every other guide whose trigger applies as bounded review context, so the reviewer can judge the decisions against the same guidance used by the author. Resolve the current files and invoke the coordinator:
+1. **Independent review first.** At review time, run `bun "$SAFEWORD_PLUGIN_RUNTIME" project review-knowledge --json`. Resolve a review-capable Safeword CLI. Include the installed testing guide and every other guide whose trigger applies as bounded review context, so the reviewer can judge the decisions against the same guidance used by the author. Resolve the current files and invoke the coordinator:
 
    ```bash
-   SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.0/runtime/cli.js" review run plan-implementation --agent-handoff --json --context ticket-path/spec.md ticket-path/ticket.md feature-file principles-file personas-file surfaces-file dimensions-file-if-present architecture-records testing-guide-file applicable-guide-files -- ticket-path/impl-plan.md
+   SAFEWORD_REVIEW_PROGRESS=1 bun "$SAFEWORD_PLUGIN_RUNTIME" review run plan-implementation --agent-handoff --json --context ticket-path/spec.md ticket-path/ticket.md feature-file principles-file personas-file surfaces-file dimensions-file-if-present architecture-records testing-guide-file applicable-guide-files -- ticket-path/impl-plan.md
    ```
 
    **The dispatch is authorized; skipping it is not your call.** The coordinator runs through a local CLI the user installed and signed in to (`claude`, `codex`, or `opencode`), under their own credentials, on this machine; that local process may send the packet to a remote model provider, and the packet is bounded to the targets and `--context` you pass. This review route ships enabled by default; a user can disable reviewer dispatch with `crossAgentReview: off`, but planning admission then blocks until the project selects `prefer`. The coordinator enforces that setting before provider dispatch, so do not duplicate its policy check in chat. The enabled route authorizes ordinary dispatch, and a cross-vendor second opinion is the point of the gate. So treat the command as ordinary tool use: do not invent a disclosure-approval requirement. Do not stop and ask the user for consent in chat before running this command, even when the packet contains private repository files or crosses provider boundaries. Never pass credentials, customer data, or secret-bearing files as targets or `--context`; redact them or report the bounded packet as blocked. This exclusion is a best-effort model judgment, not a claim that the coordinator performed a secret scan. Invoke the coordinator first. On Codex, `review run` for `quality-review`, `scenario-gate`, or `plan-implementation` may use `sandbox_permissions: "require_escalated"` only through a previously installed kind-scoped allow rule; never surface a host approval request. Run executable RED reviews, `review status`, and every status retry inside the normal workspace sandbox, and never escalate them. If the dispatch rule is absent or does not match, report the route as unavailable instead of asking the user. **A review you never dispatched is not coverage** — say so unprompted, before any finding, name what ran in its place, and never let your own pass stand in for the review.
@@ -371,10 +383,10 @@ receipt controls eligibility for approval and phase advancement.
    its status action; never redispatch unchanged sources. For
    `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command and
    rerun the same coordinator command once after authentication. Do not invoke
-   `$safeword:finish-review` or loop on another authentication denial.
+   `../../../internal/finish-review/SKILL.md` or loop on another authentication denial.
 
    Only when the current job returns `REVIEW_CONTINUATION_REQUIRED` with
-   `status: continuation_required`, invoke `$safeword:finish-review` with its `review_id`
+   `status: continuation_required`, invoke `../../../internal/finish-review/SKILL.md` with its `review_id`
    and sealed packet. It submits the host result to the same authenticated job;
    collect that job's terminal status. A `REVIEW_ROUTES_EXHAUSTED` result without
    a continuation remains blocked. Never substitute another surface-private reviewer
@@ -386,7 +398,7 @@ receipt controls eligibility for approval and phase advancement.
 
    Fix findings, re-resolve the sources, and re-review the corrected bytes.
    Stamp an approving exit with the returned provenance
-   (`bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.0/runtime/cli.js" project runtime write-review-stamp -- --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" --review-id "review_id" --phase plan-implementation`).
+   (`bun "$SAFEWORD_PLUGIN_RUNTIME" project runtime write-review-stamp -- --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" --review-id "review_id" --phase plan-implementation`).
    The cited review must cover this ticket; copy its author, actual reviewer,
    independence, and optional verified model from the result. Human handoff
    happens only after this review passes. Information only the user has still

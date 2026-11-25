@@ -1,3 +1,8 @@
+---
+description: |-
+  USE WHEN in BDD intake phase OR ticket has phase:intake. Guides discovery and context gathering for features.
+---
+
 # Intake: Product Plan
 
 **Entry:** feature-level work or a ticket resumed at `phase: intake`.

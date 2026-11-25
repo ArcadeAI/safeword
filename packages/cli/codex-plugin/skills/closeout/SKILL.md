@@ -7,6 +7,13 @@ description: Close a completed local delivery safely. Use when wrapping up a
   a pull request.
 ---
 
+## Packaged runtime
+
+Resolve [the bundled Safeword runtime](../../runtime/cli.js) relative to this containing asset, not the project working directory.
+Before each shell block, assign SAFEWORD_PLUGIN_RUNTIME to that resolved absolute file path in a separate shell statement ending with a semicolon, then invoke the helper in that same shell call.
+Do not use `SAFEWORD_PLUGIN_RUNTIME=... bun "$SAFEWORD_PLUGIN_RUNTIME" ...`: the shell expands the argument before applying that environment assignment.
+Keep PROJECT_DIR bound to the actual project. Never substitute a project helper or another agent cache.
+
 # Closeout
 
 Close a completed local GitHub delivery from observed state. Never compress the
@@ -121,7 +128,7 @@ exact recovery action and the risk that deleting the worktree could discard capt
 but unfiled learning, but do not let retrospective state authorize or block cleanup.
 
 When the authenticated preview reports pending drafts and includes
-`plan.retro.spoolPath`, invoke the `$safeword:retro-filer` skill with that exact
+`plan.retro.spoolPath`, invoke the `../../internal/retro-filer/SKILL.md` skill with that exact
 path, then rerun the preview. This is the closeout recovery continuation: the
 guard derived the path from its short-lived host-session binding, so do not
 substitute, discover, or accept a caller-provided spool path.
@@ -131,7 +138,7 @@ substitute, discover, or accept a caller-provided spool path.
 Run the guard from the delivery worktree; preview is the default:
 
 ```sh
-bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.0/runtime/cli.js" project runtime closeout-cleanup -- --pr PR_NUMBER
+bun "$SAFEWORD_PLUGIN_RUNTIME" project runtime closeout-cleanup -- --pr PR_NUMBER
 ```
 
 At the exact clean delivery head, the post-merge preview reuses a fresh receipt
@@ -154,7 +161,7 @@ user request explicitly authorizes cleanup. Cleanup authority is consumed when
 apply is attempted, and applies only to the unchanged preview:
 
 ```sh
-bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.0/runtime/cli.js" project runtime closeout-cleanup -- --pr PR_NUMBER --yes --plan PLAN_DIGEST
+bun "$SAFEWORD_PLUGIN_RUNTIME" project runtime closeout-cleanup -- --pr PR_NUMBER --yes --plan PLAN_DIGEST
 ```
 
 The guard re-observes identity and executes only this order: worktree, remote

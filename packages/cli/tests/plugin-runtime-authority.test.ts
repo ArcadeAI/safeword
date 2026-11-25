@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 
 import { generateClaudePluginAssets } from '../src/claude-plugin/catalogue.js';
 import { generateCodexPluginAssets } from '../src/codex-plugin/catalogue.js';
-import { generateOpenCodeCatalogueAssets } from '../src/opencode/catalogue.js';
 import { assertNativePluginRuntimeAuthority } from '../src/plugin-runtime-authority.js';
 import { VERSION } from '../src/version.js';
 
@@ -23,7 +22,7 @@ function generatedCatalogue(host: string) {
       version: VERSION,
     }).filter(asset => /^(?:agents|commands|skills)\//u.test(asset.relativePath));
   }
-  return generateOpenCodeCatalogueAssets(templatesRoot);
+  throw new Error('Unknown native catalogue');
 }
 
 describe('native catalogue release authority', () => {
@@ -40,7 +39,7 @@ describe('native catalogue release authority', () => {
     }).toThrow('skills/audit/SKILL.md');
   });
 
-  it.each(['Codex', 'Claude Code', 'OpenCode'])(
+  it.each(['Codex', 'Claude Code'])(
     'rejects a project-runtime reference in the generated %s catalogue',
     host => {
       const assets = generatedCatalogue(host);

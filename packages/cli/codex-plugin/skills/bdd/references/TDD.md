@@ -1,4 +1,37 @@
+---
+description: |-
+  USE WHEN in BDD implement phase. RED/GREEN TDD cycle; run $safeword:refactor after GREEN.
+---
+
+## Packaged runtime
+
+Resolve [the bundled Safeword runtime](../../../runtime/cli.js) relative to this containing asset, not the project working directory.
+Before each shell block, assign SAFEWORD_PLUGIN_RUNTIME to that resolved absolute file path in a separate shell statement ending with a semicolon, then invoke the helper in that same shell call.
+Do not use `SAFEWORD_PLUGIN_RUNTIME=... bun "$SAFEWORD_PLUGIN_RUNTIME" ...`: the shell expands the argument before applying that environment assignment.
+Keep PROJECT_DIR bound to the actual project. Never substitute a project helper or another agent cache.
+
 # Implement: Outside-in TDD
+
+<!-- SAFEWORD:TESTING_CORE_START -->
+<!-- source: src/testing/shared-core.ts; sha256: 3ef67a9e573e0f3a94f1348ef859a3a658b567c29785d90efdc436c392deef33 -->
+
+## Essential testing rules
+
+State the test-scope choice and why in one line, unless it's obvious from context.
+
+A suite that fakes _internal_ seams can be fully green while the real wiring is
+broken. Name the **process boundary** you mock — the network, filesystem, clock,
+or subprocess at the edge of your code — and mock _only_ that. Every entry point
+or command that wires modules together gets **≥1 test built from real
+collaborators**, faking nothing but that boundary.
+
+If the only way to exercise a code path is through an injected internal value
+(`provider: 'none'`, a hand-passed `repoVisibility`) and never through the real
+command, that path has **no wiring test** — add one.
+
+Before writing or reviewing tests, identify the distinct behavior partitions and choose a representative for each, including validation failures for individual inputs or input combinations. For bounded inputs, include a value strictly inside the valid range when one exists, boundary values, and out-of-range values, whether accepted or rejected. Check that the resulting tests cover those choices before reporting completion.
+
+<!-- SAFEWORD:TESTING_CORE_END -->
 
 **Entry:** Agent enters `implement` only after the current `execution-plan.md` passes its
 `plan-execution` review. Follow that plan's dependency order, exact proof work, and first startable
@@ -129,7 +162,7 @@ Before production implementation begins for a new or changed primary proof, self
 plan, then ask Safeword to execute and independently review each distinct proof implementation:
 
 ```bash
-SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.0/runtime/cli.js" review run executable-red \
+SAFEWORD_REVIEW_PROGRESS=1 bun "$SAFEWORD_PLUGIN_RUNTIME" review run executable-red \
   --agent-handoff --json \
   --scenario 'Scenario: exact ledger heading' \
   --ledger .project/tickets/TICKET/test-definitions.md \
@@ -178,7 +211,7 @@ sources merely because that review is still pending.
 
 If the typed result is `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command and
 rerun the same coordinator command once after authentication succeeds. Do not invoke
-`$safeword:finish-review` for executable RED: a same-agent fallback cannot authorize GREEN. If authentication
+`../../../internal/finish-review/SKILL.md` for executable RED: a same-agent fallback cannot authorize GREEN. If authentication
 still fails or the typed result is `REVIEW_ROUTES_EXHAUSTED`, report the blocker and leave GREEN
 unchecked.
 If the typed result is `REVIEW_NOT_REQUESTED` because `crossAgentReview: off`, report that the
@@ -321,7 +354,7 @@ Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`
 2. **A fresh-context review.** Resolve a review-capable Safeword CLI, then run the shared coordinator with only the bounded design evidence:
 
    ```bash
-   SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.0/runtime/cli.js" review run plan-implementation --agent-handoff --json --context ticket-path/spec.md ticket-path/ticket.md feature-file principles-file personas-file surfaces-file architecture-records -- ticket-path/impl-plan.md
+   SAFEWORD_REVIEW_PROGRESS=1 bun "$SAFEWORD_PLUGIN_RUNTIME" review run plan-implementation --agent-handoff --json --context ticket-path/spec.md ticket-path/ticket.md feature-file principles-file personas-file surfaces-file architecture-records -- ticket-path/impl-plan.md
    ```
 
    **The dispatch is authorized; skipping it is not your call.** The coordinator runs through a local CLI the user installed and signed in to (`claude`, `codex`, or `opencode`), under their own credentials, on this machine; that local process may send the packet to a remote model provider, and the packet is bounded to the targets and `--context` you pass. This review route ships enabled by default; a user can disable reviewer dispatch with `crossAgentReview: off`, but planning admission then blocks until the project selects `prefer`. The coordinator enforces that setting before provider dispatch, so do not duplicate its policy check in chat. The enabled route authorizes ordinary dispatch, and a cross-vendor second opinion is the point of the gate. So treat the command as ordinary tool use: do not invent a disclosure-approval requirement. Do not stop and ask the user for consent in chat before running this command, even when the packet contains private repository files or crosses provider boundaries. Never pass credentials, customer data, or secret-bearing files as targets or `--context`; redact them or report the bounded packet as blocked. This exclusion is a best-effort model judgment, not a claim that the coordinator performed a secret scan. Invoke the coordinator first. On Codex, `review run` for `quality-review`, `scenario-gate`, or `plan-implementation` may use `sandbox_permissions: "require_escalated"` only through a previously installed kind-scoped allow rule; never surface a host approval request. Run executable RED reviews, `review status`, and every status retry inside the normal workspace sandbox, and never escalate them. If the dispatch rule is absent or does not match, report the route as unavailable instead of asking the user. **A review you never dispatched is not coverage** — say so unprompted, before any finding, name what ran in its place, and never let your own pass stand in for the review.
@@ -330,9 +363,9 @@ Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`
    `REVIEW_PENDING` review id and collect its status action; never redispatch
    unchanged sources. For `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact
    recovery command and rerun the same coordinator command once after authentication. Do not invoke
-   `$safeword:finish-review` on authentication denial. When the current planning job
+   `../../../internal/finish-review/SKILL.md` on authentication denial. When the current planning job
    returns `REVIEW_CONTINUATION_REQUIRED` with `status: continuation_required`,
-   invoke `$safeword:finish-review` with that job's `review_id` and sealed packet, then
+   invoke `../../../internal/finish-review/SKILL.md` with that job's `review_id` and sealed packet, then
    collect its terminal status. A bare `REVIEW_ROUTES_EXHAUSTED` remains blocked.
    Never substitute another surface-private reviewer or hand-written independent evidence.
    An approving current `independence: reduced` receipt satisfies the planning
@@ -341,7 +374,7 @@ Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`
    or advance. On a current approval, stamp it:
 
    ```bash
-   bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.0/runtime/cli.js" project runtime write-review-stamp -- --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" --review-id "review_id" --phase plan-implementation
+   bun "$SAFEWORD_PLUGIN_RUNTIME" project runtime write-review-stamp -- --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" --review-id "review_id" --phase plan-implementation
    ```
 
    The stamp binds to the plan's current content, so editing the design after review invalidates it — re-review and re-stamp. `--review-id` is the coordinator's `review_id` from the result you are stamping: it is what proves the review ran, so a stamp claiming independence without one is refused.

@@ -1,0 +1,22 @@
+{
+  "kind": "retained-command-shapes-NOT-authenticated-or-native-receipts",
+  "source": "Consumed failed selected experiment; outputs/statuses supplied in tests are synthetic.",
+  "cases": [
+    {
+      "arm": "defective",
+      "runtime": "/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-0GrtIK/profile/plugins/cache/safeword-contract-test/safeword/1.2.0/runtime/cli.js",
+      "project": "/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-0GrtIK/project",
+      "command": "SAFEWORD_PLUGIN_RUNTIME=/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-0GrtIK/profile/plugins/cache/safeword-contract-test/safeword/1.2.0/runtime/cli.js;\nPROJECT_DIR=/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-0GrtIK/project;\nSAFEWORD_REVIEW_PROGRESS=1 bun \"$SAFEWORD_PLUGIN_RUNTIME\" review run quality-review --agent-handoff --json -- clamp.js clamp.test.js",
+      "display": "/bin/zsh -lc 'SAFEWORD_PLUGIN_RUNTIME=/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-0GrtIK/profile/plugins/cache/safeword-contract-test/safeword/1.2.0/runtime/cli.js;\nPROJECT_DIR=/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-0GrtIK/project;\nSAFEWORD_REVIEW_PROGRESS=1 bun \"$SAFEWORD_PLUGIN_RUNTIME\" review run quality-review --agent-handoff --json -- clamp.js clamp.test.js'",
+      "exit": 0
+    },
+    {
+      "arm": "covered",
+      "runtime": "/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-kF8mXo/profile/plugins/cache/safeword-contract-test/safeword/1.2.0/runtime/cli.js",
+      "project": "/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-kF8mXo/project",
+      "command": "SAFEWORD_PLUGIN_RUNTIME='/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-kF8mXo/profile/plugins/cache/safeword-contract-test/safeword/1.2.0/runtime/cli.js'; PROJECT_DIR='/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-kF8mXo/project'; SAFEWORD_REVIEW_PROGRESS=1 bun \"$SAFEWORD_PLUGIN_RUNTIME\" review run quality-review --agent-handoff --json -- clamp.js clamp.test.js",
+      "display": "/bin/zsh -lc \"SAFEWORD_PLUGIN_RUNTIME='/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-kF8mXo/profile/plugins/cache/safeword-contract-test/safeword/1.2.0/runtime/cli.js'; PROJECT_DIR='/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-kF8mXo/project'; SAFEWORD_REVIEW_PROGRESS=1 bun \\\"\"'$SAFEWORD_PLUGIN_RUNTIME\" review run quality-review --agent-handoff --json -- clamp.js clamp.test.js'",
+      "exit": 0
+    }
+  ]
+}

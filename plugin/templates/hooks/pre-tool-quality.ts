@@ -75,7 +75,7 @@ import { verifiedStamps } from './lib/verify-stamp-claims.ts';
 import { evaluateTicketWrite } from './lib/phase-provenance.ts';
 import {
   evaluateCodingAuthorization,
-  evaluateExecutionPlanningEntry,
+  evaluateManualExecutionPlanningEntry,
   evaluateImplementEntry,
   firstNamedRedAction,
 } from './lib/plan-gate.ts';
@@ -652,7 +652,7 @@ if (!EDIT_TOOLS.includes(tool)) {
 
 if (
   nodePath.basename(editedFile) === 'test-definitions.md' &&
-  isNamespacePath(editedFile, 'tickets/', projectDirectory) &&
+  isNamespacePath(editedFile, 'tickets/', canonicalProjectDirectory) &&
   !existsSync(editedFile) // Only gate creation, not edits to existing files
 ) {
   const ticketDirectory = nodePath.dirname(editedFile);
@@ -878,10 +878,10 @@ function frontmatterFromContent(content: string): Record<string, string | string
 // canonical-ticket branches and be judged on their own frontmatter.
 const isCanonicalTicketEdit =
   nodePath.basename(editedFile) === 'ticket.md' &&
-  isNamespacePath(editedFile, 'tickets/', projectDirectory);
+  isNamespacePath(editedFile, 'tickets/', canonicalProjectDirectory);
 const isCanonicalSpecEdit =
   nodePath.basename(editedFile) === 'spec.md' &&
-  isNamespacePath(editedFile, 'tickets/', projectDirectory);
+  isNamespacePath(editedFile, 'tickets/', canonicalProjectDirectory);
 
 // Some hosts report a ticket/spec save without exposing either complete content
 // or an applicable edit delta. There is no proposed state to validate in that
@@ -966,7 +966,7 @@ if (isCanonicalTicketEdit) {
   ) {
     const ticketDirectory = nodePath.dirname(editedFile);
     assertPlanningContractCopy(nodePath.basename(ticketDirectory), 'plan-implementation');
-    const verdict = evaluateExecutionPlanningEntry(ticketDirectory, { projectDirectory });
+    const verdict = evaluateManualExecutionPlanningEntry(ticketDirectory, { projectDirectory });
     if (!verdict.ok) deny(verdict.reason, verdict.remediation);
 
     if (isReviewGateOn()) {
@@ -1189,7 +1189,7 @@ if (isCanonicalTicketEdit) {
 
 if (
   nodePath.basename(editedFile) === 'test-definitions.md' &&
-  isNamespacePath(editedFile, 'tickets/', projectDirectory)
+  isNamespacePath(editedFile, 'tickets/', canonicalProjectDirectory)
 ) {
   if (input.tool_name === 'NotebookEdit') {
     deny(

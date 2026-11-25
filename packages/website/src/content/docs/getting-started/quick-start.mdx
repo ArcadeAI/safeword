@@ -23,7 +23,7 @@ Takes about 30 seconds. Works with TypeScript, Python (beta), Go (beta), Rust (b
 
 `@latest` still resolves to the 0.x line. 1.0 release candidates publish to the npm `next` tag — use `bunx safeword@next install` to try one.
 
-By default, Safeword configures the project and installs both the Claude Code and Codex profile plugins. Cursor and OpenCode stay untouched unless you select them, for example `safeword install --agents=cursor` or `--agents=claude,codex,opencode,cursor`. OpenCode installs into your OpenCode profile; run `safeword conformance --agents=opencode` to prove it blocks in your OpenCode version. Your application code, runtime dependencies, and existing configs are unchanged.
+By default, Safeword configures the project and installs both the Claude Code and Codex profile plugins. Cursor and OpenCode stay untouched unless you select them, for example `safeword install --agents=cursor` or `--agents=claude,codex,opencode,cursor`. For OpenCode 2.4.1, install the bundled profile plugin, then check the CLI and TUI separately. See [OpenCode setup](/reference/cli/). Your application code, runtime dependencies, and existing configs are unchanged.
 
 ## What Changes
 

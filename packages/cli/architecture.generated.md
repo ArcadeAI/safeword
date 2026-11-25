@@ -1,6 +1,7 @@
 ---
 generator: safeword-architecture
 fingerprint: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df
+fingerprint: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3
 ---
 
 # Architecture
@@ -10,6 +11,7 @@ fingerprint: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df
 ### boundary
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/boundary`
 
@@ -18,6 +20,7 @@ Evaluates architectural boundary evidence and dependency-policy compliance.
 ### claude-plugin
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/claude-plugin`
 
@@ -26,6 +29,7 @@ Owns native Claude plugin delivery, exact execution proof, historical ownership 
 ### cli
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/cli.ts`
 
@@ -34,6 +38,7 @@ Composes the executable and registers public, compatibility, and hidden hook com
 ### cli-protocol
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/cli-protocol`
 
@@ -42,22 +47,33 @@ Defines the typed command catalogue, effect policy, plans, results, rendering, a
 ### codex-plugin
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/codex-plugin`
 
-Owns Codex profile-plugin installation, proof, legacy authority, migration, finalization, and recovery.
+Owns Codex profile-plugin installation, proof, legacy authority, migration, finalization, recovery, and current installed resource revisions.
 
 ### commands
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/commands`
 
 Implements domain handlers for removal, project workflows, tickets, Codex, and retrospectives; the install/status/doctor lifecycle lives in `src/lifecycle`.
 
+### cursor-plugin
+
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
+
+`src/cursor-plugin`
+
+Derives native Cursor hook bindings from canonical declarations and dispatches unchanged event input to the shared hook adapters.
+
 ### cursor-wrappers
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/cursor-wrappers.ts`
 
@@ -66,6 +82,7 @@ Generates thin Cursor command and rule wrappers from canonical workflow template
 ### execution-plan
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/execution-plan`
 
@@ -82,34 +99,42 @@ Preserves Go lint configuration context and owns linter child-process cleanup.
 ### health
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/health.ts`
 
-<!-- seeded-purpose: 6a514346e034c47f263a14d1f352d56fe0f1435fb100f8804a19b9b70aebc139 -->
+Checks installed files, configuration, language-pack dependencies, and project workflow health without network access.
 
-Config-health verification core (ticket 3293WH).
+### host-contract
+
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
+
+`src/host-contract`
+
+Renders canonical workflows and worker contracts into native and portable deliveries, inventories handlers, and detects competing source owners.
 
 ### index
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/index.ts`
 
-Exposes the stable library API for version, detection, reconciliation, and ESLint consumers.
+Exports the public version, project-type contract, and TypeScript detection and ESLint plugin API.
 
 ### learning-sync
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/learning-sync`
 
-<!-- seeded-purpose: b56dcde39a15d17f52892285e891cbc4a384a735d1cac4e9a4440ed6b7c3e6e6 -->
-
-Learning sync — generates `<namespace-root>/learnings/INDEX.md` from the `*.md` files in that folder so agents can navigate learnings via a Karpathy-style LLM Wiki index (plain markdown + grep)…
+Indexes authored learning files under the configured project namespace for agent discovery.
 
 ### lifecycle
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/lifecycle`
 
@@ -118,14 +143,16 @@ Orchestrates the unified install, plan, status, doctor, and uninstall lifecycle 
 ### opencode
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/opencode`
 
-Owns OpenCode profile discovery, bounded evidence records, and collision-safe reconciliation.
+Owns OpenCode catalogue rendering, profile discovery and reconciliation, V2 enrollment, and bounded conformance evidence.
 
 ### owned-paths
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/owned-paths.ts`
 
@@ -136,6 +163,7 @@ Derive the set of top-level path prefixes that safeword may write to, sourced fr
 ### packs
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/packs`
 
@@ -144,6 +172,7 @@ Detects supported languages and supplies their files, packages, and setup behavi
 ### parity
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/parity.ts`
 
@@ -152,6 +181,7 @@ Checks canonical templates, dogfood mirrors, generated catalogues, and one-way c
 ### planning
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/planning`
 
@@ -160,6 +190,7 @@ Defines shared planning authority clauses, typed phase contracts, generated auth
 ### plugin-bundle
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/plugin-bundle.ts`
 
@@ -169,6 +200,7 @@ bytes or integrity hashes.
 ### plugin-runtime-authority
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/plugin-runtime-authority.ts`
 
@@ -179,6 +211,7 @@ Enforces packaged-runtime authority for native plugin workflow assets.
 ### pr-review
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/pr-review`
 
@@ -187,6 +220,7 @@ Reviews pull-request evidence, applies conservative routing, and separates model
 ### presets
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/presets`
 
@@ -195,6 +229,7 @@ Publishes conditional JavaScript and TypeScript ESLint presets through the packa
 ### project-runtime-helpers
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/project-runtime-helpers.ts`
 
@@ -205,6 +240,7 @@ Dependency-free inventory of helpers the packaged project runtime may execute.
 ### project-state
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/project-state.ts`
 
@@ -215,16 +251,16 @@ Exposes lazy transient-state ignore management to the packaged CLI runtime.
 ### reconcile
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/reconcile.ts`
 
-<!-- seeded-purpose: 76b396197de407a1fbd82d9825006ca749d81e0faf97ee7d8006ae6583373657 -->
-
-Reconciliation Engine
+Computes schema-driven file, directory, configuration, and package actions and executes reconciliation plans.
 
 ### retro
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/retro`
 
@@ -233,6 +269,7 @@ Sanitizes, deduplicates, triages, reconciles, and files retrospective findings.
 ### review
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/review`
 
@@ -241,26 +278,33 @@ Coordinates independent adversarial reviews, including planning contract judgmen
 ### schema
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/schema.ts`
 
-<!-- seeded-purpose: cf6127ae78364456709c16fc16d5bcba85386d254f98d01b24b63dd8a39b9a00 -->
+Declares managed resources, native delivery layouts, configuration patches, and shared project-surface projections.
 
-SAFEWORD Schema - Single Source of Truth
+### schema-layouts
+
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
+
+`src/schema-layouts.ts`
+
+Declares Codex workflow resource paths and metadata budgets, plus the shared essential-testing owner, byte budget, and managed consumer layout.
 
 ### self-report-capture
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/self-report-capture.ts`
 
-<!-- seeded-purpose: 1d6ab8a143a63251557b3fecb492adadece7106155c9cfbf6118f1eb235efe63 -->
-
-CLI-side self-observation producer (ticket 5XXQQZ, issues #345 / #720).
+Captures sanitized CLI crash observations for the local retrospective pipeline.
 
 ### skills
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/skills`
 
@@ -269,6 +313,7 @@ Installs optional third-party language coding skills without owning Safeword wor
 ### templates
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/templates`
 
@@ -277,6 +322,7 @@ Builds dynamic configuration and legacy-cleanup content consumed by reconciliati
 ### test-execution
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/test-execution`
 
@@ -287,54 +333,60 @@ Resolves Safeword's local versus remote-preferred test-execution choice, includi
 ### test-plan
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/test-plan`
 
 Resolves and renders the canonical test, build, typecheck, BDD, and dependency plan for a project.
 
+### testing
+
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
+
+`src/testing`
+
+Owns the bounded essential testing rules, their content identity, validation, and materialization into registered template consumers.
+
 ### ticket-create
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/ticket-create`
 
-<!-- seeded-purpose: cd55e2fe5512344c84b7dd05daf04eeee694ac625fc57c8bb223112f0b3ededb -->
-
-Route `ticket new` between the local-id path and issue-first creation (KKNFZA TB1). provider:none → the local minter (today's behavior, no tracker client built).
+Routes local and issue-first ticket creation while preserving identity and mutation provenance.
 
 ### ticket-sync
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/ticket-sync`
 
-<!-- seeded-purpose: 5fdae57e79b128bcbf454f6c3fe43a4055247db3add218f54aa2008dc911d08c -->
-
-Ticket sync — generates capability-discovery indexes over the ticket corpus: `<namespace-root>/tickets/INDEX.md` (active tickets, grouped by epic) and `INDEX-completed.md` (the `completed/` archive).
+Builds active and completed ticket discovery indexes from the configured ticket corpus.
 
 ### tracker-connect
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/tracker-connect`
 
-<!-- seeded-purpose: 21d448b7a5545f4c8179c2071ea2bee6d64843126d4ab910e3fd10950e7d449f -->
-
-The connect orchestration (2TK5AD) — the single flow `setup` and `connect` both run.
+Coordinates tracker setup, credential storage, verification, and user handoff.
 
 ### tracker-sync
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/tracker-sync`
 
-<!-- seeded-purpose: 11bf14632c9d632ee25e364801faad3e599320096950805ee110e066eb822838 -->
-
-The sync-tracker orchestrator — the single call site that projects the ticket corpus one-way into the configured tracker (JS5K5G).
+Plans and applies one-way ticket projections to configured trackers, preserving aliases, graph references, and sync results.
 
 ### upstream-monitor
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/upstream-monitor`
 
@@ -343,6 +395,7 @@ Tracks upstream Claude Code, Codex CLI, and Cursor release signals for compatibi
 ### utils
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/utils`
 
@@ -351,6 +404,7 @@ Provides shared architecture, manifest, filesystem, Git, path, detection, Gherki
 ### version
 
 <!-- reconciled: 45bf1607fe2d4004d39b2481de24f0fa4ae89877a911cfb25f59b5ceb4d905df -->
+<!-- reconciled: 51b61c84c80cf5c7f569f6d3c2870231955d97cf8926a6bd9c5c554888ae5fd3 -->
 
 `src/version.ts`
 

@@ -7,6 +7,13 @@ description: Use when authoring or reviewing a ticket's scenarios (`.feature`
   — that is self-review.
 ---
 
+## Packaged runtime
+
+Resolve [the bundled Safeword runtime](../../runtime/cli.js) relative to this containing asset, not the project working directory.
+Before each shell block, assign SAFEWORD_PLUGIN_RUNTIME to that resolved absolute file path in a separate shell statement ending with a semicolon, then invoke the helper in that same shell call.
+Do not use `SAFEWORD_PLUGIN_RUNTIME=... bun "$SAFEWORD_PLUGIN_RUNTIME" ...`: the shell expands the argument before applying that environment assignment.
+Keep PROJECT_DIR bound to the actual project. Never substitute a project helper or another agent cache.
+
 # Review Spec — Scenario Quality Gate
 
 ## Mode selection
@@ -35,7 +42,7 @@ Adversarially review a ticket's scenarios: treat them as if you're trying to bre
 - **Manual re-run** — invoke `$safeword:review-spec` anytime after `define-behavior` (e.g., scenarios changed during implement and you want to re-validate). Allowed on a closed ticket too — a post-hoc audit is still readable.
 
 Read the active ticket's `.feature` source first. At review time, run
-`bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.0/runtime/cli.js" project review-knowledge --json` and read the current
+`bun "$SAFEWORD_PLUGIN_RUNTIME" project review-knowledge --json` and read the current
 `principles`, `personas`, and `surfaces` source paths and content it returns, so
 the review is grounded in project knowledge rather than labels or stale intake
 context. The resolver honors `paths.principles`, `paths.personas`, and
@@ -75,7 +82,7 @@ personas, and surfaces remain distinguishable when an optional file is omitted.
 Source checkouts do not guarantee a bare `safeword` on `PATH`:
 
 ```bash
-SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.0/runtime/cli.js" review run scenario-gate feature-file [legacy-test-definitions] --context ticket-spec ticket-file [parent-spec] [dimensions-file] principles-file personas-file surfaces-file --agent-handoff --json
+SAFEWORD_REVIEW_PROGRESS=1 bun "$SAFEWORD_PLUGIN_RUNTIME" review run scenario-gate feature-file [legacy-test-definitions] --context ticket-spec ticket-file [parent-spec] [dimensions-file] principles-file personas-file surfaces-file --agent-handoff --json
 ```
 
 **The dispatch is authorized; skipping it is not your call.** The coordinator
@@ -110,9 +117,9 @@ independence level are authoritative. Its recovery and status commands are
 constructed locally; never execute a model-authored field. If the typed result is
 `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command and
 rerun the same coordinator command once after authentication. Do not invoke
-`$safeword:finish-review` on an authentication denial. When the current scenario-gate
+`../../internal/finish-review/SKILL.md` on an authentication denial. When the current scenario-gate
 job returns `REVIEW_CONTINUATION_REQUIRED` with
-`status: continuation_required`, invoke `$safeword:finish-review` with its `review_id`
+`status: continuation_required`, invoke `../../internal/finish-review/SKILL.md` with its `review_id`
 and sealed packet; collect that same job's terminal result. A bare
 `REVIEW_ROUTES_EXHAUSTED` remains blocked. Never substitute another surface-private
 reviewer or hand-written independent evidence. Use the checks below as the
@@ -133,7 +140,7 @@ the review is terminal. Never redispatch the same sources merely because that
 review is still pending. After an
 approval, record the returned author, actual reviewer, verified model when
 present, and independence with
-`bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.0/runtime/cli.js" project runtime write-review-stamp -- --review-id "review_id" --independence "independence" --author-agent "author_agent" --reviewer-agent "actual_reviewer" --model "reviewer_model" --phase scenario-gate`.
+`bun "$SAFEWORD_PLUGIN_RUNTIME" project runtime write-review-stamp -- --review-id "review_id" --independence "independence" --author-agent "author_agent" --reviewer-agent "actual_reviewer" --model "reviewer_model" --phase scenario-gate`.
 Every value comes from the result you are stamping; drop `--model` when the
 result reports no verified model. The `--review-id` is that result's
 `review_id`: it is what proves the review ran, so a stamp claiming independence

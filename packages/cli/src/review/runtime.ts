@@ -41,6 +41,7 @@ import { reviewerEnvironment, reviewerProbeEnvironment } from './environment.js'
 import { EVIDENCE_RECORD_FIELDS, isEvidenceRecord } from './evidence-record.js';
 import { validateExecutionPlanOutput } from './execution-plan-output.js';
 import { EXECUTION_PLAN_REVIEW_RUBRIC_SHA256 } from './execution-plan-rubric.generated.js';
+import { isolatedGraderScope } from './isolated-grader.js';
 import { PLAN_REVIEW_RUBRIC_SHA256 } from './plan-rubric.generated.js';
 import { PRODUCT_PLAN_REVIEW_RUBRIC_SHA256 } from './product-plan-rubric.generated.js';
 import { reviewerPromptInstructions } from './review-rubric.js';
@@ -403,10 +404,9 @@ function baseReviewerArguments(
   if (reviewer !== 'claude') return base;
   const schemaIndex = base.indexOf('--json-schema') + 1;
   base[schemaIndex] = reviewOutputSchema(kind, planningPhase, dispatchId);
-  if (isPlanningReview(kind, planningPhase)) {
-    base[base.indexOf('--output-format') + 1] = 'stream-json';
-    base.push('--verbose');
-  }
+  // Assistant events identify the original response model for every review kind.
+  base[base.indexOf('--output-format') + 1] = 'stream-json';
+  base.push('--verbose');
   return base;
 }
 
@@ -1833,15 +1833,21 @@ async function runCodexAppServerCandidate(
   }
 }
 
+function useCodexAppServer(attempt: ReviewAttempt): boolean {
+  if (attempt.reviewer !== 'codex') return false;
+  if (isPlanningReview(attempt.packet.kind, attempt.packet.planning_phase)) return true;
+  const grade = attempt.packet.kind === 'quality-review' ? isolatedGraderScope() : 'disabled';
+  if (grade === 'invalid')
+    throw new ReviewRuntimeError('process_failed', 'Isolated grader scope mismatch', true);
+  return grade === 'valid';
+}
+
 async function runCandidate(
   executable: string,
   attempt: ReviewAttempt,
   timeoutMs: number,
 ): Promise<ReviewerExecution> {
-  if (
-    attempt.reviewer === 'codex' &&
-    isPlanningReview(attempt.packet.kind, attempt.packet.planning_phase)
-  ) {
+  if (useCodexAppServer(attempt)) {
     const appServer = await supportsReviewContract(
       'codex',
       executable,

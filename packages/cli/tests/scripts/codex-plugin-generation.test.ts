@@ -10,6 +10,25 @@ import {
 } from '../../scripts/lib/codex-plugin-generation.js';
 
 describe('Codex plugin generation boundary', () => {
+  it('keeps portable pilot selection explicit and outside checked-in output', () => {
+    expect(() => parseCodexPluginGenerationOptions(['--portable-core'], '1.2.0')).toThrow(
+      '--portable-core requires --version and --output',
+    );
+    expect(() =>
+      parseCodexPluginGenerationOptions(['--portable-core', '--check'], '1.2.0'),
+    ).toThrow('--portable-core requires --version and --output');
+    const pilot = parseCodexPluginGenerationOptions(
+      ['--version', '1.2.0', '--output', 'pilot', '--portable-core'],
+      '1.2.0',
+    );
+    expect(pilot.portableCore).toBe(true);
+    const legacy = parseCodexPluginGenerationOptions(
+      ['--version', '1.2.0', '--output', 'legacy'],
+      '1.2.0',
+    );
+    expect(legacy.portableCore).toBeUndefined();
+  });
+
   it.each([
     ['not-a-version', 'Effective version is not valid SemVer'],
     ['0.84.0+codex.test', 'Effective version must describe the same release as'],

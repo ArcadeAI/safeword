@@ -27,7 +27,8 @@ import process from 'node:process';
 
 import { getActiveTicket } from '../lib/active-ticket.ts';
 import { architectureDocumentNudgeForProject } from '../lib/architecture-document-nudge.ts';
-import { evaluateDoneEvidence } from '../lib/done-gate.ts';
+import { architectureReviewReason } from '../lib/architecture-review-gate.ts';
+import { evaluateSessionDoneEvidence } from '../lib/done-gate.ts';
 import { updateTicketStatus } from '../lib/hierarchy.ts';
 import {
   canonicalPathForGate,
@@ -170,17 +171,8 @@ function completeSessionDoneTicket(
   input: CodexStopInput,
 ): DoneTransitionResult {
   const runIdentity = resolveRunIdentity(input, { runtime: 'codex' });
-  // No session id and no CODEX_THREAD_ID means no identity at all, and the state
-  // path would collapse to the unscoped `quality-state-undefined.json` every
-  // id-less hook run shares — whatever ticket it names belongs to some other
-  // session. Stop before the read: an unbound session keeps the architecture
-  // advisory's global fallback (isDonePhaseWork, above) but is never a
-  // lifecycle-mutation fallback. Issue #1425; spec SWM1.R1.
-  if (runIdentity.sessionKey === null) {
-    return { completed: false, architectureAdvisory: null };
-  }
-  const ticket = readSessionActiveTicket(projectDirectory, runIdentity);
-  if (!ticket?.folder || ticket.status !== 'in_progress' || ticket.phase !== 'done') {
+  const completion = evaluateSessionDoneEvidence(projectDirectory, runIdentity);
+  if (!completion) {
     return { completed: false, architectureAdvisory: null };
   }
 
@@ -188,16 +180,7 @@ function completeSessionDoneTicket(
   // Cache it now, then discard it if evidence fails rather than letting an
   // advisory obscure the remediation the builder must act on.
   const architectureAdvisory = architectureNudge(projectDirectory, input);
-  const ticketDirectory = nodePath.join(
-    resolveNamespaceRoot(projectDirectory),
-    'tickets',
-    ticket.folder,
-  );
-  const verdict = evaluateDoneEvidence({
-    projectDir: projectDirectory,
-    ticketDir: ticketDirectory,
-    ticketType: ticket.type,
-  });
+  const verdict = completion.verdict;
   if (!verdict.ok) {
     return {
       completed: false,
@@ -206,7 +189,7 @@ function completeSessionDoneTicket(
     };
   }
 
-  updateTicketStatus(ticketDirectory, 'done', 'done');
+  updateTicketStatus(completion.ticketDir, 'done', 'done');
   return { completed: true, architectureAdvisory };
 }
 
@@ -328,6 +311,16 @@ async function main(): Promise<string> {
 
   // Everything below is advisory; a continuation Stop stays silent.
   if (continuation) return SILENT;
+
+  // The guard uses only this session's ticket, never the advisory's global
+  // fallback. Verify is independent of done evidence; neither may mutate first.
+  const identity = resolveRunIdentity(input, { runtime: 'codex' });
+  const ticket =
+    identity.sessionKey === null ? null : readSessionActiveTicket(projectDirectory, identity);
+  if (ticket) {
+    const reason = architectureReviewReason(projectDirectory, ticket);
+    if (reason) return JSON.stringify({ decision: 'block', reason });
+  }
 
   const completion = completeSessionDoneTicket(projectDirectory, input);
   if (completion.blockReason) {

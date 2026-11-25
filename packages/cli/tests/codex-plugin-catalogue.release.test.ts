@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+import { parse } from 'yaml';
 
 import {
   assertCodexPluginCatalogue,
@@ -21,6 +22,7 @@ import {
   generateCodexPluginAssets,
 } from '../src/codex-plugin/catalogue.js';
 import { assertNativePluginRuntimeAuthority } from '../src/plugin-runtime-authority.js';
+import { withTestingCore } from '../src/testing/shared-core.js';
 import { VERSION as CLI_VERSION } from '../src/version.js';
 
 const CLI_ROOT = nodePath.resolve(import.meta.dirname, '..');
@@ -44,14 +46,19 @@ function expectedPluginAssets(): string[] {
     if (skill === undefined || filename === undefined) {
       throw new Error(`unexpected canonical skill path: ${relativePath}`);
     }
-    if (filename === 'SKILL.md') return nodePath.join(skill, filename, ...rest);
-    return nodePath.join(skill, 'references', filename, ...rest);
+    const frontmatter = /^---\n([\s\S]*?)\n---/u.exec(
+      readFileSync(nodePath.join(CANONICAL_SKILLS, skill, 'SKILL.md'), 'utf8'),
+    );
+    const metadata = parse(frontmatter?.[1] ?? '') as Record<string, unknown>;
+    const root = metadata['user-invocable'] === false ? 'internal' : 'skills';
+    if (filename === 'SKILL.md') return nodePath.join(root, skill, filename, ...rest);
+    return nodePath.join(root, skill, 'references', filename, ...rest);
   });
   return [
     ...canonicalAssets,
-    'bdd/references/adr-template.md',
-    'bdd/references/execution-plan-template.md',
-    'bdd/references/impl-plan-template.md',
+    'skills/bdd/references/adr-template.md',
+    'skills/bdd/references/execution-plan-template.md',
+    'skills/bdd/references/impl-plan-template.md',
   ].toSorted((left, right) => left.localeCompare(right));
 }
 
@@ -110,7 +117,13 @@ describe('generated Codex plugin catalogue', () => {
   });
   it('ships every canonical workflow and its supporting phase material', () => {
     const expectedAssets = expectedPluginAssets();
-    const actualAssets = markdownFiles(PLUGIN_SKILLS);
+    const actualAssets = ['skills', 'internal']
+      .flatMap(root =>
+        markdownFiles(nodePath.join(CLI_ROOT, 'codex-plugin', root)).map(path =>
+          nodePath.join(root, path),
+        ),
+      )
+      .toSorted((left, right) => left.localeCompare(right));
 
     expect(actualAssets).toEqual(expectedAssets);
 
@@ -179,11 +192,26 @@ describe('generated Codex plugin catalogue', () => {
         ['---', 'name: beta', 'description: Referenced skill', '---', '', '# Beta', ''].join('\n'),
       );
 
-      expect(generateCodexPluginAssets(canonicalSkillsDirectory, CLI_VERSION)).toEqual([
+      const assets = generateCodexPluginAssets(canonicalSkillsDirectory, CLI_VERSION);
+      expect(
+        assets.find(asset => asset.relativePath === 'resources/workflow-index.json')?.content,
+      ).toContain('"version": 1');
+      // The runtime protocol is tested through the real bundled CLI in the
+      // source-wiring matrix. Preserve this exact procedure transformation check.
+      const procedures = assets
+        .filter(asset => asset.relativePath !== 'resources/workflow-index.json')
+        .map(asset => ({
+          ...asset,
+          content: asset.content.replace(
+            /^## Packaged runtime\n\n[\s\S]*?Keep PROJECT_DIR bound to the actual project\. Never substitute a project helper or another agent cache\.\n\n/mu,
+            '',
+          ),
+        }));
+      expect(procedures).toEqual([
         {
           relativePath: nodePath.join('skills', 'alpha', 'SKILL.md'),
           content:
-            '---\nname: alpha\ndescription: Invoke $safeword:beta and retain /beta.md, /beta/README.md, and /beta/_draft.md\n---\n\nRun $safeword:beta, preserve /outside, /beta/README.md, and /beta/_draft.md.\nConsult [TDD](references/TDD.md), [its loop](references/TDD.md#loop), and [X-TDD](references/X-TDD.md).\nLeave [prefixed](references/TDD.md), [remote](https://example.com/TDD.md), and prose TDD.md unchanged.\n',
+            '---\nname: alpha\ndescription: Invoke /beta and retain /beta.md, /beta/README.md, and /beta/_draft.md\n---\n\nRun $safeword:beta, preserve /outside, /beta/README.md, and /beta/_draft.md.\nConsult [TDD](references/TDD.md), [its loop](references/TDD.md#loop), and [X-TDD](references/X-TDD.md).\nLeave [prefixed](references/TDD.md), [remote](https://example.com/TDD.md), and prose TDD.md unchanged.\n',
         },
         {
           relativePath: nodePath.join('skills', 'alpha', 'references', 'TDD.md'),
@@ -228,26 +256,30 @@ describe('generated Codex plugin catalogue', () => {
       mkdirSync(nodePath.join(canonicalSkillsDirectory, 'quality-review'), { recursive: true });
       writeFileSync(
         nodePath.join(canonicalSkillsDirectory, 'quality-review/SKILL.md'),
-        [
-          '---',
-          'name: quality-review',
-          'description: Review changes',
-          '---',
-          '',
-          'Run:',
-          '',
-          '```bash',
-          'bun .safeword/hooks/run-review.ts review run quality-review changed-file [more-changed-files...] --agent-handoff --json',
-          '```',
-          '',
-        ].join('\n'),
+        withTestingCore(
+          [
+            '---',
+            'name: quality-review',
+            'description: Review changes',
+            '---',
+            '',
+            '# Quality review',
+            '',
+            'Run:',
+            '',
+            '```bash',
+            'bun .safeword/hooks/run-review.ts review run quality-review changed-file [more-changed-files...] --agent-handoff --json',
+            '```',
+            '',
+          ].join('\n'),
+        ),
       );
 
       // The managed-progress prefix carries what the run-review.ts wrapper set
       // in the child environment: without it a multi-minute review runs silent.
       const generated = generateCodexPluginAssets(canonicalSkillsDirectory, '1.2.3');
       expect(generated[0]?.content).toContain(
-        'SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.3/runtime/cli.js" review run quality-review changed-file [more-changed-files...] --agent-handoff --json',
+        'SAFEWORD_REVIEW_PROGRESS=1 bun "$SAFEWORD_PLUGIN_RUNTIME" review run quality-review changed-file [more-changed-files...] --agent-handoff --json',
       );
       expect(generated[0]?.content).not.toContain('.safeword/hooks/run-review.ts');
     } finally {
@@ -280,7 +312,7 @@ describe('generated Codex plugin catalogue', () => {
         generateCodexPluginAssets(canonicalSkillsDirectory, '1.2.3')[0]?.content ?? '';
 
       expect(content).toContain(
-        'source /dev/stdin <<< "$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.3/runtime/cli.js" project audit-scope)"',
+        'source /dev/stdin <<< "$(bun "$SAFEWORD_PLUGIN_RUNTIME" project audit-scope)"',
       );
       expect(content).not.toContain('.safeword/hooks/lib/audit-scope.sh');
     } finally {
@@ -312,7 +344,7 @@ describe('generated Codex plugin catalogue', () => {
         generateCodexPluginAssets(canonicalSkillsDirectory, '1.2.3')[0]?.content ?? '';
 
       expect(content).toContain(
-        'bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.3/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" verify "${CLAUDE_SESSION_ID:-}"',
+        'bun "$SAFEWORD_PLUGIN_RUNTIME" project record-skill-invocation --cwd "$PROJECT_DIR" verify "${CLAUDE_SESSION_ID:-}"',
       );
       expect(content).not.toContain('.safeword/hooks/record-skill-invocation.ts');
     } finally {
@@ -358,10 +390,10 @@ describe('generated Codex plugin catalogue', () => {
         generateCodexPluginAssets(canonicalSkillsDirectory, '1.2.3')[0]?.content ?? '';
 
       expect(content).toContain(
-        'NS_ROOT="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.3/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR")"',
+        'NS_ROOT="$(bun "$SAFEWORD_PLUGIN_RUNTIME" project namespace-root --cwd "$PROJECT_DIR")"',
       );
       expect(content).toContain(
-        'PERSONAS="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.3/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR" --key personas 2> /dev/null)"',
+        'PERSONAS="$(bun "$SAFEWORD_PLUGIN_RUNTIME" project namespace-root --cwd "$PROJECT_DIR" --key personas 2> /dev/null)"',
       );
       // A non-default basename has no flag to carry it, so it stays untouched
       // rather than silently resolving a different file.
@@ -371,7 +403,7 @@ describe('generated Codex plugin catalogue', () => {
       // The script defaults its third argument to `<key>.md`, which is also the
       // subcommand's default, so a key-only call maps cleanly onto --key.
       expect(content).toContain(
-        'KEYONLY="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.3/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR" --key personas)"',
+        'KEYONLY="$(bun "$SAFEWORD_PLUGIN_RUNTIME" project namespace-root --cwd "$PROJECT_DIR" --key personas)"',
       );
       // An operand the rewrite cannot map is preserved rather than emitted after
       // the new command: `namespace-root` takes no operands, so rewriting would
@@ -484,7 +516,7 @@ describe('generated Codex plugin catalogue', () => {
         generateCodexPluginAssets(canonicalSkillsDirectory, '1.2.3')[0]?.content ?? '';
 
       expect(content).toContain(
-        'Run `bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.3/runtime/cli.js" project review-knowledge --json` and use its sources.',
+        'Run `bun "$SAFEWORD_PLUGIN_RUNTIME" project review-knowledge --json` and use its sources.',
       );
       expect(content).not.toContain('.safeword/hooks/resolve-project-knowledge.ts');
     } finally {

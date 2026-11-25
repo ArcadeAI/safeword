@@ -5,6 +5,7 @@ import type {
   PlanningPhase,
 } from '../../src/planning/phase-contract.js';
 import { normalizePluginBundle } from '../../src/plugin-bundle.js';
+import type { IsolatedGraderBinding } from '../../src/review/isolated-grader.js';
 import { requirePinnedBunVersion } from '../bun-version.js';
 
 export { normalizePluginBundle as normalizePluginCliBundle } from '../../src/plugin-bundle.js';
@@ -14,8 +15,12 @@ export async function buildPluginCliBundle(
   packageManager: string,
   pluginName: string,
   builtVersion?: string,
-  planningCopies?: Readonly<Record<PlanningPhase, PlanningAuthorCopyIdentity>>,
+  options: {
+    planningCopies?: Readonly<Record<PlanningPhase, PlanningAuthorCopyIdentity>>;
+    isolatedGrader?: IsolatedGraderBinding;
+  } = {},
 ): Promise<string> {
+  const { planningCopies, isolatedGrader } = options;
   // @ts-expect-error -- plugin generators execute under Bun; the CLI's
   // Node-targeted tsconfig intentionally does not expose Bun globals elsewhere.
   requirePinnedBunVersion(packageManager, Bun.version);
@@ -27,6 +32,8 @@ export async function buildPluginCliBundle(
     // ambient NODE_ENV, so running a generator under Vitest can seal test-only
     // behavior into a bundle that differs from a normal release shell.
     define: {
+      __SAFEWORD_ISOLATED_GRADER_BINDING__:
+        isolatedGrader === undefined ? 'undefined' : JSON.stringify(JSON.stringify(isolatedGrader)),
       'process.env.NODE_ENV': JSON.stringify('development'),
       ...(builtVersion !== undefined && {
         __SAFEWORD_VERSION__: JSON.stringify(builtVersion),

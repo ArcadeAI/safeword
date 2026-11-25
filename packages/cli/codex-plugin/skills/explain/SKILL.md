@@ -7,7 +7,15 @@ description: Use when you need safeword's dense artifacts or current state
   work. Read-only. Do NOT use to explain code diffs or PRs (base Claude handles
   those), for general status questions unrelated to safeword artifacts, or to
   make any change.
+disable-model-invocation: true
 ---
+
+## Packaged runtime
+
+Resolve [the bundled Safeword runtime](../../runtime/cli.js) relative to this containing asset, not the project working directory.
+Before each shell block, assign SAFEWORD_PLUGIN_RUNTIME to that resolved absolute file path in a separate shell statement ending with a semicolon, then invoke the helper in that same shell call.
+Do not use `SAFEWORD_PLUGIN_RUNTIME=... bun "$SAFEWORD_PLUGIN_RUNTIME" ...`: the shell expands the argument before applying that environment assignment.
+Keep PROJECT_DIR bound to the actual project. Never substitute a project helper or another agent cache.
 
 # Explain
 

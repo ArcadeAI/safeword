@@ -1,0 +1,18 @@
+function currentTimestampContext(now = new Date()): string {
+  const natural = now.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'UTC',
+    timeZoneName: 'short',
+  });
+  const local = now.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  });
+  return `Current time: ${natural} (${now.toISOString()}) | Local: ${local}`;
+}

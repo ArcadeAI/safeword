@@ -1,4 +1,4 @@
-import { defineConfig, mergeConfig } from 'vitest/config';
+import { configDefaults, defineConfig, mergeConfig } from 'vitest/config';
 
 import { baseConfig } from './vitest.base';
 
@@ -13,6 +13,8 @@ export default mergeConfig(
   defineConfig({
     test: {
       include: ['tests/**/*.live.test.ts'],
+      // Required multi-host proof has its own fixture map and explicit runner.
+      exclude: [...configDefaults.exclude, 'tests/host-contract/propagation.live.test.ts'],
       env: {
         SAFEWORD_LIVE_CLAUDE_CONFIG_DIR: process.env.CLAUDE_CONFIG_DIR ?? '',
         SAFEWORD_LIVE_CODEX_HOME: process.env.CODEX_HOME ?? '',

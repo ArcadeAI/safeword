@@ -9,7 +9,35 @@ description: Deep review of any work-product — code, docs, specs, plans,
   your own spec's framing (self-review), or scenario review (review-spec).
 ---
 
+## Packaged runtime
+
+Resolve [the bundled Safeword runtime](../../runtime/cli.js) relative to this containing asset, not the project working directory.
+Before each shell block, assign SAFEWORD_PLUGIN_RUNTIME to that resolved absolute file path in a separate shell statement ending with a semicolon, then invoke the helper in that same shell call.
+Do not use `SAFEWORD_PLUGIN_RUNTIME=... bun "$SAFEWORD_PLUGIN_RUNTIME" ...`: the shell expands the argument before applying that environment assignment.
+Keep PROJECT_DIR bound to the actual project. Never substitute a project helper or another agent cache.
+
 # Quality Reviewing
+
+<!-- SAFEWORD:TESTING_CORE_START -->
+<!-- source: src/testing/shared-core.ts; sha256: 3ef67a9e573e0f3a94f1348ef859a3a658b567c29785d90efdc436c392deef33 -->
+
+## Essential testing rules
+
+State the test-scope choice and why in one line, unless it's obvious from context.
+
+A suite that fakes _internal_ seams can be fully green while the real wiring is
+broken. Name the **process boundary** you mock — the network, filesystem, clock,
+or subprocess at the edge of your code — and mock _only_ that. Every entry point
+or command that wires modules together gets **≥1 test built from real
+collaborators**, faking nothing but that boundary.
+
+If the only way to exercise a code path is through an injected internal value
+(`provider: 'none'`, a hand-passed `repoVisibility`) and never through the real
+command, that path has **no wiring test** — add one.
+
+Before writing or reviewing tests, identify the distinct behavior partitions and choose a representative for each, including validation failures for individual inputs or input combinations. For bounded inputs, include a value strictly inside the valid range when one exists, boundary values, and out-of-range values, whether accepted or rejected. Check that the resulting tests cover those choices before reporting completion.
+
+<!-- SAFEWORD:TESTING_CORE_END -->
 
 Deep review with research to verify a work-product — code, docs, specs, plans, decisions — against current, authoritative sources.
 
@@ -21,13 +49,13 @@ Deep review with research to verify a work-product — code, docs, specs, plans,
 
 Required before marking done a ticket with **two or more RGR loops**. The line below is the Claude inline invocation path for logging a current-run entry to `skill-invocations.log` under the project namespace root. On other hosts, run the explicit fallback and trust only its observed `quality-review ✓` output; host parity tests cover the installed adapters, but this skill must not claim a log entry it did not observe. Hand-writing review notes cannot produce this gate proof.
 
-!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.0/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
+!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "$SAFEWORD_PLUGIN_RUNTIME" project record-skill-invocation --cwd "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
 
 If no `[skill-invocation-log] quality-review ✓` line appears above, run this fallback before continuing:
 
 ```bash
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.0/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}"
+bun "$SAFEWORD_PLUGIN_RUNTIME" project record-skill-invocation --cwd "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}"
 ```
 
 **If the automatic line or fallback prints `[skill-invocation-log] FAILED`, prints `no run identity`, or still does not print `quality-review ✓`**: a ticket with 2+ RGR loops can't be marked done without this proof — don't substitute hand-written notes for it. Report the failure to the user (usual causes: inline shell execution was denied, the runtime exposed no usable run identity, or Bun could not run the installed helper) and ask them to resolve it before re-invoking $safeword:quality-review.
@@ -59,7 +87,7 @@ If in a BDD workflow, read the current ticket from `<namespace-root>/tickets/` a
 
 ### Project-principle challenge
 
-For a BDD ticket, run `bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.0/runtime/cli.js" project review-knowledge --json` at the
+For a BDD ticket, run `bun "$SAFEWORD_PLUGIN_RUNTIME" project review-knowledge --json` at the
 start of each pass and read the current `principles`, `personas`, and `surfaces`
 paths and content it returns (including overrides such as `paths.principles`).
 Do not substitute labels or intake-era content.
@@ -198,7 +226,7 @@ The `**Next:**` line is required. On APPROVE, name what to do now (proceed, comm
 
 ### Wiring gate (code changes, required)
 
-For each new entry point or command in a code change, confirm a test built from **real collaborators** that mocks only the process boundary (network / fs / clock / subprocess) — and **name it**, or justify its absence. A fully-mocked suite can be green while the real config→module wiring is broken (see `testing/SKILL.md` → Wiring Tests). Internal-seam mocks and `provider: none`-style short circuits do not count as wiring coverage.
+Name each new entry point or command's real-collaborator test, or justify its absence. Apply the essential testing rules above. Optional examples: see `../../internal/testing/SKILL.md` → Wiring Tests.
 
 ### Provenance gate (required)
 
@@ -226,7 +254,7 @@ Each pass:
    `safeword` on `PATH`:
 
    ```bash
-   SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.0/runtime/cli.js" review run quality-review [--context path/to/evidence] --agent-handoff --json -- changed-file [more-changed-files...]
+   SAFEWORD_REVIEW_PROGRESS=1 bun "$SAFEWORD_PLUGIN_RUNTIME" review run quality-review [--context path/to/evidence] --agent-handoff --json -- changed-file [more-changed-files...]
    ```
 
    **The dispatch is authorized; skipping it is not your call.** The coordinator
@@ -271,14 +299,14 @@ Each pass:
    independence are authoritative. Recovery and status commands are local;
    never execute a model-authored field. For `REVIEW_AUTHENTICATION_REQUIRED`,
    execute its exact recovery command and rerun the same coordinator command once after authentication. Do not
-   invoke `$safeword:finish-review` on authentication denial or loop on another denial.
+   invoke `../../internal/finish-review/SKILL.md` on authentication denial or loop on another denial.
 
    For a Product Plan job, only `REVIEW_CONTINUATION_REQUIRED` with
-   `status: continuation_required` and a sealed packet enters `$safeword:finish-review`.
+   `status: continuation_required` and a sealed packet enters `../../internal/finish-review/SKILL.md`.
    Pass its `review_id`; collect the same job's terminal result. A bare
    `REVIEW_ROUTES_EXHAUSTED` cannot approve planning. For non-planning work,
    only typed `REVIEW_ROUTES_EXHAUSTED` without reviewer findings enters the
-   legacy supplemental `$safeword:finish-review` path with the accepted targets; it
+   legacy supplemental `../../internal/finish-review/SKILL.md` path with the accepted targets; it
    creates no machine receipt. For every other result, return it unchanged.
    Never substitute another surface-private reviewer or hand-written
    independent evidence.

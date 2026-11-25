@@ -14,17 +14,15 @@ import {
 import { formatDependencyRecovery, getDependencyReadiness } from './lib/dependency-readiness.ts';
 import { checkFeatureScenarios, checkVerifyArtifact } from './lib/done-gate.ts';
 import { findNextWork, updateTicketStatus } from './lib/hierarchy.ts';
-import { hasCitation, parseImplPlan, sectionBody } from './lib/impl-plan.ts';
+import {
+  architectureReviewReason,
+  implPlanPrerequisiteReason,
+} from './lib/architecture-review-gate.ts';
 import { createLedgerShaResolver } from './lib/ledger-git.ts';
 import { validateLedger, wholeTicketPassApplies } from './lib/ledger-validation.ts';
 import {
-  hashArtifact,
-  isArchitectureReviewGateEnabled,
   isTerminalHandoffCorrectionEnabled,
   isStopQualityReviewEnabled,
-  parseReviewStamps,
-  reviewGateForIndependentDesign,
-  reviewScope,
 } from './lib/review-ledger.ts';
 import {
   type BddPhase,
@@ -55,7 +53,6 @@ import { runTests } from './lib/test-runner.ts';
 import { changedFilesSinceHead, evaluateImplementStopTypecheck } from './lib/typecheck-gate.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 import { resolveSessionProjectDirectory } from './lib/project-directory.ts';
-import { verifiedStamps } from './lib/verify-stamp-claims.ts';
 import { architectureDocumentNudgeForProject } from './lib/architecture-document-nudge.ts';
 import { evaluateParentContract } from './lib/product-plan-contract.ts';
 import { installCrashCapture } from './lib/self-report.ts';
@@ -96,6 +93,7 @@ const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 /** How many recent assistant messages to scan for edit tool usage. */
 const MAX_MESSAGES_FOR_TOOLS = 5;
 const MAX_TRANSCRIPT_TAIL_BYTES = 256 * 1024;
+const MAX_HANDOFF_TRANSCRIPT_TAIL_BYTES = 1024 * 1024;
 const MAX_CURRENT_TURN_SCAN_RECORDS = 512;
 const CURRENT_TURN_BOUNDARY_EXHAUSTED = 'boundary-exhausted' as const;
 const TRANSCRIPT_SYSTEM_MESSAGE_PATTERN = /^\s*<(?:system-reminder|task-notification)\b/i;
@@ -233,94 +231,6 @@ function checkParentProductPlan(ticketInfo: TicketInfo): void {
   }
 }
 
-/**
- * Check the impl-plan artifact for new-flow features (tickets XDNSZA + ERVA6V).
- * Features with spec.md (post-DZ2NM5 flow) at implement+ require an
- * impl-plan.md whose five sections are content-or-skip valid; from verify
- * onward its status must be `implemented` — the plan-vs-actual reconciliation
- * at implement exit flips it. Authored during the plan-implementation phase; grandfathered
- * tickets (no spec.md) and tasks are exempt.
- */
-function checkImplPlanArtifact(ticketInfo: TicketInfo): void {
-  if (ticketInfo.type !== 'feature') return;
-  if (!ticketInfo.folder || !ticketInfo.phase) return;
-
-  const phasesRequiringImplPlan = ['implement', 'verify', 'done'];
-  if (!phasesRequiringImplPlan.includes(ticketInfo.phase)) return;
-
-  // Grandfathering: spec.md presence routes new-flow vs pre-spec tickets (DZ2NM5 D5).
-  if (!existsSync(`${ticketsDir}/${ticketInfo.folder}/spec.md`)) return;
-
-  const implPlanPath = `${ticketsDir}/${ticketInfo.folder}/impl-plan.md`;
-  if (!existsSync(implPlanPath)) {
-    hardBlockDone(
-      `Feature at ${ticketInfo.phase} phase requires impl-plan.md (authored during the plan-implementation phase). Create it from the impl-plan template with all five required sections (plus optional Doc impact), each content or skip: <reason>, before stopping.`,
-    );
-  }
-
-  const { status, errors } = parseImplPlan(readFileSync(implPlanPath, 'utf8'));
-  if (errors.length > 0) {
-    hardBlockDone(`impl-plan.md validation failed:\n${errors.map(e => `  - ${e}`).join('\n')}`);
-  }
-
-  // Reconciliation gate (ERVA6V): the plan must reflect shipped reality
-  // before the ticket advances past implement.
-  const phasesRequiringImplemented = ['verify', 'done'];
-  if (phasesRequiringImplemented.includes(ticketInfo.phase) && status !== 'implemented') {
-    hardBlockDone(
-      `Impl plan reconciliation incomplete: impl-plan.md status is "${status ?? 'unknown'}". Walk Decisions, Design alignment, and Known deviations against what shipped, then set **Status:** implemented (see TDD.md "Implement exit: reconcile the plan").`,
-    );
-  }
-}
-
-/**
- * Architecture review gate (ticket MR5M3A). DEFAULT-OFF: fires only when
- * `.safeword/config.json` sets `architectureReviewGate: true`. For a new-flow
- * feature leaving implement (verify/done), require (a) the impl-plan Decisions
- * section to carry cited evidence — the /figure-it-out trace — and (b) a
- * design-review stamp bound to this ticket's impl-plan at its current content,
- * at any achieved independence. Runs AFTER checkImplPlanArtifact, so absent/malformed plans were
- * already blocked there (precedence). Skips and exemptions are auditable.
- */
-function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
-  if (ticketInfo.type !== 'feature' || !ticketInfo.folder || !ticketInfo.phase) return;
-  if (!['verify', 'done'].includes(ticketInfo.phase)) return;
-
-  const configPath = `${projectDir}/.safeword/config.json`;
-  const rawConfig = existsSync(configPath) ? readFileSync(configPath, 'utf8') : undefined;
-  if (!isArchitectureReviewGateEnabled(rawConfig)) return;
-
-  // Grandfathered (no spec.md) features are exempt, mirroring checkImplPlanArtifact.
-  if (!existsSync(`${ticketsDir}/${ticketInfo.folder}/spec.md`)) return;
-
-  const implPlanPath = `${ticketsDir}/${ticketInfo.folder}/impl-plan.md`;
-  if (!existsSync(implPlanPath)) return; // existence is checkImplPlanArtifact's block (precedence)
-  const planContent = readFileSync(implPlanPath, 'utf8');
-  const parsed = parseImplPlan(planContent);
-  if (parsed.errors.length > 0) return; // parse errors are checkImplPlanArtifact's block (precedence)
-
-  // Generation half: Decisions carries a citation, or an auditable skip.
-  const decisionsSkip = parsed.sections.Decisions?.skip;
-  const decisionsSkipped = typeof decisionsSkip === 'string' && decisionsSkip.trim() !== '';
-  if (!decisionsSkipped && !hasCitation(sectionBody(planContent, 'Decisions'))) {
-    hardBlockDone(
-      'Architecture review gate: the impl-plan Decisions section needs cited evidence (a URL or a [n] source-reference marker) — the trace that real evidence was weighed. Add a citation, or mark the section `skip: <reason>`.',
-    );
-  }
-
-  // Selection half: a satisfying design-review stamp for this ticket's plan at its current content.
-  const logPath = `${resolveNamespaceRoot(projectDir)}/skill-invocations.log`;
-  const scope = reviewScope(ticketInfo.folder, 'impl-plan', hashArtifact(planContent));
-  const stamps = existsSync(logPath)
-    ? verifiedStamps(parseReviewStamps(readFileSync(logPath, 'utf8')), projectDir, scope)
-    : [];
-  if (!reviewGateForIndependentDesign(scope, stamps).ok) {
-    hardBlockDone(
-      'Architecture review gate: the impl-plan design has no independent design review at its current content. Run `safeword review run plan-implementation ...`, then record its author_agent, actual_reviewer, and independence with `bun "\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts impl-plan`; add a model only when independently verified.',
-    );
-  }
-}
-
 // Read hook input from stdin
 let input: HookInput;
 try {
@@ -353,14 +263,11 @@ const skillSessionId =
 // allow Claude to stop. Prevents infinite quality review loops.
 const stopHookActive = input.stop_hook_active ?? false;
 
-const transcriptPath = input.transcript_path;
-let lines: string[] = [];
-if (transcriptPath) {
-  const transcriptFile = Bun.file(transcriptPath);
-  if (await transcriptFile.exists()) {
-    lines = await readBoundedTranscriptLines(transcriptFile);
-  }
-}
+const transcriptFile = input.transcript_path ? Bun.file(input.transcript_path) : undefined;
+const lines =
+  transcriptFile && (await transcriptFile.exists())
+    ? await readBoundedTranscriptLines(transcriptFile)
+    : [];
 
 checkUsageLimit(lines);
 
@@ -382,8 +289,10 @@ const sessionState = readSessionState(projectDir, stateIdentity);
 // gate then guards only the review/backstop path.
 checkCumulativeArtifacts(ticketInfo);
 checkParentProductPlan(ticketInfo);
-checkImplPlanArtifact(ticketInfo);
-checkArchitectureReviewGate(ticketInfo);
+const implPlanReason = implPlanPrerequisiteReason(projectDir, ticketInfo);
+if (implPlanReason) hardBlockDone(implPlanReason);
+const architectureReason = architectureReviewReason(projectDir, ticketInfo);
+if (architectureReason) hardBlockDone(architectureReason);
 
 // No edit tools used in the current user turn → skip the review path (a
 // conversational follow-up has nothing to review). If the record cap is
@@ -391,19 +300,36 @@ checkArchitectureReviewGate(ticketInfo);
 // recent window can be attributed to this turn. A byte-truncated tail retains
 // the prior bounded fallback. The done phase always falls through to its gate.
 const editsToReview = detectEditsToReview(lines);
-const currentTurnToolEvidence = detectToolUseInCurrentUserTurn(lines, () => true);
-// A turn whose last tool call launches background work is waiting, not handing off;
-// the results arrive in a new turn that is checked on its own stop (#5765, #1431).
-const terminalHandoffEvidence = editsToReview
-  ? 'current-turn-edit'
-  : currentTurnToolEvidence === true && !endsWaitingOnBackgroundWork(lines)
-    ? 'current-turn-tool'
-    : 'none';
-
 const stopReviewConfigPath = `${projectDir}/.safeword/config.json`;
 const stopReviewConfig = existsSync(stopReviewConfigPath)
   ? readFileSync(stopReviewConfigPath, 'utf8')
   : undefined;
+
+let handoffLines = lines;
+let currentTurnToolEvidence = detectToolUseInCurrentUserTurn(handoffLines, () => true);
+// Large Claude API records can hide the prompt while leaving the tool call in the tail.
+if (
+  !editsToReview &&
+  !stopHookActive &&
+  observedLastAssistantMessage &&
+  currentTurnToolEvidence === undefined &&
+  transcriptFile &&
+  transcriptFile.size > MAX_TRANSCRIPT_TAIL_BYTES &&
+  isTerminalHandoffCorrectionEnabled(stopReviewConfig)
+) {
+  handoffLines = await readBoundedTranscriptLines(
+    transcriptFile,
+    MAX_HANDOFF_TRANSCRIPT_TAIL_BYTES,
+  );
+  currentTurnToolEvidence = detectToolUseInCurrentUserTurn(handoffLines, () => true);
+}
+// A turn whose last tool call launches background work is waiting, not handing off;
+// the results arrive in a new turn that is checked on its own stop (#5765, #1431).
+const terminalHandoffEvidence = editsToReview
+  ? 'current-turn-edit'
+  : currentTurnToolEvidence === true && !endsWaitingOnBackgroundWork(handoffLines)
+    ? 'current-turn-tool'
+    : 'none';
 
 if (!editsToReview && currentPhase !== 'done') {
   if (!stopHookActive && observedLastAssistantMessage) {
@@ -472,8 +398,9 @@ function detectEditsToReview(transcriptLines: string[]): boolean {
  */
 async function readBoundedTranscriptLines(
   transcriptFile: ReturnType<typeof Bun.file>,
+  maxBytes = MAX_TRANSCRIPT_TAIL_BYTES,
 ): Promise<string[]> {
-  const transcriptStart = Math.max(0, transcriptFile.size - MAX_TRANSCRIPT_TAIL_BYTES);
+  const transcriptStart = Math.max(0, transcriptFile.size - maxBytes);
   let transcriptText = await transcriptFile.slice(transcriptStart).text();
 
   if (transcriptStart > 0) {

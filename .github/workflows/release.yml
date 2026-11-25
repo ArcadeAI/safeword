@@ -91,9 +91,23 @@ jobs:
       - name: Release-gate tests (supply-chain + dogfood parity)
         run: bun run --cwd packages/cli test:release
 
+      - name: Build the OpenCode V2 payload
+        run: bun packages/cli/scripts/generate-opencode-v2-plugin.ts --output packages/cli/dist/opencode-v2-plugin
+
       - name: 'Pack tarball with bun (strips workspace: protocols)'
         working-directory: packages/cli
         run: bun pm pack --destination ../../release-artifacts
+
+      - name: Verify the packed OpenCode V2 payload
+        run: |
+          extracted=$(mktemp -d)
+          tar -xzf release-artifacts/safeword-*.tgz -C "$extracted" package/dist/opencode-v2-plugin
+          bun -e '
+            import assert from "node:assert/strict";
+            import { openCodeV2PayloadDigest } from "./packages/cli/src/opencode/v2-enrollment.ts";
+            const [built, packed] = process.argv.slice(1);
+            assert.equal(openCodeV2PayloadDigest(packed), openCodeV2PayloadDigest(built));
+          ' packages/cli/dist/opencode-v2-plugin "$extracted/package/dist/opencode-v2-plugin"
 
       - name: Upload tarball artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

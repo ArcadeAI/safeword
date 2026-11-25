@@ -1,5 +1,6 @@
 ---
-description: Finds the real cause of a bug, in four steps, before you touch a fix. Use when encountering bugs, test failures, unexpected behavior, or when previous fix attempts failed. Enforces investigate-first discipline ('debug this', 'fix this error', 'test is failing', 'not working').
+description: |-
+  Root cause debugging before fixes. Use when investigating bugs, diagnosing test failures, troubleshooting unexpected behavior, or when previous fix attempts failed. Enforces investigate-first discipline.
 ---
 
 Read and follow the instructions in .safeword/skills/debug/SKILL.md

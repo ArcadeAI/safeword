@@ -200,7 +200,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       argv: ['conformance', '--agents=opencode', '--offline'],
       environment: { ...MACHINE_ENVIRONMENT, PATH: '' },
     },
-    commandOptions: [agentSelectionOption()],
+    commandOptions: [
+      agentSelectionOption(),
+      { flags: '--runtime <lane>', description: 'OpenCode runtime to check: cli (default) or tui' },
+    ],
   }),
   command('install', 'Install Safeword for this project and selected agents', 'mutate', {
     networkPolicy: 'declared',

@@ -151,8 +151,25 @@ async function conformanceHandler(invocation: CommandInvocation): Promise<CliRes
       data: { command: 'conformance' },
     });
   }
+  const lane = invocation.options.runtime;
+  if (lane !== undefined && lane !== 'cli' && lane !== 'tui') {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'CONFORMANCE_RUNTIME_INVALID',
+          message: 'Select --runtime=cli or --runtime=tui.',
+          retryable: false,
+        },
+      ],
+      data: { command: 'conformance' },
+    });
+  }
   const { runOpenCodeConformance } = await import('../opencode/conformance.js');
-  return runOpenCodeConformance(process.env);
+  return runOpenCodeConformance(process.env, {
+    projectDirectory: invocation.cwd,
+    runtime: lane === 'tui' ? 'TUI' : 'CLI',
+  });
 }
 
 async function doctorHandler(invocation: CommandInvocation): Promise<CliResult> {

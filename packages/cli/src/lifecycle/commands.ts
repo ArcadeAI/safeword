@@ -14,6 +14,7 @@ import {
   type NextAction,
 } from '../cli-protocol/result.js';
 import { removeProject } from '../commands/remove.js';
+import type { observeOpenCodeV2Removal } from '../opencode/v2-profile.js';
 import type { SafewordSchema } from '../schema.js';
 import { coordinateSelectedIntegrations, PRODUCTION_INTEGRATIONS } from './integrations.js';
 import { findEnclosingProject, nestedProjectRefused } from './nested-install.js';
@@ -250,6 +251,7 @@ interface PreparedLifecycle {
   readonly agents: readonly AgentIntegration[];
   readonly projectSchema: SafewordSchema;
   readonly projectPlan: CliPlan;
+  readonly profileObservations: ReadonlyMap<string, unknown>;
   readonly full: boolean;
   readonly scope: 'project' | 'user';
   readonly surfaces: readonly { readonly name: string; readonly effects: Effects }[];
@@ -366,6 +368,7 @@ async function prepareLifecycle(
     agents,
     projectSchema,
     projectPlan: project.plan,
+    profileObservations: observationByAgent,
     full: uninstalling && full,
     scope,
     surfaces,
@@ -384,6 +387,8 @@ function lifecyclePlanResult(
   prepared: PreparedLifecycle,
   installOptions: SetupPlanOptions = {},
 ): CliResult {
+  const refusal = operation === 'uninstall' && openCodeUninstallRefusal(prepared);
+  if (refusal) return refusal;
   const hasEffects = Object.values(prepared.plan.effects).some(effects => effects.length > 0);
   const selected = prepared.agents.length === 0 ? 'none' : prepared.agents.join(',');
   const scopeFlag = prepared.agents.includes('claude') ? ` --scope=${prepared.scope}` : '';
@@ -515,6 +520,20 @@ export async function planLifecycle(invocation: CommandInvocation): Promise<CliR
   return lifecyclePlanResult(operation, prepared, installOptions);
 }
 
+function openCodeUninstallRefusal(prepared: PreparedLifecycle): CliResult | undefined {
+  if (!prepared.agents.includes('opencode')) return;
+  const removal = prepared.profileObservations.get('opencode') as ReturnType<
+    typeof observeOpenCodeV2Removal
+  >;
+  if (!removal?.refusal) return;
+  return createResult({
+    state: 'action_required',
+    findings: [
+      { code: 'OPENCODE_V2_REMOVAL_UNAVAILABLE', message: removal.refusal, severity: 'error' },
+    ],
+  });
+}
+
 function staleUninstallPlan(plan: CliPlan): CliResult {
   return createResult({
     state: 'action_required',
@@ -568,7 +587,7 @@ async function applyPreparedLifecycle(
             }),
           ] as const),
   );
-  const observationByAgent = new Map<string, CliResult>();
+  const observationByAgent = new Map(prepared.profileObservations);
   for (const observation of projectOnlyObservations) {
     if (observation !== undefined) observationByAgent.set(...observation);
   }
@@ -675,7 +694,16 @@ export async function uninstallLifecycle(invocation: CommandInvocation): Promise
     full,
     scope: scope.value,
   });
-  if (invocation.offline && (full || prepared.plan.effects.packages.length > 0)) {
+  return applyUninstallRequest(invocation, prepared);
+}
+
+function applyUninstallRequest(
+  invocation: CommandInvocation,
+  prepared: PreparedLifecycle,
+): CliResult | Promise<CliResult> {
+  const refusal = openCodeUninstallRefusal(prepared);
+  if (refusal) return refusal;
+  if (invocation.offline && (prepared.full || prepared.plan.effects.packages.length > 0)) {
     return onlineRequired('uninstall');
   }
   const suppliedPlan =

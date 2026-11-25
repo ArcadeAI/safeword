@@ -17,7 +17,7 @@ import {
   assertCodexPluginCatalogue,
   generateCodexPluginAssets,
 } from '../src/codex-plugin/catalogue.js';
-import { CURSOR_COMMAND_WRAPPERS } from '../src/cursor-wrappers.js';
+import { readCanonicalCommandWrappers } from '../src/host-contract/catalogue.js';
 import { runParity } from '../src/parity.js';
 import { SAFEWORD_SCHEMA } from '../src/schema.js';
 import { VERSION as cliVersion } from '../src/version.js';
@@ -178,7 +178,7 @@ describe('closeout retrospective boundary (93C14D NTB1.R2)', () => {
   it('wires the authenticated preview field to the shipped Codex filer skill', () => {
     const skill = canonicalSkill();
     const generatedFiler = generateCodexPluginAssets(canonicalSkillsDirectory, cliVersion).find(
-      asset => asset.relativePath === 'skills/retro-filer/SKILL.md',
+      asset => asset.relativePath === 'internal/retro-filer/SKILL.md',
     );
 
     expect(skill).toContain('plan.retro.spoolPath');
@@ -242,7 +242,9 @@ describe('closeout host entry points (93C14D TBU1.R4)', () => {
   );
 
   it('derives Claude, Cursor, and Codex entry points from production catalogues', () => {
-    const cursor = CURSOR_COMMAND_WRAPPERS.find(wrapper => wrapper.name === 'closeout');
+    const cursor = readCanonicalCommandWrappers(
+      nodePath.join(repoRoot, 'packages/cli/templates'),
+    ).find(wrapper => wrapper.name === 'closeout');
     expect(cursor?.skillPath).toBe('closeout/SKILL.md');
     expect(SAFEWORD_SCHEMA.ownedFiles['.claude/skills/closeout/SKILL.md']).toBeDefined();
     expect(SAFEWORD_SCHEMA.ownedFiles['.cursor/commands/closeout.md']?.template).toBe(

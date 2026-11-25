@@ -339,11 +339,12 @@ function runFunctionalCommand(
   arguments_: string[],
   input: Buffer,
   captureOutput = false,
+  cwd?: string,
 ): FunctionalCommandResult {
-  if (arguments_.length === 0) return { status: 0, stdout: '' };
   const [executable, ...parameters] = arguments_;
   if (executable === undefined) return { status: 0, stdout: '' };
   const result = spawnSync(executable, parameters, {
+    cwd,
     // Bun snapshots the parent environment for child_process unless it is
     // passed explicitly. The dispatcher sets SAFEWORD_PLUGIN_CLI at runtime,
     // so aggregate child hooks need the current environment rather than the
@@ -859,17 +860,23 @@ function runEventHooks(
   standardInput: Buffer,
   response: HookResponse,
 ): number {
+  let incompleteStartup = false;
   for (const hook of hooks) {
     if (hook.type !== 'command' || typeof hook.command !== 'string') {
       throw new Error(`Safeword Claude plugin event group has an unsupported ${event} hook.`);
     }
     const result = runFunctionalCommand(['bash', '-c', hook.command], standardInput, true);
     if (result.status !== 0) {
-      return 2;
+      if (event !== 'SessionStart') return 2;
+      incompleteStartup = true;
+      process.stderr.write(
+        `Safeword SessionStart observer exited with status ${result.status}; continuing remaining startup hooks.\n`,
+      );
+      continue; // A failed child's stdout must not become successful context or authority.
     }
     mergeHookOutput(event, response, result.stdout);
   }
-  return 0;
+  return incompleteStartup ? 1 : 0;
 }
 
 function runEventGroup(
@@ -880,22 +887,27 @@ function runEventGroup(
 ): FunctionalCommandResult {
   const entries = readEventEntries(event, eventGroupsContent);
   const response: HookResponse = {};
+  let incompleteStartup = false;
   for (const entry of entries) {
     if (!eventEntryMatches(event, entry, hookInput)) continue;
     const hooks = entry.hooks ?? [];
     const status = runEventHooks(event, hooks, standardInput, response);
-    if (status !== 0) {
-      if (event === 'UserPromptSubmit') {
-        const priorReason = typeof response.reason === 'string' ? ` ${response.reason}` : '';
-        process.stderr.write(
-          `Safeword blocked prompt submission because a sibling hook failed; later checks did not run.${priorReason}\n`,
-        );
-        return { postExecutionEligible: false, status: 2, stdout: '' };
-      }
-      return { status, stdout: '' };
+    if (status === 0) continue;
+    if (event === 'SessionStart') {
+      incompleteStartup = true;
+      continue;
     }
+    if (event === 'UserPromptSubmit') {
+      const priorReason = typeof response.reason === 'string' ? ` ${response.reason}` : '';
+      process.stderr.write(
+        `Safeword blocked prompt submission because a sibling hook failed; later checks did not run.${priorReason}\n`,
+      );
+      return { postExecutionEligible: false, status: 2, stdout: '' };
+    }
+    return { status, stdout: '' };
   }
   return {
+    ...(incompleteStartup && { postExecutionEligible: false }),
     status: 0,
     stdout: Object.keys(response).length === 0 ? '' : `${JSON.stringify(response)}\n`,
   };
@@ -939,12 +951,16 @@ function executeConfiguredHooks(input: {
 }): FunctionalCommandResult {
   try {
     if (viableLegacyAuthority(input.event, input.projectRoot)) return { status: 0, stdout: '' };
+    // Shell hooks need the actual tool cwd; Bun hooks retain plugin-root startup isolation.
+    const commandCwd =
+      input.command[0] === 'bash' ? (input.hookInput.cwd ?? input.projectRoot) : undefined;
     return input.mode === '--event-group'
       ? runEventGroup(input.event, input.eventGroupsContent, input.hookInput, input.standardInput)
       : runFunctionalCommand(
           input.command,
           input.standardInput,
           input.event === 'UserPromptSubmit',
+          commandCwd,
         );
   } catch (error) {
     return functionalExecutionFailure(input.event, error);

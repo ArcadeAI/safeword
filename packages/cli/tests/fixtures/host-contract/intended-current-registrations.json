@@ -1,0 +1,89 @@
+{
+  "basis": "Independent intended selections read from accepted Claude settings, Codex manifest, Cursor settings and the sole V2 SDK registration contracts; not copied from checker output.",
+  "claude": {
+    "SessionStart": [
+      { "target": "session-bun-check.sh", "interpreter": "bash" },
+      { "target": "session-dependency-readiness.ts" },
+      { "target": "session-auto-upgrade.ts", "execution": "async-rewake" },
+      { "target": "session-safeword-context.ts --agent=claude" },
+      { "target": "session-reply-format.ts --agent=claude" },
+      { "target": "session-version.ts" },
+      { "target": "session-lint-check.ts" },
+      { "target": "session-architecture-heal.ts" },
+      { "target": "session-start-reentry.ts" },
+      { "target": "session-compact-context.ts", "matcher": "compact" }
+    ],
+    "UserPromptSubmit": [
+      { "target": "prompt-timestamp.ts" },
+      { "target": "prompt-questions.ts" },
+      { "target": "prompt-retro-nudge.ts" }
+    ],
+    "Stop": [
+      { "target": "stop-quality.ts" },
+      { "target": "stop-reentry.ts" },
+      { "target": "stop-self-report.ts" },
+      { "target": "stop-retro-filing.ts" },
+      { "target": "stop-retro.ts", "execution": "background" }
+    ],
+    "PreToolUse": [
+      { "target": "pre-tool-dependency-readiness.ts", "matcher": "Bash" },
+      { "target": "pre-tool-quality.ts", "matcher": "Edit|Write|MultiEdit|NotebookEdit" },
+      { "target": "pre-tool-quality.ts", "matcher": "Bash" },
+      { "target": "pre-tool-config-guard.ts", "matcher": "Edit|Write|MultiEdit|NotebookEdit" },
+      {
+        "target": "pre-tool-git-bare-fix.sh",
+        "interpreter": "bash",
+        "matcher": "Bash",
+        "condition": "Bash(git *)"
+      },
+      {
+        "target": "pre-tool-architecture-stage.ts",
+        "matcher": "Bash",
+        "condition": "Bash(git commit*)"
+      },
+      { "target": "pre-tool-stale-main.ts", "matcher": "Bash", "condition": "Bash(git checkout*)" },
+      { "target": "pre-tool-stale-main.ts", "matcher": "Bash", "condition": "Bash(git switch*)" }
+    ],
+    "PostToolUse": [
+      { "target": "post-tool-lint.ts", "matcher": "Edit|Write|MultiEdit|NotebookEdit" },
+      { "target": "post-tool-quality.ts", "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash" },
+      { "target": "post-tool-skill-nudge.ts", "matcher": "Edit|Write|MultiEdit|NotebookEdit" },
+      { "target": "post-tool-bypass-warn.ts", "matcher": "Edit|Write|MultiEdit|NotebookEdit" },
+      { "target": "post-tool-sync-learnings.ts", "matcher": "Edit|Write|MultiEdit|NotebookEdit" },
+      { "target": "post-tool-work-log.ts", "matcher": "Edit|Write|MultiEdit|NotebookEdit" },
+      { "target": "post-tool-dependency-readiness.ts", "matcher": "Bash" }
+    ],
+    "SessionEnd": [{ "target": "session-cleanup-quality.ts" }]
+  },
+  "cursor": {
+    "sessionStart": [
+      { "target": "session-safeword-context.ts --agent=cursor" },
+      { "target": "session-cursor-auto-upgrade.ts" }
+    ],
+    "preToolUse": [{ "target": "cursor/pre-tool-quality.ts", "matcher": "Write" }],
+    "beforeShellExecution": [{ "target": "cursor/before-shell-execution.ts" }],
+    "afterFileEdit": [{ "target": "cursor/after-file-edit.ts" }],
+    "postToolUse": [
+      { "target": "cursor/post-tool-quality.ts", "matcher": "Write|Shell" },
+      { "target": "cursor/post-tool-skill-nudge.ts", "matcher": "Write" }
+    ],
+    "stop": [{ "target": "cursor/stop.ts" }]
+  },
+  "codex": {
+    "SessionStart": { "target": "session-start", "matcher": "" },
+    "PreToolUse": { "target": "pre-tool-use", "matcher": "^(apply_patch|Bash|Edit|Write)$" },
+    "PostToolUse": { "target": "post-tool-use", "matcher": "^(apply_patch|Bash|Edit|Write)$" },
+    "UserPromptSubmit": { "target": "user-prompt-submit", "matcher": "" },
+    "Stop": { "target": "stop", "matcher": "" }
+  },
+  "opencode": [
+    ["plugin.setup", "setup", 0],
+    ["skill.transform", "registerSkills", 0],
+    ["session.prompt", "registerSkills", 0],
+    ["skill.transform", "registerSkills", 1],
+    ["command.transform", "registerCommands", 0],
+    ["session.prompt", "registerWorkerRestrictions", 0],
+    ["session.context", "registerWorkerRestrictions", 0],
+    ["tool.execute.before", "setup", 0]
+  ]
+}

@@ -7,6 +7,13 @@ description: Prepare a pull request for human review and decide whether it may
   repository merge policy.
 ---
 
+## Packaged runtime
+
+Resolve [the bundled Safeword runtime](../../runtime/cli.js) relative to this containing asset, not the project working directory.
+Before each shell block, assign SAFEWORD_PLUGIN_RUNTIME to that resolved absolute file path in a separate shell statement ending with a semicolon, then invoke the helper in that same shell call.
+Do not use `SAFEWORD_PLUGIN_RUNTIME=... bun "$SAFEWORD_PLUGIN_RUNTIME" ...`: the shell expands the argument before applying that environment assignment.
+Keep PROJECT_DIR bound to the actual project. Never substitute a project helper or another agent cache.
+
 # PR Readiness: Treat the Reviewer as the Customer
 
 Make the pull request cheap to understand, verify, and approve. Ready means the
@@ -74,7 +81,7 @@ Draft and give the recovery action.
 7. **Merge confidence:** the author can state that the current PR is immediately
    mergeable after approval, with no known follow-up required to make it safe.
 
-When `$safeword:quality-review` or `$safeword:finish-review` returns, resume this same readiness run
+When `$safeword:quality-review` or `../../internal/finish-review/SKILL.md` returns, resume this same readiness run
 and evaluate gate 5. Disclose degraded or absent independence. Do not restart the
 review loop unless a later material change makes its evidence stale.
 

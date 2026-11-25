@@ -12,12 +12,9 @@ exact schema entries, see `.project/guides/schema-registration-guide.md`.
 ## The steps
 
 1. **Template + byte-identical dogfood.** Author the skill at
-   `packages/cli/templates/skills/<name>/SKILL.md`, then copy it verbatim to the
-   repo's own `.claude/skills/<name>/SKILL.md` and `.safeword/skills/<name>/SKILL.md`.
-   The copies must be byte-identical — a pre-commit guard blocks the commit
-   otherwise, so stage them together. Copy after any prettier/markdownlint
-   formatting so lint-staged doesn't reformat only the template side
-   (`.claude/` and `.safeword/` are prettier-ignored; the template is not).
+   `packages/cli/templates/skills/<name>/SKILL.md`, then run
+   `scripts/dev bun scripts/parity-check.ts --fix` from the repository root to
+   sync byte-identical dogfood mirrors. Stage source and generated mirrors together.
 
 2. **Schema entries** in `packages/cli/src/schema.ts` — add
    `'.claude/skills/<name>/SKILL.md': { template: 'skills/<name>/SKILL.md' }` to
@@ -25,26 +22,30 @@ exact schema entries, see `.project/guides/schema-registration-guide.md`.
    them the skill exists in the repo but never ships.
 
 3. **Cursor wrappers** in `packages/cli/src/cursor-wrappers.ts` — the
-   `SKILL_CURSOR_PAIRS` list there is the canonical skill→Cursor mapping the
-   parity tests derive from. Then run `bun run generate:cursor-wrappers` from
+   `SKILL_CURSOR_PAIRS` mapping is derived from rule mechanics and action-skill
+   declarations; parity tests verify it, and authors do not maintain another list. Then run `bun run generate:cursor-wrappers` from
    `packages/cli`; never hand-write `.cursor/rules/*.mdc` or wrapper commands.
 
 4. **Action-skill decision** (drives step 3). Two kinds of skill:
    - **Model-invocable** (auto-triggers by description): add a
-     `CURSOR_RULE_WRAPPERS` entry so a rule is generated.
-   - **Action skill** (manual-only — `disable-model-invocation: true` in its
-     frontmatter, e.g. `verify`, `audit`, `explain`): add it to
-     `CURSOR_ACTION_SKILLS` (no rule) and add a `CURSOR_COMMAND_WRAPPERS` entry
-     so `.cursor/commands/<name>.md` is generated.
+     `CURSOR_RULE_WRAPPERS` entry containing native discovery mechanics and a
+     reference to the canonical skill. Its description comes from canonical
+     frontmatter; `SKILL_CURSOR_PAIRS` is derived, not another list to maintain.
+   - **Action entrypoint:** declare the Cursor action in `CURSOR_ACTION_SKILLS`
+     and its canonical command identity in `templates/commands/<name>.md`;
+     register the command name in schema's `CURSOR_COMMAND_WRAPPER_OWNED_FILES`
+     name list. The same-named skill owns its purpose/procedure and invocation
+     constraints. See the command authoring guide; no host description table exists.
 
 5. **Regenerate the plugins.** Run `bun run fix:generated-surfaces` from
    `packages/cli` so the Claude plugin, Codex plugin, historical catalogue, and
    Cursor wrappers all pick up the skill; `bun run check:generated-surfaces`
    confirms they are current.
 
-6. **Run the FULL `bun run test`** from `packages/cli/` — not a targeted file.
-   Schema/skills parity (steps 2-4) only fails in the cross-cutting suites; a
-   single-file pass means nothing for parity.
+6. **Verify the shared surfaces.** During development, run targeted schema,
+   skills/commands and metadata/ownership tests through `scripts/dev`. Run the
+   full suite for final verification. A workflow-only test cannot prove that
+   every required generated surface is registered and current.
 
 ## Why a learning, not a shipped guide
 

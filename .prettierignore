@@ -14,6 +14,8 @@ plugin/runtime/cli.js
 packages/cli/codex-plugin/package.json
 packages/cli/codex-plugin/runtime/
 packages/cli/codex-plugin/skills/
+packages/cli/codex-plugin/internal/
+packages/cli/codex-plugin/resources/
 packages/cli/codex-plugin/templates/
 packages/cli/src/planning/contracts.generated.ts
 packages/cli/src/review/product-plan-rubric.generated.ts

@@ -1,3 +1,8 @@
+---
+description: |-
+  USE WHEN BDD thresholds exceeded (2+ stories, >15 scenarios, >20 tasks). Split protocol and examples.
+---
+
 # Decomposition Checkpoints & Splitting
 
 Splitting is **suggested, not mandatory** — user decides.

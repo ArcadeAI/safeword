@@ -26,26 +26,26 @@ interface Workflow {
   >;
 }
 
-describe('OpenCode conformance CI lane', () => {
+describe('OpenCode V2 component CI lane', () => {
   function workflow(): Workflow {
     return parse(readFileSync(workflowPath, 'utf8')) as Workflow;
   }
 
-  it('runs the pinned public command and fault proofs in one unconditional standalone job', () => {
+  it('runs public retirement boundaries and V2 controller controls unconditionally', () => {
     const job = workflow().jobs['opencode-conformance'];
 
-    expect(job).toMatchObject({ name: 'OpenCode conformance' });
+    expect(job).toMatchObject({ name: 'OpenCode V2 boundary checks' });
     expect(job?.if).toBeUndefined();
     expect(job?.['continue-on-error']).toBeUndefined();
     expect(job?.steps?.some(candidate => candidate.name === 'Build')).toBe(true);
     const conformanceStep = job?.steps?.find(
-      candidate => candidate.name === 'Run pinned OpenCode conformance',
+      candidate => candidate.name === 'Check V2 controller and retired V1 delivery',
     );
     expect(conformanceStep?.if).toBeUndefined();
     expect(conformanceStep?.['continue-on-error']).toBeUndefined();
     const script = conformanceStep?.run;
-    expect(script).toContain('SAFEWORD_RUN_OPENCODE_CONFORMANCE=1');
-    expect(script).toContain('tests/opencode/conformance-command.test.ts');
+    expect(script).toContain('tests/opencode/retirement.test.ts');
+    expect(script).toContain('tests/opencode/conformance.test.ts');
     expect(script).not.toContain('|| true');
   });
 

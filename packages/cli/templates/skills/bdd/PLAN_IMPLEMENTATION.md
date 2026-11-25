@@ -1,3 +1,8 @@
+---
+description: |-
+  USE WHEN in BDD plan-implementation phase. Author impl-plan.md, run figure-it-out on load-bearing choices, ADR lifecycle, review before implement.
+---
+
 # Plan Implementation: Design Before TDD
 
 **Entry:** Agent enters `plan-implementation` phase. Scenarios passed the scenario-gate; behavior is fixed. This phase produces the implementation design record — `impl-plan.md` — and nothing else ships from it. Application code stays untouched until `implement` (the pre-tool hook enforces this).

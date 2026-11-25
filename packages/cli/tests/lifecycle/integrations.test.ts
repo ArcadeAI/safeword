@@ -36,7 +36,7 @@ function adapter(overrides: Partial<IntegrationAdapter> = {}): IntegrationAdapte
 }
 
 describe('integration registry contracts', () => {
-  it('SWM1.R3.S02 declares OpenCode profile effects and keeps checks read-only', async () => {
+  it('does not propose retired V1 profile mutations while V2 customer admission is unavailable', async () => {
     const opencode = PRODUCTION_INTEGRATIONS.find(entry => entry.id === 'opencode');
     if (opencode === undefined) throw new Error('Expected the OpenCode integration adapter.');
     const context = {
@@ -60,11 +60,7 @@ describe('integration registry contracts', () => {
       }),
     });
 
-    expect(install.files.map(effect => effect.target)).toEqual([
-      'OpenCode profile plugin',
-      'OpenCode Safeword identity',
-      'OpenCode Safeword dispatcher',
-    ]);
+    expect(install.files).toEqual([]);
     expect(check).toEqual({
       files: [],
       packages: [],
@@ -72,7 +68,7 @@ describe('integration registry contracts', () => {
       network: [],
       destructive: [],
     });
-    expect(uninstall.destructive).toHaveLength(3);
+    expect(uninstall.destructive).toHaveLength(0);
 
     const partialUninstall = await opencode.effects({
       ...context,
@@ -82,7 +78,7 @@ describe('integration registry contracts', () => {
         data: { installed: false, profile_removable: true },
       }),
     });
-    expect(partialUninstall.destructive).toHaveLength(3);
+    expect(partialUninstall.destructive).toHaveLength(0);
 
     for (const id of ['claude', 'codex']) {
       const integration = PRODUCTION_INTEGRATIONS.find(entry => entry.id === id);
@@ -175,4 +171,17 @@ describe('integration registry contracts', () => {
   ])('SWM1.R3.S08 rejects %s', (_name, entries) => {
     expect(() => createIntegrationRegistry(entries)).toThrow();
   });
+});
+
+it.each(['blok', '', 42])('rejects invalid present SessionEnd strength %s', strength => {
+  expect(() =>
+    defineIntegrationAdapter(
+      adapter({
+        capabilities: {
+          ...adapter().capabilities,
+          lifecycle: { ...adapter().capabilities.lifecycle, session_end: strength },
+        } as unknown as IntegrationAdapter['capabilities'],
+      }),
+    ),
+  ).toThrow(/lifecycle capability session_end is invalid/u);
 });

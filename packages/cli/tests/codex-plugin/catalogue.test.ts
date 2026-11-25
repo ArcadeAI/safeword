@@ -26,7 +26,7 @@ function generatedSkill(source: string): string {
 }
 
 describe('Codex plugin catalogue runtime authority', () => {
-  it('keeps the pinned plugin authoritative beside legacy project runtime', () => {
+  it('keeps the containing plugin authoritative beside legacy project runtime', () => {
     const content = generatedSkill(
       [
         '```bash',
@@ -37,19 +37,17 @@ describe('Codex plugin catalogue runtime authority', () => {
     );
 
     expect(content).toContain(
-      'source /dev/stdin <<< "$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.3/runtime/cli.js" project audit-scope)"',
+      'source /dev/stdin <<< "$(bun "$SAFEWORD_PLUGIN_RUNTIME" project audit-scope)"',
     );
     expect(content).not.toContain('.safeword/hooks/lib/audit-scope.sh');
   });
 
-  it('keeps an unavailable pinned package fail-closed without project-runtime fallback', () => {
+  it('keeps an unavailable containing package fail-closed without project-runtime fallback', () => {
     const content = generatedSkill(
       'Run `bun .safeword/hooks/run-review.ts review run audit changed-file --agent-handoff --json`.',
     );
 
-    expect(content).toContain(
-      'bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.3/runtime/cli.js" review run audit',
-    );
+    expect(content).toContain('bun "$SAFEWORD_PLUGIN_RUNTIME" review run audit');
     expect(content).not.toContain('.safeword/hooks/run-review.ts');
     expect(content).not.toMatch(/(?:fallback|safeword install|bun install|bunx)/iu);
   });
@@ -112,7 +110,7 @@ describe('Codex plugin catalogue runtime authority', () => {
     }
   });
 
-  it('rejects generated catalogue drift when a pinned runtime path changes', () => {
+  it('rejects generated catalogue drift when its package runtime path changes', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-unpinned-'));
     const canonical = nodePath.join(root, 'canonical');
     const plugin = nodePath.join(root, 'plugin');
@@ -136,7 +134,7 @@ describe('Codex plugin catalogue runtime authority', () => {
         generatedPath,
         generatedSkill(
           'Run `bun .safeword/hooks/run-review.ts review run audit changed-file --agent-handoff --json`.',
-        ).replaceAll('/1.2.3/runtime/cli.js', '/latest/runtime/cli.js'),
+        ).replaceAll('../../runtime/cli.js', '../../runtime/foreign.js'),
       );
 
       expect(() => {

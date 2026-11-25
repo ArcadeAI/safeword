@@ -153,7 +153,6 @@ describe('selected authority lifecycle reconciliation', () => {
   it.each([
     ['codex', 'claude'],
     ['claude', 'codex'],
-    ['codex', 'opencode'],
     ['cursor', 'claude'],
   ] as const)(
     'removes %s without unenrolling the remaining %s host',

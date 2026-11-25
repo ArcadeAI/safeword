@@ -1,0 +1,7 @@
+{
+  "kind": "captured-input-unit-control-not-native-receipt",
+  "origin": "/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-uPL3RN",
+  "call_id": "call_a4b5496c9d6e4b1281959976aeb10bdc",
+  "input": "const r = await tools.exec_command({\"cmd\":\"find .safeword -type f -maxdepth 3 -print -exec sed -n '1,240p' {} \\\\; && sed -n '1,260p' /private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-uPL3RN/profile/plugins/cache/safeword-contract-test/safeword/1.2.0/internal/testing/SKILL.md\",\"workdir\":\"/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-uPL3RN/project\",\"yield_time_ms\":10000,\"max_output_tokens\":30000});\ntext(r.output);\n",
+  "target": "/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-uPL3RN/profile/plugins/cache/safeword-contract-test/safeword/1.2.0/internal/testing/SKILL.md"
+}

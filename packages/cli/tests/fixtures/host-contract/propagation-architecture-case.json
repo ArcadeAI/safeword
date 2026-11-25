@@ -1,0 +1,4 @@
+{
+  "spec": "# Synthetic spec\n",
+  "plan": "# Impl Plan\n\n**Status:** implemented\n\n## Approach\n\nOne synthetic slice.\n\n## Decisions\n\nUse the existing local store.\n\n## Design alignment\n\nskip: no configured principles\n\n## Known deviations\n\nskip: none\n\n## Assessment triggers\n\nRevisit if the data changes.\n"
+}

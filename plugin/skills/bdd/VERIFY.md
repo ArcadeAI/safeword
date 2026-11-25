@@ -1,3 +1,8 @@
+---
+description: |-
+  USE WHEN in BDD verify phase OR all scenarios marked [x]. Evidence gate — cross-scenario refactor, then /verify and /audit.
+---
+
 # Verify: Evidence Gate
 
 **Entry:** All scenarios marked `[x]` in test-definitions.md, implement-exit

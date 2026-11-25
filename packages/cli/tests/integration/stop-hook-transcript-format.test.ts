@@ -274,6 +274,22 @@ describe('Stop Hook: Frozen Transcript Format Compatibility', () => {
     expect(parsed.reason).toContain('terminal-handoff/v1 correction.');
   });
 
+  it('corrects a handoff when a large API request record separates the prompt from the tool call', () => {
+    const transcriptPath = writeToolTurn([{ name: 'Bash', input: { command: 'git status' } }]);
+    const [prompt, ...toolRecords] = readFileSync(transcriptPath, 'utf8').split('\n');
+    const requestBlob = JSON.stringify({ type: 'api-request-blob', content: 'x'.repeat(580_000) });
+    writeFileSync(
+      transcriptPath,
+      [prompt, requestBlob, ...toolRecords, assistantTextLine('READY')].join('\n'),
+    );
+
+    const result = runStopHook(state.projectDirectory, transcriptPath, undefined, 'READY');
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('terminal-handoff/v1 correction.');
+    expect(JSON.parse(result.stdout)).toMatchObject({ decision: 'block' });
+  });
+
   it('still corrects a turn whose background launch failed', () => {
     const transcriptPath = writeToolTurn([
       { name: 'Read' },

@@ -2,10 +2,12 @@ import { spawnSync } from 'node:child_process';
 import {
   cpSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   renameSync,
   rmSync,
   writeFileSync,
@@ -14,11 +16,6 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import {
-  isEmptyFrontmatterValue,
-  parseFrontmatter,
-  REQUIRED_INTAKE_FIELDS,
-} from '../../templates/hooks/lib/hierarchy.js';
 import { legacyCodexEventIsViable } from '../codex-plugin/legacy-authority.js';
 import {
   CODEX_PLUGIN_HOOK_EVENTS,
@@ -26,8 +23,19 @@ import {
   recordCodexHookProof,
 } from '../codex-plugin/profile-proof.js';
 import { resolveCodexProjectDirectory } from '../codex-plugin/project-directory.js';
+import {
+  resourceRevisionContext,
+  validatedResourceRevision,
+} from '../codex-plugin/resource-revision.js';
 import { generateOwnedPathsModule } from '../owned-paths.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
+import {
+  CODEX_SKILL_METADATA_LIMIT,
+  CODEX_STARTUP_CONTEXT_LIMIT,
+  CODEX_WORKFLOW_LAYOUT,
+  TESTING_CORE_LAYOUT,
+} from '../schema-layouts.js';
+import { assertTestingCore, testingCoreBlock } from '../testing/shared-core.js';
 import { hasSafewordProjectMarker, resolveNamespaceRoot } from '../utils/configured-paths.js';
 
 declare const __SAFEWORD_OPENCODE_CODEX_PRE_TOOL_SOURCE__: string | undefined;
@@ -76,7 +84,6 @@ interface HookProcessResult {
   stdout: string;
 }
 
-const EXPLAIN_HINT = 'Run `$explain` for a plain-English version of this block.';
 const EXIT_CODE_DENY_MODE = 'exit-code';
 const PRE_TOOL_QUALITY_HOOK_PATH = 'codex/pre-tool-quality.ts';
 const MODULE_DIRECTORY = import.meta.dirname;
@@ -287,45 +294,6 @@ function extractTargetPaths(input: CodexHookInput): string[] {
 
   const filePath = input.tool_input?.file_path ?? input.tool_input?.notebook_path;
   return filePath ? [filePath] : [];
-}
-
-function missingIntakeFields(ticketContent: string): string[] {
-  const match = /^---\r?\n([\s\S]*?)\r?\n---/u.exec(ticketContent);
-  if (!match) return [...REQUIRED_INTAKE_FIELDS];
-  const meta = parseFrontmatter(match[1] ?? '');
-  return REQUIRED_INTAKE_FIELDS.filter(field => isEmptyFrontmatterValue(meta[field]));
-}
-
-function testDefinitionsTicketFolder(
-  projectDirectory: string,
-  targetPath: string,
-): string | undefined {
-  const ticketsDirectory = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets');
-  const absoluteTarget = nodePath.resolve(projectDirectory, targetPath);
-  const normalized = nodePath.relative(ticketsDirectory, absoluteTarget).replaceAll('\\', '/');
-  const match = /^([^/]+)\/test-definitions\.md$/u.exec(normalized);
-  return match?.[1];
-}
-
-function buildDenyOutput(reason: string): DenialOutput {
-  return {
-    systemMessage: EXPLAIN_HINT,
-    hookSpecificOutput: {
-      hookEventName: 'PreToolUse',
-      permissionDecision: 'deny',
-      permissionDecisionReason: `${reason}\n\n${EXPLAIN_HINT}`,
-    },
-  };
-}
-
-function deny(reason: string): void {
-  const output = buildDenyOutput(reason);
-  if (process.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE) {
-    process.stderr.write(`${output.hookSpecificOutput.permissionDecisionReason}\n`);
-    process.exit(2);
-  }
-
-  process.stdout.write(`${JSON.stringify(output)}\n`);
 }
 
 /**
@@ -678,25 +646,6 @@ function emitAdditionalContext(output: AdditionalContextOutput): void {
   process.stdout.write(`${JSON.stringify(output)}\n`);
 }
 
-function currentTimestampContext(now = new Date()): string {
-  const natural = now.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'UTC',
-    timeZoneName: 'short',
-  });
-  const local = now.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZoneName: 'short',
-  });
-  return `Current time: ${natural} (${now.toISOString()}) | Local: ${local}`;
-}
-
 function packagedAdditionalContext(
   result: HookProcessResult,
   hookEventName: AdditionalContextHookEvent,
@@ -724,30 +673,6 @@ function emitStopContinuation(output: StopContinuationOutput): void {
   process.stdout.write(`${JSON.stringify(output)}\n`);
 }
 
-function maybeDenyTestDefinitionsWrite(projectDirectory: string, targetPath: string): boolean {
-  const ticketFolder = testDefinitionsTicketFolder(projectDirectory, targetPath);
-  if (!ticketFolder) return false;
-
-  const ticketDirectory = nodePath.join(
-    resolveNamespaceRoot(projectDirectory),
-    'tickets',
-    ticketFolder,
-  );
-  // Like the shared gate, only creation is gated; an existing ledger stays editable.
-  if (existsSync(nodePath.join(ticketDirectory, 'test-definitions.md'))) return false;
-  const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
-  const ticketContent = existsSync(ticketPath) ? readFileSync(ticketPath, 'utf8') : '';
-  const missing = missingIntakeFields(ticketContent);
-  if (missing.length === 0) return false;
-
-  deny(
-    `Cannot create test-definitions.md for ${ticketFolder} until ticket.md declares ${missing.join(
-      ', ',
-    )}.`,
-  );
-  return true;
-}
-
 function runEnrolledPreToolUse(
   rawInput: string,
   projectDirectory: string,
@@ -770,10 +695,6 @@ function runEnrolledPreToolUse(
       sessionId: input.session_id,
     });
   }
-
-  for (const targetPath of extractTargetPaths(input)) {
-    if (maybeDenyTestDefinitionsWrite(projectDirectory, targetPath)) return;
-  }
 }
 
 async function runPreToolUse(projectDirectory: string): Promise<void> {
@@ -792,11 +713,158 @@ async function runPreToolUse(projectDirectory: string): Promise<void> {
   runEnrolledPreToolUse(rawInput, projectDirectory, qualityResult);
 }
 
+function containedWorkflowResource(root: string, relative: unknown): string {
+  if (typeof relative !== 'string' || nodePath.isAbsolute(relative))
+    throw new Error('invalid resource path');
+  const resolved = realpathSync(nodePath.resolve(root, relative));
+  const contained = nodePath.relative(root, resolved);
+  if (
+    !contained ||
+    contained === '..' ||
+    contained.startsWith(`..${nodePath.sep}`) ||
+    nodePath.isAbsolute(contained)
+  )
+    throw new Error('resource escapes package');
+  return resolved;
+}
+
+function workflowIndexEntries(index: unknown): unknown[] {
+  if (
+    !index ||
+    typeof index !== 'object' ||
+    !('version' in index) ||
+    index.version !== 1 ||
+    !('workflows' in index) ||
+    !Array.isArray(index.workflows)
+  )
+    throw new Error('invalid workflow index');
+  return index.workflows as unknown[];
+}
+
+function validateWorkflowFlags(value: Record<string, unknown>): void {
+  if (
+    typeof value.userInvocable !== 'boolean' ||
+    typeof value.allowImplicitInvocation !== 'boolean' ||
+    !Array.isArray(value.resources) ||
+    value.resources.length === 0
+  )
+    throw new Error('invalid workflow metadata');
+}
+
+function workflowEntry(workflow: unknown, names: Set<string>): Record<string, unknown> {
+  if (!workflow || typeof workflow !== 'object') throw new Error('invalid workflow entry');
+  const value = workflow as Record<string, unknown>;
+  if (
+    typeof value.name !== 'string' ||
+    !/^[a-z][\w-]*$/u.test(value.name) ||
+    names.has(value.name) ||
+    typeof value.description !== 'string' ||
+    !value.description.trim()
+  )
+    throw new Error('invalid workflow identity');
+  validateWorkflowFlags(value);
+  names.add(value.name);
+  return value;
+}
+
+function workflowDescription(root: string, value: Record<string, unknown>): string | undefined {
+  const directory = value.userInvocable
+    ? CODEX_WORKFLOW_LAYOUT.skills
+    : CODEX_WORKFLOW_LAYOUT.internal;
+  const expected = nodePath.posix.join(directory, value.name as string, 'SKILL.md');
+  const resources = value.resources as unknown[];
+  if (value.path !== expected || !resources.includes(expected))
+    throw new Error('invalid workflow location');
+  const location = containedWorkflowResource(root, value.path);
+  for (const resource of resources) containedWorkflowResource(root, resource);
+  return !value.userInvocable && value.allowImplicitInvocation
+    ? `- ${String(value.name)}: ${String(value.description)}\n  Read: ${location}`
+    : undefined;
+}
+
+function packagedWorkflowIndex(root: string): unknown {
+  const file = nodePath.join(root, CODEX_WORKFLOW_LAYOUT.index);
+  for (const path of [nodePath.dirname(file), file])
+    if (lstatSync(path).isSymbolicLink()) throw new Error('Workflow index symlink');
+  return JSON.parse(readFileSync(file, 'utf8')) as unknown;
+}
+
+function installedEssentialCore(root: string): string {
+  for (const template of TESTING_CORE_LAYOUT.templates) {
+    const relative = nodePath.posix.join(CODEX_WORKFLOW_LAYOUT.templates, template);
+    const file = containedWorkflowResource(root, relative);
+    assertTestingCore(readFileSync(file, 'utf8'), template);
+  }
+  return testingCoreBlock();
+}
+
+function packagedWorkflowContext(): string {
+  if (process.env.SAFEWORD_AGENT_RUNTIME === 'opencode') return '';
+  try {
+    const root = realpathSync(nodePath.resolve(MODULE_DIRECTORY, '..'));
+    // npm/source entrypoints also expose this command, but own no native index.
+    if (!existsSync(nodePath.join(root, '.codex-plugin'))) return '';
+    const index = packagedWorkflowIndex(root);
+    const names = new Set<string>();
+    const descriptions: string[] = [];
+    const revision = validatedResourceRevision(root, index);
+    const revisionContext = resourceRevisionContext(revision);
+    let characters = revisionContext.length;
+    for (const workflow of workflowIndexEntries(index)) {
+      const value = workflowEntry(workflow, names);
+      const description = workflowDescription(root, value);
+      characters +=
+        String(value.name).length + String(value.description).length + String(value.path).length;
+      if (description) descriptions.push(description);
+    }
+    if (characters > CODEX_SKILL_METADATA_LIMIT)
+      throw new Error('Workflow metadata budget exceeded');
+    return [
+      'Safeword internal workflows are available automatically by description. Read the matching resource when the task needs it; these resources are not explicit selector entries.',
+      revisionContext,
+      ...descriptions,
+      'Resource reads grant no coding, review, planning, continuation or outbound authority. Existing guards remain authoritative.',
+      'Essential guidance does not invoke a workflow or grant authority.',
+      installedEssentialCore(root),
+    ].join('\n');
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    return `Safeword workflow discovery unavailable: ${detail}. Regenerate or repair this installed package before relying on internal discovery.`;
+  }
+}
+
+function augmentSessionStart(stdout: string, context: string): string {
+  try {
+    const output = JSON.parse(stdout) as AdditionalContextOutput;
+    const previous = output.hookSpecificOutput?.additionalContext;
+    if (typeof previous !== 'string' || output.hookSpecificOutput.hookEventName !== 'SessionStart')
+      throw new Error('invalid startup context');
+    const combined = `${previous}\n\n${context}`;
+    if (Buffer.byteLength(combined) > CODEX_STARTUP_CONTEXT_LIMIT)
+      throw new Error('startup context byte budget exceeded');
+    output.hookSpecificOutput.additionalContext = combined;
+    return `${JSON.stringify(output)}\n`;
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    process.stderr.write(
+      `Safeword workflow discovery unavailable: ${detail}; repair the installed package.\n`,
+    );
+    return stdout;
+  }
+}
+
 async function runSessionStart(projectDirectory: string): Promise<void> {
   const rawInput = await readStdin();
   const packagedResult = runPackagedHook('session-codex-start.ts', rawInput, projectDirectory);
+  if (packagedResult.stderr) process.stderr.write(packagedResult.stderr);
   if (packagedResult.stdout.trim() !== '') {
-    process.stdout.write(packagedResult.stdout);
+    const context =
+      packagedResult.status === 0
+        ? packagedWorkflowContext()
+        : 'Safeword workflow discovery unavailable: startup failed; repair the installed package.';
+    process.stdout.write(
+      context ? augmentSessionStart(packagedResult.stdout, context) : packagedResult.stdout,
+    );
     return;
   }
   if (!usablePackagedHandbookPath()) {
@@ -815,12 +883,14 @@ async function runSessionStart(projectDirectory: string): Promise<void> {
   const additionalContext = readPackagedSafewordInstructions();
   if (!additionalContext) return;
 
-  emitAdditionalContext({
+  const stdout = JSON.stringify({
     hookSpecificOutput: {
       hookEventName: 'SessionStart',
       additionalContext,
     },
   });
+  const context = packagedWorkflowContext();
+  process.stdout.write(context ? augmentSessionStart(stdout, context) : `${stdout}\n`);
 }
 
 function postToolLintInputs(
@@ -896,7 +966,12 @@ async function runPostToolUse(projectDirectory: string): Promise<void> {
 
 async function runUserPromptSubmit(projectDirectory: string): Promise<void> {
   const rawInput = await readStdin();
-  const contexts = [currentTimestampContext()];
+  const timestamp = runPackagedHook(
+    'prompt-timestamp.ts',
+    rawInput,
+    projectDirectory,
+  ).stdout.trim();
+  const contexts = timestamp ? [timestamp] : [];
   if (hasSafewordProjectMarker(projectDirectory)) {
     const retroNudge = packagedAdditionalContext(
       runPackagedHook('prompt-retro-nudge.ts', rawInput, projectDirectory),

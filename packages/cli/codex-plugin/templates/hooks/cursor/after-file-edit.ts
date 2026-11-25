@@ -4,7 +4,7 @@
 
 import { existsSync } from 'node:fs';
 
-import { cursorEditedMarkerPath, stashCursorTranscript } from '../lib/cursor-state.ts';
+import { recordCursorEdit, stashCursorTranscript } from '../lib/cursor-state.ts';
 import { lintFile } from '../lib/lint.ts';
 import { installCrashCapture } from '../lib/self-report.ts';
 
@@ -46,7 +46,7 @@ if (!existsSync('.safeword')) {
 }
 
 // Set marker file for stop hook to know edits were made
-await Bun.write(cursorEditedMarkerPath(input), '');
+recordCursorEdit(input);
 
 // Stash transcript_path so the user-invoked `/retro` command (which gets no
 // payload) can resolve THIS conversation's transcript (RTSK9C / #624).

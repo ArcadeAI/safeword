@@ -1,5 +1,6 @@
 ---
-description: USE WHEN starting feature work, running /bdd, resuming a BDD ticket, or user says 'add', 'implement', 'build', 'feature', 'resume', 'continue'. Orchestrates BDD phases.
+description: |-
+  Behavior-first feature development — use when building new capabilities, continuing feature work, or when work introduces new state or multiple user flows. Discovers desired behavior through examples and scenarios before implementation. Do NOT use for bug fixes, typos, or small isolated changes.
 alwaysApply: false
 ---
 
