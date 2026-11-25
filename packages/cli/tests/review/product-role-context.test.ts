@@ -102,6 +102,32 @@ describe('Product review role context', () => {
       prepared.cleanup();
     }
   });
+  it.each([
+    ['Local CLI', '## Local CLI', undefined],
+    ['Local CLI (`local-cli`)', '## Local CLI', undefined],
+    ['Warehouse Kiosk', '## Local CLI', 'Unknown surface "Warehouse Kiosk"'],
+    ['Local CLI', '## Local CLI\n\n## Local CLI', 'Ambiguous surface "Local CLI"'],
+  ])('matches the saved plan surface %s against %s', (reference, headings, error) => {
+    const root = project();
+    writeFileSync(
+      nodePath.join(root, target),
+      `${product}\n## Surfaces\n\nAffected:\n- ${reference}\n`,
+    );
+    writeFileSync(nodePath.join(root, '.project/surfaces.md'), `# Surfaces\n\n${headings}\n`);
+    const prepared = prepareReviewPacket(root, 'quality-review', [target]);
+    try {
+      const identify = () => createPlanningReviewIdentity(prepared.packet);
+      if (error) {
+        expect(identify).toThrow(
+          expect.objectContaining({ message: expect.stringContaining(error) }),
+        );
+      } else {
+        expect(identify()?.ticket_id).toBe('OWN123');
+      }
+    } finally {
+      prepared.cleanup();
+    }
+  });
   it('leaves a legacy generic Product review on the old route', () => {
     const prepared = prepareReviewPacket(project('legacy'), 'quality-review', [target]);
     try {

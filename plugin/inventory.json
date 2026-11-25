@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "f9ab4d57c207f73a4fdca29153d65c9aa27e4ced4588e8aa340c7d42e698a3d7"
+      "sha256": "37b074b81d922731479fdab7dbe40b7f0bb1bf729549704f24e24bf23297e989"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "2c49845c2d9dcf1e77d58bce643f34e2d0e74e82b91ee69de99e8ea6d7de983a"
+      "sha256": "24263b5bc3fd1a1b1e7bbdc85fd7abef6daa0e028b3cfdd6e81dbbef1d222619"
     },
     {
       "path": "runtime/event-groups.json",
@@ -648,7 +648,7 @@
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
-      "sha256": "e537b4e846e76fc33ce479f80e3df89537fdc9c9bfe69df2b83a32c7e2363d8d"
+      "sha256": "ea28f7d8b566a2c7b7f88c820d9539bfcfe18024f7e26664277644214da3f881"
     },
     {
       "path": "skills/bdd/DONE.md",
@@ -1675,7 +1675,7 @@
     },
     {
       "path": "templates/skills/bdd/DISCOVERY.md",
-      "sha256": "664481613c42f8efe24eb22b1b9ad53212670a3d91801f439051e141da5ad398"
+      "sha256": "8b0eda3825d2755f44eb840c154a6894b00c3e70c92ab9a6d21f80567af72558"
     },
     {
       "path": "templates/skills/bdd/DONE.md",

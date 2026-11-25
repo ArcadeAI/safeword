@@ -19,7 +19,7 @@ import {
 } from './evidence-record.js';
 import { ReviewPacketError } from './packet-error.js';
 import { PlanningContextError } from './planning-context-error.js';
-import type { PlanningReviewIdentity } from './planning-role-context.js';
+import type { PlanningContextDependency, PlanningReviewIdentity } from './planning-role-context.js';
 import { scenarioReviewRubric } from './review-rubric.js';
 
 interface MarkdownNode {
@@ -665,17 +665,19 @@ function planningPersonaIdentity(packet: ReviewPacket, content: string): string 
   return identity({ version: 1, selected });
 }
 
-function planningSurfaceIdentity(packet: ReviewPacket, content: string): string {
+function planningSurfaceIdentity(packet: ReviewPacket, content: string, path: string): string {
   const spec = planningRoleContent(packet, 'rules');
   const feature = planningRoleContent(packet, 'scenarios');
-  const references = new Set([
-    ...parseAffectedSurfaceReferences(spec)
-      .filter(surface => !surface.skipped)
-      .map(surface => surface.slug),
-    ...parseFeatureScenarios(feature).flatMap(scenario =>
-      scenario.tags.flatMap(tag => (tag.startsWith('@surface.') ? [tag.slice(9)] : [])),
-    ),
-  ]);
+  const references = new Map<string, string>();
+  for (const surface of parseAffectedSurfaceReferences(spec)) {
+    if (!surface.skipped) references.set(surface.slug, surface.name);
+  }
+  for (const { tags } of parseFeatureScenarios(feature)) {
+    for (const tag of tags) {
+      if (tag.startsWith('@surface.') && !references.has(tag.slice(9)))
+        references.set(tag.slice(9), tag);
+    }
+  }
   if (references.size === 0) return artifactIdentity(content);
   const nodes = parseMarkdown(content);
   const headings = nodes.flatMap((node, index) =>
@@ -683,15 +685,26 @@ function planningSurfaceIdentity(packet: ReviewPacket, content: string): string 
       ? [{ index, slug: surfaceSlug(headingText(node)) }]
       : [],
   );
+  const matched = new Set<string>();
   const selected = headings.flatMap((heading, index) => {
-    if (!references.has(heading.slug)) return [];
+    const name = references.get(heading.slug);
+    if (name === undefined) return [];
+    if (matched.has(heading.slug))
+      throw new PlanningContextError('surfaces', path, {
+        message: `Ambiguous surface "${name}" matches multiple headings in ${path}. Give each surface a unique name.`,
+      });
+    matched.add(heading.slug);
     const end = headings[index + 1]?.index ?? nodes.length;
     return [
       { slug: heading.slug, content: identity(normalizeNodes(nodes.slice(heading.index, end))) },
     ];
   });
-  if (selected.length !== references.size)
-    throw new Error('Scenario references missing or ambiguous surface inventory entries.');
+  for (const [slug, name] of references) {
+    if (!matched.has(slug))
+      throw new PlanningContextError('surfaces', path, {
+        message: `Unknown surface "${name}". Use a heading from ${path} or add the missing surface there.`,
+      });
+  }
   return identity({ version: 1, selected });
 }
 
@@ -701,13 +714,13 @@ function sha256(content: string): string {
 
 function semanticRoleIdentity(
   packet: ReviewPacket,
-  role: PlanningReviewIdentity['dependencies'][number]['role'],
+  { role, path }: PlanningContextDependency,
   content: string,
 ): string {
   if (role === 'ticket') return semanticTicketIdentity(content);
   if (role === 'scenarios') return identity(gherkinIdentity(parseFeature(content)));
   if (role === 'personas') return planningPersonaIdentity(packet, content);
-  if (role === 'surfaces') return planningSurfaceIdentity(packet, content);
+  if (role === 'surfaces') return planningSurfaceIdentity(packet, content, path);
   if (role === 'accepted-upstream-plan') {
     if (packet.upstream_plan_contract === undefined) {
       throw new ReviewPacketError('Execution review requires its canonical upstream contract.');
@@ -745,7 +758,7 @@ export function createPlanningReviewIdentity(
     if (file === undefined) throw new PlanningContextError(dependency.role, dependency.path);
     try {
       const semantic =
-        selected?.get(file.path) || semanticRoleIdentity(packet, dependency.role, file.content);
+        selected?.get(file.path) || semanticRoleIdentity(packet, dependency, file.content);
       return { ...dependency, semantic_digest: sha256(semantic) };
     } catch (error) {
       if (error instanceof PlanningContextError) throw error;

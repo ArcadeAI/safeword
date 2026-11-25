@@ -3562,7 +3562,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/agents/safeword-retro-filer.md": "008fa4b5777834118ba0efd008862df52dd32d3feec2218537d7c90cbfdfd904",
         ".claude/agents/safeword-reviewer.md": "54f2b47dec3639b711b7c2557b017c452b4667aa7092296a01328c7b5668efaf",
         ".claude/skills/audit/SKILL.md": "379473dba1ec5a9322adcc4f46a827811b1caa90991cd7b6a14c32234515332c",
-        ".claude/skills/bdd/DISCOVERY.md": "664481613c42f8efe24eb22b1b9ad53212670a3d91801f439051e141da5ad398",
+        ".claude/skills/bdd/DISCOVERY.md": "8b0eda3825d2755f44eb840c154a6894b00c3e70c92ab9a6d21f80567af72558",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
         ".claude/skills/bdd/PLAN_EXECUTION.md": "b32e1b0778773165d0a66bd49d0a57ffc7653c8707381d89090268b3dc56853d",
         ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "da25a09d6caa34f1e1f7ff3e33c64c5c4a59797145a0c6346b5efec46193f62b",
@@ -35216,7 +35216,7 @@ var init_contracts_generated = __esm(() => {
   PLANNING_AUTHOR_COPIES = {
     "product-plan": {
       relativePath: "templates/skills/bdd/DISCOVERY.md",
-      sha256: "664481613c42f8efe24eb22b1b9ad53212670a3d91801f439051e141da5ad398"
+      sha256: "8b0eda3825d2755f44eb840c154a6894b00c3e70c92ab9a6d21f80567af72558"
     },
     "plan-implementation": {
       relativePath: "templates/skills/bdd/PLAN_IMPLEMENTATION.md",
@@ -35254,7 +35254,7 @@ function readPlanningAuthor(root, phase, identity, verifyWholeCopy = true) {
   return bytes.toString("utf8");
 }
 function packagedPlanningAuthor(phase, verifyWholeCopy = true) {
-  const copies = typeof { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "e537b4e846e76fc33ce479f80e3df89537fdc9c9bfe69df2b83a32c7e2363d8d" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "f3575bc1573d498b0d21927ae2c9229bbc72926fe7f56aa06194cac32d73d8e1" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "2c04a8957a40a26484f001038840406b239d16de33826b7574a63a5f29b72b67" } } === "object" ? { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "e537b4e846e76fc33ce479f80e3df89537fdc9c9bfe69df2b83a32c7e2363d8d" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "f3575bc1573d498b0d21927ae2c9229bbc72926fe7f56aa06194cac32d73d8e1" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "2c04a8957a40a26484f001038840406b239d16de33826b7574a63a5f29b72b67" } } : PLANNING_AUTHOR_COPIES;
+  const copies = typeof { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "ea28f7d8b566a2c7b7f88c820d9539bfcfe18024f7e26664277644214da3f881" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "f3575bc1573d498b0d21927ae2c9229bbc72926fe7f56aa06194cac32d73d8e1" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "2c04a8957a40a26484f001038840406b239d16de33826b7574a63a5f29b72b67" } } === "object" ? { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "ea28f7d8b566a2c7b7f88c820d9539bfcfe18024f7e26664277644214da3f881" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "f3575bc1573d498b0d21927ae2c9229bbc72926fe7f56aa06194cac32d73d8e1" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "2c04a8957a40a26484f001038840406b239d16de33826b7574a63a5f29b72b67" } } : PLANNING_AUTHOR_COPIES;
   return readPlanningAuthor(packageRoot(), phase, copies[phase], verifyWholeCopy);
 }
 function assertActivePlanningAuthorCopy(cwd, phase) {
@@ -36264,7 +36264,13 @@ var init_planning_context_error = __esm(() => {
         data: "the active data architecture guide"
       };
       const setting = settings[contextRole] ?? `paths.${contextRole}`;
-      super(declaration === undefined ? `Required planning ${contextRole} at ${contextPath} are unavailable. Restore that source or correct ${setting}, then rerun the planning review.` : `The reviewed plan at ${contextPath} needs one parseable ${declaration} declaration. Add the plan decision or a justified skip, then rerun the planning review.`);
+      let message = `Required planning ${contextRole} at ${contextPath} are unavailable. Restore that source or correct ${setting}, then rerun the planning review.`;
+      if (typeof declaration === "string") {
+        message = `The reviewed plan at ${contextPath} needs one parseable ${declaration} declaration. Add the plan decision or a justified skip, then rerun the planning review.`;
+      } else if (declaration) {
+        message = declaration.message;
+      }
+      super(message);
       this.contextRole = contextRole;
       this.contextPath = contextPath;
     }
@@ -53164,6 +53170,16 @@ function stripFormatting(value) {
   return stripped;
 }
 function surfaceSlug(name) {
+  const label = name.trim();
+  const suffix = label.lastIndexOf(" (");
+  if (suffix > 0 && label.endsWith(")")) {
+    const canonical = slugifySurfaceName(label.slice(0, suffix));
+    if (label.slice(suffix + 2, -1) === canonical)
+      return canonical;
+  }
+  return slugifySurfaceName(label);
+}
+function slugifySurfaceName(name) {
   let slug = "";
   let previousWasDash = false;
   for (const character of name.trim().toLowerCase()) {
@@ -54053,33 +54069,51 @@ function planningPersonaIdentity(packet, content) {
     return artifactIdentity(content);
   return identity2({ version: 1, selected });
 }
-function planningSurfaceIdentity(packet, content) {
+function planningSurfaceIdentity(packet, content, path) {
   const spec = planningRoleContent(packet, "rules");
   const feature = planningRoleContent(packet, "scenarios");
-  const references = new Set([
-    ...parseAffectedSurfaceReferences(spec).filter((surface) => !surface.skipped).map((surface) => surface.slug),
-    ...parseFeatureScenarios(feature).flatMap((scenario) => scenario.tags.flatMap((tag) => tag.startsWith("@surface.") ? [tag.slice(9)] : []))
-  ]);
+  const references = new Map;
+  for (const surface of parseAffectedSurfaceReferences(spec)) {
+    if (!surface.skipped)
+      references.set(surface.slug, surface.name);
+  }
+  for (const { tags } of parseFeatureScenarios(feature)) {
+    for (const tag of tags) {
+      if (tag.startsWith("@surface.") && !references.has(tag.slice(9)))
+        references.set(tag.slice(9), tag);
+    }
+  }
   if (references.size === 0)
     return artifactIdentity(content);
   const nodes = parseMarkdown(content);
   const headings = nodes.flatMap((node, index) => node.type === "heading" && node.depth === 2 ? [{ index, slug: surfaceSlug(headingText(node)) }] : []);
+  const matched = new Set;
   const selected = headings.flatMap((heading, index) => {
-    if (!references.has(heading.slug))
+    const name = references.get(heading.slug);
+    if (name === undefined)
       return [];
+    if (matched.has(heading.slug))
+      throw new PlanningContextError("surfaces", path, {
+        message: `Ambiguous surface "${name}" matches multiple headings in ${path}. Give each surface a unique name.`
+      });
+    matched.add(heading.slug);
     const end = headings[index + 1]?.index ?? nodes.length;
     return [
       { slug: heading.slug, content: identity2(normalizeNodes(nodes.slice(heading.index, end))) }
     ];
   });
-  if (selected.length !== references.size)
-    throw new Error("Scenario references missing or ambiguous surface inventory entries.");
+  for (const [slug, name] of references) {
+    if (!matched.has(slug))
+      throw new PlanningContextError("surfaces", path, {
+        message: `Unknown surface "${name}". Use a heading from ${path} or add the missing surface there.`
+      });
+  }
   return identity2({ version: 1, selected });
 }
 function sha2564(content) {
   return createHash25("sha256").update(content).digest("hex");
 }
-function semanticRoleIdentity(packet, role, content) {
+function semanticRoleIdentity(packet, { role, path }, content) {
   if (role === "ticket")
     return semanticTicketIdentity(content);
   if (role === "scenarios")
@@ -54087,7 +54121,7 @@ function semanticRoleIdentity(packet, role, content) {
   if (role === "personas")
     return planningPersonaIdentity(packet, content);
   if (role === "surfaces")
-    return planningSurfaceIdentity(packet, content);
+    return planningSurfaceIdentity(packet, content, path);
   if (role === "accepted-upstream-plan") {
     if (packet.upstream_plan_contract === undefined) {
       throw new ReviewPacketError("Execution review requires its canonical upstream contract.");
@@ -54120,7 +54154,7 @@ function createPlanningReviewIdentity(packet) {
     if (file === undefined)
       throw new PlanningContextError(dependency.role, dependency.path);
     try {
-      const semantic = selected?.get(file.path) || semanticRoleIdentity(packet, dependency.role, file.content);
+      const semantic = selected?.get(file.path) || semanticRoleIdentity(packet, dependency, file.content);
       return { ...dependency, semantic_digest: sha2564(semantic) };
     } catch (error) {
       if (error instanceof PlanningContextError)

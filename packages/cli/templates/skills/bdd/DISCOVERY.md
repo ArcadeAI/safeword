@@ -87,7 +87,7 @@ Rule, design choice, or proof.
 Use the `spec.md` that `safeword ticket new` scaffolds from `spec-template.md`.
 When repairing a hand-written plan, read `spec-template.md` in the active
 Safeword plugin's templates directory or the project's Safeword templates
-directory. Keep the five sections and Product Bet field labels, and fill
+directory. Keep the five template sections and no others. Preserve the Product Bet field labels and fill
 every Product Bet field before review.
 
 ### Product Bet
