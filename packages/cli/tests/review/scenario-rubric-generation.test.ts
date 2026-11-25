@@ -3,12 +3,12 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { SCENARIO_REVIEW_RUBRIC } from '../../src/review/scenario-rubric.generated.js';
 import {
   extractScenarioReviewRubric,
   SCENARIO_RUBRIC_END,
   SCENARIO_RUBRIC_START,
-} from '../../src/review/scenario-rubric.js';
+} from '../../scripts/lib/scenario-rubric.js';
+import { SCENARIO_REVIEW_RUBRIC } from '../../src/review/scenario-rubric.generated.js';
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '../..');
 const canonicalSkill = readFileSync(
