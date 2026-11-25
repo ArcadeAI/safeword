@@ -71,6 +71,9 @@ jobs:
       - name: Check public CLI contract
         run: bun run check:cli-contract
 
+      - name: Check shared host contract
+        run: bun packages/cli/scripts/check-host-contract.ts
+
   opencode-conformance:
     name: OpenCode V2 boundary checks
     runs-on: ubuntu-latest
