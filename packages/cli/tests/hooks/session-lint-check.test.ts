@@ -23,10 +23,7 @@ describe('SessionStart lint configuration warnings', () => {
       writeFileSync(path.join(projectDirectory, name), content);
     }
 
-    const script = path.resolve(
-      import.meta.dirname,
-      '../../templates/hooks/session-lint-check.ts',
-    );
+    const script = path.resolve(import.meta.dirname, '../../templates/hooks/session-lint-check.ts');
 
     return execFileSync('bun', [script], {
       cwd: projectDirectory,
