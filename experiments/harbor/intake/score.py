@@ -8,7 +8,7 @@ from collections import Counter
 from pathlib import Path
 
 from human_relay import trace_events
-from intake_cutoff import approved_before
+from intake_cutoff import verified_plan
 from report_trials import json_file, report, urls
 
 from .run import document, write_json
@@ -117,25 +117,35 @@ def trial_result(lane, build, models):
     if ticket and archive_path.exists():
         spec = str(Path(ticket).with_name("spec.md"))
         with tarfile.open(archive_path) as archive:
-            if passed:
-                review_id = approval["review_id"]
-                record = archive.getmember(f".safeword/state/reviews/{review_id}.json")
-                deadline = min(
-                    boundary["at_epoch_ns"],
-                    boundary.get("phase_file_mtime_ns", boundary["at_epoch_ns"]),
-                )
-                if not record.isfile() or not approved_before(
-                    json.load(archive.extractfile(record)), review_id, deadline
-                ):
-                    raise ValueError(
-                        "Independent approval did not predate the intake boundary"
-                    )
             member = next(
                 (item for item in archive if item.name == spec and item.isfile()), None
             )
             if member:
+                contents = archive.extractfile(member).read()
+                if passed:
+                    review_id = approval["review_id"]
+                    record = archive.getmember(
+                        f".safeword/state/reviews/{review_id}.json"
+                    )
+                    deadline = min(
+                        boundary["at_epoch_ns"],
+                        boundary.get("phase_file_mtime_ns", boundary["at_epoch_ns"]),
+                    )
+                    if not record.isfile() or not verified_plan(
+                        json.load(archive.extractfile(record)),
+                        review_id,
+                        deadline,
+                        spec,
+                        contents,
+                        host,
+                        reviewer,
+                        models[reviewer],
+                    ):
+                        raise ValueError(
+                            "Archived approval does not match the plan, reviewer, or intake boundary"
+                        )
                 plan = "final-plan.md"
-                (lane / plan).write_bytes(archive.extractfile(member).read())
+                (lane / plan).write_bytes(contents)
     if passed and not plan:
         raise ValueError("Passing grade lacks its approved plan")
     return {

@@ -215,3 +215,123 @@ class IntakeRunnerTest(unittest.TestCase):
             json.loads((self.root / "budget-stop.json").read_text())["reason"],
             "combined_cap",
         )
+
+    def test_live_receipt_and_offline_archive_prove_the_same_review(self):
+        import hashlib
+        import io
+        import tarfile
+        from contextlib import chdir
+
+        from intake_cutoff import receipt
+
+        ticket = Path(".project/tickets/ABC-parcel/ticket.md")
+        spec = ticket.with_name("spec.md")
+        content = b"Record the tracking number."
+        reviewer = {
+            "status": "approved",
+            "review_kind": "quality-review",
+            "independence": "cross-agent",
+            "author_agent": "claude",
+            "actual_reviewer": "codex",
+            "confirmed_reviewer_model": {"model": "codex-test"},
+            "review_targets": [str(spec)],
+        }
+        review = {
+            "id": "r",
+            "state": "completed",
+            "updated_at": "1970-01-01T00:00:01Z",
+            "result": {"data": reviewer},
+            "review_identity": {
+                "targets": [
+                    {"path": str(spec), "digest": hashlib.sha256(content).hexdigest()}
+                ]
+            },
+        }
+        rr = Path(".safeword/state/reviews/r.json")
+        lane = self.root / "trials" / "case" / "claude"
+        trial = lane / "harbor" / "trial"
+        agent = trial / "agent"
+        verifier = trial / "verifier"
+        agent.mkdir(parents=True)
+        verifier.mkdir()
+        write_json(trial / "result.json", {})
+        write_json(
+            agent / "setup-evidence.json",
+            {
+                "status": "ready",
+                "bundle_sha256": "fixture",
+                "host": "claude",
+                "expected_model": "claude-test",
+            },
+        )
+        write_json(verifier / "reward.json", {"reward": 1})
+        write_json(verifier / "intake-outcome.json", {"outcome": "passed"})
+        with chdir(self.root):
+            spec.parent.mkdir(parents=True)
+            spec.write_bytes(content)
+            Path(".project/skill-invocations.log").write_text(
+                "review:ABC-parcel:phase@intake independence:cross-agent review-id:r\n"
+            )
+            rr.parent.mkdir(parents=True)
+            write_json(rr, review)
+            cli = subprocess.CompletedProcess(
+                [], 0, stdout=json.dumps({"data": {**reviewer, "review_id": "r"}})
+            )
+            with patch("intake_cutoff.subprocess.run", return_value=cli):
+                proof = receipt(
+                    str(ticket),
+                    "runtime",
+                    "claude",
+                    "codex",
+                    "codex-test",
+                    2_000_000_000,
+                )
+                self.assertEqual(proof["reviewer"], "codex")
+                self.assertIsNone(
+                    receipt(
+                        str(ticket),
+                        "runtime",
+                        "claude",
+                        "codex",
+                        "wrong-model",
+                        2_000_000_000,
+                    )
+                )
+        write_json(
+            agent / "intake-stop.json",
+            {
+                "outcome": "passed",
+                "boundary": "phase_advance",
+                "ticket": str(ticket),
+                "at_epoch_ns": 2_000_000_000,
+                "approval": proof,
+            },
+        )
+        for name, edits, contents in (
+            ("valid", {}, content),
+            ("self", {"actual_reviewer": "claude"}, content),
+            ("wrong target", {"review_targets": ["other"]}, content),
+            ("changed plan", {}, b"different requirements"),
+        ):
+            with self.subTest(name=name):
+                saved = {**review, "result": {"data": {**reviewer, **edits}}}
+                with tarfile.open(
+                    agent / "workflow-artifacts.tar.gz", "w:gz"
+                ) as archive:
+                    for path, blob in (
+                        (str(spec), contents),
+                        (str(rr), json.dumps(saved).encode()),
+                    ):
+                        entry = tarfile.TarInfo(path)
+                        entry.size = len(blob)
+                        archive.addfile(entry, io.BytesIO(blob))
+                if name == "valid":
+                    result = trial_result(
+                        lane, {"archive_sha256": "fixture"}, self.snapshot["models"]
+                    )
+                    self.assertEqual((lane / result["plan"]).read_bytes(), content)
+                else:
+                    with self.assertRaisesRegex(ValueError, "Archived approval"):
+                        trial_result(
+                            lane, {"archive_sha256": "fixture"}, self.snapshot["models"]
+                        )

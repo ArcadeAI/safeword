@@ -166,6 +166,29 @@ def approved_before(record, review_id, phase_ns):
         return False
 
 
+def independent_plan(data, spec, author, reviewer, model):
+    return (
+        data.get("status") == "approved"
+        and data.get("review_kind") == "quality-review"
+        and data.get("independence") == "cross-agent"
+        and data.get("author_agent") == author
+        and data.get("actual_reviewer") == reviewer
+        and author != reviewer
+        and (data.get("confirmed_reviewer_model") or {}).get("model") == model
+        and data.get("review_targets") == [spec]
+    )
+
+
+def verified_plan(record, review_id, phase_ns, spec, contents, author, reviewer, model):
+    identity = record.get("review_identity") or {}
+    return (
+        approved_before(record, review_id, phase_ns)
+        and independent_plan(record["result"]["data"], spec, author, reviewer, model)
+        and identity.get("targets")
+        == [{"path": spec, "digest": hashlib.sha256(contents).hexdigest()}]
+    )
+
+
 def receipt(ticket, runtime, author, reviewer, model, phase_ns):
     log = Path(".project/skill-invocations.log")
     scope = f"review:{Path(ticket).parent.name}:phase@intake"
@@ -191,7 +214,17 @@ def receipt(ticket, runtime, author, reviewer, model, phase_ns):
             )
         except (FileNotFoundError, ValueError):
             continue
-        if not approved_before(record, review_id, phase_ns):
+        spec = Path(ticket).with_name("spec.md")
+        if not spec.is_file() or not verified_plan(
+            record,
+            review_id,
+            phase_ns,
+            str(spec),
+            spec.read_bytes(),
+            author,
+            reviewer,
+            model,
+        ):
             continue
         run = subprocess.run(
             ["bun", runtime, "--json", "review", "status", review_id],
@@ -204,20 +237,15 @@ def receipt(ticket, runtime, author, reviewer, model, phase_ns):
         except ValueError:
             continue
         if (
-            data.get("status") == "approved"
+            run.returncode == 0
             and data.get("review_id") == review_id
-            and data.get("review_kind") == "quality-review"
-            and data.get("independence") == "cross-agent"
-            and data.get("author_agent") == author
-            and data.get("actual_reviewer") == reviewer
-            and (data.get("confirmed_reviewer_model") or {}).get("model") == model
-            and data.get("review_targets") == [str(Path(ticket).with_name("spec.md"))]
+            and independent_plan(data, str(spec), author, reviewer, model)
         ):
             return {
                 "review_id": review_id,
-                "model": model,
-                "author": author,
-                "reviewer": reviewer,
+                "model": data["confirmed_reviewer_model"]["model"],
+                "author": data["author_agent"],
+                "reviewer": data["actual_reviewer"],
                 "stamp": line,
             }
     return None
