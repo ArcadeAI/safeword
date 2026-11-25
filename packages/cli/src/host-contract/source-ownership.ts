@@ -560,10 +560,7 @@ function canonicalDelegateTarget(node: ts.Node, file: ts.SourceFile, owner: stri
       )
   );
 }
-function mappedCursorGate(node: ts.Node, file: ts.SourceFile): boolean {
-  if (!ts.isCallExpression(node) || node.expression.getText(file) !== 'decideFromGate')
-    return false;
-  const call = node.arguments[0];
+function callsCursorSharedHook(call: ts.Node | undefined, file: ts.SourceFile): boolean {
   if (!call || !ts.isCallExpression(call) || call.expression.getText(file) !== 'runClaudeHook')
     return false;
   const options = call.arguments[0];
@@ -576,6 +573,11 @@ function mappedCursorGate(node: ts.Node, file: ts.SourceFile): boolean {
     )
   );
 }
+function mappedCursorGate(node: ts.Node, file: ts.SourceFile): boolean {
+  if (!ts.isCallExpression(node) || node.expression.getText(file) !== 'decideFromGate')
+    return false;
+  return callsCursorSharedHook(node.arguments[0], file);
+}
 /** Existing post-tool transport: translatePostOutput(runClaudeHook(...).stdout). */
 function mappedCursorPost(node: ts.Node, file: ts.SourceFile): boolean {
   if (!ts.isCallExpression(node) || node.expression.getText(file) !== 'translatePostOutput')
@@ -583,17 +585,7 @@ function mappedCursorPost(node: ts.Node, file: ts.SourceFile): boolean {
   const output = node.arguments[0];
   if (!output || !ts.isPropertyAccessExpression(output) || output.name.text !== 'stdout')
     return false;
-  const call = output.expression;
-  if (!ts.isCallExpression(call) || call.expression.getText(file) !== 'runClaudeHook') return false;
-  const options = call.arguments[0];
-  return (
-    !!options &&
-    ts.isObjectLiteralExpression(options) &&
-    options.properties.some(
-      property =>
-        ts.isShorthandPropertyAssignment(property) && property.name.text === 'claudeHookPath',
-    )
-  );
+  return callsCursorSharedHook(output.expression, file);
 }
 
 /** Supported Cursor gate/post source shapes, not general control-flow or host execution proof. */
