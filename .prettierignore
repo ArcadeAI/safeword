@@ -41,3 +41,6 @@ experiments/harbor/intake/*/environment/
 experiments/harbor/jobs/
 experiments/harbor/preservation-pilot/tasks/
 experiments/harbor/debug-routing/tasks/
+experiments/harbor/extractor-thin-text/tests/fixture-page-text.ts
+experiments/harbor/extractor-trace-empty/tests/fixture-trace.ts
+experiments/harbor/www-home/tests/home-adoption.spec.ts
