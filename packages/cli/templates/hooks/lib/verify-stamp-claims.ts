@@ -207,6 +207,7 @@ export function verifiedStamps(
   let claimContext: ReturnType<typeof reviewClaimContext> | undefined;
   return stamps
     .filter(stamp => stamp.scope === scope)
+    .toReversed()
     .filter(stamp => {
       if (stamp.skipReason !== undefined || !claimsCoordinatorVerdict(stamp.independence))
         return true;
