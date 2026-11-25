@@ -34,6 +34,7 @@ import {
 } from '../../src/review/job.js';
 import { prepareReviewPacket } from '../../src/review/packet.js';
 import { readReviewReceipt } from '../../templates/hooks/lib/read-receipt.js';
+import { hashArtifact, parseReviewStamps } from '../../templates/hooks/lib/review-ledger.js';
 import { receiptGateVerdict } from '../../templates/hooks/lib/review-receipt.js';
 import { runCli } from '../helpers.js';
 import { largeLockfileFixture } from '../helpers/large-lockfile.js';
@@ -2290,6 +2291,123 @@ describe('durable review jobs', () => {
       data: { status: 'approved' },
     });
   });
+
+  it('keeps intake open when an approved review groups the plan with other ticket files', async () => {
+    const cwd = project();
+    const directory = '.project/tickets/HND123-intake';
+    const ticket = nodePath.join(cwd, directory, 'ticket.md');
+    const original = '---\nid: HND123\ntype: feature\nstatus: in_progress\nphase: intake\n---\n';
+    mkdirSync(nodePath.dirname(ticket), { recursive: true });
+    writeFileSync(ticket, original);
+    writeFileSync(nodePath.join(cwd, directory, 'spec.md'), '# Product Plan\n');
+    writeFileSync(nodePath.join(cwd, directory, 'dimensions.md'), 'skip: One flow.\n');
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+    const approval = await startReviewJob({
+      cwd,
+      kind: 'quality-review',
+      targets: ['ticket.md', 'spec.md', 'dimensions.md'].map(file => `${directory}/${file}`),
+    });
+    expect(approval.data).toMatchObject({ status: 'approved' });
+    expect(approval.nextActions).toEqual([]);
+    const { review_id: id } = approval.data as { review_id: string };
+    const result = await runCli(['review', 'advance-intake', id, '--json', '--no-input'], { cwd });
+    expect(result.exitCode, result.stdout).toBe(2);
+    expect(result.stdout).toContain('exactly one feature ticket');
+    expect(readFileSync(ticket, 'utf8')).toBe(original);
+    expect(existsSync(nodePath.join(cwd, '.project/skill-invocations.log'))).toBe(false);
+  });
+
+  it.each(['current', 'stale', 'missing dimensions'] as const)(
+    'advances intake only with a current, ready approval (%s)',
+    async condition => {
+      const cwd = project();
+      const folder = 'HND123-intake';
+      const directory = `.project/tickets/${folder}`;
+      const ticket = nodePath.join(cwd, directory, 'ticket.md');
+      const spec = nodePath.join(cwd, directory, 'spec.md');
+      const ledger = nodePath.join(cwd, '.project/skill-invocations.log');
+      const plan =
+        '# Product Plan\n\n## Jobs To Be Done\n\nskip: This fixture represents a legacy plan.\n';
+      const initial = [
+        '---',
+        'id: HND123',
+        'type: feature',
+        'status: in_progress',
+        'phase: intake',
+        'scope: approved reservation flow',
+        'out_of_scope: refunds',
+        'done_when: reservations are visible',
+        '---',
+        '# Reservation flow',
+        '',
+      ].join('\n');
+      mkdirSync(nodePath.join(cwd, directory), { recursive: true });
+      writeFileSync(ticket, initial);
+      writeFileSync(spec, plan);
+      if (condition !== 'missing dimensions')
+        writeFileSync(
+          nodePath.join(cwd, directory, 'dimensions.md'),
+          'skip: The fixture has one flow.\n',
+        );
+      const modelWorker = COMPLETE_WORKER.replace(
+        "actual_reviewer: 'codex',",
+        "actual_reviewer: 'codex', confirmed_reviewer_model: { provider: 'openai', model: 'gpt-6.2-sol' },",
+      );
+      vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, modelWorker));
+      vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+      const approval = await startReviewJob({
+        cwd,
+        kind: 'quality-review',
+        targets: [`${directory}/spec.md`],
+      });
+      const id = (approval.data as { review_id: string }).review_id;
+      expect(approval.data).toMatchObject({ status: 'approved' });
+      expect(approval.nextActions).toContainEqual({
+        command: expect.stringContaining(`review advance-intake ${id}`),
+        mutates: true,
+        requiresHuman: false,
+      });
+      if (condition === 'stale') writeFileSync(spec, `${plan}\nThe allowed behavior changed.\n`);
+      const args = ['review', 'advance-intake', id, '--json', '--no-input'];
+      const result = await runCli(args, { cwd });
+      if (condition !== 'current') {
+        expect(result.exitCode, result.stdout).toBe(2);
+        expect(result.stdout).toContain(
+          condition === 'stale' ? 'run a fresh review' : 'dimensions.md',
+        );
+        expect(readFileSync(ticket, 'utf8')).toBe(initial);
+        expect(existsSync(ledger)).toBe(false);
+        return;
+      }
+      expect(result.exitCode, result.stdout + result.stderr).toBe(0);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        changed: true,
+        data: { ticket_id: 'HND123', phase: 'define-behavior', review_id: id },
+      });
+      expect(readFileSync(ticket, 'utf8')).toContain('phase: define-behavior');
+      expect(readFileSync(ticket, 'utf8')).toContain('Phase: intake → define-behavior');
+      const firstLog = readFileSync(ledger, 'utf8');
+      expect(parseReviewStamps(firstLog)).toEqual(
+        [`${folder}:spec@${hashArtifact(plan)}`, `${folder}:phase@intake`].map(scope => ({
+          scope,
+          author: 'claude',
+          reviewer: 'codex',
+          independence: 'cross-agent',
+          model: 'gpt-6.2-sol',
+          reviewId: id,
+        })),
+      );
+      expect(reviewJobStatus(cwd, id)).toMatchObject({
+        data: { status: 'approved' },
+        nextActions: [],
+      });
+      const retry = await runCli(args, { cwd });
+      expect(retry.exitCode, retry.stdout + retry.stderr).toBe(0);
+      expect(JSON.parse(retry.stdout)).toMatchObject({ changed: false });
+      expect(readFileSync(ledger, 'utf8')).toBe(firstLog);
+    },
+  );
 
   it('rejects a repo-local edit to a worker-produced completed result', async () => {
     const cwd = project();

@@ -6,6 +6,23 @@ Create enough durable product context to decide and define the work. Do not
 repeat parent prose in child features and do not create research artifacts by
 default.
 
+## Intake exit
+
+1. Finish and confirm the Product Plan and scope. Name the changed behavior,
+   preserved behavior, and observable done state. Resolve each JTBD persona
+   against the configured personas file. Save `dimensions.md` with the agreed
+   behavioral boundaries, or a justified `skip:` for one obvious dimension.
+2. Reconcile the parent for a linked child. When intake review applies, use
+   the `quality-review` skill's independent review command for this host. Pass
+   `<ticket-directory>/spec.md` as the sole target. Follow the command's
+   recovery instructions until it returns a terminal result.
+3. Run the approval's returned `review advance-intake <review-id>` command. It
+   validates the current receipt, records both review stamps, and saves
+   `phase: define-behavior` on the same ticket. If review is disabled or an
+   applicable fallback was used, follow the project's review rules and save
+   the phase on the ticket. Open [SCENARIOS.md](SCENARIOS.md) once the phase
+   change succeeds. Use the accepted Rule IDs to write the first scenario.
+
 ## Sub-phase gates
 
 Confirm once per artifact, not once per item inside it. The four checkpoints are
@@ -67,17 +84,21 @@ Rule, design choice, or proof.
 
 ## Full Product Plan
 
-Keep the five template sections and no others.
+Use the `spec.md` that `safeword ticket new` scaffolds from `spec-template.md`.
+When repairing a hand-written plan, read `spec-template.md` in the active
+Safeword plugin's templates directory or the project's Safeword templates
+directory. Keep the five sections and Product Bet field labels, and fill
+every Product Bet field before review.
 
 ### Product Bet
 
-Capture Problem / Why now, Expected outcome, Success threshold, Project
-non-goals, and Reversibility. Reversibility records whether the work is a
-one-way door (data model, public API, or migration) or two-way; the intake-exit
-cold-start offer reads it. Why now carries only decision-bearing evidence. The success threshold
-is falsifiable; use an observable outcome when no honest metric exists. A
-restated template prompt is not a threshold: rewrite it until the claimed
-outcome could be disproven.
+Use decision-bearing evidence for Why now. For the success threshold, use an
+observable outcome when no honest metric exists. A restated template prompt
+is not a threshold. Rewrite it until the claimed outcome could be disproven.
+
+Record whether the work is a one-way door (data model, public API, or
+migration) or two-way in Reversibility. The intake-exit cold-start offer reads
+this field.
 
 Use `/demand-research` only when Why now contains an unresolved,
 decision-critical demand claim or the user explicitly requests demand research.
@@ -184,14 +205,14 @@ mechanism.
   surfaces. Keep supported facts, assumptions, and unresolved decisions distinct.
 - **Prohibited content:** Implementation design, delivery task sequencing, or
   claims that scenarios, either downstream plan, or implementation are approved.
-- **Review question:** Does this Product Plan completely and honestly define the
-  accepted behavior within user-owned scope, including its consequential outcomes?
+- **Review question:** Are the accepted behavior and its material boundaries
+  clear enough to write scenarios?
 - **Approval meaning:** The behavior is ready for scenario definition. This is
   not scenario acceptance, design approval, startable delivery, or completion.
 - **Invalidation:** Changed Product Plan bytes or changed decision-bearing
   product boundaries require a current review of the changed decision.
-- **Return path:** Repair incomplete behavior or unresolved product choices in
-  intake, then review the corrected Product Plan before scenario definition.
+- **Return path:** Repair each blocking cause across all affected Rules and
+  outcomes, then review the corrected Product Plan before scenario definition.
 
 <!-- SAFEWORD:PLANNING_SHARED_START -->
 
@@ -217,11 +238,23 @@ Each phase contract declares its purpose, entry criteria, required content, proh
 
 For each accepted persona, inventory consequential success, refusal, failure,
 approval, trust, and recovery outcomes, or mark an inapplicable outcome with a
-specific reason. Keep known facts, assumptions, and unresolved product decisions
-visibly distinct; a claimed fact without support is not a known fact. Product
-review checks this outcome inventory and epistemic status first. Scenario coverage
-belongs to scenario review, after Product approval; do not issue a scenario-
-coverage verdict from an incomplete Product Plan.
+specific reason. Keep known facts, assumptions, and unresolved product
+decisions visibly distinct.
+
+Request changes for an omission or contradiction in accepted behavior, a
+user-owned choice between materially different outcomes, or a concrete risk
+such as data loss or reporting success after failure. Cite the governing
+decision and the user-visible consequence. Return all current blockers in one
+receipt, grouped by the decision that would resolve them.
+
+For an unspecified detail, ask whether a reasonable choice would violate an
+accepted Rule or materially change what the user can do or rely on. When that
+test is met, name the choice and the consequence. Otherwise carry input variants,
+exact formatting, and diagnostic wording forward as suggestions for scenarios
+or design. Scenario coverage belongs to scenario review.
+For an unavailable diagnostic channel, a reliable failure signal and protected
+output can satisfy the plan unless an accepted Rule promises another channel.
+Approve when the remaining findings are suggestions.
 
 <!-- SAFEWORD:PRODUCT_PLAN_RUBRIC_END -->
 
@@ -233,7 +266,7 @@ together — not one per item. For a child, present Contribution and Rules, then
 local scope: two confirmations, not one per Rule. Under YOLO mode, record the
 auto-decision in the work log instead of pausing.
 
-Immediately before changing a child from `intake` to `define-behavior`, run:
+Before requesting intake review for a child, run:
 
 ```bash
 safeword ticket reconcile-parent <ticket-id>
@@ -241,15 +274,6 @@ safeword ticket reconcile-parent <ticket-id>
 
 A second run is idempotent. If the parent changes after intake, review the
 changed contract and rerun with `--accept`; never accept drift invisibly.
-
-Advance only when you can name the behavior that changes, the behavior that
-stays the same, and an observable done state. Then create scenarios using the
-Rule IDs as lineage.
-
-Update frontmatter: set `phase: define-behavior` after the intake artifacts are
-accepted (and after child reconciliation, when applicable).
-
-## Intake exit
 
 Implementation design happens in the `plan-implementation` phase. Offer the
 cold-start check only when the recorded Reversibility says one-way, including a

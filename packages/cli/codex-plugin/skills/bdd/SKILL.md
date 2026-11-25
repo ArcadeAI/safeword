@@ -12,6 +12,9 @@ description: Behavior-first feature development — use when building new
 Behavior-first development for features. Discovery → Scenarios → Implementation Planning →
 Execution Planning → Implementation.
 
+For a new feature, open [DISCOVERY.md](references/DISCOVERY.md) and finish the Product Plan
+and intake exit before writing scenarios or editing implementation code.
+
 Safeword planning review and approval are enforced on local Claude Code, local
 Codex, local Cursor, OpenCode CLI and TUI, Claude Code Cloud, and Cursor Cloud
 Agents. Codex Cloud and OpenCode Desktop execution is advisory. Do not claim
@@ -66,14 +69,9 @@ typed `nextActions` until terminal, and never start a replacement review or
 advance/stamp while it is pending. `REVIEW_STALE` means rerun against the
 current artifacts. Only a terminal verdict may advance the phase.
 
-The plan-implementation and plan-execution exits apply the same discipline to their respective
-plans (see [PLAN_IMPLEMENTATION.md](references/PLAN_IMPLEMENTATION.md) and
-[PLAN_EXECUTION.md](references/PLAN_EXECUTION.md)). Other phase exits don't need an independent review by default — they carry their
-own guards (intake's user sub-phase gates, implement's tests, the done-gate's
-evidence checks). When the **review gate** is enabled (`reviewGate` in
-`.safeword/config.json` — e.g. autonomous runs where user gates auto-confirm,
-ticket 2VCSZY), every phase advance requires a stamp, or a logged skip reason
-(`… --phase <phase> --skip "<why no independent review is needed>"`).
+The phase-exit review gate is on by default. In `.safeword/config.json`,
+`reviewGate: false` disables it and a list limits it to those phases. Use the
+current phase guide for its review target, stamp, and applicable fallback.
 
 ---
 

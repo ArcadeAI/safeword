@@ -20,12 +20,13 @@ import nodePath from 'node:path';
 
 import type { ProgressReporter } from '../cli-protocol/handler.js';
 import { createBestEffortByteSink } from '../cli-protocol/policy.js';
-import { type CliResult, createResult } from '../cli-protocol/result.js';
+import { type CliResult, createResult, type NextAction } from '../cli-protocol/result.js';
 import {
   executionPlanReviewIdentity,
   hasExecutionPlanDeliveryChecklist,
 } from '../execution-plan/review-identity.js';
 import { computeSkipMask, parseHeading } from '../utils/markdown-sections.js';
+import { parseTicketMetadata } from '../utils/ticket-metadata.js';
 import { retryCommand } from './command.js';
 import {
   isReviewKind,
@@ -39,6 +40,7 @@ import {
 } from './contract.js';
 import { hostContinuationCompletion } from './coordinator.js';
 import { validateExecutionPlanOutput } from './execution-plan-output.js';
+import { intakeReceipt } from './intake-receipt.js';
 import { type PlanningContractUse, prepareReviewPacket, toReviewPath } from './packet.js';
 import {
   createPlanningReviewIdentity,
@@ -999,26 +1001,51 @@ function verifiedExcludedTargets(
   return current.filter(target => recordedPaths.has(target));
 }
 
+function intakeNextAction(cwd: string, data: unknown): NextAction | undefined {
+  try {
+    const receipt = intakeReceipt(cwd, data);
+    if (receipt === undefined) return undefined;
+    const { metadata } = parseTicketMetadata(readFileSync(receipt.ticketPath, 'utf8'));
+    if (
+      metadata.type !== 'feature' ||
+      metadata.status !== 'in_progress' ||
+      metadata.phase !== 'intake'
+    )
+      return undefined;
+    return {
+      command: `${shellQuote(process.execPath)} ${shellQuote(cliEntrypoint())} review advance-intake ${shellQuote(receipt.id)} --cwd ${shellQuote(cwd)}`,
+      mutates: true,
+      requiresHuman: false,
+    };
+  } catch {
+    // A ticket that cannot be opened does not invalidate the review itself.
+    return undefined;
+  }
+}
+
 function withReviewProvenance(
   cwd: string,
   record: ReviewJobRecord,
   result: CliResult,
   currentExclusions: readonly string[],
 ): CliResult {
-  const data =
+  const source =
     typeof result.data === 'object' && result.data !== null && !Array.isArray(result.data)
       ? (result.data as Record<string, unknown>)
       : {};
+  const data = {
+    ...source,
+    review_id: record.id,
+    review_kind: record.kind,
+    review_targets: effectiveReviewTargets(cwd, record) ?? [],
+    review_excluded_targets: verifiedExcludedTargets(record, currentExclusions),
+    ...(record.review_identity !== undefined && { review_identity: record.review_identity }),
+  };
+  const next = intakeNextAction(cwd, data);
   return {
     ...result,
-    data: {
-      ...data,
-      review_id: record.id,
-      review_kind: record.kind,
-      review_targets: effectiveReviewTargets(cwd, record) ?? [],
-      review_excluded_targets: verifiedExcludedTargets(record, currentExclusions),
-      ...(record.review_identity !== undefined && { review_identity: record.review_identity }),
-    },
+    data,
+    ...(next !== undefined && { nextActions: [next, ...result.nextActions] }),
   };
 }
 

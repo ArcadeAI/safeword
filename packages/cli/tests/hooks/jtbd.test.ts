@@ -148,13 +148,13 @@ describe('knownPersonaRefs (Rule 5)', () => {
 });
 
 describe('evaluateJtbdGate (Rule 6)', () => {
-  it('passes one JTBD with a resolving persona', () => {
-    const verdict = evaluateJtbdGate(
-      spec('### a\n\n**Persona:** Platform Operator (PO)'),
-      PERSONAS,
-    );
-    expect(verdict.ok).toBe(true);
-  });
+  it.each(['Platform Operator (PO)', 'Platform Operator (`PO`)'])(
+    'resolves the persona %s',
+    persona => {
+      const verdict = evaluateJtbdGate(spec(`### a\n\n**Persona:** ${persona}`), PERSONAS);
+      expect(verdict.ok).toBe(true);
+    },
+  );
 
   it('passes a non-empty skip reason with zero JTBDs', () => {
     expect(evaluateJtbdGate(spec('skip: internal plumbing'), PERSONAS).ok).toBe(true);

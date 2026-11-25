@@ -1,5 +1,11 @@
 # SAFEWORD Agent Instructions
 
+## Start here
+
+For a request to build a new capability, invoke the native `safeword:bdd` skill now. Its intake guide owns the first deliverable: the feature ticket and Product Plan. A detailed request supplies the plan's contents. An existing test scaffold supplies the test environment. Both still start at intake.
+
+For an existing behavior that is broken, reproduce it and use TDD. For a behavior change, add or update a regression test in the project’s test suite. Run it before the production edit and keep it passing afterward. For a mechanical correction, make the small edit directly. Resume existing work at its recorded phase.
+
 The standing operating model for this project. Read at session start; re-scan by topic as situations arise. Project-specific rules live in the project's own `./AGENTS.md` or `./CLAUDE.md` (whichever your host reads). Triggered playbooks live in `./.safeword/guides/`.
 
 Project knowledge (tickets, learnings, principles, personas, glossary, surfaces) lives under the **project namespace root**: configurable via `paths.projectRoot` in `.safeword/config.json`, `.project/` by default, with legacy `.safeword-project/` honored only when that directory already exists. Paths below use `<namespace-root>` for the resolved directory.
@@ -9,6 +15,14 @@ Project knowledge (tickets, learnings, principles, personas, glossary, surfaces)
 ## Workflow
 
 A safeword session runs through these phases in order. Each phase has an exit criterion — meet it before advancing.
+
+When a request adds a capability or multiple user flows, load the BDD skill
+(`safeword:bdd` on namespaced hosts) and start with its intake guide. Use the
+Product Plan and ticket to record agreed outcomes, scope, and observable done
+criteria. Reuse decisions the user already made. Ask about choices that change
+what users get or what is in scope. Bring clarification answers back into the
+plan. Record the required review evidence and save `phase: define-behavior` on
+the same ticket before writing scenarios or code.
 
 Safeword planning review and approval are enforced on local Claude Code, local
 Codex, local Cursor, OpenCode CLI and TUI, Claude Code Cloud, and Cursor Cloud
@@ -22,7 +36,8 @@ Understand what the user is asking before classifying or building. **Propose-and
 
 Each turn, restate what you heard, contribute a perspective/sketch/reframe, and surface the remaining open questions inside that contribution. Incorporate what the user confirms to narrow the open set; advance once none remain and the user accepts.
 
-Research before proposing anything significant — and the order is load-bearing:
+During feature intake, research questions that could change behavior or scope.
+Use the following sequence for a significant implementation decision.
 
 1. **Frame** the problem and its hard constraints: prior tickets, the data model, non-negotiable framework idioms. Don't read the soft conventions yet.
 2. **Design the ideal.** Run `$safeword:figure-it-out` to weigh 2-3 options on correctness, simplicity, and no-bloat, and pick the best architecture _as if the codebase didn't exist_. Computing this first gives the next step a yardstick.
@@ -76,7 +91,7 @@ alone — tests prove observable mechanics; user evidence proves the experience.
 
 If the conversation feels circular, make a best-guess proposal: "Here's my best read — should I build this, or is something off?"
 
-Exit: user accepts your proposal. For features, intake builds its artifacts in order, each anchoring the next:
+For features, follow the BDD intake exit. Each intake artifact anchors the next.
 
 1. Load personas, glossary, and surfaces from the configured project-knowledge files.
 2. Open the **Product Plan** in `spec.md` (from `spec-template.md`) with its **Product Bet** — problem / why now, expected outcome, falsifiable success threshold, non-goals — the framing for the decision to build, which also triages whether this is a feature or a leaner task. A child feature (`parent`, `parent_job`, `milestone`) uses `child-spec-template.md` instead: just its Contribution and feature-owned Rules; the parent owns the bet and jobs.
@@ -96,19 +111,13 @@ If the user is exploring without intent to build, follow their lead — not ever
 
 Pick the work level internally. Don't announce it as a label ("Feature detected!"); state your scope read as part of your proposal.
 
-Three questions:
+Classify by the requested outcome before estimating implementation size. Use the first matching rule:
 
-1. How many files will this touch?
-2. Does this introduce new persistent state?
-3. Are there multiple user flows?
+1. **Feature:** The request adds a user capability, introduces persistent state, or connects several user flows. Load the BDD skill and open its intake guide, even when the feature fits in one file or the requirements are fully specified.
+2. **Task:** The request restores existing behavior or changes an isolated behavior with a testable outcome. Use TDD.
+3. **Patch:** A small mechanical or cosmetic correction with no behavior to discover can be fixed directly.
 
-```text
-All no or 1 file                          → patch    (fix directly)
-1-2 files, one testable behavior          → task     (TDD)
-3+ files OR new state OR multiple flows   → feature  (write scenarios first)
-```
-
-Fallback: task. User can `$safeword:bdd` to override.
+Users can explicitly override the workflow.
 
 Sizing reads the jobs; it never edits them. A job that implies new state or a new flow makes the work **bigger** — that is a signal to split into an epic, never to drop the job so the work fits a smaller box. If you find yourself pruning jobs and the size falls, you sized the proposal instead of the work.
 
@@ -124,7 +133,7 @@ Calibration the rules don't capture:
 
 - **patch:** restate what you're fixing, fix it. `$safeword:bdd` to override.
 - **task:** restate scope, run TDD (RED → GREEN → REFACTOR). `$safeword:bdd` to override.
-- **feature:** include sizing in the proposal ("this touches N components with new state — I'd write scenarios"). Run `$safeword:bdd`; skip straight to TDD to override.
+- **feature** follows BDD at the current ticket phase. Use TDD-only when the user explicitly requests that path.
 
 ### 4. Verify
 

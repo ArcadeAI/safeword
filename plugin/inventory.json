@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "07eeabc1929e6b7821a34a379a53607d76ea758aafe243cf1aacdde1784506d5"
+      "sha256": "8d097235af8ebe057468dedfa2a623bf48d3ed1bb5a30576e3c3ffef9b10b8c7"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "9efccbf4bb026b008a85333cf296f3f8000912b45da5385e1b1b909f4d195f22"
+      "sha256": "f9ab4d57c207f73a4fdca29153d65c9aa27e4ced4588e8aa340c7d42e698a3d7"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "9234f5632d80f84c2aacb2eeb827fbf99b68b2d0e7e4c2f946b5ea6a514edcc0"
+      "sha256": "2c49845c2d9dcf1e77d58bce643f34e2d0e74e82b91ee69de99e8ea6d7de983a"
     },
     {
       "path": "runtime/event-groups.json",
@@ -275,7 +275,7 @@
     },
     {
       "path": "runtime/hooks/lib/jtbd.ts",
-      "sha256": "5ff4694b832f97fec075e23de26cecf25e9c0de4a3a1b0ff6ae05d50f4d90a4a"
+      "sha256": "6e8141d15f9d98fbe8316e92791f05c8d69f86e2f1f0ab97359e1a7756979705"
     },
     {
       "path": "runtime/hooks/lib/learning-verification-stamps.ts",
@@ -648,7 +648,7 @@
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
-      "sha256": "571d445190f5c5791ebed2454a841ea70d63cbb2a1f4d2a65e32ffebf5b607b3"
+      "sha256": "e537b4e846e76fc33ce479f80e3df89537fdc9c9bfe69df2b83a32c7e2363d8d"
     },
     {
       "path": "skills/bdd/DONE.md",
@@ -668,8 +668,8 @@
     },
     {
       "path": "skills/bdd/SKILL.md",
-      "sha256": "898e21405b0735f13087e3c986df79b2a6428309536cb43d77f5c57777f1bd90",
-      "skill_sha256": "614489996730df034b363d0321bcc5d024998e0bef68d09796a1c0ccabf1ec38"
+      "sha256": "279911881e777a54cf9226455284fa27baec7f8e76ec01e5e7cf0066eb3370d1",
+      "skill_sha256": "02c803efe2518509b3d2f252fe35369c69604fb01794f543f2dd11ed88a5e951"
     },
     {
       "path": "skills/bdd/SPLITTING.md",
@@ -1275,7 +1275,7 @@
     },
     {
       "path": "templates/hooks/lib/jtbd.ts",
-      "sha256": "70c370e51f155ba7c5e7bd4e508e63b5570fc7e4e94576923a144386a70e4fd6"
+      "sha256": "3c4c5e07a7d140735cdc948215088daed7b45b811b0a1f8c7bb9056c350f5891"
     },
     {
       "path": "templates/hooks/lib/learning-verification-stamps.ts",
@@ -1651,7 +1651,7 @@
     },
     {
       "path": "templates/SAFEWORD.md",
-      "sha256": "5dae1e973d253518209009015044ba4774d4a591dfa7eb1476754cea9e106753"
+      "sha256": "2094ebcce0cfcff9448c23a31cb904329e5b30a9c62a835522974b261a58302c"
     },
     {
       "path": "templates/scripts/bisect-test-pollution.sh",
@@ -1675,7 +1675,7 @@
     },
     {
       "path": "templates/skills/bdd/DISCOVERY.md",
-      "sha256": "9d8f44d62752433582ce76ea019716a09fabcfb3af65c9fc644dd60972372557"
+      "sha256": "664481613c42f8efe24eb22b1b9ad53212670a3d91801f439051e141da5ad398"
     },
     {
       "path": "templates/skills/bdd/DONE.md",
@@ -1695,7 +1695,7 @@
     },
     {
       "path": "templates/skills/bdd/SKILL.md",
-      "sha256": "898e21405b0735f13087e3c986df79b2a6428309536cb43d77f5c57777f1bd90"
+      "sha256": "279911881e777a54cf9226455284fa27baec7f8e76ec01e5e7cf0066eb3370d1"
     },
     {
       "path": "templates/skills/bdd/SPLITTING.md",
