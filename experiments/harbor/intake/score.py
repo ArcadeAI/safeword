@@ -8,6 +8,7 @@ from collections import Counter
 from pathlib import Path
 
 from human_relay import trace_events
+from intake_cutoff import approved_before
 from report_trials import json_file, report, urls
 
 from .run import document, write_json
@@ -111,15 +112,32 @@ def trial_result(lane, build, models):
     evidence["boundary"] = boundary
     write_json(lane / "evidence-index.json", evidence)
     ticket = boundary.get("ticket")
-    if ticket:
+    plan = None
+    archive_path = agent / "workflow-artifacts.tar.gz"
+    if ticket and archive_path.exists():
         spec = str(Path(ticket).with_name("spec.md"))
-        with tarfile.open(agent / "workflow-artifacts.tar.gz") as archive:
-            member = archive.getmember(spec)
-            if not member.isfile():
-                raise ValueError("Missing regular plan file")
-            (lane / "final-plan.md").write_bytes(archive.extractfile(member).read())
-    elif passed:
-        raise ValueError("Passing grade lacks its ticket path")
+        with tarfile.open(archive_path) as archive:
+            if passed:
+                review_id = approval["review_id"]
+                record = archive.getmember(f".safeword/state/reviews/{review_id}.json")
+                deadline = min(
+                    boundary["at_epoch_ns"],
+                    boundary.get("phase_file_mtime_ns", boundary["at_epoch_ns"]),
+                )
+                if not record.isfile() or not approved_before(
+                    json.load(archive.extractfile(record)), review_id, deadline
+                ):
+                    raise ValueError(
+                        "Independent approval did not predate the intake boundary"
+                    )
+            member = next(
+                (item for item in archive if item.name == spec and item.isfile()), None
+            )
+            if member:
+                plan = "final-plan.md"
+                (lane / plan).write_bytes(archive.extractfile(member).read())
+    if passed and not plan:
+        raise ValueError("Passing grade lacks its approved plan")
     return {
         "outcome": outcome,
         "cost_usd": evidence["model_spend"]["total_cost_usd"],
@@ -127,7 +145,7 @@ def trial_result(lane, build, models):
             {call["id"] for call in evidence["model_spend"]["reviewer"]["calls"]}
         ),
         "evidence": "evidence-index.json",
-        "plan": "final-plan.md" if ticket else None,
+        "plan": plan,
     }
 
 

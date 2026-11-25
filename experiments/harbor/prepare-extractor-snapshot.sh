@@ -42,7 +42,7 @@ tar -czf "$scratch/snapshot.tar.gz" -C "$scratch/source" .
 # Freeze the resolution date used to build the comparison's public dependencies.
 age=$(python3 -c 'from datetime import datetime, timezone; cutoff = datetime(2026, 11, 21, tzinfo=timezone.utc); print(max(0, int((datetime.now(timezone.utc) - cutoff).total_seconds())))')
 (cd "$scratch/source" && "$launcher" bun add --minimum-release-age "$age" --dev --exact --lockfile-only --ignore-scripts safeword@1.1.0)
-python3 - "$scratch/source" <<'PYTHON'
+python3 - "$scratch/source" << 'PYTHON'
 from hashlib import sha256
 from pathlib import Path
 import sys

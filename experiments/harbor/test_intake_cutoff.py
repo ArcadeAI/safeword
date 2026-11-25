@@ -47,6 +47,24 @@ class IntakeCutoffTest(unittest.TestCase):
         self.assertIsNone(observed)
 
 
+class ApprovalOrdering(unittest.TestCase):
+    def test_pending_late_and_submillisecond_ties_do_not_prove_prior_approval(self):
+        from intake_cutoff import approved_before
+
+        record = {
+            "id": "r",
+            "state": "completed",
+            "result": {"data": {"status": "approved"}},
+            "updated_at": "1970-01-01T00:00:01.234Z",
+        }
+        self.assertTrue(approved_before(record, "r", 1_235_000_000))
+        self.assertFalse(approved_before(record, "r", 1_234_999_999))
+        self.assertFalse(approved_before(record, "r", 1_230_000_000))
+        self.assertFalse(
+            approved_before({**record, "state": "running"}, "r", 2_000_000_000)
+        )
+
+
 class IntakeTestFiles(unittest.TestCase):
     def test_nested_code_assets_and_ticket_scenarios_but_not_intake_notes(self):
         with tempfile.TemporaryDirectory() as project, chdir(project):

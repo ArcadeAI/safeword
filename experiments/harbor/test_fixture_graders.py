@@ -60,3 +60,43 @@ class FeatureWorkflowGradeTest(unittest.TestCase):
             with patch("grade_workflow.subprocess.run", return_value=result):
                 with self.assertRaisesRegex(ValueError, "verified_tdd"):
                     grade(trial, agent, "test")
+
+
+class CitationOrderTest(unittest.TestCase):
+    edit = {"status": "observed", "steps": [2]}
+    command = "node check.mjs || true\nwrite-production\nnode check.mjs"
+
+    def grade(self, field, steps, *, quotes=None, command=None, first_end=2):
+        from grade_workflow import validate_chronology
+
+        evidence = {
+            1: {"id": 1, "tool": "Bash", "call_order": 1, "result_order": first_end, "result": "failure"},
+            2: {"id": 2, "tool": "Bash", "input": {"command": command or self.command},
+                "call_order": 3, "result_order": 4, "result": "edit"},
+            3: {"id": 3, "tool": "Bash", "call_order": 5, "result_order": 6, "result": "pass"},
+        }
+        verdict = {"first_production_edit": self.edit, "verified_tdd": {"status": "fail"},
+                   "scenarios_before_code": {"status": "fail"}}
+        verdict[field] = {"status": "pass", "steps": steps}
+        if quotes:
+            verdict[field]["within_edit"] = quotes
+        validate_chronology(verdict, evidence)
+
+    def test_post_edit_scenarios_or_one_sided_test_evidence_cannot_pass(self):
+        for field, steps in [("scenarios_before_code", [2, 3]), ("verified_tdd", [3]),
+                             ("verified_tdd", [1, 2]), ("verified_tdd", [2])]:
+            with self.subTest(field=field, steps=steps), self.assertRaises(ValueError):
+                self.grade(field, steps)
+
+    def test_completed_red_before_edit_and_green_after_edit_can_pass(self):
+        self.grade("verified_tdd", [1, 3])
+        with self.assertRaises(ValueError):
+            self.grade("verified_tdd", [1, 3], first_end=5)
+
+    def test_cited_actions_inside_one_shell_command_must_surround_the_edit(self):
+        self.grade("verified_tdd", [2], quotes={"edit": "write-production",
+                                               "before": "node check.mjs", "after": "node check.mjs"})
+        quotes = {"edit": "write-production", "before": "write-scenarios", "after": None}
+        self.grade("scenarios_before_code", [2], command="write-scenarios && write-production", quotes=quotes)
+        with self.assertRaises(ValueError):
+            self.grade("scenarios_before_code", [2], command="write-production && write-scenarios", quotes=quotes)

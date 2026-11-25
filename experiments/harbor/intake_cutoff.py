@@ -1,5 +1,6 @@
 """Stop a Harbor author at the observed boundary of feature intake."""
 
+import datetime
 import hashlib
 import json
 import os
@@ -147,7 +148,25 @@ def stop_author_pipeline(supervisor_pid):
             pass
 
 
-def receipt(ticket, runtime, author, reviewer, model):
+def approved_before(record, review_id, phase_ns):
+    """Completed review timestamps have millisecond precision; ties cannot prove order."""
+    if (
+        record.get("id") != review_id
+        or record.get("state") != "completed"
+        or record.get("result", {}).get("data", {}).get("status") != "approved"
+    ):
+        return False
+    try:
+        updated = datetime.datetime.fromisoformat(record["updated_at"])
+        return (
+            updated.tzinfo is not None
+            and round(updated.timestamp() * 1000) < phase_ns // 1_000_000
+        )
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
+def receipt(ticket, runtime, author, reviewer, model, phase_ns):
     log = Path(".project/skill-invocations.log")
     scope = f"review:{Path(ticket).parent.name}:phase@intake"
     if not log.exists():
@@ -164,7 +183,15 @@ def receipt(ticket, runtime, author, reviewer, model):
             ),
             None,
         )
-        if review_id is None:
+        if not review_id or not re.fullmatch(r"[a-zA-Z0-9-]+", review_id):
+            continue
+        try:
+            record = json.loads(
+                (Path(".safeword/state/reviews") / f"{review_id}.json").read_text()
+            )
+        except (FileNotFoundError, ValueError):
+            continue
+        if not approved_before(record, review_id, phase_ns):
             continue
         run = subprocess.run(
             ["bun", runtime, "--json", "review", "status", review_id],
@@ -204,6 +231,9 @@ def main():
     process = subprocess.Popen(command, start_new_session=True)
     observed = None
     while True:
+        # Sample once after the child exits so its final writes cannot become
+        # the baseline of a later relay step.
+        finished = process.poll() is not None
         try:
             observed = observe_boundary(before, seen, phases, workspace_files)
         except FileNotFoundError:
@@ -212,9 +242,13 @@ def main():
             continue
         if observed:
             observed["at_epoch_ns"] = time.time_ns()
+            if "ticket" in observed:
+                observed["phase_file_mtime_ns"] = (
+                    Path(observed["ticket"]).stat().st_mtime_ns
+                )
             stop_author_pipeline(process.pid)
             break
-        if process.poll() is not None:
+        if finished:
             break
         time.sleep(0.05)
     code = process.wait()
@@ -222,7 +256,14 @@ def main():
         return code
     approval = None
     if "ticket" in observed:
-        approval = receipt(observed["ticket"], runtime, author, reviewer, model)
+        approval = receipt(
+            observed["ticket"],
+            runtime,
+            author,
+            reviewer,
+            model,
+            min(observed["at_epoch_ns"], observed["phase_file_mtime_ns"]),
+        )
     observed["approval"] = approval
     observed["additional_edits_at_stop"] = changed_paths(before, workspace_files())
     if observed["boundary"] == "phase_advance" and observed["additional_edits_at_stop"]:

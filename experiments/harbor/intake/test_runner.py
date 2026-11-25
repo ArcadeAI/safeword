@@ -139,6 +139,20 @@ class IntakeRunnerTest(unittest.TestCase):
             all(row["outcome"] == "incomplete_evidence" for row in results.values())
         )
 
+        outcome = "phase_without_current_approval"
+        write_json(verifier / "reward.json", {"reward": 0})
+        write_json(verifier / "intake-outcome.json", {"outcome": outcome})
+        write_json(
+            agent / "intake-stop.json",
+            {"ticket": ".project/tickets/ABC/ticket.md", "outcome": outcome},
+        )
+        self.assertEqual(
+            trial_result(lane, {"archive_sha256": "fixture"}, self.snapshot["models"])[
+                "outcome"
+            ],
+            outcome,
+        )
+
     def test_codex_spend_includes_distinct_sessions_and_deduplicates_resume(self):
         from shutil import copyfile
 

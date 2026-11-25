@@ -8,7 +8,7 @@ git -C "$repo" show feb9475ffd837891897901e7c3f3867d38b0348a:packages/extractor/
   > "$scratch/fixture-trace.ts"
 
 # Apply just the benchmark's assertions to the pinned private test at prepare time.
-python3 - "$scratch/fixture-trace.ts" <<'PYTHON'
+python3 - "$scratch/fixture-trace.ts" << 'PYTHON'
 from hashlib import sha256
 from pathlib import Path
 import sys
