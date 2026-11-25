@@ -11,7 +11,10 @@ default.
 1. Walk through one real use with the information the user has supplied. If
    the next action depends on guessing what someone enters, sees, or uses to
    choose the right item, ask them to walk through that step. Use their answer
-   in the plan. Reuse an example that already settles the choice.
+   in the plan. Walk through an interrupted use, too, when earlier steps can
+   already have produced a result. If two outcomes are plausible, ask the
+   user what they expect to keep from those steps before choosing a default.
+   Reuse an example that already settles the choice.
    Finish and confirm the Product Plan and scope. Name the changed behavior,
    preserved behavior, and observable done state. Resolve each JTBD persona
    against the configured personas file. Save `dimensions.md` with the agreed
