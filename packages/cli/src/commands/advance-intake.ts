@@ -25,7 +25,11 @@ import {
 } from '../../templates/hooks/lib/review-ledger.js';
 import { appendWorkLogEntry } from '../../templates/hooks/lib/work-log-stamp.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
-import { type IntakeReceipt, intakeReceipt } from '../review/intake-receipt.js';
+import {
+  type IntakeReceipt,
+  intakeReceipt,
+  needsIndependentIntakeReview,
+} from '../review/intake-receipt.js';
 import { reviewJobStatus, withFileLock } from '../review/job.js';
 import { parseTicketMetadata } from '../utils/ticket-metadata.js';
 
@@ -163,6 +167,16 @@ export function advanceIntake(cwd: string, id: string): CliResult {
           status.errors[0]?.message ??
           'Use a current approval covering exactly one feature ticket’s spec.md.',
       );
+    }
+
+    if (needsIndependentIntakeReview(cwd, receipt)) {
+      return {
+        ...blocked(
+          id,
+          'Intake remains open. Run the plan review again when the independent reviewer is available.',
+        ),
+        nextActions: status.nextActions,
+      };
     }
 
     const { ticketFolder, ticketPath } = receipt;

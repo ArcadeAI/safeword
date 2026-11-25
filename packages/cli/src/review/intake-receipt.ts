@@ -1,8 +1,19 @@
 import { lstatSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import type { ReviewStamp } from '../../templates/hooks/lib/review-ledger.js';
+import {
+  reviewGateAppliesToPhase,
+  type ReviewStamp,
+} from '../../templates/hooks/lib/review-ledger.js';
 import { resolveTicketsDirectory } from '../utils/configured-paths.js';
+import { readFileSafe } from '../utils/fs.js';
+
+export function needsIndependentIntakeReview(cwd: string, receipt: IntakeReceipt): boolean {
+  return (
+    receipt.independence !== 'cross-agent' &&
+    reviewGateAppliesToPhase(readFileSafe(nodePath.join(cwd, '.safeword', 'config.json')), 'intake')
+  );
+}
 
 type Independence = 'cross-agent' | 'reduced' | 'degraded';
 type Agent = NonNullable<ReviewStamp['author']>;

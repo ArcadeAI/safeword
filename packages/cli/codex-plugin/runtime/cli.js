@@ -3562,7 +3562,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/agents/safeword-retro-filer.md": "008fa4b5777834118ba0efd008862df52dd32d3feec2218537d7c90cbfdfd904",
         ".claude/agents/safeword-reviewer.md": "54f2b47dec3639b711b7c2557b017c452b4667aa7092296a01328c7b5668efaf",
         ".claude/skills/audit/SKILL.md": "379473dba1ec5a9322adcc4f46a827811b1caa90991cd7b6a14c32234515332c",
-        ".claude/skills/bdd/DISCOVERY.md": "5b2a830cc9c027d81e5f804e353b2f737041fabd5093e80350f9bfd056567c0c",
+        ".claude/skills/bdd/DISCOVERY.md": "aa7cb6f8bbf6004e28405bf248a52b55cac94d7837c4f2f1c611a53664e429ed",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
         ".claude/skills/bdd/PLAN_EXECUTION.md": "b32e1b0778773165d0a66bd49d0a57ffc7653c8707381d89090268b3dc56853d",
         ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "da25a09d6caa34f1e1f7ff3e33c64c5c4a59797145a0c6346b5efec46193f62b",
@@ -31657,6 +31657,25 @@ function hashArtifact(content) {
 function reviewScope(ticketId, artifact, contentHash) {
   return `${ticketId}:${artifact}@${contentHash}`;
 }
+function reviewGateAppliesToPhase(rawConfig, phase) {
+  if (rawConfig === undefined)
+    return true;
+  try {
+    const config = JSON.parse(rawConfig);
+    if (typeof config !== "object" || config === null)
+      return true;
+    const value = config.reviewGate;
+    if (value === true || value === undefined)
+      return true;
+    if (value === false)
+      return false;
+    if (Array.isArray(value))
+      return value.includes(phase);
+    return true;
+  } catch {
+    return true;
+  }
+}
 function readCrossAgentReviewPolicy(rawConfig) {
   if (rawConfig === undefined)
     return "prefer";
@@ -35216,7 +35235,7 @@ var init_contracts_generated = __esm(() => {
   PLANNING_AUTHOR_COPIES = {
     "product-plan": {
       relativePath: "templates/skills/bdd/DISCOVERY.md",
-      sha256: "5b2a830cc9c027d81e5f804e353b2f737041fabd5093e80350f9bfd056567c0c"
+      sha256: "aa7cb6f8bbf6004e28405bf248a52b55cac94d7837c4f2f1c611a53664e429ed"
     },
     "plan-implementation": {
       relativePath: "templates/skills/bdd/PLAN_IMPLEMENTATION.md",
@@ -35254,7 +35273,7 @@ function readPlanningAuthor(root, phase, identity, verifyWholeCopy = true) {
   return bytes.toString("utf8");
 }
 function packagedPlanningAuthor(phase, verifyWholeCopy = true) {
-  const copies = typeof { "product-plan": { relativePath: "skills/bdd/references/DISCOVERY.md", sha256: "53e127467f7d03ef8b61f3009d499092e422303cdfe2394486a5058296f51fd6" }, "plan-implementation": { relativePath: "skills/bdd/references/PLAN_IMPLEMENTATION.md", sha256: "a027e590058bb13506674b01547236a696c88b7c43b5edbd2870a5e556d019fb" }, "plan-execution": { relativePath: "skills/bdd/references/PLAN_EXECUTION.md", sha256: "882447038768f3f7dbb43089d1a219fd24644e726148a470eaddf282e0033f18" } } === "object" ? { "product-plan": { relativePath: "skills/bdd/references/DISCOVERY.md", sha256: "53e127467f7d03ef8b61f3009d499092e422303cdfe2394486a5058296f51fd6" }, "plan-implementation": { relativePath: "skills/bdd/references/PLAN_IMPLEMENTATION.md", sha256: "a027e590058bb13506674b01547236a696c88b7c43b5edbd2870a5e556d019fb" }, "plan-execution": { relativePath: "skills/bdd/references/PLAN_EXECUTION.md", sha256: "882447038768f3f7dbb43089d1a219fd24644e726148a470eaddf282e0033f18" } } : PLANNING_AUTHOR_COPIES;
+  const copies = typeof { "product-plan": { relativePath: "skills/bdd/references/DISCOVERY.md", sha256: "fea956ca74ec86eb6758789e1201e28b060b8ee7a52fe38a30729317f0347dee" }, "plan-implementation": { relativePath: "skills/bdd/references/PLAN_IMPLEMENTATION.md", sha256: "a027e590058bb13506674b01547236a696c88b7c43b5edbd2870a5e556d019fb" }, "plan-execution": { relativePath: "skills/bdd/references/PLAN_EXECUTION.md", sha256: "882447038768f3f7dbb43089d1a219fd24644e726148a470eaddf282e0033f18" } } === "object" ? { "product-plan": { relativePath: "skills/bdd/references/DISCOVERY.md", sha256: "fea956ca74ec86eb6758789e1201e28b060b8ee7a52fe38a30729317f0347dee" }, "plan-implementation": { relativePath: "skills/bdd/references/PLAN_IMPLEMENTATION.md", sha256: "a027e590058bb13506674b01547236a696c88b7c43b5edbd2870a5e556d019fb" }, "plan-execution": { relativePath: "skills/bdd/references/PLAN_EXECUTION.md", sha256: "882447038768f3f7dbb43089d1a219fd24644e726148a470eaddf282e0033f18" } } : PLANNING_AUTHOR_COPIES;
   return readPlanningAuthor(packageRoot(), phase, copies[phase], verifyWholeCopy);
 }
 function assertActivePlanningAuthorCopy(cwd, phase) {
@@ -67067,6 +67086,9 @@ var init_coordinator = __esm(() => {
 // src/review/intake-receipt.ts
 import { lstatSync as lstatSync15 } from "fs";
 import nodePath67 from "path";
+function needsIndependentIntakeReview(cwd, receipt) {
+  return receipt.independence !== "cross-agent" && reviewGateAppliesToPhase(readFileSafe(nodePath67.join(cwd, ".safeword", "config.json")), "intake");
+}
 function provenance(data) {
   const author = AGENTS.find((agent) => agent === data.author_agent);
   const reviewer = AGENTS.find((agent) => agent === data.actual_reviewer);
@@ -67114,7 +67136,9 @@ function intakeReceipt(cwd, input) {
 }
 var AGENTS, INDEPENDENCE;
 var init_intake_receipt = __esm(() => {
+  init_review_ledger();
   init_configured_paths();
+  init_fs();
   AGENTS = ["claude", "codex", "cursor", "opencode"];
   INDEPENDENCE = ["cross-agent", "reduced", "degraded"];
 });
@@ -67599,7 +67623,7 @@ function pendingResult(record) {
     findings: [
       {
         code: "REVIEW_PENDING",
-        message: "The independent review is still working in the background. Collect its result when it finishes.",
+        message: record.kind === "quality-review" && record.review_identity?.targets.length === 1 && record.review_identity.targets[0]?.path.endsWith("/spec.md") ? "The Product Plan review is pending. Stay in intake. Run the returned status command before writing scenarios, tests, or code." : "The independent review is still working in the background. Collect its result when it finishes.",
         severity: "info"
       }
     ],
@@ -67777,7 +67801,7 @@ function verifiedExcludedTargets(record, current) {
   const recordedPaths = new Set(recorded);
   return current.filter((target) => recordedPaths.has(target));
 }
-function intakeNextAction(cwd, data) {
+function intakeNextAction(cwd, data, record) {
   try {
     const receipt = intakeReceipt(cwd, data);
     if (receipt === undefined)
@@ -67785,10 +67809,14 @@ function intakeNextAction(cwd, data) {
     const { metadata } = parseTicketMetadata(readFileSync44(receipt.ticketPath, "utf8"));
     if (metadata.type !== "feature" || metadata.status !== "in_progress" || metadata.phase !== "intake")
       return;
+    const needsReview = needsIndependentIntakeReview(cwd, receipt);
     return {
-      command: `${shellQuote4(process.execPath)} ${shellQuote4(cliEntrypoint())} review advance-intake ${shellQuote4(receipt.id)} --cwd ${shellQuote4(cwd)}`,
-      mutates: true,
-      requiresHuman: false
+      needsReview,
+      action: {
+        command: needsReview ? retryCommand(record.kind, record.targets, record.context) : `${shellQuote4(process.execPath)} ${shellQuote4(cliEntrypoint())} review advance-intake ${shellQuote4(receipt.id)} --cwd ${shellQuote4(cwd)}`,
+        mutates: true,
+        requiresHuman: false
+      }
     };
   } catch {
     return;
@@ -67804,11 +67832,27 @@ function withReviewProvenance(cwd, record, result, currentExclusions) {
     review_excluded_targets: verifiedExcludedTargets(record, currentExclusions),
     ...record.review_identity !== undefined && { review_identity: record.review_identity }
   };
-  const next = intakeNextAction(cwd, data);
+  const next = intakeNextAction(cwd, data, record);
+  if (next?.needsReview) {
+    return {
+      ...result,
+      state: "action_required",
+      data,
+      findings: [
+        ...result.findings,
+        {
+          code: "INTAKE_INDEPENDENT_REVIEW_REQUIRED",
+          message: "Intake remains open. Retry the plan review when the independent reviewer is available.",
+          severity: "warning"
+        }
+      ],
+      nextActions: [next.action]
+    };
+  }
   return {
     ...result,
     data,
-    ...next !== undefined && { nextActions: [next, ...result.nextActions] }
+    ...next !== undefined && { nextActions: [next.action, ...result.nextActions] }
   };
 }
 function invalidJobResult(id) {
@@ -73023,6 +73067,12 @@ function advanceIntake(cwd, id) {
     const receipt = intakeReceipt(cwd, status.data);
     if (receipt === undefined) {
       return blocked(id, status.findings.find((finding) => finding.code === "REVIEW_STALE")?.message ?? status.errors[0]?.message ?? "Use a current approval covering exactly one feature ticket\u2019s spec.md.");
+    }
+    if (needsIndependentIntakeReview(cwd, receipt)) {
+      return {
+        ...blocked(id, "Intake remains open. Run the plan review again when the independent reviewer is available."),
+        nextActions: status.nextActions
+      };
     }
     const { ticketFolder, ticketPath } = receipt;
     const lock = nodePath77.join(cwd, ".safeword", "state", `intake-${ticketFolder}.lock`);

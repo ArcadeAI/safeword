@@ -125,6 +125,18 @@ describe('gatePhaseAdvance (TB2.AC1 — phase advance needs an independent revie
     },
   );
 
+  it.each(['reduced', 'degraded'] as const)(
+    'keeps a gated intake open with a %s phase stamp',
+    independence => {
+      const scope = 'RETRY1-intake:phase@intake';
+      expect(
+        gatePhaseAdvance(scope, [
+          { scope, independence, author: 'claude', reviewer: 'claude', reviewId: REVIEW_ID },
+        ]).ok,
+      ).toBe(false);
+    },
+  );
+
   it('still requires a review or a logged skip to advance', () => {
     expect(gatePhaseAdvance('scenario-gate', []).ok).toBe(false);
   });

@@ -19,11 +19,12 @@ default.
 2. Reconcile the parent for a linked child. When intake review applies, use
    the `quality-review` skill's independent review command for this host. Pass
    `<ticket-directory>/spec.md` as the sole target. Follow the command's
-   recovery instructions until it returns a terminal result.
+   status command while review is pending. Keep scenarios, tests, and code for
+   their later phases. If the independent reviewer is unavailable, leave the
+   ticket in intake and retry the same plan when the reviewer returns.
 3. Run the approval's returned `review advance-intake <review-id>` command. It
    validates the current receipt, records both review stamps, and saves
-   `phase: define-behavior` on the same ticket. If review is disabled or an
-   applicable fallback was used, follow the project's review rules and save
+   `phase: define-behavior` on the same ticket. If review is disabled for intake, save
    the phase on the ticket. Open [SCENARIOS.md](SCENARIOS.md) once the phase
    change succeeds. Use the accepted Rule IDs to write the first scenario.
 

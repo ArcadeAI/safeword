@@ -560,8 +560,12 @@ describe('durable review jobs', () => {
       ],
       { cwd, env: { SAFEWORD_AGENT_RUNTIME: 'claude' } },
     );
-    expect(submitted.exitCode).toBe(0);
+    expect(submitted.exitCode).toBe(2);
     expect(JSON.parse(submitted.stdout)).toMatchObject({
+      state: 'action_required',
+      findings: expect.arrayContaining([
+        expect.objectContaining({ code: 'INTAKE_INDEPENDENT_REVIEW_REQUIRED' }),
+      ]),
       effects: { network: [] },
       data: { status: 'approved', review_id: publicId, independence: 'reduced' },
     });
@@ -2317,6 +2321,61 @@ describe('durable review jobs', () => {
     expect(readFileSync(ticket, 'utf8')).toBe(original);
     expect(existsSync(nodePath.join(cwd, '.project/skill-invocations.log'))).toBe(false);
   });
+
+  it.each(['reduced', 'degraded'] as const)(
+    'keeps intake open after %s review and resumes on independent approval',
+    async independence => {
+      const cwd = project();
+      const dir = '.project/tickets/RETRY1-intake';
+      const folder = nodePath.join(cwd, dir);
+      mkdirSync(folder, { recursive: true });
+      const initial =
+        '---\nid: RETRY1\ntype: feature\nstatus: in_progress\nphase: intake\nscope: CSV reports\nout_of_scope: spreadsheets\ndone_when: a report exists\n---\n';
+      const ticket = nodePath.join(folder, 'ticket.md');
+      writeFileSync(ticket, initial);
+      writeFileSync(
+        nodePath.join(folder, 'spec.md'),
+        '# Product Plan\n\n## Jobs To Be Done\n\nskip: One legacy job.\n',
+      );
+      writeFileSync(nodePath.join(folder, 'dimensions.md'), 'skip: One flow.\n');
+      const input = { cwd, kind: 'quality-review' as const, targets: [`${dir}/spec.md`] };
+      vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+      vi.stubEnv(
+        'SAFEWORD_CLI_ENTRYPOINT',
+        worker(
+          cwd,
+          COMPLETE_WORKER.replaceAll("'codex'", "'claude'").replace(
+            "'cross-agent'",
+            () => `'${independence}'`,
+          ),
+        ),
+      );
+      const fallback = await startReviewJob(input);
+      expect(fallback.state).toBe('action_required');
+      expect(fallback.nextActions[0]).toMatchObject({
+        command: expect.stringContaining('review run quality-review'),
+      });
+      const { review_id: id } = fallback.data as { review_id: string };
+      const blocked = await runCli(['review', 'advance-intake', id, '--json'], { cwd });
+      expect(blocked.exitCode, blocked.stdout).toBe(2);
+      expect(readFileSync(ticket, 'utf8')).toBe(initial);
+      const config = nodePath.join(cwd, '.safeword/config.json');
+      const originalConfig = existsSync(config) ? readFileSync(config, 'utf8') : undefined;
+      writeFileSync(config, JSON.stringify({ reviewGate: ['scenario-gate'] }));
+      expect(reviewJobStatus(cwd, id).nextActions[0]).toMatchObject({
+        command: expect.stringContaining('review advance-intake'),
+      });
+      if (originalConfig === undefined) rmSync(config);
+      else writeFileSync(config, originalConfig);
+      expect(existsSync(nodePath.join(cwd, '.project/skill-invocations.log'))).toBe(false);
+      vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
+      const fresh = await startReviewJob(input);
+      const { review_id: approved } = fresh.data as { review_id: string };
+      const resumed = await runCli(['review', 'advance-intake', approved, '--json'], { cwd });
+      expect(resumed.exitCode, resumed.stdout).toBe(0);
+      expect(readFileSync(ticket, 'utf8')).toContain('phase: define-behavior');
+    },
+  );
 
   it.each(['current', 'stale', 'missing dimensions'] as const)(
     'advances intake only with a current, ready approval (%s)',

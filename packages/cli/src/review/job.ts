@@ -40,7 +40,7 @@ import {
 } from './contract.js';
 import { hostContinuationCompletion } from './coordinator.js';
 import { validateExecutionPlanOutput } from './execution-plan-output.js';
-import { intakeReceipt } from './intake-receipt.js';
+import { intakeReceipt, needsIndependentIntakeReview } from './intake-receipt.js';
 import { type PlanningContractUse, prepareReviewPacket, toReviewPath } from './packet.js';
 import {
   createPlanningReviewIdentity,
@@ -780,7 +780,11 @@ function pendingResult(record: ReviewJobRecord): CliResult {
       {
         code: 'REVIEW_PENDING',
         message:
-          'The independent review is still working in the background. Collect its result when it finishes.',
+          record.kind === 'quality-review' &&
+          record.review_identity?.targets.length === 1 &&
+          record.review_identity.targets[0]?.path.endsWith('/spec.md')
+            ? 'The Product Plan review is pending. Stay in intake. Run the returned status command before writing scenarios, tests, or code.'
+            : 'The independent review is still working in the background. Collect its result when it finishes.',
         severity: 'info',
       },
     ],
@@ -1001,7 +1005,11 @@ function verifiedExcludedTargets(
   return current.filter(target => recordedPaths.has(target));
 }
 
-function intakeNextAction(cwd: string, data: unknown): NextAction | undefined {
+function intakeNextAction(
+  cwd: string,
+  data: unknown,
+  record: ReviewJobRecord,
+): { action: NextAction; needsReview: boolean } | undefined {
   try {
     const receipt = intakeReceipt(cwd, data);
     if (receipt === undefined) return undefined;
@@ -1012,10 +1020,16 @@ function intakeNextAction(cwd: string, data: unknown): NextAction | undefined {
       metadata.phase !== 'intake'
     )
       return undefined;
+    const needsReview = needsIndependentIntakeReview(cwd, receipt);
     return {
-      command: `${shellQuote(process.execPath)} ${shellQuote(cliEntrypoint())} review advance-intake ${shellQuote(receipt.id)} --cwd ${shellQuote(cwd)}`,
-      mutates: true,
-      requiresHuman: false,
+      needsReview,
+      action: {
+        command: needsReview
+          ? retryCommand(record.kind, record.targets, record.context)
+          : `${shellQuote(process.execPath)} ${shellQuote(cliEntrypoint())} review advance-intake ${shellQuote(receipt.id)} --cwd ${shellQuote(cwd)}`,
+        mutates: true,
+        requiresHuman: false,
+      },
     };
   } catch {
     // A ticket that cannot be opened does not invalidate the review itself.
@@ -1041,11 +1055,28 @@ function withReviewProvenance(
     review_excluded_targets: verifiedExcludedTargets(record, currentExclusions),
     ...(record.review_identity !== undefined && { review_identity: record.review_identity }),
   };
-  const next = intakeNextAction(cwd, data);
+  const next = intakeNextAction(cwd, data, record);
+  if (next?.needsReview) {
+    return {
+      ...result,
+      state: 'action_required',
+      data,
+      findings: [
+        ...result.findings,
+        {
+          code: 'INTAKE_INDEPENDENT_REVIEW_REQUIRED',
+          message:
+            'Intake remains open. Retry the plan review when the independent reviewer is available.',
+          severity: 'warning',
+        },
+      ],
+      nextActions: [next.action],
+    };
+  }
   return {
     ...result,
     data,
-    ...(next !== undefined && { nextActions: [next, ...result.nextActions] }),
+    ...(next !== undefined && { nextActions: [next.action, ...result.nextActions] }),
   };
 }
 

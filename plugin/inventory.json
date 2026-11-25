@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "a5fdbbef093978eed21eabe6d7a556307d0283fefaab5528fd5a0fa89a272851"
+      "sha256": "fe6ff407af83e78221f74c669667a2850cfe7affea69d5f60893ce3b1b13b271"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "999d078caeffdd5f6da6e4e79f9a2546a954b8e7acaf64ae5f039e3fbccf7c9a"
+      "sha256": "ad9c1447cf0ed02b05e2f0757bb9a157aa6830362062303cc15cd98d73e79eea"
     },
     {
       "path": "runtime/event-groups.json",
@@ -411,7 +411,7 @@
     },
     {
       "path": "runtime/hooks/lib/review-ledger.ts",
-      "sha256": "ab63eefed68979c44918184edebf23d1f43cb39dd52d093f4f724acd63c5eecf"
+      "sha256": "cf3dad9fe02dda34d8bfe150a20d5ecd89023338bc8c9619557ece0d35b6b650"
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
@@ -648,7 +648,7 @@
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
-      "sha256": "f376f3c74e7b1cc06da8bf6d4936f7d0270c04e06494f996b434f3158e7e7fa9"
+      "sha256": "0bbae938b5f728b481e8f951ca0c4e395f51db4f0b6e2e5bc6355a1a16ffa28f"
     },
     {
       "path": "skills/bdd/DONE.md",
@@ -1407,7 +1407,7 @@
     },
     {
       "path": "templates/hooks/lib/review-ledger.ts",
-      "sha256": "ab63eefed68979c44918184edebf23d1f43cb39dd52d093f4f724acd63c5eecf"
+      "sha256": "cf3dad9fe02dda34d8bfe150a20d5ecd89023338bc8c9619557ece0d35b6b650"
     },
     {
       "path": "templates/hooks/lib/review-receipt.ts",
@@ -1675,7 +1675,7 @@
     },
     {
       "path": "templates/skills/bdd/DISCOVERY.md",
-      "sha256": "5b2a830cc9c027d81e5f804e353b2f737041fabd5093e80350f9bfd056567c0c"
+      "sha256": "aa7cb6f8bbf6004e28405bf248a52b55cac94d7837c4f2f1c611a53664e429ed"
     },
     {
       "path": "templates/skills/bdd/DONE.md",
