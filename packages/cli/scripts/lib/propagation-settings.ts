@@ -407,7 +407,7 @@ function cursorHandoffHistory(
 ) {
   if (!('protocol' in actual)) return 0;
   if (!previous || !('protocol' in previous) || !previous.edit) return 3;
-  if (!cursorHandoffOutcome(previous, true) && previous.cap)
+  if (cursorHandoffOutcome(previous, true) === 0 && previous.cap)
     return sameHistoryTurn(actual.stops[0], previous.stops[0]) ? 0 : 3;
   return 3;
 }
