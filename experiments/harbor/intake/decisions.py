@@ -190,14 +190,20 @@ def grade(lane, plan, spec):
         q.get("revealed_turn"),
     )
     asked, excerpt = "unclear", None
-    if type(reveal) is int and 0 <= reveal <= len(exchanges) and type(turn) is int:
-        if turn == 0 and qline == 0:
-            asked = "no"
-        elif 1 <= turn <= len(exchanges) and type(qline) is int:
-            source = exchanges[turn - 1]["request"].splitlines()
-            if 1 <= qline <= len(source) and source[qline - 1].strip():
-                excerpt = source[qline - 1]
-                asked = "yes" if reveal == 0 or turn <= reveal else "no"
+    if not exchanges or (type(turn) is int and turn == 0 and qline == 0):
+        # The time of a reveal cannot change whether an absent question was asked.
+        asked = "no"
+    elif (
+        type(turn) is int
+        and 1 <= turn <= len(exchanges)
+        and type(qline) is int
+        and type(reveal) is int
+        and 0 <= reveal <= len(exchanges)
+    ):
+        source = exchanges[turn - 1]["request"].splitlines()
+        if 1 <= qline <= len(source) and source[qline - 1].strip():
+            excerpt = source[qline - 1]
+            asked = "yes" if reveal == 0 or turn <= reveal else "no"
     if asked == "yes":
         # Audit the citation in isolation so unrelated questions adjacent to
         # an assumed default cannot earn credit for eliciting the decision.

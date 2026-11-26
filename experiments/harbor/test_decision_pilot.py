@@ -97,6 +97,33 @@ class PilotTests(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn("exchanges", model.call_args_list[1].args[1])
             self.assertNotIn("expected", str(model.call_args_list))
 
+    def test_absent_question_is_independent_of_an_ambiguous_reveal(self):
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            patch(
+                "intake.decisions.interpret",
+                side_effect=[
+                    (
+                        {
+                            "asked_turn": 0,
+                            "asked_line": 0,
+                            "revealed_turn": None,
+                            "question_turns": [1],
+                        },
+                        {},
+                    ),
+                    ({"choice": "reject", "line": 1}, {}),
+                ],
+            ),
+        ):
+            lane = Path(tmp)
+            (lane / "relay").mkdir()
+            (lane / "relay/01-request.md").write_text("May I proceed?")
+            result = grade(
+                lane, "Reject duplicates.", policy("intake-bookmark-specified")
+            )
+            self.assertEqual((result["asked"], result["needed_to_ask"]), ("no", False))
+
     def test_general_approval_without_a_specific_citation_abstains(self):
         with (
             tempfile.TemporaryDirectory() as tmp,
