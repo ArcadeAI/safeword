@@ -297,17 +297,21 @@ Then(
 Then(
   'persona guidance allows explicit codes with {int}–{int} letters',
   function (this: SafewordWorld, minimum, maximum) {
-    assert.ok(
-      (state(this).personaGuidance ?? '')
-        .toLowerCase()
-        .includes(`explicit codes may use ${minimum}–${maximum} letters`),
+    const range = /explicit codes (?:may )?use (\d+)[–-](\d+) letters/iu.exec(
+      state(this).personaGuidance ?? '',
     );
+    assert.deepEqual(range?.slice(1), [String(minimum), String(maximum)]);
   },
 );
 
 Then('JTBD and Gherkin guidance carry the persona code unchanged', function (this: SafewordWorld) {
-  assert.ok((state(this).discoveryGuidance ?? '').includes('oauth-flow.PLO1'));
-  assert.ok((state(this).scenarioGuidance ?? '').includes('@oauth-flow.PLO1.R2'));
+  assert.match(
+    state(this).discoveryGuidance ?? '',
+    /a JTBD names one persona and preserves\s+its canonical code/iu,
+  );
+  const scenarios = state(this).scenarioGuidance ?? '';
+  assert.ok(scenarios.includes('`oauth-flow.PLO1`'));
+  assert.ok(scenarios.includes('@oauth-flow.PLO1.R2'));
 });
 
 Given('the installed persona and BDD authoring assets', function (this: SafewordWorld) {
