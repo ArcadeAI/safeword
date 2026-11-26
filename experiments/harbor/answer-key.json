@@ -109,5 +109,8 @@
     "What happens if staff try to lend a tool that is already on loan?": "Refuse the second loan and keep the original borrower. Staff must record the tool’s return before lending it again.",
     "Ready to implement?": "Proceed with the agreed plan.",
     "Should I continue?": "Proceed with the agreed plan."
+  },
+  "intake-shift-specified": {
+    "For the same employee, should a shift that starts exactly when another ends (09:00–17:00, then 17:00–21:00) be allowed?": "Allow back-to-back shifts for the same employee. A shift ending at 17:00 and another starting at 17:00 share no working time. Reject assignments that overlap for a positive duration."
   }
 }
