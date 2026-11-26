@@ -140,3 +140,5 @@ The [café and label-station comparison](../TFNBXC-verify-product-choice-authori
 The [café plan reversal](../TFNBXC-verify-product-choice-authority/scorecard.md#café-plan-reversal) isolated the effect of changing the proposed crash policy.
 
 The [neutral-wording café trial](../TFNBXC-verify-product-choice-authority/scorecard.md#neutral-wording-of-the-café-request) completed with 36 verified reviews.
+
+The [shipping-label comparison](../TFNBXC-verify-product-choice-authority/scorecard.md#shipping-label-recovery) recorded 48 reviews testing repeat charges and manual recovery.

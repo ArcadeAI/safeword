@@ -54,3 +54,5 @@ The [single-pass interruption question](./scorecard.md#single-pass-interruption-
 The [paired café plan reversal](./scorecard.md#café-plan-reversal) showed that reviewers blocked missing authorization much more often for removal before announcement.
 
 The [neutral-wording follow-up](./scorecard.md#neutral-wording-of-the-café-request) reproduced the directional difference without “remove the called party.”
+
+The [shipping-label comparison](./scorecard.md#shipping-label-recovery) recorded 48 reviews testing repeat charges and manual recovery.

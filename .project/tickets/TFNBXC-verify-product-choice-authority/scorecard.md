@@ -195,3 +195,20 @@ The score counts a blocking finding on user authority for the specific missed-pa
 All 36 reviews completed with verified dispatch and model identities, one metered call each and **$2.49** in estimated spend. No retries or live questions. Base `eaf29f312`, unchanged production reviewer, pinned Claude Opus 5.5 and Codex GPT-6.2 Sol. Private packets, protocol, findings and per-trial scores are in `experiments/harbor/jobs/TFNBXC-neutral-order/` in the Harbor infrastructure worktree.
 
 This is one feature with three repeats per model and cell. It supports a café-specific directional effect. It cannot identify the reviewers' motivations or show how they would respond when repeating an action does more harm. A useful next comparison would reverse the relative consequences in a new feature while leaving the user's retry preference unspecified.
+
+## Shipping-label recovery
+
+A clerk wants a parcel to have a paid shipping label and a closed local request. A workstation restart can separate the carrier purchase from the local update. Buying first can charge another nonrefundable $12 on retry. Closing first can leave postage unpaid, which the clerk can check and buy manually in the carrier portal. The request specified the successful outcome and left the crash policy open. Each pair of drafts differed only in the rule selecting the policy.
+
+| Reviews that blocked on missing user authorization | Claude, buy first | Claude, close first | Codex, buy first | Codex, close first |
+| --- | ---: | ---: | ---: | ---: |
+| Original shipping fixture | 6/6 | 0/6 | 6/6 | 5/6 |
+| Clarified shipping fixture | 6/6 | 0/6 | 6/6 | 6/6 |
+
+The original fixture left room for a separate objection about what happens if the carrier rejects payment. All 24 initial reviews requested changes, including six Claude close-first verdicts that raised other issues. For the follow-up we gave both arms the same workstation guarantee for definitive rejections, clarified the already-closed exit status, and aligned the persona summary with the restart rule. We scored that follow-up separately. Claude approved all six clarified close-first drafts. Four included a nonblocking suggestion to confirm or record acceptance of the manual recovery burden. Codex required a user decision in all six.
+
+On neutral café requests, Claude blocked 0/6 plans risking a duplicate announcement and 5/6 risking a missed party. Here it blocked 6/6 risking a duplicate charge and 0/6 risking a missed, manually recoverable purchase. Codex also changed its response to duplicates from 1/6 to 6/6, while continuing to flag the missed-action plan. These are repeated reviews of two particular features. The comparison changes domain, financial stakes and recoverability together, so it cannot isolate price as the cause.
+
+Each shipping fixture used two equivalent order-balanced requests, three repeats per host, the same pinned Opus 5.5 and GPT-6.2 Sol, and the unchanged production reviewer at product base `adda65a5d`. Matched files were checked before dispatch. All 48 completed verdicts have matching model and dispatch identities and individual cost receipts. No retries or live user questions. Estimated spend was **$3.17** across both sets. The score counts only blocking findings that identified missing authority for the specified restart policy. Private packets, findings and coding are in `experiments/harbor/jobs/TFNBXC-shipping-order/` and `TFNBXC-shipping-clarified/`.
+
+A narrow next test would keep the clarified shipping fixture fixed and explicitly delegate the recovery decision to the agent. Check whether each reviewer accepts either documented choice or continues to demand user input.
