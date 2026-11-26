@@ -3,10 +3,10 @@ id: XACF52
 slug: shorten-handbook-intake
 type: task
 epic: 3TJD0A
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-11-26T07:41:04.567Z
-last_modified: 2026-11-26T07:41:04.567Z
+last_modified: 2026-11-26T10:54:39Z
 ---
 
 # Shorten the handbook for every session
@@ -23,6 +23,6 @@ last_modified: 2026-11-26T07:41:04.567Z
 
 ## Latest evidence
 
-The isolated handbook cut removes 21 source lines. Both scheduling authors reached independent approval. Fresh-feature results and trace links are in the scorecard.
+The isolated handbook cut cleared independent approval on both hosts on scheduling and equipment loans. Selected 21 lines for removal.
 
 [Full scorecard](../3TJD0A-reliable-lean-intake/scorecard.md)

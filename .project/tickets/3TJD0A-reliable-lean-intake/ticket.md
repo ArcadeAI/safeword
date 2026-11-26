@@ -2,8 +2,8 @@
 id: 3TJD0A
 slug: reliable-lean-intake
 type: epic
-phase: intake
-status: in_progress
+phase: done
+status: done
 scope:
   - Five intake evaluations on Claude and Codex.
 out_of_scope:
@@ -18,7 +18,7 @@ children:
   - 4BAM6A
   - WCXR0P
 created: 2026-11-26T07:08:24.535Z
-last_modified: 2026-11-26T07:08:24.535Z
+last_modified: 2026-11-26T10:54:39Z
 ---
 
 # Get reliable feature plans with shorter instructions for Claude and Codex
@@ -48,3 +48,5 @@ Compare each deletion to baseline on the same inputs, verify both host bundles, 
 ## Results
 
 [Scorecard, evidence and decisions](./scorecard.md)
+
+All five evaluations have recorded decisions. The 65-line reduction passed six trials on both hosts across three features. Keep the original reviewer wording. Raw evidence showed no draft PRs requiring cleanup.

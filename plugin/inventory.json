@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "8d097235af8ebe057468dedfa2a623bf48d3ed1bb5a30576e3c3ffef9b10b8c7"
+      "sha256": "513ffb68b8ff8206ab8376576fe1ab5c18ac0d77bfcbc9d53d3edf483e62d39f"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "256b4ca1b980f0ab164ac3a3cc953210bd55859ceda1dde04ed515114b7d5711"
+      "sha256": "2554af608d694427fff96ae11cc5189949e855093011bcdd07a2e6cba9c580d3"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "32813484b54545e4f794633ef26e528fee124a5cbe861700920903d2c6c7f08c"
+      "sha256": "02ab5883113e2a860b1b8867e73c247e4c53a4397ca6e6ff2a1d7bd5a67c018a"
     },
     {
       "path": "runtime/event-groups.json",
@@ -648,7 +648,7 @@
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
-      "sha256": "43b3f1ac6b1f5572f7f32a00d1861d9a3ebcd20b047f97dd83ea4f524b6c9467"
+      "sha256": "c018571268d05b9a71be344b361546349d8ca1001194be677316cee8877f136d"
     },
     {
       "path": "skills/bdd/DONE.md",
@@ -668,8 +668,8 @@
     },
     {
       "path": "skills/bdd/SKILL.md",
-      "sha256": "279911881e777a54cf9226455284fa27baec7f8e76ec01e5e7cf0066eb3370d1",
-      "skill_sha256": "02c803efe2518509b3d2f252fe35369c69604fb01794f543f2dd11ed88a5e951"
+      "sha256": "bb7d3fd97a247fd83874f2caf0fcd10d27d72229829e9a194b0bad4005065097",
+      "skill_sha256": "cc7c9bf57d1c4f28b8b8cb799a61828f41140a052e299591e127281a93018491"
     },
     {
       "path": "skills/bdd/SPLITTING.md",
@@ -1651,7 +1651,7 @@
     },
     {
       "path": "templates/SAFEWORD.md",
-      "sha256": "2094ebcce0cfcff9448c23a31cb904329e5b30a9c62a835522974b261a58302c"
+      "sha256": "d779432630975c07be88be6f7739eb710a8e6abe800b2f54ee336c752a2bb2f9"
     },
     {
       "path": "templates/scripts/bisect-test-pollution.sh",
@@ -1675,7 +1675,7 @@
     },
     {
       "path": "templates/skills/bdd/DISCOVERY.md",
-      "sha256": "0b2eadf344f14a17a9cec5b0dff302555b3ed841fef49d49183cf958532d713b"
+      "sha256": "0eb6d81646bd431987a186d354e2d25a0cf3cb2d27b44fd132d529415560b433"
     },
     {
       "path": "templates/skills/bdd/DONE.md",
@@ -1695,7 +1695,7 @@
     },
     {
       "path": "templates/skills/bdd/SKILL.md",
-      "sha256": "279911881e777a54cf9226455284fa27baec7f8e76ec01e5e7cf0066eb3370d1"
+      "sha256": "bb7d3fd97a247fd83874f2caf0fcd10d27d72229829e9a194b0bad4005065097"
     },
     {
       "path": "templates/skills/bdd/SPLITTING.md",

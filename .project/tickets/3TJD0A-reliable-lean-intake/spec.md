@@ -9,7 +9,7 @@
 - **Persona outcome inventory:** A Safeword Maintainer can identify which changes preserve intake and reproduce failures independently.
 - **Known facts:** The current scheduling template passed eight completed trials. Each café reviewer has approved an author-selected policy in the absence of a user decision.
 - **Assumptions:** Duplicated prose can be removed without impairing the handoff.
-- **Unresolved product decisions:** A new fixture preference belongs to the operator. Capture it only after a trial asks.
+- **Unresolved product decisions:** None for the equipment-loan fixture. The operator settled duplicate loans and tool identity in response to trial questions.
 - **Success threshold:** Record each isolated result for both hosts. Adoption requires preserved product behavior and independent pre-code approval, and a combined confirmation. The café wording must meet the paired threshold specified in the ticket.
 - **Project non-goals:** Implementation, scenario quality, releases, and a new review hook.
 - **Reversibility:** Two-way. Select changes independently through Git.

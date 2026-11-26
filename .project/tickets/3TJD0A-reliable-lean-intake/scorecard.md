@@ -2,6 +2,18 @@
 
 Baseline product `904e78010`. Claude Opus 5.5 and Codex GPT-6.2 Sol, using frozen CLI versions and prices. Intake success requires a correct plan, independent approval and no premature edits. A correct guess receives no clarification credit.
 
+## Decision
+
+Keep the 65-line reduction. The selected version cleared independent review on all six author runs across equipment loans, shifts and bookmarks, once per host per feature. Across the eight equipment-loan variants, all 16 completed trials cleared independent review. One earlier Codex attempt failed during workspace routing and is listed separately. The broader cut allowed a premature code edit on the scheduling task.
+
+Keep the baseline reviewer wording. The proposed stricter wording caught the missing café decision in three of three Codex reviews and zero of three Claude reviews. The experiment is complete. Reliable detection on Claude remains open.
+
+On the equipment task, estimated author and reviewer spend for the two completed baseline trials totaled $2.15. The two completed selected-version trials totaled $2.42. An interrupted Codex setup attempt had incomplete cost evidence. These runs establish a shorter prompt and successful handoffs. They do not establish a cost saving.
+
+## Repository verification
+
+All five generated surfaces and all eleven parity contracts passed on the final product checkout. The full run found five assertions that still expected duplicated instructions and one OpenCode setup timeout. The assertions now verify the persona code in the plan template and the handoff from handbook to skill to intake guide. Both affected test files passed on recheck. The unchanged OpenCode fixture passed separately with cached dependencies and remote model fetching disabled. Fourteen CLI tests and one relay test were skipped in the full run.
+
 ## Frozen café plan
 
 | Wording | Reviewer | Required a missing decision | Reopened a supplied decision | Approved supplied plan | Paired success |
@@ -35,17 +47,17 @@ The equipment loan request supplies the rule for an unmatched return and leaves 
 
 | Arm | Case | Author | Observed intake outcome |
 |---|---|---|---|
-| baseline | equipment-loans | claude | awaiting a reply |
+| baseline | equipment-loans | claude | passed |
 | baseline | equipment-loans | codex | passed |
 | bookmark-lean | bookmark-duplicate | claude | passed |
 | bookmark-lean | bookmark-duplicate | codex | passed |
 | combined | equipment-loans | claude | passed |
 | combined | equipment-loans | codex | passed |
-| guide | equipment-loans | claude | awaiting a reply |
+| guide | equipment-loans | claude | passed |
 | guide | equipment-loans | codex | passed |
-| handbook | equipment-loans | claude | awaiting a reply |
+| handbook | equipment-loans | claude | passed |
 | handbook | equipment-loans | codex | passed |
-| lean | equipment-loans | claude | awaiting a reply |
+| lean | equipment-loans | claude | passed |
 | lean | equipment-loans | codex | incomplete; see retry |
 | lean-retry-codex | equipment-loans | codex | passed |
 | map | equipment-loans | claude | passed |
@@ -79,13 +91,17 @@ The broad intake cut failed 27 of 47 targeted checks. It removed the explicit co
 
 | Trial | Host | Handoff | Author + reviewer | Review starts | Trial draft PRs observed | Evidence |
 |---|---|---|---:|---:|---:|---|
+| baseline | claude | passed | $1.77 | 7 | 0 | `baseline/trials/intake-equipment-loans/claude/evidence-index.json` |
 | baseline | codex | passed | $0.38 | 1 | 0 | `baseline/trials/intake-equipment-loans/codex/evidence-index.json` |
 | bookmark-lean | claude | passed | ≥$1.31 | 8 | 0 | `bookmark-lean/trials/intake-bookmark-duplicate/claude/evidence-index.json` |
 | bookmark-lean | codex | passed | $0.52 | 3 | 0 | `bookmark-lean/trials/intake-bookmark-duplicate/codex/evidence-index.json` |
 | combined | claude | passed | $0.89 | 2 | 0 | `combined/trials/intake-equipment-loans/claude/evidence-index.json` |
 | combined | codex | passed | $0.69 | 2 | 0 | `combined/trials/intake-equipment-loans/codex/evidence-index.json` |
+| guide | claude | passed | $1.97 | 6 | 0 | `guide/trials/intake-equipment-loans/claude/evidence-index.json` |
 | guide | codex | passed | $0.56 | 2 | 0 | `guide/trials/intake-equipment-loans/codex/evidence-index.json` |
+| handbook | claude | passed | $1.67 | 4 | 0 | `handbook/trials/intake-equipment-loans/claude/evidence-index.json` |
 | handbook | codex | passed | $0.63 | 2 | 0 | `handbook/trials/intake-equipment-loans/codex/evidence-index.json` |
+| lean | claude | passed | $1.80 | 5 | 0 | `lean/trials/intake-equipment-loans/claude/evidence-index.json` |
 | lean-retry-codex | codex | passed | $0.62 | 2 | 0 | `lean-retry-codex/trials/intake-equipment-loans/codex/evidence-index.json` |
 | map | claude | passed | $1.39 | 10 | 0 | `map/trials/intake-equipment-loans/claude/evidence-index.json` |
 | map | codex | passed | $0.76 | 2 | 0 | `map/trials/intake-equipment-loans/codex/evidence-index.json` |
@@ -112,14 +128,14 @@ The broad intake cut failed 27 of 47 targeted checks. It removed the explicit co
 
 ## Selection
 
-The broad combination failed on Claude: it edited `src/shifts.ts` before approval. The narrower combination removes 65 source lines. On the supplied scheduling case both hosts recorded the overlap refusal, cleared review and asked zero questions. The five generated surfaces were refreshed and verified. Runtime bundle bytes match the live-tested version. The locally prepared candidate is `codex/intake-3tjd0a-ready`; the active product still uses the baseline.
+The broad combination failed on Claude: it edited `src/shifts.ts` before approval. The narrower combination removes 65 source lines. On the supplied scheduling case both hosts recorded the overlap refusal, cleared review and asked zero questions. The five generated surfaces were refreshed and verified. The delivered skill, handbook and intake Markdown match the live trials byte for byte on both hosts. The final package was regenerated from the product checkout. Its bundled dependency paths differ from the private evaluation build; compared with the original product runtime, only managed asset digests changed. The locally prepared candidate is `codex/intake-3tjd0a-ready`; the tested reduction was selected for the local product branch.
 
 The equipment-loan case is recorded in the Harbor runbook at harness commit `de1531495`. The archived private trials used the shared CSV starter package. Both revisions received the same starter. The reusable fixture has its own package name.
 
-All 16 authors asked about an existing borrower. The operator approved refusing the second checkout and preserving the borrower until return. One human decision answered 16 separate clarification checkpoints. The relay sent the answer to each original session. The reusable host-side answer key and decision catalog are in harness commit `6f0e98bc4`.
+All 16 authors asked about an existing borrower. The operator approved refusing the second checkout and preserving the borrower until return. One human decision answered 16 separate clarification checkpoints. A second human decision answered four tool-name questions. The relay sent the answer to each original session. The reusable host-side answer key and decision catalog are in harness commit `6f0e98bc4`.
 
-12 fresh-feature plans have independently verified approval before downstream edits. 4 trials are waiting for an operator answer and 0 others have not yet produced a verified plan.
+All 16 fresh-feature plans received independent approval before downstream edits. Both approved operator answers are saved for replay. The name-matching answer is in harness commit `25bb321d7`.
 
-The follow-up product question concerns matching tool names that differ in capitalization or spacing. That choice affects which loan a return closes. The map-only Codex author also asked to confirm its proposed storage-error behavior. The coordinator confirmed that a failed operation reports the error, preserves existing loans and does not claim success.
+Four Claude trials asked how to identify a tool. The operator approved case-insensitive matching, trimming leading and trailing spaces, and collapsing repeated spaces between words for both lending and returns. All four approved plans record that policy. The other twelve trials finished before it was supplied and were graded against their original inputs. The map-only Codex author also asked to confirm its proposed storage-error behavior. The coordinator confirmed that a failed operation reports the error, preserves existing loans and does not claim success.
 
 On the bookmark regression both authors asked about saving an existing label and used the previously recorded decision. Both approved plans preserve the original URL.

@@ -72,13 +72,6 @@ Before proceeding, run the **specificity self-test**: can you describe the behav
 
 Scale depth by blast radius — reversible, local work proceeds; irreversible or high-blast work resolves the open unknowns first. You're ready when your remaining questions are about edge-cases and trade-offs, not basics. When a feature's recorded Reversibility says one-way (data model, public API, or migration), intake offers a deeper **cold-start executability check** at exit (`"${CLAUDE_PLUGIN_ROOT}"/resources/guides/cold-start-check.md`) — a context-free agent attempts to plan the work from the captured spec alone, surfacing what it couldn't reconstruct; runnable on demand too.
 
-**PM-grade intake** is the name for how these fit together, scaled by blast radius — one protocol, not three disconnected mechanisms:
-
-- The readiness pointer nudges every turn.
-- The Product Plan in `spec.md` (Product Bet · jobs and Rules · Shape · Killer Demo · Surfaces) is authored for features.
-- The cold-start executability check is offered only when the recorded Reversibility says one-way.
-- `/elicit`, `/brainstorm`, and `/figure-it-out` get pulled in as the gaps demand (unknown intent · empty option space · options to weigh).
-
 **Project principles.** Before choosing scope or design, read the configured
 principles file (`paths.principles`, default `<namespace-root>/principles.md`)
 when it exists. Apply it as a decision lens, not a checklist: a principle pays
@@ -90,20 +83,6 @@ explicit exception. Never claim an experiential principle is proven by tests
 alone — tests prove observable mechanics; user evidence proves the experience.
 
 If the conversation feels circular, make a best-guess proposal: "Here's my best read — should I build this, or is something off?"
-
-For features, follow the BDD intake exit. Each intake artifact anchors the next.
-
-1. Load personas, glossary, and surfaces from the configured project-knowledge files.
-2. Open the **Product Plan** in `spec.md` (from `spec-template.md`) with its **Product Bet** — problem / why now, expected outcome, falsifiable success threshold, non-goals — the framing for the decision to build, which also triages whether this is a feature or a leaner task. A child feature (`parent`, `parent_job`, `milestone`) uses `child-spec-template.md` instead: just its Contribution and feature-owned Rules; the parent owns the bet and jobs.
-3. Author the Jobs To Be Done in `spec.md` — one persona from the configured personas file per job, in the "When I…, I want…, so I can…" form. Jobs are outcomes the persona wants to be true; never drop or narrow one because of how it would be built. Feasibility, state, and which layer serves it are plan-implementation questions.
-4. Decompose each job into numbered Rules — one testable invariant per `#### <jtbd-id>.R<n>`, the level that define-behavior scenarios later prove against. (Acceptance Criteria — `#### <jtbd-id>.AC<n>` — is the still-supported legacy alternative; one criteria kind per job, never both.) Then sketch the Shape (milestones), Killer Demo, and affected Surfaces.
-5. Let jobs-and-rules anchor the engineering scope you write to ticket frontmatter — every resolved question produces scope (accepted choice = in scope, rejected alternative = out of scope):
-
-- **`scope`** — what you're building (derived from accepted choices).
-- **`out_of_scope`** — what you're not building (rejected alternatives + domain-knowledge exclusions).
-- **`done_when`** — observable outcomes.
-
-In define-behavior, each Gherkin `Rule:` block carries its lineage as a `@<jtbd-id>.R<#>` tag that its scenarios inherit (legacy specs tag each scenario `@<jtbd-id>.AC<#>`); scenario names stay plain English. That lets `safeword doctor` flag coverage gaps — uncovered rules, orphan scenarios. The bdd skill's DISCOVERY.md walks these sub-steps end to end with a worked example; SCENARIOS.md covers the numbering.
 
 If the user is exploring without intent to build, follow their lead — not every conversation produces a ticket.
 

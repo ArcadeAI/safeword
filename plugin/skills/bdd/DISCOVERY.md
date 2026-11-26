@@ -45,20 +45,13 @@ user through milestones or Rules one at a time collecting a yes for each; that
 turns a design conversation into rubber-stamping and buys no clarity the whole
 set would not have shown. On resume, re-present the current checkpoint.
 
-The confirmations you keep should be the ones worth having. Spend the user's
-attention on the substance — interrogating intent into jobs, testing proposed
-capability against what the platform can actually do — not on approving a list
-they can read in one pass. If you find yourself asking for a fifth checkpoint
+If you find yourself asking for a fifth checkpoint
 confirmation, you have split the artifact too finely: present the rest together.
 
 Missing project knowledge is one ask, not three. Collect every empty file —
 personas, glossary, surfaces — into a single prompt before the first checkpoint.
-A fresh project is missing all three, which is exactly when a user is least
-served by answering the same question three times before the design
-conversation starts. That prompt plus the four checkpoints is the whole intake
+That prompt plus the four checkpoints is the whole intake
 budget.
-
-Under YOLO mode, auto-confirm and record the decision in the work log.
 
 ## Load project personas
 
@@ -81,8 +74,7 @@ untested.
 
 ## Load project context
 
-Read the configured principles, personas, glossary, and surfaces files. Missing
-or empty files are soft prompts, not blockers. Never invent a persona or domain
+Read the configured principles too. Missing project knowledge is optional. Never invent a persona or domain
 term to fill a template. Apply principles only when they change a bet, boundary,
 Rule, design choice, or proof.
 
@@ -122,16 +114,6 @@ default.
 
 ### Jobs To Be Done
 
-```markdown
-### oauth-flow.PLO1 — <job title>
-
-**Persona:** <canonical persona> (`<persona-code>`)
-
-> When I <situation>, I want <motivation>, so I can <outcome>.
-
-#### oauth-flow.PLO1.R1 — <one testable business invariant>
-```
-
 Jobs are persona outcomes, not proposed mechanisms. Never drop or narrow a job
 because it looks difficult to implement. Split a Rule when either half could
 ship as an independently valuable invariant. Use one persona per JTBD, then
@@ -148,15 +130,7 @@ only because the template has a slot for it, cut it.
 
 ### Shape
 
-Use the smallest value-bearing milestones. Each has a stable ID, one outcome,
-and its own non-goals:
-
-```markdown
-### M1 — <name>
-
-- **Outcome:** <value delivered>
-- **Non-goals:** <excluded from this milestone>
-```
+Use the smallest value-bearing milestones. Give each a stable ID, one outcome and its own non-goals.
 
 ### Killer Demo
 
@@ -275,10 +249,7 @@ Approve when the remaining findings are suggestions.
 <!-- SAFEWORD:PRODUCT_PLAN_RUBRIC_END -->
 
 Derive `scope`, `out_of_scope`, and `done_when` from accepted product decisions.
-Present and confirm the four checkpoints in order: Product Bet and jobs, Rules,
-Shape and Killer Demo, then engineering scope. Each is one confirmation covering
-the whole set — every job together, every Rule together, every milestone
-together — not one per item. For a child, present Contribution and Rules, then
+For a child, present Contribution and Rules, then
 local scope: two confirmations, not one per Rule. Under YOLO mode, record the
 auto-decision in the work log instead of pausing.
 

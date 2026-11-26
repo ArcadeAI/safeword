@@ -3,10 +3,10 @@ id: 4BAM6A
 slug: simplify-bdd-phase-map
 type: task
 epic: 3TJD0A
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-11-26T07:41:04.624Z
-last_modified: 2026-11-26T07:41:04.624Z
+last_modified: 2026-11-26T10:54:39Z
 ---
 
 # Give feature authors one phase map
@@ -23,6 +23,6 @@ last_modified: 2026-11-26T07:41:04.624Z
 
 ## Latest evidence
 
-The isolated cut removes the second phase-to-file table (15 source lines). Both hosts retain the first table and the explicit discovery handoff. See the per-host trial results.
+The isolated BDD phase-map cut cleared independent approval on both hosts on scheduling and equipment loans. Selected 15 lines for removal.
 
 [Full scorecard](../3TJD0A-reliable-lean-intake/scorecard.md)

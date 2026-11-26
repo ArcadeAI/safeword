@@ -102,19 +102,4 @@ Understand first and size internally (see SAFEWORD.md "Understanding" and "Sizin
 
 ---
 
-## Phase Files
-
-Load the appropriate file based on current phase:
-
-| Phase                 | File                                                        |
-| --------------------- | ----------------------------------------------------------- |
-| `intake`              | [DISCOVERY.md](references/DISCOVERY.md)                     |
-| `define-behavior`     | [SCENARIOS.md](references/SCENARIOS.md)                     |
-| `scenario-gate`       | [SCENARIOS.md](references/SCENARIOS.md)                     |
-| `plan-implementation` | [PLAN_IMPLEMENTATION.md](references/PLAN_IMPLEMENTATION.md) |
-| `plan-execution`      | [PLAN_EXECUTION.md](references/PLAN_EXECUTION.md)           |
-| `implement`           | [TDD.md](references/TDD.md)                                 |
-| `verify`              | [VERIFY.md](references/VERIFY.md)                           |
-| `done`                | [DONE.md](references/DONE.md)                               |
-
 For splitting large features, see [SPLITTING.md](references/SPLITTING.md).

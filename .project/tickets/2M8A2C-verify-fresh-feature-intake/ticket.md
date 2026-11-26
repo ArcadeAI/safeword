@@ -3,10 +3,10 @@ id: 2M8A2C
 slug: verify-fresh-feature-intake
 type: task
 epic: 3TJD0A
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-11-26T07:41:04.507Z
-last_modified: 2026-11-26T07:41:04.507Z
+last_modified: 2026-11-26T10:54:39Z
 ---
 
 # Verify clarification on a fresh feature
@@ -23,6 +23,6 @@ last_modified: 2026-11-26T07:41:04.507Z
 
 ## Latest evidence
 
-All 16 loan authors received the approved second-checkout refusal. Per-host approvals and outstanding questions are in the scorecard.
+All 16 equipment-loan trials had an independent pre-code approval. The four trials that asked about tool identity recorded the operator’s normalization rule.
 
 [Full scorecard](../3TJD0A-reliable-lean-intake/scorecard.md)

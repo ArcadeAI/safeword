@@ -3,10 +3,10 @@ id: WCXR0P
 slug: simplify-discovery-instructions
 type: task
 epic: 3TJD0A
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-11-26T07:41:04.683Z
-last_modified: 2026-11-26T07:41:04.683Z
+last_modified: 2026-11-26T10:54:39Z
 ---
 
 # Reduce duplicated instructions during intake
@@ -23,6 +23,6 @@ last_modified: 2026-11-26T07:41:04.683Z
 
 ## Latest evidence
 
-Rejected the broad cut against local compatibility requirements. The narrower version retains the explicit glossary and surface lookup instructions. All 47 targeted compatibility checks pass on the narrower combined version; live results are recorded below.
+Selected the narrower 29-line reduction. Both hosts passed scheduling and equipment loans. The broad version failed compatibility and the broad combination failed a scheduling handoff.
 
 [Full scorecard](../3TJD0A-reliable-lean-intake/scorecard.md)
