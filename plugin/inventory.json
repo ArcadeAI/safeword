@@ -815,7 +815,7 @@
     },
     {
       "path": "templates/child-spec-template.md",
-      "sha256": "0605e3eeb6cf5d9d300930c892b73dbeef3228f9b3524f8d5e64f3469d125cf4"
+      "sha256": "532ba94c394a977c8a59be0525a56db485088ce41e677ccb3977ed41a0c0c115"
     },
     {
       "path": "templates/commands/audit.md",
@@ -1043,7 +1043,7 @@
     },
     {
       "path": "templates/glossary-template.md",
-      "sha256": "390a24f904065806f444c63393c892c62cc04cda546995808e302730b52f74e1"
+      "sha256": "b58ac0b7a4c927fbf536716fa48a31da3a7c14b22b0051ceac4a67d93e71c24f"
     },
     {
       "path": "templates/guides/architecture-guide.md",
@@ -1639,11 +1639,11 @@
     },
     {
       "path": "templates/personas-template.md",
-      "sha256": "5eaf273617cac3866a8b97f8b9a7f1d2511d6be7f4809066273d588aac3d4404"
+      "sha256": "6842e7eac19ced0742282ec165bae9dcd6ba0f34992d3fb0bb2ee94e0e1f5881"
     },
     {
       "path": "templates/principles-template.md",
-      "sha256": "b341d84d1572fb863fdfa78bc8340f5b87cc109631c20616a1c8875a580dddc8"
+      "sha256": "9dc0b63ece65e97dbb893f60203fcf925cd7eb2983b25a9fd0d3609c2f97d9af"
     },
     {
       "path": "templates/prompts/architecture.md",
@@ -1803,7 +1803,7 @@
     },
     {
       "path": "templates/spec-template.md",
-      "sha256": "d4aca0aa62f282d5f9b9aaf47b68fad8f63493588a42604f6359163959e72bca"
+      "sha256": "29ca5088d6c002da07053383ccc6ba1329ecd95f2839a2ace35cd70fcf4138c2"
     },
     {
       "path": "templates/statusline/reentry.ts",
@@ -1811,7 +1811,7 @@
     },
     {
       "path": "templates/surfaces-template.md",
-      "sha256": "33492f679edf26ab99708fce319697cc0544855d54d1f607d1ed2579ce05addf"
+      "sha256": "40232706ecefb5301e6e37c5141f2135d15398093fefd47535a25d6fcfe2e2fe"
     },
     {
       "path": "templates/workflows/pr-review-publisher.yml",

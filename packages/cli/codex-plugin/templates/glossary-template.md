@@ -26,21 +26,10 @@ not collide with a declared term name (lookup would be ambiguous).
 
 To retire a term, delete its block.
 
-EXAMPLE (uncomment, customize, then delete this comment)
+Example (uncomment to use):
 
 ## Tool
 
-**Definition:** A single callable capability exposed by the platform — for
-example, `GitHub.CreateIssue`. Each tool has a typed input schema and
-returns a structured result.
-
-**Used in:** Engine (routing), MCP servers (registration), all specs that
-describe tool invocation.
-
-**Example:** `When the agent calls the "GitHub.CreateIssue" tool`
-
-**Do not confuse with:** Toolkit — a tool is a single operation; a toolkit
-is the collection of related tools for one service.
-
-**Aliases:** Capability
+**Definition:** A single callable operation.
+**Do not confuse with:** A toolkit groups related tools.
 -->

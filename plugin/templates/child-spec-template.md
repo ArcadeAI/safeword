@@ -20,9 +20,6 @@
 
 ## Rules
 
-<!-- Rules stay at h4 even without an h3 above them: scenario-coverage.ts reads
-each `#### ` heading as a Rule/AC id, so demoting these to h3 would break child
-lineage parsing to satisfy a cosmetic heading rule. -->
 <!-- markdownlint-disable MD001 -->
 
 #### {parent_job}.{ticket_id}.R1 — <business invariant owned by this feature>
@@ -31,13 +28,10 @@ lineage parsing to satisfy a cosmetic heading rule. -->
 
 ## Surfaces
 
-<!-- Contexts this must keep working in (see paths.surfaces). Each Affected entry
-needs a scenario tagged @surface.<slug> or an inline skip; Unaffected is
-informational. These comment lines declare nothing until you fill them in.
+<!-- List affected project surfaces or give an inline skip reason.
 
 Affected:
 - Claude Code
-- OpenAI Codex — skip: <why no scenario of its own>
 
 Unaffected:
 - Cursor — <why this work cannot reach it> -->

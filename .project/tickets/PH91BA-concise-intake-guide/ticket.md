@@ -3,10 +3,10 @@ id: PH91BA
 slug: concise-intake-guide
 type: task
 epic: 3TJD0A
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-11-26T15:37:03.437Z
-last_modified: 2026-11-26T15:37:03.437Z
+last_modified: 2026-11-26T16:00:26Z
 ---
 
 # Keep feature discovery focused on product choices
@@ -24,3 +24,7 @@ last_modified: 2026-11-26T15:37:03.437Z
 ## Evaluation
 
 Compare the compact discovery explanation on both hosts. Verify the demo, parent inheritance, surface coverage and configured project paths.
+
+## Decision
+
+Keep the current discovery text. The prose-only version passed both authors on the supplied request. Combining it with template and conversation cuts still led Claude to edit a production file before approval. The six initial deterministic failures included loss of the explicit empty-context instruction. The narrower combined candidate repaired the contract checks but still missed the live gate. [Evidence](../3TJD0A-reliable-lean-intake/intake-only-results.md)

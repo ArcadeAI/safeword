@@ -3,10 +3,10 @@ id: ZX3EEA
 slug: single-bdd-phase-map
 type: task
 epic: 3TJD0A
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-11-26T15:37:03.815Z
-last_modified: 2026-11-26T15:37:03.815Z
+last_modified: 2026-11-26T16:00:26Z
 ---
 
 # Help returning authors find the right phase once
@@ -24,3 +24,7 @@ last_modified: 2026-11-26T15:37:03.815Z
 ## Evaluation
 
 Limit the candidate to the intake conversation-technique menu. Defer consolidation of later-phase and resume tables per the intake-only scope.
+
+## Decision
+
+Keep the current intake conversation guidance. Deleting only the conversation-technique menu passed the supplied bookmark case on both hosts. Input was lower on Claude and higher on Codex. The combined version had a premature edit. Later workflow and resume tables were excluded per scope. [Evidence](../3TJD0A-reliable-lean-intake/intake-only-results.md)

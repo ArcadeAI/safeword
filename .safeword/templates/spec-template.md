@@ -38,13 +38,10 @@
 
 ## Surfaces
 
-<!-- Contexts this must keep working in (see paths.surfaces). Each Affected entry
-needs a scenario tagged @surface.<slug> or an inline skip; Unaffected is
-informational. These comment lines declare nothing until you fill them in.
+<!-- List affected project surfaces or give an inline skip reason.
 
 Affected:
 - Claude Code
-- OpenAI Codex — skip: <why no scenario of its own>
 
 Unaffected:
 - Cursor — <why this work cannot reach it> -->

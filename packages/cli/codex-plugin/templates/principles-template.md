@@ -25,23 +25,9 @@ knowledge, record only applicable principles, and name the concrete consequence
 and proof. A deliberate conflict goes in the work's Known deviations and must
 name the principle exactly as it appears here.
 
-EXAMPLES (uncomment, customize, then delete this comment)
+Example (uncomment to use):
 
 ## Keep customer PII out of logs
 
-Redaction happens before anything reaches a log, trace, or error report. Proof
-usually looks like a redaction unit test plus one check of the real log sink.
-
-## Ship changes that can be reverted in one command
-
-Big-bang releases have burned us twice. Prefer feature flags and migrations with
-a clean down path; no schema change ships without one.
-
-## Adopt and extend OSS before building bespoke
-
-Spend project effort on differentiated behavior instead of rebuilding mature
-ecosystem capabilities. Adopt, configure, and wrap through public extension
-points before implementing locally; avoid permanent forks and copied upstream
-source. Proof is the candidate survey, the chosen extension boundary, and the
-conditions that would trigger a reassessment.
+Redact sensitive data before it reaches a log.
 -->

@@ -29,17 +29,9 @@ Optional fields:
   works.
 - `**Do not confuse with:**` — related surfaces with distinct behavior.
 
-EXAMPLE (uncomment, customize, then delete this comment)
+Example (uncomment to use):
 
-## Claude Code
+## Mobile app
 
-**Kind:** Agent runtime
-**Audience:** Technical Builder
-**Examples:** `.claude/skills`, slash commands, Claude hooks
-
-## OpenAI Codex
-
-**Kind:** Agent runtime
-**Audience:** Technical Builder
-**Examples:** `.agents/skills`, Codex instructions, Codex hook adapter
+**Kind:** UI client
 -->
