@@ -2,9 +2,10 @@
 id: 3TJD0A
 slug: reliable-lean-intake
 type: epic
-phase: done
-status: done
+phase: intake
+status: in_progress
 scope:
+  - Evaluate whether reviewers distinguish an authorized recovery policy from an assumption in the plan.
   - Evaluate handbook reductions, including downstream routing, stale-plan consent and architecture decisions.
   - Five intake evaluations on Claude and Codex.
   - Evaluate duplicate intake prose and required confirmation pauses as separate changes.
@@ -14,6 +15,7 @@ done_when:
   - Each candidate has a recorded two-host decision and selected changes pass combined verification.
 product_plan_contract: v1
 children:
+  - TFNBXC
   - JPT08W
   - 2M8A2C
   - XACF52
@@ -28,7 +30,7 @@ children:
   - P4H33N
   - ZX3EEA
 created: 2026-11-26T07:08:24.535Z
-last_modified: 2026-11-26T16:00:26Z
+last_modified: 2026-11-26T16:20:41Z
 ---
 
 # Get reliable feature plans with shorter instructions for Claude and Codex
@@ -122,3 +124,5 @@ These ratings express the value of keeping an instruction in the intake path. On
 Scope ends when the Product Plan advances to define-behavior. Leave later scenario writing, architecture planning and verification procedures in place.
 
 The seven intake-only tickets have recorded decisions. [Follow-up results, scope and evidence](./intake-only-results.md).
+
+Reopened for [review of unapproved product choices](../TFNBXC-verify-product-choice-authority/ticket.md). The earlier trial results stand.

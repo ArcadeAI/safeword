@@ -1,0 +1,42 @@
+---
+id: TFNBXC
+slug: verify-product-choice-authority
+type: task
+epic: 3TJD0A
+phase: intake
+status: in_progress
+created: 2026-11-26T16:19:57.264Z
+last_modified: 2026-11-26T16:19:57.264Z
+---
+
+# Catch unapproved product choices before feature intake closes
+
+**Goal:** Help reviewers catch consequential choices the user has neither made nor delegated while preserving settled decisions.
+
+**Why:** Both reviewers accepted the same crash policy with and without user authorization.
+
+## Work Log
+
+<!-- Progress history, not part of the accepted contract: record scope and decisions above. -->
+
+- 2026-11-26T16:19:57.264Z Started: Created ticket TFNBXC
+
+## What happened
+
+Both reviewers saw the same café waitlist plan. If the app crashes between announcing a party and saving its removal, the plan risks calling the party twice. The two review packets differed only in their dispatch ID and the user request. The first request delegated command names and storage. The second also explicitly chose the repeat-call risk. Both requests were available to the reviewers. Across three replays per reviewer, Claude and Codex approved all six unsupported choices and all six supported choices. This isolates a missed distinction in this fixture. The verdicts alone cannot establish the models’ reasoning.
+
+The current Product Plan rubric already asks reviewers to trace consequential choices to the request, an accepted rule or explicit delegation. An earlier experiment made the blocking instruction more direct. Codex caught the omission in 3/3 trials and Claude in 0/3. [Previous experiment](../JPT08W-catch-unowned-choices/ticket.md)
+
+## Decision to test
+
+Try a single change inside the existing independent review. For a choice that changes what the user might lose, repeat or recover, have the reviewer identify the two outcomes and point to the user's words or a previously accepted decision that authorizes the selected outcome or delegates that specific choice. An author's proposed rule cannot establish its own acceptance. If the evidence is missing from the packet, recover the existing decision first. Ask the user one concrete question only if the choice remains open.
+
+A stronger reminder costs little, but the previous run already exposed its host dependence. Requiring a receipt for every rule would make auditing easier and add work even for command names. Try the narrow evidence check first. Its main failure mode is citing real but irrelevant text, such as treating permission to choose storage as permission to choose who might lose their place. A second risk is reopening choices already settled in an accepted plan.
+
+## Evaluation and adoption
+
+1. Inspect one ordinary review dispatch on each host. Record exactly which user or previously accepted source reached the independent reviewer. The frozen replay explicitly included the request. If an ordinary dispatch drops it, evaluate supplying the existing source separately from changing reviewer instructions.
+2. Keep the plan fixed. Test the café case, then a held-out CSV import where the plan saves valid rows after finding a bad row. Vary only the request in each domain. An omitted policy or delegation limited to naming should yield one focused finding. An explicit policy or delegation covering that recovery choice should yield approval. Keep the expected verdicts private from the reviewer. This use of controlled input changes follows [CheckList](https://aclanthology.org/2020.acl-main.442/).
+3. Compare current and candidate reviewers on the same frozen packets, host model and budget, three repeats per case per host. Score a set only when both open cases get the correct finding and both settled cases pass without a redundant question. Require at least two complete sets out of three on each host in each domain. Report counts, unnecessary questions, extra reviewer calls and spend. If it misses the threshold, retain the current rubric and record the failure.
+
+Status: replay inputs and baseline verdicts checked. The proposed reviewer change and held-out comparison are pending.
