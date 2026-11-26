@@ -20,6 +20,13 @@ children:
   - 4BAM6A
   - WCXR0P
   - QJ3EK7
+  - PH91BA
+  - J97V67
+  - AWECEC
+  - GF2EF8
+  - PEA6ZB
+  - P4H33N
+  - ZX3EEA
 created: 2026-11-26T07:08:24.535Z
 last_modified: 2026-11-26T15:32:42Z
 ---
@@ -101,3 +108,15 @@ These ratings express the value of keeping an instruction in the intake path. On
 1. **Trim duplicate prose first.** Isolate the repeated demo wording and downstream verification explanation in Discovery. Keep the observable demo requirement, its template example and the later phase checks. Compare against the completed epic baseline on Claude and Codex.
 2. **Test confirmation count separately.** Compare four pauses with one final plan confirmation plus consequential questions. Use a fully specified request, a hidden data-loss decision and a child ticket. Record unnecessary confirmations, missed decisions, plan correctness, independent approval and the first downstream edit. Adopt only if confirmations fall while both hosts preserve the decisions, parent boundaries and approval order.
 3. Keep the remaining lower-ranked items in the backlog. Replay accepted changes together before closing this follow-up.
+
+## Intake-only experiments
+
+- [Keep feature discovery focused on product choices](../PH91BA-concise-intake-guide/ticket.md)
+- [Make empty project and plan templates easier to fill](../J97V67-concise-intake-templates/ticket.md)
+- [Reduce repeat approvals for feature owners](../AWECEC-fewer-intake-pauses/ticket.md)
+- [Load planning details only when the work needs them](../GF2EF8-focused-planning-reference/ticket.md)
+- [Get product plans to independent review with fewer detours](../PEA6ZB-direct-intake-review/ticket.md)
+- [Keep specialist advice available when it matters](../P4H33N-conditional-intake-guides/ticket.md)
+- [Help returning authors find the right phase once](../ZX3EEA-single-bdd-phase-map/ticket.md)
+
+Scope ends when the Product Plan advances to define-behavior. Leave later scenario writing, architecture planning and verification procedures in place.
