@@ -62,18 +62,20 @@ class IntakeRunnerTest(unittest.TestCase):
                 (self.root / "parcel-specified" / relative).read_bytes(),
             )
 
-    def test_bookmark_control_supplies_only_the_catalogued_preference(self):
+    def test_paired_control_supplies_only_the_catalogued_preference(self):
         from intake.decisions import policy
 
-        for fixture in ("bookmark", "bookmark-specified"):
-            materialize_fixture(self.snapshot, self.root / fixture, fixture)
-        hidden = (self.root / "bookmark/instruction.md").read_text()
-        disclosed = (self.root / "bookmark-specified/instruction.md").read_text()
-        spec = policy("intake-bookmark-specified")
-        self.assertEqual(
-            disclosed, hidden + "\n" + spec["options"][spec["expected"]] + "\n"
-        )
-        self.assertNotIn("duplicate", hidden.lower())
+        for task, withheld_word in (("bookmark", "duplicate"), ("shift", "overlap")):
+            with self.subTest(task=task):
+                for fixture in (task, f"{task}-specified"):
+                    materialize_fixture(self.snapshot, self.root / fixture, fixture)
+                hidden = (self.root / task / "instruction.md").read_text()
+                disclosed = (self.root / f"{task}-specified/instruction.md").read_text()
+                spec = policy(f"intake-{task}-specified")
+                self.assertEqual(
+                    disclosed, hidden + "\n" + spec["options"][spec["expected"]] + "\n"
+                )
+                self.assertNotIn(withheld_word, hidden.lower())
 
     def test_launch_keeps_key_on_host_and_uses_distinct_cases(self):
         key, auth = self.root / "key.json", self.root / "auth.json"

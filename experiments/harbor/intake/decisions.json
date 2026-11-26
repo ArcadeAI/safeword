@@ -13,12 +13,21 @@
         "replace": "Replace the saved URL for that label with the new URL.",
         "reject": "Reject the duplicate label and preserve the original URL."
       }
+    },
+    "shift_overlap": {
+      "question": "When a proposed shift overlaps an existing assignment for the same employee, should the new assignment be accepted or refused?",
+      "options": {
+        "allow": "Allow the overlapping assignment and retain both shifts.",
+        "reject": "Reject overlapping assignments for the same employee."
+      }
     }
   },
   "cases": {
     "intake-csv-keep": ["partial_csv", "keep"],
     "intake-csv-discard": ["partial_csv", "discard"],
     "intake-bookmark-specified": ["duplicate_label", "reject", "supplied"],
-    "intake-bookmark-duplicate": ["duplicate_label", "reject"]
+    "intake-bookmark-duplicate": ["duplicate_label", "reject"],
+    "intake-shift-overlap": ["shift_overlap", "reject"],
+    "intake-shift-specified": ["shift_overlap", "reject", "supplied"]
   }
 }

@@ -33,7 +33,10 @@ and run `trial DIRECTORY codex intake-bookmark-duplicate`. The public
 prompt delegates CLI naming and storage details. The hidden policy selects
 what happens to an existing bookmark. Both hosts receive the same prompt.
 For the disclosed-preference control, prepare with `--task bookmark-specified`
-and run the `intake-bookmark-specified` case.
+and run the `intake-bookmark-specified` case. For shift scheduling, pair
+`--task shift` with `intake-shift-overlap`, or `--task shift-specified` with
+`intake-shift-specified`. Both prompts ask for the same scheduling CLI. The
+supplied control adds the rule for overlapping assignments.
 
 The relay records the decision topic, the author's exact question, and whether
 the preference was known before the agent asked. This includes turns with a

@@ -15,7 +15,13 @@ from .decisions import policy as decision_policy
 
 HERE = Path(__file__).resolve().parent
 HARBOR = HERE.parent
-BUILTIN = ("csv", "parcel", "parcel-specified", "bookmark", "bookmark-specified")
+PAIRED_TASKS = {
+    "intake-bookmark-duplicate": "bookmark",
+    "intake-bookmark-specified": "bookmark-specified",
+    "intake-shift-overlap": "shift",
+    "intake-shift-specified": "shift-specified",
+}
+BUILTIN = ("csv", "parcel", "parcel-specified", *PAIRED_TASKS.values())
 BUNDLE_PATHS = (
     "plugin",
     "packages/cli/codex-plugin",
@@ -36,21 +42,25 @@ def materialize_fixture(snapshot, destination, task):
     if task in BUILTIN:
         shutil.copytree(HERE / "csv", destination)
         if task != "csv":
-            prompt_name = "bookmark" if task == "bookmark-specified" else task
+            prompt_name = (
+                task.removesuffix("-specified")
+                if task in PAIRED_TASKS.values()
+                else task
+            )
             shutil.copyfile(
                 HERE / "prompts" / f"{prompt_name}.md",
                 destination / "instruction.md",
             )
-            if task == "bookmark-specified":
-                spec = decision_policy("intake-bookmark-specified")
+            if task in PAIRED_TASKS.values() and task.endswith("-specified"):
+                spec = decision_policy(f"intake-{task}")
                 with (destination / "instruction.md").open("a") as prompt:
                     prompt.write("\n" + spec["options"][spec["expected"]] + "\n")
             write_json(
                 destination / "environment/package.json",
                 {
-                    "name": "bookmarks"
-                    if task.startswith("bookmark")
-                    else "parcel-shelf",
+                    "name": {"bookmark": "bookmarks", "shift": "shift-scheduler"}.get(
+                        prompt_name, "parcel-shelf"
+                    ),
                     "private": True,
                 },
             )
@@ -134,10 +144,8 @@ def launch(directory, host, policy, budget):
     answer_key = Path(
         os.environ.get("SAFEWORD_EVAL_ANSWER_KEY", HARBOR / "answer-key.json")
     ).resolve(strict=True)
-    if policy in ("intake-bookmark-duplicate", "intake-bookmark-specified"):
-        expected_fixture = (
-            "bookmark-specified" if decision_policy(policy)["supplied"] else "bookmark"
-        )
+    if policy in PAIRED_TASKS:
+        expected_fixture = PAIRED_TASKS[policy]
         if document(directory / "build.json")["fixture"] != expected_fixture:
             raise ValueError(f"{policy} requires the {expected_fixture} fixture")
     if not document(answer_key).get(policy) and not (
@@ -218,7 +226,7 @@ def main():
     setup.add_argument(
         "--task",
         default="csv",
-        help="csv, parcel, parcel-specified, bookmark, bookmark-specified, or path to a trusted Harbor intake task",
+        help="csv, parcel, parcel-specified, bookmark, bookmark-specified, shift, shift-specified, or path to a trusted Harbor intake task",
     )
     trial = subs.add_parser("trial")
     trial.add_argument("directory", type=Path)
