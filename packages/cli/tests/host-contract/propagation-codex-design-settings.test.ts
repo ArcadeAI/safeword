@@ -143,7 +143,13 @@ const session='source-design-session';
 console.log(JSON.stringify({type:'thread.started',thread_id:session}));
 if(!existsSync(path.join(root,'missing-callback'))) {
  const binding=JSON.parse(readFileSync(path.join(plugin,'hooks.json'),'utf8')).hooks.PreToolUse[0].hooks[0].command;
- const r=spawnSync('sh',['-c',binding],{env:{...process.env,PLUGIN_ROOT:plugin},encoding:'utf8',input:JSON.stringify({cwd:process.cwd(),session_id:existsSync(path.join(root,'foreign-session'))?'foreign':session,tool_name:'apply_patch',tool_input:{command:patch}})});
+ const hook=(tool_name,command)=>spawnSync('sh',['-c',binding],{env:{...process.env,PLUGIN_ROOT:plugin},encoding:'utf8',input:JSON.stringify({cwd:process.cwd(),session_id:existsSync(path.join(root,'foreign-session'))?'foreign':session,tool_name,tool_input:{command}})});
+ const handbook="sed -n '1,$p' "+path.join(plugin,'resources/SAFEWORD.md');
+ const wrong=existsSync(path.join(root,'wrong-handbook'));
+ const repeated=existsSync(path.join(root,'repeat-patch'));
+ if(!repeated) hook('Bash',wrong?handbook+' && printf unrelated':handbook);
+ const r=hook('apply_patch',patch);
+ if(repeated) hook('apply_patch',patch);
  if(r.status!==0) throw Error(r.stderr);
  const d=r.stdout.trim()?JSON.parse(r.stdout):{};
  if(d.hookSpecificOutput?.permissionDecision!=='deny') {
@@ -328,6 +334,8 @@ async function sourceFaults(captured: RetainedPolicyActor, root: string) {
   const faults = {
     'missing-callback': 'callback cardinality',
     'foreign-session': 'foreign',
+    'wrong-handbook': 'unexpected startup command',
+    'repeat-patch': 'unexpected startup tool',
     incomplete: 'turn incomplete',
   };
   for (const [fault, reason] of Object.entries(faults)) {
@@ -348,6 +356,6 @@ async function sourceFaults(captured: RetainedPolicyActor, root: string) {
       readFileSync(nodePath.join(root, directory, 'observation.json'), 'utf8'),
     );
     expect(failed.stdout).toContain('source-design-session');
-    expect(failed.callbacks).toHaveLength(fault === 'missing-callback' ? 0 : 1);
+    expect(failed.callbacks).toHaveLength(fault === 'missing-callback' ? 0 : 2);
   }
 }

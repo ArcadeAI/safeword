@@ -14,6 +14,7 @@ import nodePath from 'node:path';
 import { createInterface } from 'node:readline';
 import { promisify } from 'node:util';
 
+import { shellQuote } from '../../src/cli-protocol/replay-command.js';
 import hostReleases from '../../src/lifecycle/host-releases.json' with { type: 'json' };
 import { parseShellWords } from '../../templates/hooks/lib/shell-segments.js';
 import type { CodexGuardFixture } from './codex-native-continuation.js';
@@ -38,6 +39,69 @@ interface HookResponse {
 interface TurnEvent {
   type: string;
   item?: { type: string; command?: string; exit_code?: number };
+}
+
+interface DesignCallback {
+  args: string[];
+  status: number;
+  stdout: string;
+  stderr: string;
+  input: {
+    cwd: string;
+    session_id: string;
+    tool_name: string;
+    tool_input?: { command?: string };
+  };
+}
+
+function assertDesignStartupRead(callback: DesignCallback, handbook: string): void {
+  assert.equal(callback.input.tool_name, 'Bash', 'Codex design unexpected startup tool');
+  const command = callback.input.tool_input?.command;
+  assert.ok(
+    command === `sed -n '1,$p' ${shellQuote(handbook)}` ||
+      (/^[/\w.-]+$/u.test(handbook) && command === `sed -n '1,$p' ${handbook}`),
+    'Codex design unexpected startup command',
+  );
+}
+
+function designPatchCallback(
+  callbacks: DesignCallback[],
+  {
+    expected,
+    project,
+    session,
+    handbook,
+    patch,
+  }: {
+    expected: string[];
+    project: string;
+    session: string;
+    handbook: string;
+    patch: string;
+  },
+): DesignCallback {
+  const rows = callbacks.filter(row => row.args.includes('pre-tool-use'));
+  for (const callback of rows) {
+    assert.deepEqual(callback.args, expected);
+    assert.equal(callback.status, 0, callback.stderr);
+    assert.equal(callback.input.cwd, project);
+    assert.equal(callback.input.session_id, session);
+  }
+  if (rows.length === 2) {
+    const startup = rows.shift();
+    assert.ok(startup);
+    assertDesignStartupRead(startup, handbook);
+  }
+  assert.equal(
+    rows.length,
+    1,
+    'HOST_CONTRACT_PROOF_UNAVAILABLE: Codex design callback cardinality',
+  );
+  const row = rows[0];
+  assert.ok(row);
+  assert.equal(row.input.tool_name, 'apply_patch');
+  assert.equal(row.input.tool_input?.command, patch);
+  return row;
 }
 
 const executeFile = promisify(execFile);
@@ -266,6 +330,8 @@ export class CodexNativeWriteActor {
       '+phase: plan-execution',
       '*** End Patch',
     ].join('\n');
+    const handbook = nodePath.join(fixture.installedPath, 'resources/SAFEWORD.md');
+    const handbookCommand = `sed -n '1,$p' ${shellQuote(handbook)}`;
     const result = await this.command(
       [
         ...(this.modelArguments ? await this.modelArguments() : []),
@@ -281,7 +347,7 @@ export class CodexNativeWriteActor {
         'approval_policy="never"',
         '-m',
         'gpt-5.6-terra',
-        `Authorized isolated planning-transition test. Use apply_patch exactly once with the exact patch below. Let installed hooks decide; rejection is expected. Do not retry, use other tools, edit other files/configuration or bypass hooks. Report the actual result and stop.\nCODEX_DESIGN_PATCH=${JSON.stringify(patch)}`,
+        `Authorized isolated planning-transition test. Use apply_patch exactly once with the exact patch below. Let installed hooks decide; rejection is expected. If startup requires reading the handbook, run exactly ${handbookCommand} once before the patch. Do not retry, use any other tools, edit other files/configuration or bypass hooks. Report the actual result and stop.\nCODEX_DESIGN_PATCH=${JSON.stringify(patch)}`,
       ],
       'design',
       environment,
@@ -316,20 +382,13 @@ export class CodexNativeWriteActor {
     const expected = parseShellWords(
       binding.replaceAll('${PLUGIN_ROOT}', () => fixture.installedPath),
     ).slice(1);
-    const rows = callbacks.filter(row => row.args.includes('pre-tool-use'));
-    assert.equal(
-      rows.length,
-      1,
-      'HOST_CONTRACT_PROOF_UNAVAILABLE: Codex design callback cardinality',
-    );
-    const row = rows[0];
-    assert.ok(row);
-    assert.deepEqual(row.args, expected);
-    assert.equal(row.status, 0, row.stderr);
-    assert.equal(row.input.cwd, fixture.project);
-    assert.equal(row.input.session_id, session);
-    assert.equal(row.input.tool_name, 'apply_patch');
-    assert.equal(row.input.tool_input?.command, patch);
+    const row = designPatchCallback(callbacks, {
+      expected,
+      project: fixture.project,
+      session,
+      handbook,
+      patch,
+    });
     return {
       installation: JSON.stringify([fixture.installedPath, fixture.project]),
       raw,
