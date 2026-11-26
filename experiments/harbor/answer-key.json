@@ -102,6 +102,10 @@
     "If the CLI crashes while calling the next party, should announcing or removing happen first?": "Announce the next party first, then remove them from the waitlist. If the CLI crashes between those steps, calling the same party twice is preferable to silently losing their place. Keep it a single command."
   },
   "intake-equipment-loans": {
+    "Should \"cordless drill\" and \"Cordless Drill\" count as the same tool when lending and returning?": "Treat tool names as the same when they differ only in capitalization or extra spaces. Ignore leading and trailing spaces and collapse repeated spaces between words for lending and returns.",
+    "Should \"Drill\" and \"drill\" count as the same tool when staff lend and return?": "Treat tool names as the same when they differ only in capitalization or extra spaces. Ignore leading and trailing spaces and collapse repeated spaces between words for lending and returns.",
+    "Should tool names that differ only in capital letters or extra spaces (like \"Drill\" and \"drill \") count as the same tool?": "Treat tool names as the same when they differ only in capitalization or extra spaces. Ignore leading and trailing spaces and collapse repeated spaces between words for lending and returns.",
+    "Should tool names that differ only in capital letters or spacing (e.g. \"Belt Sander\" and \"belt sander\") count as the same tool?": "Treat tool names as the same when they differ only in capitalization or extra spaces. Ignore leading and trailing spaces and collapse repeated spaces between words for lending and returns.",
     "What happens if staff try to lend a tool that is already on loan?": "Refuse the second loan and keep the original borrower. Staff must record the tool’s return before lending it again.",
     "Ready to implement?": "Proceed with the agreed plan.",
     "Should I continue?": "Proceed with the agreed plan."
