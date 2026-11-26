@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "ed1f14806a505efca355e084614a21f71524dada96f4b695461a0ff8ef797220"
+      "sha256": "f05007e9eb29f0cc468e8c3005810bc6f61cd7c19e855da8aee6bdbb8fc4eb77"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "75f8bc2cac61ac3034d1e2480a33a0e60c7e143bb063c6bbff76952d9a2d0300"
+      "sha256": "0da192f29edd388f2c06b89635ca526582179c03392c8a89b67a357e42c8c03f"
     },
     {
       "path": "runtime/event-groups.json",
@@ -607,7 +607,7 @@
     },
     {
       "path": "runtime/hooks/session-lint-check.ts",
-      "sha256": "fd8520c78e491419251654cf7124213c77fd3a2291cb25c5b0f0592c43eaa772"
+      "sha256": "7278a5b62db029b9eb7f4438a7a58d60fe9790c57b6e2fa8a8be645ae8bda88b"
     },
     {
       "path": "runtime/hooks/session-reply-format.ts",
@@ -1611,7 +1611,7 @@
     },
     {
       "path": "templates/hooks/session-lint-check.ts",
-      "sha256": "fd8520c78e491419251654cf7124213c77fd3a2291cb25c5b0f0592c43eaa772"
+      "sha256": "7278a5b62db029b9eb7f4438a7a58d60fe9790c57b6e2fa8a8be645ae8bda88b"
     },
     {
       "path": "templates/hooks/session-reply-format.ts",
