@@ -73,3 +73,28 @@ Both reviewers could follow a stated choice against the plan. No settled policy 
 Product revision `cfb2022e9`. Claude Opus 5.5 (`claude-opus-5-5`) and Codex (`gpt-6.2-sol`) reviewed isolated, matched packets in interleaved order. Confirmed model identity, dispatch identity and one metered invocation per verdict for all 180 reviews. Total estimated spend was **$10.12**, with zero retries. The private inputs, bundles, frozen protocol, findings, per-trial scores and usage are in the Harbor infrastructure worktree under `experiments/harbor/jobs/TFNBXC-forks/`. The repaired CSV results have their own concurrent baseline. Counts from the earlier CSV fixture are not pooled with these.
 
 Next experiment: ask the intake author to surface consequential choices before writing the plan, leaving the reviewer unchanged. Measure whether the author asks once when the policy is open and proceeds without asking when it is settled. These two exposed domains remain regression cases.
+
+## Author pilot: asking before writing a recovery rule
+
+Keep the current intake guide. In 12 independent café trials, neither author asked before drafting a crash policy when the instruction left that choice open. The extra instruction reached both authors: all six candidate tool traces contain the new text in the returned intake guide. Both variants honored the supplied answer and exercised explicit delegation without asking again.
+
+| Author behavior | Current guide | Candidate guide |
+| --- | ---: | ---: |
+| Asked before drafting when the choice was open | 0/2 | 0/2 |
+| Asked only after drafting and independent review | 1/2 | 0/2 |
+| Honored the supplied announce-first choice without reopening it | 2/2 | 2/2 |
+| Chose a crash policy without asking when the decision was delegated | 2/2 | 2/2 |
+| Passed independent review and advanced to scenario definition | 6/6 | 6/6 |
+| Author and reviewer estimated spend | $4.42 | $3.86 |
+
+The open candidate Claude run chose to save the removed party as “last called” and show it in the list. The open candidate Codex run required changes to be saved before reporting success, including a failed save producing no call announcement. Both plans passed. On the baseline, Codex selected removal before reporting. Claude asked only after its reviewer objected to the draft. It offered two remove-first options. The operator had already chosen announce-first, so the coordinator returned the saved answer. Claude incorporated it in the approved plan. The relay recorded one routed question, zero repeat questions and zero new user interruptions.
+
+Each host (Claude Opus 5.5 and Codex GPT-6.2 Sol) authored one fresh plan per guide and request. The other host reviewed it under the existing reviewer rubric. The three requests used the same café feature with crash policy omitted, explicitly supplied, or explicitly delegated. The host-only answer key supplied the saved policy only when needed. The pilot tested this single regression case once per combination. It does not estimate a cross-project effect.
+
+The candidate inserted this text at the start of the first intake step:
+
+> Before drafting a Rule, identify any point where two reasonable choices leave the user with materially different outcomes. If the request or an accepted decision settles that choice, carry it forward. If the user delegated that choice, make it. Otherwise ask one question naming the two outcomes and wait for the answer before writing either into the plan.
+
+Baseline `f1ea8ab00`, experimental bundle `5c7f0bea3`. Each trial had an isolated workspace, the same pinned models, a $3 author-plus-reviewer cap, and the same reviewer rubric digest. Approval receipts were checked against the saved plans. Total metered estimate was **$8.30**, including $0.0184 for relay classification. Private protocols, instructions, transcripts, plans, receipts and scores are under `experiments/harbor/jobs/TFNBXC-author/` in the Harbor infrastructure worktree. No draft PRs were observed.
+
+The next distinct hypothesis is to give a reviewer the request first and record which recovery choices it considers open before showing it the author's plan. Blind that first pass to the author's proposed answer and score both omission and explicit delegation.

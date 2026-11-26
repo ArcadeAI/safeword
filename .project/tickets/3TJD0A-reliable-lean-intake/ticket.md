@@ -30,7 +30,7 @@ children:
   - P4H33N
   - ZX3EEA
 created: 2026-11-26T07:08:24.535Z
-last_modified: 2026-11-26T16:45:17Z
+last_modified: 2026-11-26T17:12:12Z
 ---
 
 # Get reliable feature plans with shorter instructions for Claude and Codex
@@ -130,3 +130,5 @@ Reopened for [review of unapproved product choices](../TFNBXC-verify-product-cho
 Closed the reopened intake evaluation. The reviewer change missed its two-host, two-feature adoption threshold. [Results and decision](../TFNBXC-verify-product-choice-authority/scorecard.md).
 
 Two further independent-review variants were evaluated on both hosts. [Results for the opposite-policy question and verdict instruction](../TFNBXC-verify-product-choice-authority/scorecard.md#follow-up-opposite-policy-and-verdict-severity).
+
+The [12-trial author pilot](../TFNBXC-verify-product-choice-authority/scorecard.md#author-pilot-asking-before-writing-a-recovery-rule) completed with the current intake guide retained.
