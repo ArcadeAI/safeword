@@ -128,3 +128,33 @@ Before seeing the plan, the same pinned model read only the user request and lis
 Sixteen early inventories used a runtime path without the required confirmed-model receipt. We repeated them using the planning-review runtime before scoring. Two additional metered retry inventories were excluded after output collection failed. The reported 120 final verdicts all have verified model and dispatch identity. Runs used Claude Opus 5.5 and Codex GPT-6.2 Sol, with a $3 cap per scored trial. Private inputs, inventories, verdicts, metering, exclusions and scores are in `experiments/harbor/jobs/TFNBXC-request-first/` in the Harbor infrastructure worktree.
 
 A smaller next experiment would ask for one concrete interruption between a visible action and a saved change. Test whether that surfaces the actual user decision in both the café and an unseen two-step feature, while preserving explicit choices and delegation.
+
+## Single-pass interruption and retry question
+
+**Keep the current rubric.** The addition was one sentence: “What could the user already have seen or heard when the operation stops, and what happens if they retry?” It changed neither host's café result. In one candidate approval, Claude explicitly identified the tradeoff as “possible double call, never a silently lost party” and justified it because it protected the existing work. The request had never authorized that preference. This verdict demonstrates that recognizing the consequence can still end in approval.
+
+The fresh feature was a pottery studio label station. The printer can produce a physical label before the station learns the outcome. The plan forbids resending an uncertain print, even when this leaves a box unlabeled. This chooses the reverse risk from the café plan, which permits a repeat announcement. We ran contemporaneous baseline and candidate reviews in isolated containers. Three repetitions per host, condition and variant. The questions, grader and expected outcomes stayed out of the fixtures.
+
+| Primary test | Open choice correctly blocked, current → candidate (of 6) | Matching or delegated plan approved (of 6) | Contradiction corrected (of 3) | Complete sets (of 3) |
+| --- | ---: | ---: | ---: | ---: |
+| Claude, café | 0 → 0 | 6 → 6 | 3 → 3 | 0 → 0 |
+| Codex, café | 0 → 0 | 5 → 6 | 3 → 3 | 0 → 0 |
+| Claude, label station | 3 → 4 | 3 → 1 | 3 → 3 | 0 → 0 |
+| Codex, label station | 6 → 6 | 0 → 0 | 3 → 3 | 0 → 0 |
+
+The five conditions were an omitted policy, delegation restricted to naming/storage, an explicit matching policy, delegation of the exact recovery choice, and an explicitly conflicting policy. Each passing set required both open choices to block on missing authority, both settled plans to pass without a redundant question, and the contradiction to be corrected without asking again. Neither arm reached the two-of-three threshold on any primary host/feature combination. Most rejected settled label plans raised a separate problem with saving an explicit printer rejection and preserving the promised retry. An optional recommendation in one baseline review suggested reconfirming a delegated risk. There were no live user questions.
+
+### Separating the label station's storage failure
+
+After observing that adjacent finding, we ran 60 additional reviews with the same five controls and reviewer wording. Both arms received the same clarified fixture: local writes succeed, and recording and reporting a definitive printer reply cannot be interrupted. A job can still print without its reply reaching the station. We report this follow-up separately because the fixture was edited after inspection.
+
+| Clarified label station | Open choice correctly blocked (of 6) | Matching or delegated plan approved (of 6) | Contradiction corrected (of 3) | Complete sets (of 3) |
+| --- | ---: | ---: | ---: | ---: |
+| Claude, current → candidate | 6 → 6 | 6 → 6 | 3 → 3 | 3 → 3 |
+| Codex, current → candidate | 5 → 6 | 2 → 3 | 3 → 3 | 0 → 0 |
+
+Some Codex findings distinguished what happens to the original submission when the printer reply never arrives from what happens on a later retry. A finding only about the original submission earned no credit for catching the unsupported retry policy. Counts from the two label fixtures are not pooled.
+
+The 120 primary verdicts and 60 follow-up verdicts have confirmed model and dispatch identities. Product base `1d88d7098`; pinned reviewers Claude Opus 5.5 and GPT-6.2 Sol; $3 per-review cap. One follow-up call timed out and its replacement completed. Metered estimates sum to **$11.00** for 179 completed calls. The timed-out call and one completed primary Codex verdict lack final usage receipts, so total spend is unknown. We retained the valid Codex verdict. The private frozen packets, rubric variants, blinded finding annotations, receipts and per-trial results are in `experiments/harbor/jobs/TFNBXC-interruption/` in the Harbor infrastructure worktree.
+
+A diagnostic follow-up would keep the café request silent and reverse only the draft's recovery rule. If reviewers block one direction but approve the other, that supports testing whether they treat their own preferred default as user authorization.

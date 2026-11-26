@@ -30,7 +30,7 @@ children:
   - P4H33N
   - ZX3EEA
 created: 2026-11-26T07:08:24.535Z
-last_modified: 2026-11-26T17:21:49Z
+last_modified: 2026-11-26T18:02:52Z
 ---
 
 # Get reliable feature plans with shorter instructions for Claude and Codex
@@ -134,3 +134,5 @@ Two further independent-review variants were evaluated on both hosts. [Results f
 The [12-trial author pilot](../TFNBXC-verify-product-choice-authority/scorecard.md#author-pilot-asking-before-writing-a-recovery-rule) completed with the current intake guide retained.
 
 The [request-first comparison](../TFNBXC-verify-product-choice-authority/scorecard.md#request-first-reviewer-experiment) completed on both hosts with the single-pass default retained.
+
+The [café and label-station comparison](../TFNBXC-verify-product-choice-authority/scorecard.md#single-pass-interruption-and-retry-question) completed with the existing reviewer rubric retained.
