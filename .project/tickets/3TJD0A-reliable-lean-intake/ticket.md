@@ -150,3 +150,5 @@ The [intake skill-routing pilot](../TFNBXC-verify-product-choice-authority/score
 The [Claude resume-handbook comparison](../TFNBXC-verify-product-choice-authority/scorecard.md#reopening-the-intake-guide-on-resume) measured intake guide use, delegated decisions and open-choice questions separately.
 
 The [telescope holdout](../TFNBXC-verify-product-choice-authority/scorecard.md#resuming-a-telescope-scheduling-feature) reproduced the resume-guide effect on a second feature.
+
+The [matched Codex comparison](../TFNBXC-verify-product-choice-authority/scorecard.md#codex-on-both-handbook-versions) recorded 24 scored shipping and telescope trials.
