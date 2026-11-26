@@ -9277,7 +9277,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/audit/SKILL.md':
         '379473dba1ec5a9322adcc4f46a827811b1caa90991cd7b6a14c32234515332c',
       '.claude/skills/bdd/DISCOVERY.md':
-        '1a7430941dd16a22f730a5da14dba4b9ce2fa9692507f1e5b330d7befaede329',
+        '0b2eadf344f14a17a9cec5b0dff302555b3ed841fef49d49183cf958532d713b',
       '.claude/skills/bdd/DONE.md':
         'e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60',
       '.claude/skills/bdd/PLAN_EXECUTION.md':

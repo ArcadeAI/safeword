@@ -14,7 +14,12 @@ default.
    in the plan. Walk through an interrupted use, too, when earlier steps can
    already have produced a result. If two outcomes are plausible, ask the
    user what they expect to keep from those steps before choosing a default.
-   Reuse an example that already settles the choice.
+   Walk through a second use against what the first use left behind. If one
+   reasonable outcome preserves someone's work and another changes or removes
+   it, look for the user's decision in the request or an accepted Rule. When
+   neither settles it, ask which outcome they want and wait for their answer
+   before making it a Rule. Apply delegated defaults only to the choices the
+   user delegated. Reuse an example that already settles the choice.
    Finish and confirm the Product Plan and scope. Name the changed behavior,
    preserved behavior, and observable done state. Resolve each JTBD persona
    against the configured personas file. Save `dimensions.md` with the agreed
@@ -257,7 +262,10 @@ receipt, grouped by the decision that would resolve them.
 
 For an unspecified detail, ask whether a reasonable choice would violate an
 accepted Rule or materially change what the user can do or rely on. When that
-test is met, name the choice and the consequence. Otherwise carry input variants,
+test is met, name the choice and the consequence. In particular, when a later
+action might change existing user work, trace the chosen behavior to the
+request, an accepted Rule, or an explicit delegation. An assumption written
+by the author cannot settle that choice. Otherwise carry input variants,
 exact formatting, and diagnostic wording forward as suggestions for scenarios
 or design. Scenario coverage belongs to scenario review.
 For an unavailable diagnostic channel, a reliable failure signal and protected

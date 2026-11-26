@@ -3562,7 +3562,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/agents/safeword-retro-filer.md": "008fa4b5777834118ba0efd008862df52dd32d3feec2218537d7c90cbfdfd904",
         ".claude/agents/safeword-reviewer.md": "54f2b47dec3639b711b7c2557b017c452b4667aa7092296a01328c7b5668efaf",
         ".claude/skills/audit/SKILL.md": "379473dba1ec5a9322adcc4f46a827811b1caa90991cd7b6a14c32234515332c",
-        ".claude/skills/bdd/DISCOVERY.md": "1a7430941dd16a22f730a5da14dba4b9ce2fa9692507f1e5b330d7befaede329",
+        ".claude/skills/bdd/DISCOVERY.md": "0b2eadf344f14a17a9cec5b0dff302555b3ed841fef49d49183cf958532d713b",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
         ".claude/skills/bdd/PLAN_EXECUTION.md": "b32e1b0778773165d0a66bd49d0a57ffc7653c8707381d89090268b3dc56853d",
         ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "da25a09d6caa34f1e1f7ff3e33c64c5c4a59797145a0c6346b5efec46193f62b",
@@ -35235,7 +35235,7 @@ var init_contracts_generated = __esm(() => {
   PLANNING_AUTHOR_COPIES = {
     "product-plan": {
       relativePath: "templates/skills/bdd/DISCOVERY.md",
-      sha256: "1a7430941dd16a22f730a5da14dba4b9ce2fa9692507f1e5b330d7befaede329"
+      sha256: "0b2eadf344f14a17a9cec5b0dff302555b3ed841fef49d49183cf958532d713b"
     },
     "plan-implementation": {
       relativePath: "templates/skills/bdd/PLAN_IMPLEMENTATION.md",
@@ -35273,7 +35273,7 @@ function readPlanningAuthor(root, phase, identity, verifyWholeCopy = true) {
   return bytes.toString("utf8");
 }
 function packagedPlanningAuthor(phase, verifyWholeCopy = true) {
-  const copies = typeof { "product-plan": { relativePath: "skills/bdd/references/DISCOVERY.md", sha256: "edb0f3520a3a201e683fde6746a1be8c61c879f34d26a4ae538fba4a5faf9b69" }, "plan-implementation": { relativePath: "skills/bdd/references/PLAN_IMPLEMENTATION.md", sha256: "a027e590058bb13506674b01547236a696c88b7c43b5edbd2870a5e556d019fb" }, "plan-execution": { relativePath: "skills/bdd/references/PLAN_EXECUTION.md", sha256: "882447038768f3f7dbb43089d1a219fd24644e726148a470eaddf282e0033f18" } } === "object" ? { "product-plan": { relativePath: "skills/bdd/references/DISCOVERY.md", sha256: "edb0f3520a3a201e683fde6746a1be8c61c879f34d26a4ae538fba4a5faf9b69" }, "plan-implementation": { relativePath: "skills/bdd/references/PLAN_IMPLEMENTATION.md", sha256: "a027e590058bb13506674b01547236a696c88b7c43b5edbd2870a5e556d019fb" }, "plan-execution": { relativePath: "skills/bdd/references/PLAN_EXECUTION.md", sha256: "882447038768f3f7dbb43089d1a219fd24644e726148a470eaddf282e0033f18" } } : PLANNING_AUTHOR_COPIES;
+  const copies = typeof { "product-plan": { relativePath: "skills/bdd/references/DISCOVERY.md", sha256: "2f475d297620f03eff7e3d1199eed5d5f81c716195ae7fef11a4f25fed5fd5af" }, "plan-implementation": { relativePath: "skills/bdd/references/PLAN_IMPLEMENTATION.md", sha256: "a027e590058bb13506674b01547236a696c88b7c43b5edbd2870a5e556d019fb" }, "plan-execution": { relativePath: "skills/bdd/references/PLAN_EXECUTION.md", sha256: "882447038768f3f7dbb43089d1a219fd24644e726148a470eaddf282e0033f18" } } === "object" ? { "product-plan": { relativePath: "skills/bdd/references/DISCOVERY.md", sha256: "2f475d297620f03eff7e3d1199eed5d5f81c716195ae7fef11a4f25fed5fd5af" }, "plan-implementation": { relativePath: "skills/bdd/references/PLAN_IMPLEMENTATION.md", sha256: "a027e590058bb13506674b01547236a696c88b7c43b5edbd2870a5e556d019fb" }, "plan-execution": { relativePath: "skills/bdd/references/PLAN_EXECUTION.md", sha256: "882447038768f3f7dbb43089d1a219fd24644e726148a470eaddf282e0033f18" } } : PLANNING_AUTHOR_COPIES;
   return readPlanningAuthor(packageRoot(), phase, copies[phase], verifyWholeCopy);
 }
 function assertActivePlanningAuthorCopy(cwd, phase) {
@@ -53402,12 +53402,15 @@ receipt, grouped by the decision that would resolve them.
 
 For an unspecified detail, ask whether a reasonable choice would violate an
 accepted Rule or materially change what the user can do or rely on. When that
-test is met, name the choice and the consequence. Otherwise carry input variants,
+test is met, name the choice and the consequence. In particular, when a later
+action might change existing user work, trace the chosen behavior to the
+request, an accepted Rule, or an explicit delegation. An assumption written
+by the author cannot settle that choice. Otherwise carry input variants,
 exact formatting, and diagnostic wording forward as suggestions for scenarios
 or design. Scenario coverage belongs to scenario review.
 For an unavailable diagnostic channel, a reliable failure signal and protected
 output can satisfy the plan unless an accepted Rule promises another channel.
-Approve when the remaining findings are suggestions.`, PRODUCT_PLAN_REVIEW_RUBRIC_SHA256 = "2a3372b434f5383ca7113888e3b3dbda85e138f07cbe336daae5412e3fe4d01b";
+Approve when the remaining findings are suggestions.`, PRODUCT_PLAN_REVIEW_RUBRIC_SHA256 = "18092de44fa0c69a662e644ab00042e7ed99c509e99dc13e90e0f77893ad0aae";
 
 // src/review/quality-rubric.generated.ts
 var QUALITY_REVIEW_RUBRIC = `## Shared adversarial-review severity foundation
