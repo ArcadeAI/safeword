@@ -8,7 +8,8 @@ reproduce the recorded trials. The dependency lock and CLI contract should
 be checked together when upgrading Harbor.
 
 Use [the comparison suite](#manual-baseline-suite) to measure finished patches,
-[the intake runner](intake/README.md) to assess plans before coding, and
+[the intake runner](intake/README.md) to assess plans before coding,
+[the handbook comparisons](handbook/README.md) to test session instructions, and
 [the scorecard](scorecard-template.md) to interpret the results.
 
 ```sh
