@@ -6,6 +6,7 @@ import {
   chmodSync,
   copyFileSync,
   cpSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -707,7 +708,10 @@ async function main(): Promise<number> {
       [];
     const assetMap: Record<string, string> = {};
     const marker = `internal-reference-${randomUUID()}`;
-    const skillNames = readdirSync(path.join(source, 'skills'));
+    const internalRoot = path.join(source, 'internal');
+    const legacySkillNames = readdirSync(path.join(source, 'skills'));
+    const packagedInternalNames = existsSync(internalRoot) ? readdirSync(internalRoot) : [];
+    const skillNames = new Set([...legacySkillNames, ...packagedInternalNames]);
     for (const name of skillNames) {
       const canonical = metadata(
         path.resolve(import.meta.dirname, '../templates/skills', name, 'SKILL.md'),
@@ -721,9 +725,12 @@ async function main(): Promise<number> {
         eligible: canonical['disable-model-invocation'] !== true,
         relative,
       });
-      mkdirSync(path.join(candidate, 'internal'), { recursive: true });
-      renameSync(path.join(candidate, 'skills', name), path.join(candidate, 'internal', name));
-      assetMap[`skills/${name}/`] = `internal/${name}/`;
+      const legacy = path.join(candidate, 'skills', name);
+      if (existsSync(legacy)) {
+        mkdirSync(path.join(candidate, 'internal'), { recursive: true });
+        renameSync(legacy, path.join(candidate, 'internal', name));
+        assetMap[`skills/${name}/`] = `internal/${name}/`;
+      }
     }
     assert.ok(internal.some(entry => entry.name === 'testing' && entry.eligible));
     const testing = path.join(candidate, 'internal/testing/SKILL.md');

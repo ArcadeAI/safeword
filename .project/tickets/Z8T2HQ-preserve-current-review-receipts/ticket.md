@@ -5,7 +5,7 @@ type: task
 phase: done
 status: done
 created: 2026-11-17T17:43:16.478Z
-last_modified: 2026-11-17T17:43:16.478Z
+last_modified: 2026-11-26T19:03:27.000Z
 ---
 
 # Keep current approvals reachable within receipt budget

@@ -124,4 +124,4 @@ async function main(): Promise<number> {
   }
 }
 
-process.exitCode = await main();
+if (import.meta.main) process.exitCode = await main();
