@@ -142,3 +142,5 @@ The [café plan reversal](../TFNBXC-verify-product-choice-authority/scorecard.md
 The [neutral-wording café trial](../TFNBXC-verify-product-choice-authority/scorecard.md#neutral-wording-of-the-café-request) completed with 36 verified reviews.
 
 The [shipping-label comparison](../TFNBXC-verify-product-choice-authority/scorecard.md#shipping-label-recovery) recorded 48 reviews testing repeat charges and manual recovery.
+
+The [delegated shipping trial](../TFNBXC-verify-product-choice-authority/scorecard.md#delegating-the-shipping-label-recovery-decision) found zero required requester approvals in 24 reviews and three actionable objections to silent repeat charges.

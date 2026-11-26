@@ -56,3 +56,5 @@ The [paired café plan reversal](./scorecard.md#café-plan-reversal) showed that
 The [neutral-wording follow-up](./scorecard.md#neutral-wording-of-the-café-request) reproduced the directional difference without “remove the called party.”
 
 The [shipping-label comparison](./scorecard.md#shipping-label-recovery) recorded 48 reviews testing repeat charges and manual recovery.
+
+The [delegated shipping trial](./scorecard.md#delegating-the-shipping-label-recovery-decision) found zero required requester approvals in 24 reviews and three actionable objections to silent repeat charges.

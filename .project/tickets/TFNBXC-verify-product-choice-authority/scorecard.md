@@ -212,3 +212,18 @@ On neutral café requests, Claude blocked 0/6 plans risking a duplicate announce
 Each shipping fixture used two equivalent order-balanced requests, three repeats per host, the same pinned Opus 5.5 and GPT-6.2 Sol, and the unchanged production reviewer at product base `adda65a5d`. Matched files were checked before dispatch. All 48 completed verdicts have matching model and dispatch identities and individual cost receipts. No retries or live user questions. Estimated spend was **$3.17** across both sets. The score counts only blocking findings that identified missing authority for the specified restart policy. Private packets, findings and coding are in `experiments/harbor/jobs/TFNBXC-shipping-order/` and `TFNBXC-shipping-clarified/`.
 
 A narrow next test would keep the clarified shipping fixture fixed and explicitly delegate the recovery decision to the agent. Check whether each reviewer accepts either documented choice or continues to demand user input.
+
+## Delegating the shipping-label recovery decision
+
+Adding “You choose how the CLI recovers after an interruption.” moved approvals from 6/24 in the previous clarified shipping comparison to 21/24. None of the 24 delegated reviews required the requester to ratify the policy. Four Claude approvals still suggested checking that the user accepted a possible duplicate charge. These were nonblocking suggestions in the verdict text. No live question was sent.
+
+| Plan | Claude approvals, earlier → delegated | Codex approvals, earlier → delegated |
+| --- | ---: | ---: |
+| Buy first, ordinary retry can charge another $12 | 0/6 → 5/6 | 0/6 → 4/6 |
+| Close first, clerk can recover missing postage manually | 6/6 → 6/6 | 0/6 → 6/6 |
+
+The three requests for changes all concerned an ordinary retry silently spending another $12. Each acknowledged delegated recovery and asked the author to change what the clerk sees or controls before another charge. One Codex verdict also asked how to finish a paid but still-open local request. These were product design objections the author could act on independently. Treating every request for changes as an escalation to the requester would miscount all three.
+
+The only change to the logical plan and context files was the delegation sentence appended to each user request. We reused the byte-identical reviewer bundle, container image, model pins, and per-review spend cap from the clarified comparison. Two order-balanced wordings, three fresh isolated reviews per wording, policy and host. The undelegated results are historical controls. All 24 verdicts matched their dispatch and pinned reviewer and had individual usage receipts. Estimated spend was **$1.55**. Private fixtures, protocol, raw findings, annotations and scores are in `experiments/harbor/jobs/TFNBXC-shipping-delegated/`.
+
+For this fixture, score requester approval, optional suggestions, and changes to the clerk-facing design separately. A reviewer can respect delegated authority and still find a problem with how an ordinary retry spends money.
