@@ -3,8 +3,8 @@ id: 4FXYQV
 slug: preserve-lint-failure-evidence
 type: task
 subtype: bug-investigated
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-10-26T02:48:10.938Z
 last_modified: 2026-10-26T03:17:56Z
 ---
@@ -88,3 +88,5 @@ task in verify until authorized closure; original maintenance remains closed.
   separate Go subprocess failure; its 18-case focused repeat passed. Both
   results are retained in verify.md and raw excerpts. The task remains open
   in verify; neither the historical stall nor full regression is declared fixed.
+
+- 2026-11-26: Closed the diagnostic repair after focused tests, full CI and independent review of the updated subprocess assertions. CQJBSN continues to track the intermittent stall.

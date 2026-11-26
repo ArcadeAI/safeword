@@ -1,5 +1,32 @@
 # Diagnostic repair verification
 
+**Test Suite:** ✅ Both Node jobs passed in CI run 45852872224.
+**Gherkin:** ✅ Node 24 acceptance passed in that run.
+**Build:** ✅ CLI contract passed.
+**Lint:** ✅ CI lint passed.
+**Typecheck:** ✅ CI lint includes CLI typecheck.
+**Scenarios:** ⏭️ Internal test diagnostics with existing integration coverage.
+**Refactor:** ✅ Reviewed the shared numeric exit predicate.
+**PR Scope:** ✅ Three test files and diagnostic records cover this repair.
+**Dep Drift:** ✅ Dependency audit passed.
+**Parent Epic:** N/A
+**Reconcile:** ✅ Existing subprocess and test contracts retained.
+**Experience:** N/A
+**Surface Evidence:** Focused lint and native planning suites passed.
+**Evidence limits:** The original intermittent stall remains under CQJBSN.
+
+Verified code revision `c054e9f674ac77bb3d9102c5a74f6cdae02770c1`.
+✓ 15/15 tests pass in the focused run. The focused diff audit found no
+production changes. An independent Claude review of the revised exit assertions
+found no actionable issues. 
+
+## Historical verification
+
+The following fenced record describes the earlier investigation.
+
+~~~text
+# Diagnostic repair verification
+
 ## Verify Checklist
 
 **Test Suite:** ❌ One failure in the final stacked full run; isolated focused proof is 19/19 passing.
@@ -136,3 +163,5 @@ paid qualification, PR, push, shared review-gate edit or plugin-cache edit was p
 
 **Next:** Capture the Go runner's exit code, signal, captured streams and tool
 timing at a recurrence, without changing its budget or the shared worker policy.
+
+~~~
