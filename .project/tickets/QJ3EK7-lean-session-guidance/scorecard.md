@@ -18,7 +18,7 @@ These Harbor trials used separate repositories and the real opposite-host indepe
 | Fixture | Original Claude / Codex | Candidate Claude / Codex | Observation |
 | --- | --- | --- | --- |
 | Fresh bookmark CLI, duplicate policy hidden | Pass / pass | Pass / pass | All four asked once and saved the answer to refuse duplicates. First checkpoint word counts went from 294 to 341 on Claude and 111 to 94 on Codex. |
-| Fresh shifts CLI, overlap policy supplied | Pass / pass | Awaiting boundary decision / pass | Claude asked if adjacent shifts count as overlapping. This is a new boundary question. It does not count as asking the operator to repeat the overlap rule. |
+| Fresh shifts CLI, overlap policy supplied | Pass / pass | Pass on retry / pass | Claude asked if adjacent shifts count as overlapping. This is a new boundary question. It does not count as asking the operator to repeat the overlap rule. |
 | Existing one-file bookmark CLI, duplicate policy hidden | Early scenarios / pass | Pass / pass | Both Codex trials and the candidate Claude trial cleared the independent gate. Original Claude wrote a scenario file before approval. |
 | Existing one-file bookmark CLI, duplicate policy supplied | Early scenarios / pass | Pass / pass | The original Claude author wrote a scenario file before approval. Neither candidate re-asked the supplied duplicate rule. |
 
@@ -35,7 +35,9 @@ Infrastructure commit `cb225bae5` contains the replay commands. The infrastructu
 - Focused evidence: `jobs/QJ3EK7-probes` (20 combined and baseline trials), `jobs/QJ3EK7-isolated` (10 single-change trials), `jobs/QJ3EK7-prose` (8 wording trials), `jobs/QJ3EK7-resume-{1,2,3}` (24 consent trials). Estimated focused-model spend was $7.85 over 62 trials. Exact source patches and revision IDs for the single-change variants are saved in `jobs/QJ3EK7-isolated/*.patch` and `revisions.json`.
 - The bug verifier initially failed to create its temporary test directory in a read-only container. Supplying a temporary filesystem and replaying the verifier on the same four saved patches passed. No additional author calls were charged for this correction.
 
-At the last tally, 77 of 78 live trials had completed. The 15 finished full-intake trials used $10.67 in estimated author and reviewer spend, in addition to $7.85 for the focused trials. The open shift trial and separately metered decision routing are excluded. No completed intake trial reported creating a draft PR.
+All 78 planned trials have scored outcomes. The 16 scored intake runs used $11.83 in estimated author and reviewer spend, plus $7.85 for the 62 focused trials. This excludes decision routing and two interrupted Claude attempts. Both interruptions reported DNS error EAI_AGAIN. Their logs show at least $1.35 in spend, with incomplete reviewer pricing on the first retry. No completed intake trial reported creating a draft PR.
+
+The operator approved adjacent shifts for the same employee. The answer key is in harness commit `026ee21a3`. The final Claude trial reused the approved answer when asked in different words. Its independently approved plan explicitly allows a 17:00 handoff and rejects shifts sharing working time. It passed before scenario or implementation edits, with three reviewer calls and $1.17 estimated spend. The trace and plan are in `jobs/intake-3TJD0A/shift-handbook2-candidate-retry2-claude`.
 
 ## Repository verification
 

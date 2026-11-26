@@ -9,10 +9,10 @@ out_of_scope:
   - Changes to model behavior through hooks or vendor-specific prompts.
 done_when:
   - Each change has a recorded keep-or-revert decision and the paired trials are accounted for.
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-11-26T11:37:33.659Z
-last_modified: 2026-11-26T12:19:28Z
+last_modified: 2026-11-26T15:20:27Z
 ---
 
 # Keep workflow decisions reliable with a shorter session handbook
@@ -45,4 +45,4 @@ Method references: [Agent Skills specification](https://agentskills.io/specifica
 
 [Scorecard and reproducible evidence](./scorecard.md)
 
-The remaining operator decision belongs to the shift-scheduler trial. Its private relay is `jobs/intake-3TJD0A/shift-handbook2-candidate/trials/intake-shift-specified/claude/relay/01-operator.md` under the Harbor working directory. Use the reply format from the intake runbook, let the same session finish, and record its final outcome here. The previously supplied rule only addresses overlapping shifts.
+All 78 planned trials have scored outcomes. The approved shift plan allows back-to-back assignments and rejects positive-duration overlap for the same employee.

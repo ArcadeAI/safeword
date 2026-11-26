@@ -2,8 +2,8 @@
 id: 3TJD0A
 slug: reliable-lean-intake
 type: epic
-phase: verify
-status: in_progress
+phase: done
+status: done
 scope:
   - Evaluate handbook reductions, including downstream routing, stale-plan consent and architecture decisions.
   - Five intake evaluations on Claude and Codex.
@@ -20,7 +20,7 @@ children:
   - WCXR0P
   - QJ3EK7
 created: 2026-11-26T07:08:24.535Z
-last_modified: 2026-11-26T12:19:28Z
+last_modified: 2026-11-26T15:20:27Z
 ---
 
 # Get reliable feature plans with shorter instructions for Claude and Codex
@@ -54,3 +54,5 @@ Compare each deletion to baseline on the same inputs, verify both host bundles, 
 All five evaluations have recorded decisions. The 65-line reduction passed six trials on both hosts across three features. Keep the original reviewer wording. Raw evidence showed no draft PRs requiring cleanup.
 
 Follow-up: [Handbook reductions and behavioral checks](../QJ3EK7-lean-session-guidance/ticket.md).
+
+All 78 planned trials have scored outcomes. The approved shift plan allows back-to-back assignments and rejects positive-duration overlap for the same employee.
