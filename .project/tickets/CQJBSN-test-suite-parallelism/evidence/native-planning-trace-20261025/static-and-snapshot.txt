@@ -1,0 +1,5 @@
+Targeted ESLint and CLI typecheck: chained with &&, observed exit 0.
+Original reviewed stacked inputs: 56 checked, 0 changed.
+Preserved stacked checkout status: clean after full run.
+Original guard branch remains fafcaded18308218a1c40a30b8f99d8904ec91cb.
+Node inspect options verified against installed @types/node/util.d.ts and actual timeout control.

@@ -149,14 +149,12 @@ function canFundRoute(runDeadline: number): boolean {
   return runDeadline - Date.now() >= minimumRouteMs();
 }
 
-type ProvenanceVerifiedOutput = ReviewerOutput & { readonly reviewer_agent: ReviewAgent };
-
 function verifyProvenance(
   output: UnverifiedReviewerOutput,
   assignedReviewer: ReviewAgent,
   dispatchId: string,
 ):
-  | { readonly kind: 'verified'; readonly output: ProvenanceVerifiedOutput }
+  | { readonly kind: 'verified'; readonly output: ReviewerOutput }
   | {
       readonly kind: 'failed';
       readonly code: 'REVIEWER_PROVENANCE_MISSING' | 'REVIEWER_PROVENANCE_CONTRADICTORY';
@@ -172,7 +170,7 @@ function verifyProvenance(
   if (output.reviewer_agent !== assignedReviewer || output.dispatch_id !== dispatchId) {
     return { kind: 'failed', code: 'REVIEWER_PROVENANCE_CONTRADICTORY' };
   }
-  return { kind: 'verified', output: output as ProvenanceVerifiedOutput };
+  return { kind: 'verified', output: output as ReviewerOutput };
 }
 
 /** Every request behind an independent result, in the order the routes ran. */
@@ -381,7 +379,7 @@ function assessReviewOutcome(
 ):
   | {
       readonly kind: 'completed';
-      readonly output: ProvenanceVerifiedOutput;
+      readonly output: ReviewerOutput;
       readonly confirmedModel?: ConfirmedReviewerModel;
     }
   | { readonly kind: 'failed'; readonly failure: ReviewFailure; readonly terminal: boolean } {
@@ -1532,7 +1530,7 @@ async function runDegradedFallback(input: DegradedReviewInput): Promise<CliResul
     });
   }
   const completedOutput = assessment.output;
-  const assurance = fallbackAssurance(input.kind, completedOutput.reviewer_agent, input);
+  const assurance = fallbackAssurance(input.kind, input.assignedReviewer, input);
 
   return createResult({
     state: completedOutput.verdict === 'approve' ? 'healthy' : 'action_required',
