@@ -3,10 +3,10 @@ id: TFNBXC
 slug: verify-product-choice-authority
 type: task
 epic: 3TJD0A
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-11-26T16:19:57.264Z
-last_modified: 2026-11-26T16:19:57.264Z
+last_modified: 2026-11-26T16:29:40Z
 ---
 
 # Catch unapproved product choices before feature intake closes
@@ -39,4 +39,6 @@ A stronger reminder costs little, but the previous run already exposed its host 
 2. Keep the plan fixed. Test the café case, then a held-out CSV import where the plan saves valid rows after finding a bad row. Vary only the request in each domain. An omitted policy or delegation limited to naming should yield one focused finding. An explicit policy or delegation covering that recovery choice should yield approval. Keep the expected verdicts private from the reviewer. This use of controlled input changes follows [CheckList](https://aclanthology.org/2020.acl-main.442/).
 3. Compare current and candidate reviewers on the same frozen packets, host model and budget, three repeats per case per host. Score a set only when both open cases get the correct finding and both settled cases pass without a redundant question. Require at least two complete sets out of three on each host in each domain. Report counts, unnecessary questions, extra reviewer calls and spend. If it misses the threshold, retain the current rubric and record the failure.
 
-Status: replay inputs and baseline verdicts checked. The proposed reviewer change and held-out comparison are pending.
+## Result
+
+Retain the current rubric. The proposed change passed the adoption threshold only for Codex reviewing the café plan. It failed the other three host and feature combinations. All 108 reviews returned a verdict with confirmed model identity and metered spend. [Scorecard](./scorecard.md)
