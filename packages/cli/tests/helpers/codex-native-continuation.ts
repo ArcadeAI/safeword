@@ -557,7 +557,13 @@ export class CodexNativeContinuationActor {
         'approval_policy="never"',
         '-m',
         'gpt-5.6-terra',
-        'This is isolated setup. Reply only READY. Use no tools.',
+        [
+          'This is isolated setup. Complete any required startup handbook reads, then take no other actions and change no files. Reply with exactly the plain Markdown below, without a code fence.',
+          '**CONFIDENT** — The isolated setup turn is ready.',
+          '**Decided:** Keep the setup read-only and leave the test ready for its next turn.',
+          '**Open:** none.',
+          '**Next:** Action: Continue. Object: the native test.',
+        ].join('\n\n'),
       ],
       'setup',
     );
