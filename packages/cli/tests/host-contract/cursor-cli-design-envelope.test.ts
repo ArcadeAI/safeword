@@ -122,6 +122,19 @@ it('preserves the edit after a retried read which the host did not complete', ()
   expect(decode([abandoned, ...handbookRead(), start, complete])).toEqual({ start, complete });
 });
 
+it('accepts a repeated start only for the same native edit request', () => {
+  const [start, complete] = pair('editToolCall');
+  assert.ok(start && complete);
+  const replay = { ...start, tool_call: { ...start.tool_call, startedAtMs: '3' } };
+  expect(decode([...handbookRead(), start, replay, complete])).toEqual({ start, complete });
+  expect(() => decode([start, { ...replay, call_id: 'foreign' }, complete])).toThrow();
+  const changed = structuredClone(replay);
+  const edit = changed.tool_call.editToolCall;
+  assert.ok(edit);
+  edit.args.streamContent = 'other edit';
+  expect(() => decode([start, changed, complete])).toThrow();
+});
+
 it('refuses extra, unrelated or unpaired handbook calls', () => {
   const edit = pair('editToolCall');
   for (const events of [

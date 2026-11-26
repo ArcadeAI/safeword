@@ -107,6 +107,26 @@ function assertStartupReads(
   assert.ok(started.values().some(Boolean), unexpectedRead);
 }
 
+function splitWriteCalls(calls: FileToolEvent[]) {
+  const complete = calls.at(-1);
+  assert.ok(complete?.call_id, 'HOST_CONTRACT_PROOF_UNAVAILABLE: CLI Write completion absent');
+  const startIndex = calls.findIndex(row => row.call_id === complete.call_id);
+  const reads = calls.slice(0, startIndex);
+  const [start, ...replays] = calls.slice(startIndex, -1);
+  assert.ok(start, 'HOST_CONTRACT_PROOF_UNAVAILABLE: CLI Write start absent');
+  for (const replay of replays) {
+    const reason =
+      'HOST_CONTRACT_PROOF_UNAVAILABLE: different Cursor CLI call before write completion';
+    assert.equal(replay.subtype, 'started', reason);
+    assert.equal(replay.call_id, start.call_id, reason);
+    assert.equal(replay.session_id, start.session_id, reason);
+    assert.deepEqual(replay.tool_call?.writeToolCall, start.tool_call?.writeToolCall, reason);
+    assert.deepEqual(replay.tool_call?.editToolCall, start.tool_call?.editToolCall, reason);
+    assert.equal(replay.tool_call?.readToolCall, undefined, reason);
+  }
+  return { reads, start, complete };
+}
+
 /** Current create-file Write or existing-file Edit pair, not a Shell or Stop projection. */
 export function observedNativeWrite(
   raw: string,
@@ -120,16 +140,13 @@ export function observedNativeWrite(
     .split('\n')
     .map(line => JSON.parse(line) as FileToolEvent);
   const calls = events.filter(row => row.type === 'tool_call');
-  const writes = calls.slice(-2);
-  assert.equal(writes.length, 2, 'HOST_CONTRACT_PROOF_UNAVAILABLE: CLI Write pair cardinality');
-  const [start, complete] = writes;
-  assert.ok(start && complete);
-  assertStartupReads(calls.slice(0, -2), workspace, session, start.call_id);
+  const { reads, start, complete } = splitWriteCalls(calls);
+  assertStartupReads(reads, workspace, session, start.call_id);
   assert.equal(start.subtype, 'started');
   assert.equal(complete.subtype, 'completed');
   assert.ok(typeof start.call_id === 'string' && start.call_id.length > 0);
   assert.equal(complete.call_id, start.call_id);
-  for (const row of writes) assert.equal(row.session_id, session);
+  for (const row of [start, complete]) assert.equal(row.session_id, session);
   const operation = (row: FileToolEvent) => {
     const forms = (['writeToolCall', 'editToolCall'] as const).filter(
       kind => row.tool_call?.[kind] !== undefined,
