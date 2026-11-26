@@ -1,0 +1,2 @@
+{"event":"go-test-start","time":1792988904319,"command":"go","parameters":["test","."],"cwd":"/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-WQ6loi/apps/engine","timeout":0}
+{"event":"go-test-close","time":1792988905469,"elapsed":1150,"code":0,"signal":null,"killed":false,"stdout":"ok  \texample.com/engine\t0.236s\n","stderr":""}

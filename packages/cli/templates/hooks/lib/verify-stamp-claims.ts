@@ -205,33 +205,31 @@ export function verifiedStamps(
 ): ReviewStamp[] {
   const readReceipt = createReviewReceiptReader(projectDirectory);
   let claimContext: ReturnType<typeof reviewClaimContext> | undefined;
-  return (
-    stamps
-      .filter(stamp => stamp.scope === scope)
-      // Spend the budget newest-first, then restore ledger order for callers.
-      .reverse()
-      .filter(stamp => {
-        if (stamp.skipReason !== undefined || !claimsCoordinatorVerdict(stamp.independence))
-          return true;
-        if (stamp.reviewId === undefined) return false;
+  // Spend the budget newest-first, then restore ledger order for callers.
+  const verified = stamps
+    .filter(stamp => stamp.scope === scope)
+    .reverse()
+    .filter(stamp => {
+      if (stamp.skipReason !== undefined || !claimsCoordinatorVerdict(stamp.independence))
+        return true;
+      if (stamp.reviewId === undefined) return false;
 
-        const ticketDirectory = nodePath.join(
-          resolveNamespaceRoot(projectDirectory),
-          'tickets',
-          stamp.scope.slice(0, stamp.scope.indexOf(':')),
-        );
-        const claim = claimFromScope(stamp.scope, {
-          projectDirectory,
-          ticketDirectory,
-          ...(claimContext ??= reviewClaimContext(projectDirectory, ticketDirectory)),
-          independence: stamp.independence,
-          authorAgent: stamp.author,
-          reviewerAgent: stamp.reviewer,
-        });
-        if (claim === undefined) return false;
+      const ticketDirectory = nodePath.join(
+        resolveNamespaceRoot(projectDirectory),
+        'tickets',
+        stamp.scope.slice(0, stamp.scope.indexOf(':')),
+      );
+      const claim = claimFromScope(stamp.scope, {
+        projectDirectory,
+        ticketDirectory,
+        ...(claimContext ??= reviewClaimContext(projectDirectory, ticketDirectory)),
+        independence: stamp.independence,
+        authorAgent: stamp.author,
+        reviewerAgent: stamp.reviewer,
+      });
+      if (claim === undefined) return false;
 
-        return receiptGateVerdict(claim, readReceipt(stamp.reviewId)).ok;
-      })
-      .reverse()
-  );
+      return receiptGateVerdict(claim, readReceipt(stamp.reviewId)).ok;
+    });
+  return verified.reverse();
 }
