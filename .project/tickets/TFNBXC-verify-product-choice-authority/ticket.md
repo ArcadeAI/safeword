@@ -6,7 +6,7 @@ epic: 3TJD0A
 phase: done
 status: done
 created: 2026-11-26T16:19:57.264Z
-last_modified: 2026-11-26T16:29:40Z
+last_modified: 2026-11-26T16:45:17Z
 ---
 
 # Catch unapproved product choices before feature intake closes
@@ -42,3 +42,5 @@ A stronger reminder costs little, but the previous run already exposed its host 
 ## Result
 
 Retain the current rubric. The proposed change passed the adoption threshold only for Codex reviewing the café plan. It failed the other three host and feature combinations. All 108 reviews returned a verdict with confirmed model identity and metered spend. [Scorecard](./scorecard.md)
+
+The opposite-policy and severity follow-ups also missed the adoption threshold. [180-review follow-up](./scorecard.md#follow-up-opposite-policy-and-verdict-severity).

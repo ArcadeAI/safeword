@@ -43,3 +43,33 @@ Each isolated container used the existing headless reviewer and a $3 individual 
 Totals use unrounded amounts. Each trial made one reviewer call. No retries, additional review rounds or draft PRs. Costs are token-price estimates for local-account usage. Private frozen packets, reviewer bundles, verdicts, usage ledgers and scores are under `experiments/harbor/jobs/TFNBXC/` in the Harbor infrastructure worktree.
 
 For a follow-up, try asking the reviewer whether the opposite recovery policy could also satisfy the user's words. The café case exposes that exact inference error. Freeze a new CSV fixture that explicitly defines malformed quoting and header width before reusing CSV for an adoption decision.
+
+## Follow-up: opposite policy and verdict severity
+
+**Decision. Keep the current rubric.** Asking whether the opposite policy could also satisfy the request caught all 12 open CSV choices and only one of 12 open café choices. A stricter verdict sentence caught two of 24 open choices across the two features. Neither met the threshold of two complete sets out of three for each host and feature.
+
+| Variant (60 reviews each) | Open café choice blocked, of 12 | Open CSV choice blocked, of 12 | Matching or delegated plan approved, of 24 | Explicit contradiction corrected, of 12 | Estimated USD |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Current | 0 | 6 | 24 | 12 | 3.36 |
+| Opposite-policy question | 1 | 12 | 24 | 12 | 3.37 |
+| Verdict severity | 0 | 2 | 23 | 12 | 3.39 |
+
+| Host and feature | Complete sets, current | Complete sets, opposite policy | Complete sets, verdict severity |
+| --- | ---: | ---: | ---: |
+| Claude, café | 0/3 | 0/3 | 0/3 |
+| Codex, café | 0/3 | 0/3 | 0/3 |
+| Claude, CSV | 0/3 | 3/3 | 0/3 |
+| Codex, CSV | 1/3 | 3/3 | 0/3 |
+
+The two variants independently added the following text immediately before the existing approval instruction:
+
+- Opposite policy: “Could the opposite policy also satisfy the user's words? If both fit, the difference materially affects the user, and the user has not delegated this choice, flag the unresolved decision.”
+- Verdict severity: “If your finding says the user still needs to choose between materially different outcomes, return request_changes.”
+
+We fixed CSV parsing, header width, failure handling and all-invalid behavior in both the request and plan before testing. Only mixed-file publication was at issue. Each feature used the same plan across five requests: silent, delegation limited to naming, explicit agreement, explicit delegation of that policy, and explicit disagreement. Each set required both open choices to block on the exact issue, both settled plans to pass and the conflicting plan to be corrected without reopening the decision. We inspected the finding text. For example, blocking the café plan on terminal output buffering earned no credit for the crash policy.
+
+Both reviewers could follow a stated choice against the plan. No settled policy needed a repeat question in these reviews. On an open café case, Claude still approved under the stricter verdict instruction and suggested the user could confirm the repeat call during scenario review. The one settled plan rejected under that instruction concerned output buffering. These verdicts measure reviewer behavior only. No operator was interrupted.
+
+Product revision `cfb2022e9`. Claude Opus 5.5 (`claude-opus-5-5`) and Codex (`gpt-6.2-sol`) reviewed isolated, matched packets in interleaved order. Confirmed model identity, dispatch identity and one metered invocation per verdict for all 180 reviews. Total estimated spend was **$10.12**, with zero retries. The private inputs, bundles, frozen protocol, findings, per-trial scores and usage are in the Harbor infrastructure worktree under `experiments/harbor/jobs/TFNBXC-forks/`. The repaired CSV results have their own concurrent baseline. Counts from the earlier CSV fixture are not pooled with these.
+
+Next experiment: ask the intake author to surface consequential choices before writing the plan, leaving the reviewer unchanged. Measure whether the author asks once when the policy is open and proceeds without asking when it is settled. These two exposed domains remain regression cases.
