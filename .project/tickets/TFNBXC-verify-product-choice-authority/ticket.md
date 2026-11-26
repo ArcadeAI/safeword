@@ -62,3 +62,5 @@ The [delegated shipping trial](./scorecard.md#delegating-the-shipping-label-reco
 The [intake skill-routing pilot](./scorecard.md#choosing-a-skill-during-intake) checked the supplied, delegated, open, routine and handoff cases on both author hosts.
 
 The [Claude resume-handbook comparison](./scorecard.md#reopening-the-intake-guide-on-resume) measured intake guide use, delegated decisions and open-choice questions separately.
+
+The [telescope holdout](./scorecard.md#resuming-a-telescope-scheduling-feature) reproduced the resume-guide effect on a second feature.

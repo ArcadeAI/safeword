@@ -148,3 +148,5 @@ The [delegated shipping trial](../TFNBXC-verify-product-choice-authority/scoreca
 The [intake skill-routing pilot](../TFNBXC-verify-product-choice-authority/scorecard.md#choosing-a-skill-during-intake) checked the supplied, delegated, open, routine and handoff cases on both author hosts.
 
 The [Claude resume-handbook comparison](../TFNBXC-verify-product-choice-authority/scorecard.md#reopening-the-intake-guide-on-resume) measured intake guide use, delegated decisions and open-choice questions separately.
+
+The [telescope holdout](../TFNBXC-verify-product-choice-authority/scorecard.md#resuming-a-telescope-scheduling-feature) reproduced the resume-guide effect on a second feature.

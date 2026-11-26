@@ -273,3 +273,22 @@ Each arm ran three isolated repeats of each case. The neutral prompt was identic
 Two candidate delegated traces ended with successful Opus author messages and recorded plans, but Harbor flagged the terminal usage receipt because it also listed Haiku with one web-search request. The flags were unrelated to the $3 budget. We retained those observations in their original cells and ran two separate replacements. Both replacements passed the model check, read the guide, used `figure-it-out` and recorded a decision. Substituting them yields the same table. Native terminal receipts totaled **$3.36** for the 12 original trials and **$0.66** for the two replacements, **$4.03** overall. Using terminal receipts avoids undercounting the flagged calls. Private bundles, exact prompts, `handbook.patch`, traces and activity reports are in `experiments/harbor/jobs/TFNBXC-resume-handbook/`.
 
 Retain the sentence as a candidate for a fresh feature. For open choices, measure whether the author presents the real tradeoff before writing a rule as well as whether it invokes the skill.
+
+## Resuming a telescope scheduling feature
+
+**Keep the resume sentence for reliably loading the intake guide on Claude.** We reused the exact two plugin bundles from the shipping comparison. The new ticket asked who gets the club telescope when more than one member requests the same night. Both timestamp priority and a draw were feasible. Each bundle ran three trials with the choice open and three with one added sentence delegating it. The prompt never named a skill.
+
+| Behavior observed before the first decision checkpoint | Earlier handbook | With resume sentence |
+| --- | ---: | ---: |
+| Read the intake guide before asking or editing | 2/6 | 6/6 |
+| Read the paragraph on delegation and user preferences | 1/6 | 6/6 |
+| Invoked `figure-it-out` for a delegated choice | 1/3 | 3/3 |
+| Wrote a reasoned allocation rule when delegated | 3/3 | 3/3 |
+| Asked about a draw versus timestamp priority before changing an open plan | 3/3 | 3/3 |
+| Invoked `elicit` on an open choice | 0/3 | 0/3 |
+
+All six delegated plans chose a draw at publication and explained that a week-long window would otherwise reward people who could submit early. All six open trials put that tradeoff to the requester and left the original spec intact. One control read a later section of the guide without seeing the routing paragraph. The table counts that access separately so it earns credit for opening the guide. The sample shows more consistent use of the intended skills on delegated decisions. The observed allocation decision and clarification behavior were the same in both arms. The shipping case had one premature edit in each arm, so the telescope result does not resolve that earlier issue.
+
+All 12 isolated Harbor runs produced a final Opus 5.5 author message and a plan snapshot. Four runs that used web search (one control and three candidate) tripped Harbor's single-model check at completion: Opus authored every message and the native usage receipts assigned search requests to Haiku. We retained those runs under the protocol fixed before launch. There were no retries, draft PRs, independent reviews or live operator questions. The trial stopped at the first decision. Estimated spend from native receipts was **$1.25** for the control and **$1.78** for the candidate, **$3.04** combined before rounding. Private prompts, seeds, bundle hashes, tool and skill traces, replies, plan snapshots and grades are under `experiments/harbor/jobs/TFNBXC-telescope-resume/`.
+
+Across shipping and telescope, the candidate reached the guide before the decision in 12/12 original trials. This supports adopting the sentence for resumed Claude intake tickets. Future open-choice tests should score whether the question resolves the user's preference before a rule is written. A native `elicit` call is a separate measurement.
