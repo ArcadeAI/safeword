@@ -41,7 +41,7 @@ export const PLANNING_CONTRACTS = {
 export const PLANNING_AUTHOR_COPIES = {
   "product-plan": {
     "relativePath": "templates/skills/bdd/DISCOVERY.md",
-    "sha256": "0eb6d81646bd431987a186d354e2d25a0cf3cb2d27b44fd132d529415560b433"
+    "sha256": "c06d54462f62949838ecad8ca5282566fb443d45fc67698d07e13696ffa92e5f"
   },
   "plan-implementation": {
     "relativePath": "templates/skills/bdd/PLAN_IMPLEMENTATION.md",

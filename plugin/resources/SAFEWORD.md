@@ -4,7 +4,7 @@
 
 For a request to build a new capability, invoke the native `safeword:bdd` skill now. Its intake guide owns the first deliverable: the feature ticket and Product Plan. A detailed request supplies the plan's contents. An existing test scaffold supplies the test environment. Both still start at intake.
 
-For an existing behavior that is broken, reproduce it and use TDD. For a behavior change, add or update a regression test in the project’s test suite. Run it before the production edit and keep it passing afterward. For a mechanical correction, make the small edit directly. Resume existing work at its recorded phase.
+For an existing behavior that is broken, reproduce it and use TDD. For a behavior change, add or update a regression test in the project’s test suite. Run it before the production edit and keep it passing afterward. For a mechanical correction, make the small edit directly. Resume existing work at its recorded phase. When resuming a feature ticket in intake, invoke the native `safeword:bdd` skill and open its `DISCOVERY.md` guide before asking a product question or editing the plan.
 
 The standing operating model for this project. Read at session start; re-scan by topic as situations arise. Project-specific rules live in the project's own `./AGENTS.md` or `./CLAUDE.md` (whichever your host reads). Triggered playbooks live in `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/`.
 

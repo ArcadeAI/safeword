@@ -12,14 +12,15 @@ default.
    the next action depends on guessing what someone enters, sees, or uses to
    choose the right item, ask them to walk through that step. Use their answer
    in the plan. Walk through an interrupted use, too, when earlier steps can
-   already have produced a result. If two outcomes are plausible, ask the
-   user what they expect to keep from those steps before choosing a default.
-   Walk through a second use against what the first use left behind. If one
-   reasonable outcome preserves someone's work and another changes or removes
-   it, look for the user's decision in the request or an accepted Rule. When
-   neither settles it, ask which outcome they want and wait for their answer
-   before making it a Rule. Apply delegated defaults only to the choices the
-   user delegated. Reuse an example that already settles the choice.
+   already have produced a result.
+   Walk through a retry against what the first use left behind. For each choice,
+   reuse the user's instruction, an accepted Rule, or an example that settles it.
+   If the user delegated this choice, invoke the figure-it-out skill when plausible
+   options have materially different consequences, then record the decision and
+   why. Choose routine delegated details directly. If a consequential choice
+   depends on a preference only the user can supply, invoke the elicit skill and
+   ask about that tradeoff. Apply the answer to this choice, including a reply
+   that delegates it to you.
    Finish and confirm the Product Plan and scope. Name the changed behavior,
    preserved behavior, and observable done state. Resolve each JTBD persona
    against the configured personas file. Save `dimensions.md` with the agreed
