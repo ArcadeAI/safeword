@@ -22,7 +22,7 @@ PAIRED_TASKS = {
     "intake-shift-overlap": "shift",
     "intake-shift-specified": "shift-specified",
 }
-BUILTIN = ("csv", "parcel", "parcel-specified", *PAIRED_TASKS.values())
+BUILTIN = ("csv", "parcel", "parcel-specified", "equipment-loans", *PAIRED_TASKS.values())
 BUNDLE_PATHS = (
     "plugin",
     "packages/cli/codex-plugin",
@@ -63,6 +63,7 @@ def materialize_fixture(snapshot, destination, task):
                         "bookmark": "bookmarks",
                         "shift": "shift-scheduler",
                         "cafe-waitlist": "cafe-waitlist",
+                        "equipment-loans": "equipment-loans",
                     }.get(prompt_name, "parcel-shelf"),
                     "private": True,
                 },
@@ -229,7 +230,7 @@ def main():
     setup.add_argument(
         "--task",
         default="csv",
-        help="csv, parcel, parcel-specified, bookmark, bookmark-specified, shift, shift-specified, cafe-waitlist, or path to a trusted Harbor intake task",
+        help="csv, parcel, parcel-specified, bookmark, bookmark-specified, shift, shift-specified, cafe-waitlist, equipment-loans, or path to a trusted Harbor intake task",
     )
     trial = subs.add_parser("trial")
     trial.add_argument("directory", type=Path)
