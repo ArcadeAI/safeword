@@ -60,3 +60,5 @@ The [shipping-label comparison](./scorecard.md#shipping-label-recovery) recorded
 The [delegated shipping trial](./scorecard.md#delegating-the-shipping-label-recovery-decision) found zero required requester approvals in 24 reviews and three actionable objections to silent repeat charges.
 
 The [intake skill-routing pilot](./scorecard.md#choosing-a-skill-during-intake) checked the supplied, delegated, open, routine and handoff cases on both author hosts.
+
+The [Claude resume-handbook comparison](./scorecard.md#reopening-the-intake-guide-on-resume) measured intake guide use, delegated decisions and open-choice questions separately.

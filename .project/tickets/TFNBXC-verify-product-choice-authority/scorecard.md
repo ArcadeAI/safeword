@@ -251,3 +251,25 @@ Score the observable choice and the skill load separately. On Claude, look for a
 The 14 scored author runs cost an estimated $2.42. Ten excluded launches used a macOS-generated tar archive containing AppleDouble files that tripped Claude's plugin integrity check. Those cost $1.31, bringing total metered spend to **$3.73**. The corrected archive was identical across the three scored sets. All runs used isolated Harbor containers, native account authentication and a $3 per-trial budget. Snapshots covered the intake decision only. No draft PRs appeared in the traces. Each private job directory under `experiments/harbor/jobs/TFNBXC-skill-routing*` retains its native transcripts, relay messages, plan snapshots and activity report. The clean job also retains `routing.patch`.
 
 First test whether one sentence in the startup handbook brings resumed intake tickets back through the BDD intake guide on Claude. Repeat the open and delegated cases using a neutral shared introduction, and grade both the question and the actual skill load.
+
+## Reopening the intake guide on resume
+
+One startup-handbook sentence increased observed guide use from **1/6 to 6/6** on resumed shipping-desk tickets with Claude Opus 5.5. Both arms contained the same experimental intake routing paragraph. The candidate appended this sentence to the existing resume instruction:
+
+> When resuming a feature ticket in intake, invoke the native `safeword:bdd` skill and open its `DISCOVERY.md` guide before asking a product question or editing the plan.
+
+| Observed in the original 12 trials | Earlier handbook | Candidate |
+| --- | ---: | ---: |
+| Successfully loaded BDD and read intake guidance before the question or plan edit | 1/6 | 6/6 |
+| Called `figure-it-out` when the user delegated recovery | 0/3 | 3/3 |
+| Wrote a reasoned recovery rule when delegated | 3/3 | 3/3 |
+| Called `elicit` when the user left recovery open | 0/3 | 1/3 |
+| Left the open plan untouched pending a reply | 2/3 | 2/3 |
+
+The candidate's three open cases ended differently. One used `elicit` and asked the requester to choose among recovery outcomes. Another recommended a saved purchase marker and asked whether the new marker and clerk confirmation fit the scope, leaving the file alone. The third wrote a draft rule first and then asked who should buy missing postage. Opening the guide made delegated skill use more consistent in this sample. It did not improve the count of open plans preserved before a reply.
+
+Each arm ran three isolated repeats of each case. The neutral prompt was identical across arms. The delegated case added only “You choose how the CLI recovers after an interruption.” The runner ended at the first decision checkpoint. Scoring used successful native tool results, their order, the final author message and the actual spec bytes. The source revision and intake variant match the preceding author pilot. Comparing the two bundle inventories found only the handbook copies and Claude's corresponding integrity manifests changed. There were no draft PRs or live operator questions. This was a single-feature author-routing experiment.
+
+Two candidate delegated traces ended with successful Opus author messages and recorded plans, but Harbor flagged the terminal usage receipt because it also listed Haiku with one web-search request. The flags were unrelated to the $3 budget. We retained those observations in their original cells and ran two separate replacements. Both replacements passed the model check, read the guide, used `figure-it-out` and recorded a decision. Substituting them yields the same table. Native terminal receipts totaled **$3.36** for the 12 original trials and **$0.66** for the two replacements, **$4.03** overall. Using terminal receipts avoids undercounting the flagged calls. Private bundles, exact prompts, `handbook.patch`, traces and activity reports are in `experiments/harbor/jobs/TFNBXC-resume-handbook/`.
+
+Retain the sentence as a candidate for a fresh feature. For open choices, measure whether the author presents the real tradeoff before writing a rule as well as whether it invokes the skill.
