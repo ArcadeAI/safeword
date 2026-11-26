@@ -152,3 +152,5 @@ The [Claude resume-handbook comparison](../TFNBXC-verify-product-choice-authorit
 The [telescope holdout](../TFNBXC-verify-product-choice-authority/scorecard.md#resuming-a-telescope-scheduling-feature) reproduced the resume-guide effect on a second feature.
 
 The [matched Codex comparison](../TFNBXC-verify-product-choice-authority/scorecard.md#codex-on-both-handbook-versions) recorded 24 scored shipping and telescope trials.
+
+The [promotion and ask-before-edit follow-up](../TFNBXC-verify-product-choice-authority/scorecard.md#promotion-and-ask-before-edit-follow-up) records the packaged changes and 12 Claude trials on the open recovery decision.

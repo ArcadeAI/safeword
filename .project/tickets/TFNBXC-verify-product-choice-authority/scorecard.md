@@ -308,3 +308,20 @@ The open shipping case asks whether a clerk should use the carrier portal or tak
 Within each feature and each handbook, guide reads were 6/6, delegated decisions were 3/3 and open questions were 3/3. Codex loaded skills by reading their native `SKILL.md` files. We checked the actual tool output and event order. Every open spec matched its original bytes and no open run recorded a file edit. All delegated plans documented a policy and its rationale. Every telescope plan selected an equal-chance draw; shipping plans varied in how the clerk recovered from an uncertain purchase. These fixtures showed no measurable routing gain or regression for Codex. The earlier handbook was already at ceiling on these particular prompts; the ambiguous “settle the remaining point” prompt was outside this comparison.
 
 All 24 scored trials had completed turns, expected model and bundle receipts, and individual cost records. Twelve other launches ended in workspace-routing failure during a network interruption, with no assistant message, completed turn or spend receipt. One telescope replacement produced a decision but stopped on unpriced usage before emitting a completed turn. A fresh trial replaced it. Estimated cost was **$2.39** for the scored set ($1.24 earlier, $1.14 candidate, rounded separately). The interrupted metered attempt recorded a partial **$0.16**, bringing the recorded estimate across attempts to **$2.55**; exact spend across all attempts is unavailable. No trial created an observed draft PR, reached independent review or needed a live operator reply. Private native traces, grading, plans, exclusions and activity reports live in `experiments/harbor/jobs/TFNBXC-codex-resume-comparison/`.
+
+## Promotion and ask-before-edit follow-up
+
+The intake PR promotes the resume-handbook sentence and the decision-routing paragraph together. The eight handbook and intake-guide copies across the Claude and Codex plugin bundles matched the frozen Harbor candidate byte for byte. A fresh Codex shipping smoke test on the promotion build read intake, invoked `elicit`, asked about the recovery tradeoff and left the original spec intact. The integration with main regenerated the lifecycle snapshots and plugin manifests. All 755 files of the resulting archived plugin bundle matched the committed tree.
+
+The previously observed Claude failure was concrete: it wrote a new R2 prescribing portal recovery, labeled the policy a draft, and then asked the user who should buy the missing label. The earlier handbook also produced a run that recorded close-first as decided before the user had accepted manual recovery. For this follow-up, a written rule selecting a user-owned outcome before an answer counts as premature, including a rule labeled draft. Reading files, proposing a recommendation in chat, and listing genuinely unresolved options are permissible. Skill activation is a separate measure.
+
+We compared the promoted wording with one experimental addition telling the author to ask in chat and wait for an answer before writing even a draft Rule. The same shipping ticket, open and delegated prompts, pinned Claude Opus 5.5 and $3 cap were used in 12 interleaved first-decision trials.
+
+| Behavior | Promoted wording | Explicit waiting instruction |
+| --- | ---: | ---: |
+| Asked for a concrete recovery choice before writing a rule when open | 3/3 | 3/3 |
+| Invoked `elicit` when open | 1/3 | 3/3 |
+| Recorded a reasoned choice when delegated | 3/3 | 3/3 |
+| Invoked `figure-it-out` when delegated | 2/3 | 3/3 |
+
+Both groups left every open spec byte-identical through the question. The stronger instruction produced more skill calls in this sample. The premature-edit failure did not recur in the concurrent control, so the experiment does not establish a reduction in that failure. Keep the additional sentence experimental. Estimated spend was **$3.77** for all 12 trials, each with a terminal usage receipt. Private traces and rule-order grading are under `experiments/harbor/jobs/TFNBXC-ask-before-rule/`.

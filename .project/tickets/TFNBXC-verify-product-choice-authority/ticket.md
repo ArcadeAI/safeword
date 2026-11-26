@@ -66,3 +66,5 @@ The [Claude resume-handbook comparison](./scorecard.md#reopening-the-intake-guid
 The [telescope holdout](./scorecard.md#resuming-a-telescope-scheduling-feature) reproduced the resume-guide effect on a second feature.
 
 The [matched Codex comparison](./scorecard.md#codex-on-both-handbook-versions) recorded 24 scored shipping and telescope trials.
+
+The [promotion and ask-before-edit follow-up](./scorecard.md#promotion-and-ask-before-edit-follow-up) records the packaged changes and 12 Claude trials on the open recovery decision.
