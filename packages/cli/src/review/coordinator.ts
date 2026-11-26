@@ -144,12 +144,14 @@ function canFundRoute(runDeadline: number): boolean {
   return runDeadline - Date.now() >= minimumRouteMs();
 }
 
+type ProvenanceVerifiedOutput = ReviewerOutput & { readonly reviewer_agent: ReviewAgent };
+
 function verifyProvenance(
   output: UnverifiedReviewerOutput,
   assignedReviewer: ReviewAgent,
   dispatchId: string,
 ):
-  | { readonly kind: 'verified'; readonly output: ReviewerOutput }
+  | { readonly kind: 'verified'; readonly output: ProvenanceVerifiedOutput }
   | {
       readonly kind: 'failed';
       readonly code: 'REVIEWER_PROVENANCE_MISSING' | 'REVIEWER_PROVENANCE_CONTRADICTORY';
@@ -165,7 +167,7 @@ function verifyProvenance(
   if (output.reviewer_agent !== assignedReviewer || output.dispatch_id !== dispatchId) {
     return { kind: 'failed', code: 'REVIEWER_PROVENANCE_CONTRADICTORY' };
   }
-  return { kind: 'verified', output: output as ReviewerOutput };
+  return { kind: 'verified', output: output as ProvenanceVerifiedOutput };
 }
 
 /** Every request behind an independent result, in the order the routes ran. */
@@ -374,7 +376,7 @@ function assessReviewOutcome(
 ):
   | {
       readonly kind: 'completed';
-      readonly output: ReviewerOutput;
+      readonly output: ProvenanceVerifiedOutput;
       readonly confirmedModel?: ConfirmedReviewerModel;
     }
   | { readonly kind: 'failed'; readonly failure: ReviewFailure; readonly terminal: boolean } {
