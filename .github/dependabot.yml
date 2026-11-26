@@ -15,7 +15,6 @@ updates:
     groups:
       bun-minor-patch:
         patterns: ['*']
-        exclude-patterns: ['@openai/codex']
         update-types: ['minor', 'patch']
 
   - package-ecosystem: 'pip'
