@@ -1,0 +1,3 @@
+{"event":"hook-start","time":1792986903853,"cwd":"/tmp/safeword-go-context-probe-qzQDF6","timeout":1000,"load":[5.0537109375,5.55029296875,4.85693359375]}
+{"event":"kill-request","time":1792986904858,"signal":15,"elapsed":1004,"stack":"Error\n    at child.kill (/Users/alex/.local/state/safeword/production-red-gate-B9M6FY/go-timeout-debug-20261025/preload.cjs:19:74)\n    at kill (node:child_process:448:13)\n    at Timeout.delayedKill [as _onTimeout] (node:child_process:457:7)\n    at listOnTimeout (node:internal/timers:605:17)\n    at process.processTimers (node:internal/timers:541:7)"}
+{"event":"hook-close","time":1792986904862,"elapsed":1009,"code":null,"signal":"SIGTERM","killed":true,"stdout":"","stderr":"","load":[5.0537109375,5.55029296875,4.85693359375]}

@@ -11,6 +11,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
+import { inspect } from 'node:util';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -27,6 +28,10 @@ import {
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '../..');
 const roots: string[] = [];
+
+function isNonzeroExit(status: number | null): boolean {
+  return typeof status === 'number' && status !== 0;
+}
 
 function generatedSourceSnapshot() {
   return ['review', 'planning'].flatMap(directory => {
@@ -169,7 +174,9 @@ describe('Complete native planning author-copy dispatch', () => {
           },
         },
       );
-      expect(generation.status, `${generation.stdout}\n${generation.stderr}`).toBe(0);
+      expect(generation.status, inspect(generation, { depth: 2, maxStringLength: Infinity })).toBe(
+        0,
+      );
       expect(
         generatedSourceSnapshot(),
         'native generation must not rewrite source contracts',
@@ -221,7 +228,7 @@ describe('Complete native planning author-copy dispatch', () => {
           },
         );
       const canonical = run();
-      expect(canonical.status, `${canonical.stdout}\n${canonical.stderr}`).toBe(0);
+      expect(canonical.status, inspect(canonical, { depth: 2, maxStringLength: Infinity })).toBe(0);
       expect(JSON.parse(canonical.stdout)).toMatchObject({
         data: {
           status: 'approved',
@@ -249,7 +256,10 @@ describe('Complete native planning author-copy dispatch', () => {
         `<!-- Native copy drift outside the rubric -->\n${original.toString('utf8')}`,
       );
       const edited = run();
-      expect(edited.status, `${edited.stdout}\n${edited.stderr}`).not.toBe(0);
+      expect(
+        isNonzeroExit(edited.status),
+        inspect(edited, { depth: 2, maxStringLength: Infinity }),
+      ).toBe(true);
       expect(JSON.parse(edited.stdout)).toMatchObject({
         data: { status: 'blocked' },
         findings: expect.arrayContaining([
@@ -265,7 +275,10 @@ describe('Complete native planning author-copy dispatch', () => {
       ).toBe('review\n');
       rmSync(asset);
       const missing = run();
-      expect(missing.status, `${missing.stdout}\n${missing.stderr}`).not.toBe(0);
+      expect(
+        isNonzeroExit(missing.status),
+        inspect(missing, { depth: 2, maxStringLength: Infinity }),
+      ).toBe(true);
       expect(JSON.parse(missing.stdout).data.status).toBe('blocked');
       expect(JSON.parse(missing.stdout).findings).toContainEqual(
         expect.objectContaining({
@@ -276,7 +289,7 @@ describe('Complete native planning author-copy dispatch', () => {
       expect(readFileSync(reviewer.calls, 'utf8')).toBe('review\n');
       writeFileSync(asset, original);
       const restored = run();
-      expect(restored.status, `${restored.stdout}\n${restored.stderr}`).toBe(0);
+      expect(restored.status, inspect(restored, { depth: 2, maxStringLength: Infinity })).toBe(0);
       expect(JSON.parse(restored.stdout).data.status).toBe('approved');
       expect(readFileSync(reviewer.calls, 'utf8')).toBe('review\nreview\n');
     },

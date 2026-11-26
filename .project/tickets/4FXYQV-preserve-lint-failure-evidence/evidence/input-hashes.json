@@ -1,0 +1,4 @@
+{
+  "packages/cli/tests/helpers.ts": "13c3d46a78b5f4b8dd966aa95938368ba71e1df7d3de57c192c915d95baff860",
+  "packages/cli/tests/lint-hook-result.test.ts": "4df5256131a4f8f0795e0b4eff7b55db7fb242c9da6894603094a9d2f64c2d08"
+}

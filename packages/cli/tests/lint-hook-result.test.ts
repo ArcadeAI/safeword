@@ -39,6 +39,44 @@ describe('assertLintHookSucceeded', () => {
     ).toThrow('Lint hook failed to start');
   });
 
+  it.each([
+    {
+      failure: 'timeout',
+      result: {
+        error: Object.assign(new Error('spawnSync bash ETIMEDOUT'), { code: 'ETIMEDOUT' }),
+        // eslint-disable-next-line unicorn/no-null -- Node reports null status on timeout.
+        status: null,
+        signal: 'SIGKILL' as const,
+      },
+      reason: 'Lint hook timed out: spawnSync bash ETIMEDOUT',
+    },
+    {
+      failure: 'startup error',
+      result: {
+        error: Object.assign(new Error('startup message mentions ETIMEDOUT'), {
+          code: 'ENOENT',
+        }),
+      },
+      reason: 'Lint hook failed to start: startup message mentions ETIMEDOUT',
+    },
+    {
+      failure: 'unsuccessful exit',
+      result: { status: 2 },
+      reason: 'Lint hook exited with status 2',
+    },
+  ])('preserves captured output on $failure', ({ result, reason }) => {
+    const failedHook = hookResult('completed ESLint fix', {
+      ...result,
+      stderr: 'checking remaining errors',
+    });
+
+    expect(() => assertLintHookSucceeded(failedHook)).toThrow(
+      expect.objectContaining({
+        message: `${reason}\nstdout: completed ESLint fix\nstderr: checking remaining errors`,
+      }),
+    );
+  });
+
   it.each([2, undefined])('rejects an unsuccessful hook status: %s', status => {
     expect(() => assertLintHookSucceeded(hookResult('', { status }))).toThrow(
       'Lint hook exited with status',
