@@ -39,7 +39,7 @@
   },
   "devDependencies": {
     "@cucumber/cucumber": "13.3.0",
-    "@openai/codex": "0.160.0",
+    "@openai/codex": "0.171.0",
     "@types/node": "^26.6.6",
     "dependency-cruiser": "18.8.0",
     "eslint": "^10.10.0",
