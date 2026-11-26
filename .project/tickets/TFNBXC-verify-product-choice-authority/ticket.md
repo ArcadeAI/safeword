@@ -6,7 +6,7 @@ epic: 3TJD0A
 phase: done
 status: done
 created: 2026-11-26T16:19:57.264Z
-last_modified: 2026-11-26T18:02:52Z
+last_modified: 2026-11-26T18:12:58Z
 ---
 
 # Catch unapproved product choices before feature intake closes
@@ -50,3 +50,5 @@ The [author pilot](./scorecard.md#author-pilot-asking-before-writing-a-recovery-
 The [request-first reviewer experiment](./scorecard.md#request-first-reviewer-experiment) improved CSV results and still missed every open café choice. Retain the single-pass default.
 
 The [single-pass interruption question](./scorecard.md#single-pass-interruption-and-retry-question) missed every open café choice. Retain the current rubric.
+
+The [paired café plan reversal](./scorecard.md#café-plan-reversal) showed that reviewers blocked missing authorization much more often for removal before announcement.

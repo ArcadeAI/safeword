@@ -158,3 +158,22 @@ Some Codex findings distinguished what happens to the original submission when t
 The 120 primary verdicts and 60 follow-up verdicts have confirmed model and dispatch identities. Product base `1d88d7098`; pinned reviewers Claude Opus 5.5 and GPT-6.2 Sol; $3 per-review cap. One follow-up call timed out and its replacement completed. Metered estimates sum to **$11.00** for 179 completed calls. The timed-out call and one completed primary Codex verdict lack final usage receipts, so total spend is unknown. We retained the valid Codex verdict. The private frozen packets, rubric variants, blinded finding annotations, receipts and per-trial results are in `experiments/harbor/jobs/TFNBXC-interruption/` in the Harbor infrastructure worktree.
 
 A diagnostic follow-up would keep the café request silent and reverse only the draft's recovery rule. If reviewers block one direction but approve the other, that supports testing whether they treat their own preferred default as user authorization.
+
+## Café plan reversal
+
+The current reviewers treated the two crash policies differently. When the request left the decision open, they blocked the plan on missing user authorization **0/12** times for announcing first and **9/12** for removing first. These counts combine the silent request and the request delegating only command names and storage. In the strictly silent subset the rates were **0/6** and **4/6**.
+
+| Reason for a block | Announce first | Remove first |
+| --- | ---: | ---: |
+| Claude identified missing authorization for the crash choice | 0/6 | 3/6 |
+| Codex identified missing authorization for the crash choice | 0/6 | 6/6 |
+
+On the open cases, ten announce-first plans were approved, and two were blocked for other issues. Three remove-first plans were approved, including two that recommended asking the user. A warning that allows work to proceed earns no blocking credit. The two unrelated announce-first objections concerned durability after a machine reset and retrying after both the announcement and removal had already completed.
+
+**Controls.** Reviewers flagged all 12 plans that contradicted an explicit user choice, in both directions. Eleven of the 12 plans matching the user's choice were approved. Ten of 12 plans with explicitly delegated crash policy were approved. The other three blocks across those two controls concerned the exit status if terminal output failed. They did not ask the user to choose a crash policy again.
+
+**Interpretation.** Announce-first risks calling the same party twice. Remove-first risks staff never hearing the name of someone already removed. Several remove-first findings cited the user's phrase “remove the called party” and the absence of a way to recover a skipped party. This demonstrates sensitivity to which outcome the plan chooses in this fixture. It does not distinguish a general preference for protecting against loss from a reasonable reading of this particular request. A follow-up could vary only the wording that implies a sequence and repeat the paired comparison.
+
+**Method.** Base `410355a5d`, current single-pass rubric, pinned Claude Opus 5.5 and Codex GPT-6.2 Sol. For this matched pair, shared inventory and cross-references were made neutral in both drafts. The serialized spec files then differed by exactly one line, Rule R3, which described the two orders and their respective failure and retry outcomes. The surrounding ticket, request and other packet context were identical within each pair. Each model received each plan in isolation for three repeats under five request conditions. Scoring used the finding text and distinguished an authority objection from an implementation issue. This was a diagnostic on one feature without a production prompt change.
+
+All 60 scored verdicts have matching dispatch and model identity. Measured spend was **$3.56** across 59 verdicts. One additional completed verdict and one timed-out attempt lacked final cost receipts. The timeout was retried. Private frozen packets, condition definitions, receipt logs and verdict annotations are under `experiments/harbor/jobs/TFNBXC-policy-reversal/` in the Harbor infrastructure worktree.
