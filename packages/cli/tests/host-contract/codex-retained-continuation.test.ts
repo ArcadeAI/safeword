@@ -56,6 +56,9 @@ if (process.argv.includes('--version')) { console.log('codex-cli 0.167.0'); proc
 const plugin = ${JSON.stringify(installedPath)};
 const prompt = process.argv.at(-1);
 const marker = /Reply only (FINISH_[a-f0-9-]+)/.exec(prompt)?.[1];
+if (marker && !prompt.includes("run exactly cat '" + path.join(plugin,'resources/SAFEWORD.md') + "' once before replying.")) {
+ throw Error('Continuation prompt must allow the exact installed startup handbook read');
+}
 const fault = marker ? ${JSON.stringify(fault)} : 'none';
 console.log(JSON.stringify({type:'thread.started',thread_id:'retained-thread'}));
 function stop(active, text) {

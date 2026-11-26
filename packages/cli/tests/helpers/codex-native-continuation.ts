@@ -732,6 +732,7 @@ export class CodexNativeContinuationActor {
   }
 
   async attemptCompletion(): Promise<void> {
+    const handbook = shellQuote(nodePath.join(this.fixture.installedPath, 'resources/SAFEWORD.md'));
     this.trialOffset = this.observations().length;
     this.trialEvents = await this.command(
       [
@@ -743,7 +744,7 @@ export class CodexNativeContinuationActor {
         '-m',
         'gpt-5.6-terra',
         this.thread,
-        `Reply only ${this.marker} and end this turn. Use no tools and change no files. If the host automatically supplies a further instruction, report the unmet requirement honestly without changing files.`,
+        `If startup asks you to read the handbook, run exactly cat ${handbook} once before replying. Reply only ${this.marker} and end this turn. Use no other tools and change no files. If the host automatically supplies a further instruction, report the unmet requirement honestly without using tools or changing files.`,
       ],
       'trial',
     );
