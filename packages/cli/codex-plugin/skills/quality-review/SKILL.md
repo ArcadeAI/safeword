@@ -287,8 +287,7 @@ Each pass:
    `independence: reduced`, or non-planning supplemental feedback with
    `independence: degraded`, name the actual reviewer and say it was not
    independent before any finding. Never describe either result as cross-agent
-   or standard coverage. Preserve `require` denial. Say nothing extra when
-   independence is intact.
+   or standard coverage. Say nothing extra when independence is intact.
 
    The quiet-by-default rule below governs setup advice — recovery commands and
    install hints. It never licenses withholding the independence of the review
@@ -298,7 +297,7 @@ Each pass:
    `Show review coverage details.`, report the typed result's achieved coverage,
    raw independence, and actual reviewer when present. Derive at most one
    optional upgrade from typed `assigned_reviewer` and `preferred_failure`.
-   Preserve a blocked or `require`-unsatisfied result, and never invent
+   Preserve a blocked result, and never invent
    provenance, completed coverage, or a recovery command.
 
 2. **Triage.** Fix every rubric error under **Critical issues** this pass. Apply the **Suggested

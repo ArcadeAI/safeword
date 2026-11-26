@@ -46,8 +46,10 @@ describe('E2E: Conditional Setup - Slow Framework Detection', () => {
 
       const eslintConfig = readTestFile(projectDirectory, 'eslint.config.mjs');
       expect(eslintConfig).toContain('safeword/eslint"');
-      expect(eslintConfig).toContain('astro: [...configs.recommendedTypeScript, ...configs.astro]');
-      expect(eslintConfig).toContain('baseConfigs[framework]');
+      expect(eslintConfig).toContain(
+        '["astro", [...configs.recommendedTypeScript, ...configs.astro]]',
+      );
+      expect(eslintConfig).toContain('baseConfigs.get(framework)');
       expect(eslintConfig).toContain('detect.getIgnores()');
 
       const pkg = JSON.parse(readTestFile(projectDirectory, 'package.json'));
@@ -77,7 +79,7 @@ describe('E2E: Conditional Setup - Slow Framework Detection', () => {
       const eslintConfig = readTestFile(projectDirectory, 'eslint.config.mjs');
       expect(eslintConfig).toContain('safeword/eslint"');
       expect(eslintConfig).toContain('...configs.vitest');
-      expect(eslintConfig).toContain('baseConfigs[framework]');
+      expect(eslintConfig).toContain('baseConfigs.get(framework)');
 
       const pkg = JSON.parse(readTestFile(projectDirectory, 'package.json'));
       expect(pkg.devDependencies).toHaveProperty('safeword');

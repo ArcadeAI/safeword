@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   createSafewordContextResponse,
+  MissingPackagedHandbookError,
+  needsSafewordContext,
   readSafewordContext,
 } from '../../templates/hooks/lib/safeword-context.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
@@ -31,10 +33,10 @@ describe('Safeword standing context authority', () => {
       .hookSpecificOutput.additionalContext;
 
     expect(context.indexOf('.project/')).toBeGreaterThanOrEqual(0);
-    expect(context.indexOf('.safeword/guides/')).toBeGreaterThanOrEqual(0);
     expect(context).toMatch(/supersed|ignore/i);
-    expect(context).toContain('.safeword/SAFEWORD.md');
-    expect(context).toMatch(/before non-trivial work/i);
+    expect(context).toContain(
+      `First, Read \`${nodePath.resolve(root, '.safeword/SAFEWORD.md')}\` in full, even for trivial requests or right after compaction; a summary or earlier read does not count.`,
+    );
     expect(context).not.toContain('# Full standing instructions');
     expect(context.length).toBeLessThanOrEqual(1000);
 
@@ -67,7 +69,9 @@ describe('Safeword standing context authority', () => {
     try {
       const context = readSafewordContext(root);
 
-      expect(context).toContain('the packaged Safeword handbook');
+      expect(context).toBe(
+        `First, Read \`${packagedHandbook}\` in full, even for trivial requests or right after compaction; a summary or earlier read does not count.`,
+      );
       expect(context).not.toContain('.safeword/SAFEWORD.md');
       expect(context).not.toContain('Package-only detail');
       expect(context?.length).toBeLessThanOrEqual(1000);
@@ -78,5 +82,73 @@ describe('Safeword standing context authority', () => {
         process.env.SAFEWORD_PACKAGED_CONTEXT_PATH = previousPath;
       }
     }
+  });
+
+  it.each([
+    ['missing', false],
+    ['empty', true],
+  ])(
+    'fails loudly in plugin mode when the packaged handbook is %s, never naming the project copy',
+    (_label, writesEmptyFile) => {
+      const root = createTemporaryDirectory();
+      roots.push(root);
+      mkdirSync(nodePath.join(root, '.safeword'), { recursive: true });
+      writeFileSync(nodePath.join(root, '.safeword/SAFEWORD.md'), '# Stale project copy\n');
+      const packagedHandbook = nodePath.join(root, 'plugin/resources/SAFEWORD.md');
+      if (writesEmptyFile) {
+        mkdirSync(nodePath.dirname(packagedHandbook), { recursive: true });
+        writeFileSync(packagedHandbook, '  \n');
+      }
+
+      const previousPath = process.env.SAFEWORD_PACKAGED_CONTEXT_PATH;
+      process.env.SAFEWORD_PACKAGED_CONTEXT_PATH = packagedHandbook;
+      try {
+        let thrown: unknown;
+        try {
+          readSafewordContext(root);
+        } catch (error) {
+          thrown = error;
+        }
+
+        expect(thrown).toBeInstanceOf(MissingPackagedHandbookError);
+        const message = (thrown as Error).message;
+        expect(message).toContain(packagedHandbook);
+        expect(message).not.toContain('.safeword/SAFEWORD.md');
+      } finally {
+        if (previousPath === undefined) {
+          delete process.env.SAFEWORD_PACKAGED_CONTEXT_PATH;
+        } else {
+          process.env.SAFEWORD_PACKAGED_CONTEXT_PATH = previousPath;
+        }
+      }
+    },
+  );
+
+  it('keeps the project handbook for legacy installs that carry no packaged path', () => {
+    const root = createTemporaryDirectory();
+    roots.push(root);
+    mkdirSync(nodePath.join(root, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(root, '.safeword/SAFEWORD.md'), '# Project handbook\n');
+
+    const previousPath = process.env.SAFEWORD_PACKAGED_CONTEXT_PATH;
+    process.env.SAFEWORD_PACKAGED_CONTEXT_PATH = '';
+    try {
+      expect(readSafewordContext(root)).toContain(
+        `\`${nodePath.resolve(root, '.safeword/SAFEWORD.md')}\``,
+      );
+    } finally {
+      if (previousPath === undefined) {
+        delete process.env.SAFEWORD_PACKAGED_CONTEXT_PATH;
+      } else {
+        process.env.SAFEWORD_PACKAGED_CONTEXT_PATH = previousPath;
+      }
+    }
+  });
+
+  it('re-instructs the read at startup, clear and compaction but not on resume', () => {
+    for (const source of ['startup', 'clear', 'compact', undefined]) {
+      expect(needsSafewordContext({ source })).toBe(true);
+    }
+    expect(needsSafewordContext({ source: 'resume' })).toBe(false);
   });
 });

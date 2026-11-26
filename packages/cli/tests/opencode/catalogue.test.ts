@@ -92,7 +92,8 @@ describe('OpenCode profile catalogue', () => {
       {
         cwd: project,
         noInput: true,
-        offline: false,
+        // Catalogue installation does not require development-package downloads.
+        offline: true,
         operands: [],
         options: { agents: 'opencode' },
       },

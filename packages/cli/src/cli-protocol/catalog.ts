@@ -770,7 +770,23 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       environment: MACHINE_ENVIRONMENT,
     },
   }),
-  command('review gate retrospective', 'Check CKWE2D retrospective receipts', 'observe', {
+  command(
+    'review observe retrospective',
+    'Observe isolated historical Electron proof without granting credit',
+    'mutate',
+    {
+      syntax: 'retrospective',
+      networkPolicy: 'declared',
+      commandOptions: [
+        { flags: '--request <path>', description: 'Contained committed typed proof request' },
+      ],
+      fixture: {
+        argv: ['review', 'observe', 'retrospective', '--request', 'missing.request.json'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
+  command('review gate retrospective', 'Check approved legacy proof receipts', 'observe', {
     syntax: 'retrospective',
     commandOptions: [
       { flags: '--ticket <id>', description: 'Ticket claiming retrospective completion' },
@@ -800,9 +816,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   }),
   command(
     'review attest retrospective',
-    'Replay one CKWE2D proof before checking its row',
+    'Replay one approved legacy proof before checking its row',
     'mutate',
     {
+      networkPolicy: 'declared',
       syntax: 'retrospective',
       commandOptions: [
         { flags: '--ticket <id>', description: 'Ticket claiming retrospective completion' },
@@ -831,44 +848,55 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       },
     },
   ),
-  command('review attest retrospective-close', 'Replay CKWE2D proofs for closing', 'mutate', {
-    syntax: 'retrospective-close',
-    commandOptions: [
-      { flags: '--ticket <id>', description: 'Ticket claiming retrospective completion' },
-      { flags: '--ledger <path>', description: 'Project-relative scenario ledger' },
-    ],
-    fixture: {
-      argv: [
-        'review',
-        'attest',
-        'retrospective-close',
-        '--ticket',
-        'OTHER1',
-        '--ledger',
-        '.project/tickets/OTHER1/test-definitions.md',
+  command(
+    'review attest retrospective-close',
+    'Replay approved legacy proofs for closing',
+    'mutate',
+    {
+      networkPolicy: 'declared',
+      syntax: 'retrospective-close',
+      commandOptions: [
+        { flags: '--ticket <id>', description: 'Ticket claiming retrospective completion' },
+        { flags: '--ledger <path>', description: 'Project-relative scenario ledger' },
       ],
-      environment: MACHINE_ENVIRONMENT,
+      fixture: {
+        argv: [
+          'review',
+          'attest',
+          'retrospective-close',
+          '--ticket',
+          'OTHER1',
+          '--ledger',
+          '.project/tickets/OTHER1/test-definitions.md',
+        ],
+        environment: MACHINE_ENVIRONMENT,
+      },
     },
-  }),
-  command('review gate retrospective-close', 'Check current CKWE2D closing proof', 'observe', {
-    syntax: 'retrospective-close',
-    commandOptions: [
-      { flags: '--ticket <id>', description: 'Ticket claiming retrospective completion' },
-      { flags: '--ledger <path>', description: 'Project-relative scenario ledger' },
-    ],
-    fixture: {
-      argv: [
-        'review',
-        'gate',
-        'retrospective-close',
-        '--ticket',
-        'OTHER1',
-        '--ledger',
-        '.project/tickets/OTHER1/test-definitions.md',
+  ),
+  command(
+    'review gate retrospective-close',
+    'Check the current approved legacy closing proof',
+    'observe',
+    {
+      syntax: 'retrospective-close',
+      commandOptions: [
+        { flags: '--ticket <id>', description: 'Ticket claiming retrospective completion' },
+        { flags: '--ledger <path>', description: 'Project-relative scenario ledger' },
       ],
-      environment: MACHINE_ENVIRONMENT,
+      fixture: {
+        argv: [
+          'review',
+          'gate',
+          'retrospective-close',
+          '--ticket',
+          'OTHER1',
+          '--ledger',
+          '.project/tickets/OTHER1/test-definitions.md',
+        ],
+        environment: MACHINE_ENVIRONMENT,
+      },
     },
-  }),
+  ),
   command('review cancel', 'Cancel a durable independent review', 'mutate', {
     syntax: 'cancel [review-id]',
     fixture: {
@@ -1152,6 +1180,10 @@ const HIDDEN_COMMANDS: readonly CommandDefinition[] = [
   },
   hidden('hook go-lint', {
     commandOptions: [
+      {
+        flags: '--no-fix',
+        description: 'Report formatting differences and disable configured source fixes',
+      },
       { flags: '--file <path>', description: 'Edited Go file' },
       { flags: '--project-root <path>', description: 'Canonical Safeword project root' },
       {
@@ -1208,6 +1240,11 @@ export const commandFamilies = [
   { route: 'claude', description: 'Manage the Safeword Claude plugin', visibility: 'public' },
   { route: 'ticket', description: 'Manage project tickets', visibility: 'public' },
   { route: 'review', description: 'Run independent adversarial reviews', visibility: 'public' },
+  {
+    route: 'review observe',
+    description: 'Observe scoped executable evidence',
+    visibility: 'public',
+  },
   { route: 'review attest', description: 'Attest reviewed evidence', visibility: 'public' },
   { route: 'review gate', description: 'Check review admission gates', visibility: 'public' },
   { route: 'review routes', description: 'Manage ranked review routes', visibility: 'public' },

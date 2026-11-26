@@ -1,0 +1,363 @@
+/**
+ * Integration: on Codex, closing a ticket by edit still owes the Stop done gate (#5633)
+ *
+ * Drives the real `safeword hook codex post-tool-use` with a patch that flips a
+ * task ticket to `status: done`, then the real `safeword hook codex stop`.
+ * PostToolUse records the close under the Codex run identity; Codex Stop must
+ * run the done gate for it under that same identity — whether the identity
+ * comes from the payload's session_id or, when Codex omits it, CODEX_THREAD_ID.
+ *
+ * The fixture's test script appends a line to a counter file on every run, so
+ * the counter proves exactly how many times the done gate ran its tests.
+ */
+
+import { execFileSync, execSync, spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+
+import {
+  createTemporaryDirectory,
+  createTypeScriptPackageJson,
+  initGitRepo,
+  INSTALL_DEPENDENCIES_ENV,
+  removeTemporaryDirectory,
+  setupOrThrow,
+  testCliPath,
+  writeTestFile,
+} from '../helpers.js';
+
+const fixture: { projectDirectory: string; setupCommit: string } = {
+  projectDirectory: '',
+  setupCommit: '',
+};
+
+const COUNTER_FILE = 'test-runs.txt';
+const EXIT_CODE_FILE = 'test-exit-code.txt';
+
+beforeAll(async () => {
+  fixture.projectDirectory = createTemporaryDirectory();
+  createTypeScriptPackageJson(fixture.projectDirectory, {
+    scripts: { test: 'sh ./count-test-run.sh' },
+  });
+  writeTestFile(
+    fixture.projectDirectory,
+    'count-test-run.sh',
+    `echo run >> ${COUNTER_FILE}\nexit "$(cat ${EXIT_CODE_FILE})"\n`,
+  );
+  writeTestFile(fixture.projectDirectory, '.gitignore', `${COUNTER_FILE}\n${EXIT_CODE_FILE}\n`);
+  initGitRepo(fixture.projectDirectory);
+  git(fixture.projectDirectory, 'config gc.auto 0');
+  git(fixture.projectDirectory, 'config maintenance.auto false');
+  await setupOrThrow(fixture.projectDirectory, ['setup', '--yes'], {
+    env: INSTALL_DEPENDENCIES_ENV,
+  });
+  // Silence the unrelated decision-brief correction, so a Stop the owed gate
+  // allows must answer with no continuation at all.
+  const configPath = nodePath.join(fixture.projectDirectory, '.safeword/config.json');
+  const config = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
+  writeFileSync(configPath, JSON.stringify({ ...config, terminalHandoffCorrection: false }));
+  git(fixture.projectDirectory, 'add -A');
+  git(fixture.projectDirectory, 'commit -q --no-verify -m setup');
+  fixture.setupCommit = execSync('git rev-parse HEAD', {
+    cwd: fixture.projectDirectory,
+    encoding: 'utf8',
+  }).trim();
+});
+
+afterEach(() => {
+  git(fixture.projectDirectory, `reset -q --hard ${fixture.setupCommit}`);
+  git(fixture.projectDirectory, 'clean -q -fd');
+});
+
+afterAll(() => {
+  if (fixture.projectDirectory) removeTemporaryDirectory(fixture.projectDirectory);
+});
+
+function git(directory: string, arguments_: string): void {
+  execSync(`git ${arguments_}`, { cwd: directory, stdio: 'pipe' });
+}
+
+function setTestExitCode(directory: string, code: number): void {
+  writeFileSync(nodePath.join(directory, EXIT_CODE_FILE), `${code}\n`);
+}
+
+function testRunCount(directory: string): number {
+  const counter = nodePath.join(directory, COUNTER_FILE);
+  if (!existsSync(counter)) return 0;
+  return readFileSync(counter, 'utf8').split('\n').filter(Boolean).length;
+}
+
+function ticketMarkdown(ticketId: string, status: string, phase: string): string {
+  return `---\nid: ${ticketId}\ntype: task\nphase: ${phase}\nstatus: ${status}\nlast_modified: 2026-01-06T10:00:00Z\n---\n# Task ${ticketId}\n`;
+}
+
+/** Commit an in_progress task ticket with a valid verify.md. */
+function commitTaskTicket(directory: string, ticketId: string): string {
+  const folder = `.project/tickets/${ticketId}`;
+  writeTestFile(
+    directory,
+    `${folder}/ticket.md`,
+    ticketMarkdown(ticketId, 'in_progress', 'implement'),
+  );
+  writeTestFile(
+    directory,
+    `${folder}/verify.md`,
+    '# Verify\n\n**PR Scope:** ✅ Diff matches ticket scope\n',
+  );
+  git(directory, `add "${folder}"`);
+  git(directory, `commit -q --no-verify -m "ticket ${ticketId}"`);
+  return nodePath.join(directory, folder, 'ticket.md');
+}
+
+/**
+ * How Codex identifies the run: in the payload's session_id, or — when Codex
+ * Desktop omits it — only through CODEX_THREAD_ID in the hook environment.
+ */
+interface CodexRun {
+  pluginHook?: boolean;
+  payload: { session_id?: string };
+  env: Record<string, string>;
+}
+
+const RUNS: Record<string, (id: string) => CodexRun> = {
+  'payload session_id': id => ({ payload: { session_id: id }, env: {} }),
+  'CODEX_THREAD_ID only': id => ({ payload: {}, env: { CODEX_THREAD_ID: id } }),
+};
+
+// Only the run under test may supply an identity: an ambient Claude or Codex id
+// leaking in from the harness would mask the missing-session_id case.
+function codexEnvironment(directory: string, run: CodexRun): NodeJS.ProcessEnv {
+  const environment: NodeJS.ProcessEnv = { ...process.env, CLAUDE_PROJECT_DIR: directory };
+  delete environment.CLAUDE_SESSION_ID;
+  delete environment.CLAUDE_CODE_SESSION_ID;
+  delete environment.CODEX_THREAD_ID;
+  delete environment.SAFEWORD_AGENT_RUNTIME;
+  return Object.assign(environment, run.env);
+}
+
+function runCodexHook(
+  directory: string,
+  run: CodexRun,
+  event: 'post-tool-use' | 'stop',
+  payload: Record<string, unknown>,
+): string {
+  const args = [testCliPath, 'hook', 'codex', event];
+  if (run.pluginHook) args.push('--plugin-hook');
+  const result = spawnSync(process.execPath, args, {
+    cwd: directory,
+    input: JSON.stringify({ ...run.payload, cwd: directory, ...payload }),
+    env: codexEnvironment(directory, run),
+    encoding: 'utf8',
+  });
+  expect(result.status, result.stderr).toBe(0);
+  return result.stdout;
+}
+
+/** Report a native Codex apply_patch event for the ticket close. */
+function closeThroughCodexPostToolUse(directory: string, run: CodexRun, ticketFile: string): void {
+  const before = readFileSync(ticketFile, 'utf8');
+  writeFileSync(ticketFile, before.replace('status: in_progress', 'status: done'));
+  runCodexHook(directory, run, 'post-tool-use', {
+    tool_name: 'apply_patch',
+    tool_input: {
+      command: [
+        '*** Begin Patch',
+        `*** Update File: ${nodePath.relative(directory, ticketFile)}`,
+        '@@',
+        '-status: in_progress',
+        '+status: done',
+        '*** End Patch',
+      ].join('\n'),
+    },
+  });
+}
+
+/** Stop; `continuation` is the Stop that follows a Stop hook's own block. */
+function runCodexStop(
+  directory: string,
+  run: CodexRun,
+  continuation = false,
+): { decision?: string; reason?: string } {
+  const stdout = runCodexHook(directory, run, 'stop', { stop_hook_active: continuation });
+  return JSON.parse(stdout.trim()) as { decision?: string; reason?: string };
+}
+
+describe.each(Object.entries(RUNS))(
+  'Codex Stop runs the done gate owed by a close-by-edit (%s)',
+  (_label, makeRun) => {
+    it('verifies the linked ticket after the session returns to its primary checkout', () => {
+      const primary = fixture.projectDirectory;
+      const temporary = createTemporaryDirectory();
+      const linked = nodePath.join(temporary, 'linked');
+      const profile = nodePath.join(temporary, 'profile');
+      const session = makeRun(nodePath.basename(temporary));
+      const other = makeRun(`${nodePath.basename(temporary)}-other`);
+      for (const run of [session, other]) {
+        run.pluginHook = true;
+        Object.assign(run.env, { CLAUDE_PROJECT_DIR: primary, CODEX_HOME: profile });
+      }
+      execFileSync('git', ['worktree', 'add', '--quiet', '--detach', linked], { cwd: primary });
+      try {
+        mkdirSync(nodePath.join(linked, 'node_modules'), { recursive: true });
+        for (const entry of ['.bin', '@cucumber']) {
+          symlinkSync(
+            nodePath.join(primary, 'node_modules', entry),
+            nodePath.join(linked, 'node_modules', entry),
+            'dir',
+          );
+        }
+        setTestExitCode(linked, 1);
+        closeThroughCodexPostToolUse(linked, session, commitTaskTicket(linked, '5467'));
+        // A later edit in the primary checkout supersedes the last-edit pointer.
+        writeTestFile(primary, 'notes.md', 'updated');
+        runCodexHook(primary, session, 'post-tool-use', {
+          tool_name: 'apply_patch',
+          tool_input: {
+            command: '*** Begin Patch\n*** Add File: notes.md\n+updated\n*** End Patch',
+          },
+        });
+        const primaryBaseline = testRunCount(primary);
+        expect(runCodexStop(primary, other)).toEqual({});
+        expect(testRunCount(linked)).toBe(0);
+        expect(runCodexStop(primary, session)).toMatchObject({
+          decision: 'block',
+          reason: expect.stringContaining('Tests failed'),
+        });
+        expect(testRunCount(linked)).toBe(1);
+        setTestExitCode(linked, 0);
+        expect(runCodexStop(primary, session, true)).toEqual({});
+        expect(testRunCount(linked)).toBe(2);
+        expect(runCodexStop(primary, session)).toEqual({});
+        expect(testRunCount(linked)).toBe(2);
+        expect(testRunCount(primary)).toBe(primaryBaseline);
+      } finally {
+        execFileSync('git', ['worktree', 'remove', '--force', linked], { cwd: primary });
+        removeTemporaryDirectory(temporary);
+      }
+    });
+
+    it('blocks the Stop after the close when tests fail', () => {
+      const directory = fixture.projectDirectory;
+      const run = makeRun('thread-block');
+      const ticketFile = commitTaskTicket(directory, '5633');
+      setTestExitCode(directory, 1);
+      const baseline = testRunCount(directory);
+
+      closeThroughCodexPostToolUse(directory, run, ticketFile);
+      const result = runCodexStop(directory, run);
+
+      expect(result.decision).toBe('block');
+      expect(result.reason).toContain('Tests failed');
+      expect(testRunCount(directory)).toBe(baseline + 1);
+    });
+
+    it('keeps the gate owed until every check passes, then settles it', () => {
+      const directory = fixture.projectDirectory;
+      const run = makeRun('thread-retry');
+      const ticketFile = commitTaskTicket(directory, '5634');
+      const verifyFile = nodePath.join(nodePath.dirname(ticketFile), 'verify.md');
+      const verifyContent = readFileSync(verifyFile, 'utf8');
+      setTestExitCode(directory, 1);
+      const baseline = testRunCount(directory);
+
+      closeThroughCodexPostToolUse(directory, run, ticketFile);
+      expect(runCodexStop(directory, run).reason).toContain('Tests failed');
+      expect(runCodexStop(directory, run).reason).toContain('Tests failed');
+      expect(testRunCount(directory)).toBe(baseline + 2);
+
+      setTestExitCode(directory, 0);
+      rmSync(verifyFile);
+      expect(runCodexStop(directory, run).reason).toContain('verify.md');
+      expect(testRunCount(directory)).toBe(baseline + 3);
+
+      writeFileSync(verifyFile, verifyContent);
+      expect(runCodexStop(directory, run)).toEqual({});
+      expect(testRunCount(directory)).toBe(baseline + 4);
+
+      setTestExitCode(directory, 1);
+      expect(runCodexStop(directory, run)).toEqual({});
+      expect(testRunCount(directory)).toBe(baseline + 4);
+    });
+
+    it('still blocks the continuation Stop that follows a failed gate', () => {
+      const directory = fixture.projectDirectory;
+      const run = makeRun('thread-continuation');
+      const ticketFile = commitTaskTicket(directory, '5635');
+      setTestExitCode(directory, 1);
+      const baseline = testRunCount(directory);
+
+      closeThroughCodexPostToolUse(directory, run, ticketFile);
+      expect(runCodexStop(directory, run).reason).toContain('Tests failed');
+      const continuation = runCodexStop(directory, run, true);
+
+      expect(continuation.decision).toBe('block');
+      expect(continuation.reason).toContain('Tests failed');
+      expect(testRunCount(directory)).toBe(baseline + 2);
+    });
+
+    it('runs the next owed gate on the continuation Stop the first one requested', () => {
+      const directory = fixture.projectDirectory;
+      const run = makeRun('thread-two');
+      closeThroughCodexPostToolUse(directory, run, commitTaskTicket(directory, '5636'));
+      const second = commitTaskTicket(directory, '5637');
+      closeThroughCodexPostToolUse(directory, run, second);
+      rmSync(nodePath.join(nodePath.dirname(second), 'verify.md'));
+      setTestExitCode(directory, 0);
+      const baseline = testRunCount(directory);
+
+      const first = runCodexStop(directory, run);
+      expect(first.decision).toBe('block');
+      expect(first.reason).toContain('5637');
+      const continuation = runCodexStop(directory, run, true);
+
+      expect(continuation.decision).toBe('block');
+      expect(continuation.reason).toContain('verify.md');
+      expect(testRunCount(directory)).toBe(baseline + 2);
+    });
+
+    it('retains the gate when ticket.md cannot be read and retries after repair', () => {
+      const directory = fixture.projectDirectory;
+      const run = makeRun('thread-ticket-read');
+      const ticketFile = commitTaskTicket(directory, '5639');
+      closeThroughCodexPostToolUse(directory, run, ticketFile);
+      const closed = readFileSync(ticketFile, 'utf8');
+      setTestExitCode(directory, 1);
+      const baseline = testRunCount(directory);
+      rmSync(ticketFile);
+      mkdirSync(ticketFile);
+
+      expect(runCodexStop(directory, run)).toMatchObject({
+        decision: 'block',
+        reason: expect.stringContaining('5639'),
+      });
+      expect(testRunCount(directory)).toBe(baseline);
+
+      rmSync(ticketFile, { recursive: true });
+      writeFileSync(ticketFile, closed);
+      expect(runCodexStop(directory, run, true).reason).toContain('Tests failed');
+      expect(testRunCount(directory)).toBe(baseline + 1);
+    });
+
+    it('blocks rather than allowing the Stop when the evidence cannot be read', () => {
+      const directory = fixture.projectDirectory;
+      const run = makeRun('thread-unreadable');
+      const ticketFile = commitTaskTicket(directory, '5638');
+      closeThroughCodexPostToolUse(directory, run, ticketFile);
+      const verifyFile = nodePath.join(nodePath.dirname(ticketFile), 'verify.md');
+      rmSync(verifyFile);
+      mkdirSync(verifyFile);
+      setTestExitCode(directory, 0);
+
+      const first = runCodexStop(directory, run);
+      expect(first.decision).toBe('block');
+      expect(first.reason).toContain('5638');
+
+      rmSync(verifyFile, { recursive: true });
+      writeFileSync(verifyFile, '# Verify\n\n**PR Scope:** ✅ Diff matches ticket scope\n');
+      expect(runCodexStop(directory, run)).toEqual({});
+      expect(runCodexStop(directory, run)).toEqual({});
+    });
+  },
+);

@@ -7,7 +7,13 @@ const root = nodePath.resolve(import.meta.dirname, '../../../..');
 
 describe('planning fallback documentation', () => {
   it('marks the older coordinator decision as superseded in part', () => {
-    const architecture = readFileSync(nodePath.join(root, 'ARCHITECTURE.md'), 'utf8');
+    const architecture = readFileSync(
+      nodePath.join(
+        root,
+        '.project/architecture/host-owned-cross-agent-adversarial-review-coordinator.md',
+      ),
+      'utf8',
+    );
     const olderRecord = architecture
       .split('**Date:** 2026-08-02', 2)[1]
       ?.split('**OpenCode extension', 1)[0];
@@ -27,12 +33,15 @@ describe('planning fallback documentation', () => {
     expect(readme).toContain('reasoned skip');
   });
 
-  it('distinguishes planning approval from the later independent architecture gate', () => {
+  it('tells planners the architecture gate accepts a design review at any independence', () => {
     const guidance = readFileSync(
       nodePath.join(root, 'packages/cli/templates/skills/bdd/PLAN_IMPLEMENTATION.md'),
       'utf8',
     );
-    expect(guidance).toMatch(/does not clear\s+the later architecture gate/u);
+    expect(guidance).toMatch(
+      /accepts a\s+current design-review stamp at any achieved independence/u,
+    );
+    expect(guidance).not.toMatch(/does not clear\s+the later architecture gate/u);
     expect(guidance).toContain('reasoned skip');
   });
 

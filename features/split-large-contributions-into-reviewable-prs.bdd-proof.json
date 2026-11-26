@@ -3,7 +3,7 @@
   "scenarios": {
     "Installed review dispatch carries the generated slicing rubric": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "activates Execution Plan review only for a ticket-owned plan through an admitted route"
+      "activates Execution Plan review only for a ticket-owned plan"
     ]
   }
 }

@@ -51,9 +51,9 @@ var __toESM = (mod, isNodeMode, target) => (
   )
 );
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/identity.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/nodes/identity.js
 var require_identity = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/identity.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/nodes/identity.js'(exports) {
     'use strict';
     var ALIAS = /* @__PURE__ */ Symbol.for('yaml.alias');
     var DOC = /* @__PURE__ */ Symbol.for('yaml.document');
@@ -108,9 +108,9 @@ var require_identity = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/visit.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/visit.js
 var require_visit = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/visit.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/visit.js'(exports) {
     'use strict';
     var identity = require_identity();
     var BREAK = /* @__PURE__ */ Symbol('break visit');
@@ -247,9 +247,9 @@ var require_visit = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/directives.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/doc/directives.js
 var require_directives = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/directives.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/doc/directives.js'(exports) {
     'use strict';
     var identity = require_identity();
     var visit3 = require_visit();
@@ -409,9 +409,9 @@ var require_directives = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/anchors.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/doc/anchors.js
 var require_anchors = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/anchors.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/doc/anchors.js'(exports) {
     'use strict';
     var identity = require_identity();
     var visit3 = require_visit();
@@ -481,9 +481,9 @@ var require_anchors = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/applyReviver.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/doc/applyReviver.js
 var require_applyReviver = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/applyReviver.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/doc/applyReviver.js'(exports) {
     'use strict';
     function applyReviver(reviver, obj, key, val) {
       if (val && typeof val === 'object') {
@@ -524,9 +524,9 @@ var require_applyReviver = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/toJS.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/nodes/toJS.js
 var require_toJS = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/toJS.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/nodes/toJS.js'(exports) {
     'use strict';
     var identity = require_identity();
     function toJS(value, arg, ctx) {
@@ -550,9 +550,9 @@ var require_toJS = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Node.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/nodes/Node.js
 var require_Node = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Node.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/nodes/Node.js'(exports) {
     'use strict';
     var applyReviver = require_applyReviver();
     var identity = require_identity();
@@ -593,9 +593,9 @@ var require_Node = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Alias.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/nodes/Alias.js
 var require_Alias = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Alias.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/nodes/Alias.js'(exports) {
     'use strict';
     var anchors = require_anchors();
     var visit3 = require_visit();
@@ -635,34 +635,36 @@ var require_Alias = __commonJS({
           if (node === this) break;
           if (node.anchor === this.source) found = node;
         }
+        if (found && ctx) {
+          const { anchors: anchors2, doc: doc2, maxAliasCount } = ctx;
+          let data = anchors2.get(found);
+          if (!data) {
+            toJS.toJS(found, null, ctx);
+            data = anchors2.get(found);
+          }
+          if (data?.res === void 0) {
+            const msg = 'This should not happen: Alias anchor was not resolved?';
+            throw new ReferenceError(msg);
+          }
+          if (maxAliasCount >= 0) {
+            data.count += 1;
+            if (data.aliasCount === 0) data.aliasCount = getAliasCount(doc2, found, anchors2);
+            if (data.count * data.aliasCount > maxAliasCount) {
+              const msg = 'Excessive alias count indicates a resource exhaustion attack';
+              throw new ReferenceError(msg);
+            }
+          }
+        }
         return found;
       }
       toJSON(_arg, ctx) {
         if (!ctx) return { source: this.source };
-        const { anchors: anchors2, doc, maxAliasCount } = ctx;
-        const source = this.resolve(doc, ctx);
+        const source = this.resolve(ctx.doc, ctx);
         if (!source) {
           const msg = `Unresolved alias (the anchor must be set before the alias): ${this.source}`;
           throw new ReferenceError(msg);
         }
-        let data = anchors2.get(source);
-        if (!data) {
-          toJS.toJS(source, null, ctx);
-          data = anchors2.get(source);
-        }
-        if (data?.res === void 0) {
-          const msg = 'This should not happen: Alias anchor was not resolved?';
-          throw new ReferenceError(msg);
-        }
-        if (maxAliasCount >= 0) {
-          data.count += 1;
-          if (data.aliasCount === 0) data.aliasCount = getAliasCount(doc, source, anchors2);
-          if (data.count * data.aliasCount > maxAliasCount) {
-            const msg = 'Excessive alias count indicates a resource exhaustion attack';
-            throw new ReferenceError(msg);
-          }
-        }
-        return data.res;
+        return ctx.anchors.get(source).res;
       }
       toString(ctx, _onComment, _onChompKeep) {
         const src = `*${this.source}`;
@@ -700,9 +702,9 @@ var require_Alias = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Scalar.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/nodes/Scalar.js
 var require_Scalar = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Scalar.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/nodes/Scalar.js'(exports) {
     'use strict';
     var identity = require_identity();
     var Node = require_Node();
@@ -731,9 +733,9 @@ var require_Scalar = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/createNode.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/doc/createNode.js
 var require_createNode = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/createNode.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/doc/createNode.js'(exports) {
     'use strict';
     var Alias = require_Alias();
     var identity = require_identity();
@@ -812,9 +814,9 @@ var require_createNode = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Collection.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/nodes/Collection.js
 var require_Collection = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Collection.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/nodes/Collection.js'(exports) {
     'use strict';
     var createNode = require_createNode();
     var identity = require_identity();
@@ -955,9 +957,9 @@ var require_Collection = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyComment.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/stringify/stringifyComment.js
 var require_stringifyComment = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyComment.js'(
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/stringify/stringifyComment.js'(
     exports,
   ) {
     'use strict';
@@ -978,9 +980,9 @@ var require_stringifyComment = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/foldFlowLines.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/stringify/foldFlowLines.js
 var require_foldFlowLines = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/foldFlowLines.js'(
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/stringify/foldFlowLines.js'(
     exports,
   ) {
     'use strict';
@@ -1108,9 +1110,9 @@ ${indent}${text.slice(fold + 1, end2)}`;
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyString.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/stringify/stringifyString.js
 var require_stringifyString = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyString.js'(
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/stringify/stringifyString.js'(
     exports,
   ) {
     'use strict';
@@ -1433,9 +1435,9 @@ ${indent}`,
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringify.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/stringify/stringify.js
 var require_stringify = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringify.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/stringify/stringify.js'(exports) {
     'use strict';
     var anchors = require_anchors();
     var identity = require_identity();
@@ -1560,9 +1562,9 @@ ${ctx.indent}${str}`;
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyPair.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/stringify/stringifyPair.js
 var require_stringifyPair = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyPair.js'(
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/stringify/stringifyPair.js'(
     exports,
   ) {
     'use strict';
@@ -1722,9 +1724,9 @@ ${ctx.indent}`;
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/log.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/log.js
 var require_log = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/log.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/log.js'(exports) {
     'use strict';
     var node_process = __require('process');
     function debug(logLevel, ...messages) {
@@ -1741,9 +1743,9 @@ var require_log = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/merge.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/yaml-1.1/merge.js
 var require_merge = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/merge.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/yaml-1.1/merge.js'(exports) {
     'use strict';
     var identity = require_identity();
     var Scalar = require_Scalar();
@@ -1801,9 +1803,9 @@ var require_merge = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/addPairToJSMap.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/nodes/addPairToJSMap.js
 var require_addPairToJSMap = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/addPairToJSMap.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/nodes/addPairToJSMap.js'(exports) {
     'use strict';
     var log = require_log();
     var merge = require_merge();
@@ -1861,9 +1863,9 @@ var require_addPairToJSMap = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Pair.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/nodes/Pair.js
 var require_Pair = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Pair.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/nodes/Pair.js'(exports) {
     'use strict';
     var createNode = require_createNode();
     var stringifyPair = require_stringifyPair();
@@ -1901,9 +1903,9 @@ var require_Pair = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyCollection.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/stringify/stringifyCollection.js
 var require_stringifyCollection = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyCollection.js'(
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/stringify/stringifyCollection.js'(
     exports,
   ) {
     'use strict';
@@ -2063,9 +2065,9 @@ ${indent}${end}`;
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/YAMLMap.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/nodes/YAMLMap.js
 var require_YAMLMap = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/YAMLMap.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/nodes/YAMLMap.js'(exports) {
     'use strict';
     var stringifyCollection = require_stringifyCollection();
     var addPairToJSMap = require_addPairToJSMap();
@@ -2190,9 +2192,9 @@ var require_YAMLMap = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/map.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/common/map.js
 var require_map = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/map.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/common/map.js'(exports) {
     'use strict';
     var identity = require_identity();
     var YAMLMap = require_YAMLMap();
@@ -2211,9 +2213,9 @@ var require_map = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/YAMLSeq.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/nodes/YAMLSeq.js
 var require_YAMLSeq = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/YAMLSeq.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/nodes/YAMLSeq.js'(exports) {
     'use strict';
     var createNode = require_createNode();
     var stringifyCollection = require_stringifyCollection();
@@ -2318,9 +2320,9 @@ var require_YAMLSeq = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/seq.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/common/seq.js
 var require_seq = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/seq.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/common/seq.js'(exports) {
     'use strict';
     var identity = require_identity();
     var YAMLSeq = require_YAMLSeq();
@@ -2339,9 +2341,9 @@ var require_seq = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/string.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/common/string.js
 var require_string = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/string.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/common/string.js'(exports) {
     'use strict';
     var stringifyString = require_stringifyString();
     var string = {
@@ -2358,9 +2360,9 @@ var require_string = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/null.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/common/null.js
 var require_null = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/null.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/common/null.js'(exports) {
     'use strict';
     var Scalar = require_Scalar();
     var nullTag = {
@@ -2377,9 +2379,9 @@ var require_null = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/bool.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/core/bool.js
 var require_bool = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/bool.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/core/bool.js'(exports) {
     'use strict';
     var Scalar = require_Scalar();
     var boolTag = {
@@ -2400,9 +2402,9 @@ var require_bool = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyNumber.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/stringify/stringifyNumber.js
 var require_stringifyNumber = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyNumber.js'(
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/stringify/stringifyNumber.js'(
     exports,
   ) {
     'use strict';
@@ -2432,9 +2434,9 @@ var require_stringifyNumber = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/float.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/core/float.js
 var require_float = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/float.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/core/float.js'(exports) {
     'use strict';
     var Scalar = require_Scalar();
     var stringifyNumber = require_stringifyNumber();
@@ -2483,9 +2485,9 @@ var require_float = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/int.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/core/int.js
 var require_int = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/int.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/core/int.js'(exports) {
     'use strict';
     var stringifyNumber = require_stringifyNumber();
     var intIdentify = value => typeof value === 'bigint' || Number.isInteger(value);
@@ -2528,9 +2530,9 @@ var require_int = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/schema.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/core/schema.js
 var require_schema = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/schema.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/core/schema.js'(exports) {
     'use strict';
     var map = require_map();
     var _null = require_null();
@@ -2556,9 +2558,9 @@ var require_schema = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/json/schema.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/json/schema.js
 var require_schema2 = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/json/schema.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/json/schema.js'(exports) {
     'use strict';
     var Scalar = require_Scalar();
     var map = require_map();
@@ -2624,9 +2626,9 @@ var require_schema2 = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/binary.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/yaml-1.1/binary.js
 var require_binary = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/binary.js'(
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/yaml-1.1/binary.js'(
     exports,
   ) {
     'use strict';
@@ -2704,9 +2706,9 @@ var require_binary = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/pairs.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/yaml-1.1/pairs.js
 var require_pairs = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/pairs.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/yaml-1.1/pairs.js'(exports) {
     'use strict';
     var identity = require_identity();
     var Pair = require_Pair();
@@ -2781,9 +2783,9 @@ ${cn.comment}`
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/omap.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/yaml-1.1/omap.js
 var require_omap = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/omap.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/yaml-1.1/omap.js'(exports) {
     'use strict';
     var identity = require_identity();
     var toJS = require_toJS();
@@ -2856,9 +2858,9 @@ var require_omap = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/bool.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/yaml-1.1/bool.js
 var require_bool2 = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/bool.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/yaml-1.1/bool.js'(exports) {
     'use strict';
     var Scalar = require_Scalar();
     function boolStringify({ value, source }, ctx) {
@@ -2887,9 +2889,9 @@ var require_bool2 = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/float.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/yaml-1.1/float.js
 var require_float2 = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/float.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/yaml-1.1/float.js'(exports) {
     'use strict';
     var Scalar = require_Scalar();
     var stringifyNumber = require_stringifyNumber();
@@ -2940,9 +2942,9 @@ var require_float2 = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/int.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/yaml-1.1/int.js
 var require_int2 = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/int.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/yaml-1.1/int.js'(exports) {
     'use strict';
     var stringifyNumber = require_stringifyNumber();
     var intIdentify = value => typeof value === 'bigint' || Number.isInteger(value);
@@ -3018,9 +3020,9 @@ var require_int2 = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/set.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/yaml-1.1/set.js
 var require_set = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/set.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/yaml-1.1/set.js'(exports) {
     'use strict';
     var identity = require_identity();
     var Pair = require_Pair();
@@ -3114,9 +3116,9 @@ var require_set = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/timestamp.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/yaml-1.1/timestamp.js
 var require_timestamp = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/timestamp.js'(
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/yaml-1.1/timestamp.js'(
     exports,
   ) {
     'use strict';
@@ -3211,9 +3213,9 @@ var require_timestamp = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/schema.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/yaml-1.1/schema.js
 var require_schema3 = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/schema.js'(
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/yaml-1.1/schema.js'(
     exports,
   ) {
     'use strict';
@@ -3257,9 +3259,9 @@ var require_schema3 = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/tags.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/tags.js
 var require_tags = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/tags.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/tags.js'(exports) {
     'use strict';
     var map = require_map();
     var _null = require_null();
@@ -3356,9 +3358,9 @@ var require_tags = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/Schema.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/Schema.js
 var require_Schema = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/Schema.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/schema/Schema.js'(exports) {
     'use strict';
     var identity = require_identity();
     var map = require_map();
@@ -3405,9 +3407,9 @@ var require_Schema = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyDocument.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/stringify/stringifyDocument.js
 var require_stringifyDocument = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyDocument.js'(
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/stringify/stringifyDocument.js'(
     exports,
   ) {
     'use strict';
@@ -3485,9 +3487,9 @@ var require_stringifyDocument = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/Document.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/doc/Document.js
 var require_Document = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/Document.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/doc/Document.js'(exports) {
     'use strict';
     var Alias = require_Alias();
     var Collection = require_Collection();
@@ -3786,9 +3788,9 @@ var require_Document = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/errors.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/errors.js
 var require_errors = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/errors.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/errors.js'(exports) {
     'use strict';
     var YAMLError = class extends Error {
       constructor(name, pos, code, message) {
@@ -3850,9 +3852,9 @@ ${pointer}
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-props.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/resolve-props.js
 var require_resolve_props = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-props.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/resolve-props.js'(exports) {
     'use strict';
     function resolveProps(
       tokens,
@@ -4019,9 +4021,9 @@ var require_resolve_props = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-contains-newline.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/util-contains-newline.js
 var require_util_contains_newline = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-contains-newline.js'(
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/util-contains-newline.js'(
     exports,
   ) {
     'use strict';
@@ -4054,9 +4056,9 @@ var require_util_contains_newline = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-flow-indent-check.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/util-flow-indent-check.js
 var require_util_flow_indent_check = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-flow-indent-check.js'(
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/util-flow-indent-check.js'(
     exports,
   ) {
     'use strict';
@@ -4078,9 +4080,9 @@ var require_util_flow_indent_check = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-map-includes.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/util-map-includes.js
 var require_util_map_includes = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-map-includes.js'(
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/util-map-includes.js'(
     exports,
   ) {
     'use strict';
@@ -4099,9 +4101,9 @@ var require_util_map_includes = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-block-map.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/resolve-block-map.js
 var require_resolve_block_map = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-block-map.js'(
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/resolve-block-map.js'(
     exports,
   ) {
     'use strict';
@@ -4224,9 +4226,9 @@ var require_resolve_block_map = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-block-seq.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/resolve-block-seq.js
 var require_resolve_block_seq = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-block-seq.js'(
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/resolve-block-seq.js'(
     exports,
   ) {
     'use strict';
@@ -4274,9 +4276,9 @@ var require_resolve_block_seq = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-end.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/resolve-end.js
 var require_resolve_end = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-end.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/resolve-end.js'(exports) {
     'use strict';
     function resolveEnd(end, offset, reqSpace, onError) {
       let comment = '';
@@ -4318,9 +4320,9 @@ var require_resolve_end = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-flow-collection.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/resolve-flow-collection.js
 var require_resolve_flow_collection = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-flow-collection.js'(
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/resolve-flow-collection.js'(
     exports,
   ) {
     'use strict';
@@ -4513,9 +4515,9 @@ var require_resolve_flow_collection = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-collection.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/compose-collection.js
 var require_compose_collection = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-collection.js'(
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/compose-collection.js'(
     exports,
   ) {
     'use strict';
@@ -4612,9 +4614,9 @@ var require_compose_collection = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-block-scalar.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/resolve-block-scalar.js
 var require_resolve_block_scalar = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-block-scalar.js'(
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/resolve-block-scalar.js'(
     exports,
   ) {
     'use strict';
@@ -4787,9 +4789,9 @@ var require_resolve_block_scalar = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-flow-scalar.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/resolve-flow-scalar.js
 var require_resolve_flow_scalar = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-flow-scalar.js'(
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/resolve-flow-scalar.js'(
     exports,
   ) {
     'use strict';
@@ -4857,34 +4859,35 @@ var require_resolve_flow_scalar = __commonJS({
         }
       }
       if (badChar) onError(0, 'BAD_SCALAR_START', `Plain value cannot start with ${badChar}`);
-      return foldLines(source);
+      return unfoldLines(source);
     }
     function singleQuotedValue(source, onError) {
       if (source[source.length - 1] !== "'" || source.length === 1)
         onError(source.length, 'MISSING_CHAR', "Missing closing 'quote");
-      return foldLines(source.slice(1, -1)).replace(/''/g, "'");
+      return unfoldLines(source.slice(1, -1)).replace(/''/g, "'");
     }
-    function foldLines(source) {
-      let first, line;
-      try {
-        first = new RegExp('(.*?)(?<![ 	])[ 	]*\r?\n', 'sy');
-        line = new RegExp('[ 	]*(.*?)(?:(?<![ 	])[ 	]*)?\r?\n', 'sy');
-      } catch {
-        first = /(.*?)[ \t]*\r?\n/sy;
-        line = /[ \t]*(.*?)[ \t]*\r?\n/sy;
-      }
-      let match = first.exec(source);
+    function unfoldLines(source) {
+      const line = /(.*?)\r?\n/sy;
+      let match = line.exec(source);
       if (!match) return source;
-      let res = match[1];
+      let trimEnd, trimBoth;
+      try {
+        trimEnd = new RegExp('(?<![ 	])[ 	]+$');
+        trimBoth = new RegExp('^[ 	]+|(?<![ 	])[ 	]+$', 'g');
+      } catch {
+        trimEnd = /[ \t]+$/;
+        trimBoth = /^[ \t]+|[ \t]+$/g;
+      }
+      let res = match[1].replace(trimEnd, '');
       let sep = ' ';
-      let pos = first.lastIndex;
-      line.lastIndex = pos;
+      let pos = line.lastIndex;
       while ((match = line.exec(source))) {
-        if (match[1] === '') {
+        const lm = match[1].replace(trimBoth, '');
+        if (lm === '') {
           if (sep === '\n') res += sep;
           else sep = '\n';
         } else {
-          res += sep + match[1];
+          res += sep + lm;
           sep = ' ';
         }
         pos = line.lastIndex;
@@ -4997,9 +5000,9 @@ var require_resolve_flow_scalar = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-scalar.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/compose-scalar.js
 var require_compose_scalar = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-scalar.js'(
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/compose-scalar.js'(
     exports,
   ) {
     'use strict';
@@ -5090,9 +5093,9 @@ var require_compose_scalar = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-empty-scalar-position.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/util-empty-scalar-position.js
 var require_util_empty_scalar_position = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-empty-scalar-position.js'(
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/util-empty-scalar-position.js'(
     exports,
   ) {
     'use strict';
@@ -5122,9 +5125,9 @@ var require_util_empty_scalar_position = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-node.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/compose-node.js
 var require_compose_node = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-node.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/compose-node.js'(exports) {
     'use strict';
     var Alias = require_Alias();
     var identity = require_identity();
@@ -5232,9 +5235,9 @@ var require_compose_node = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-doc.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/compose-doc.js
 var require_compose_doc = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-doc.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/compose-doc.js'(exports) {
     'use strict';
     var Document = require_Document();
     var composeNode = require_compose_node();
@@ -5284,9 +5287,9 @@ var require_compose_doc = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/composer.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/composer.js
 var require_composer = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/composer.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/compose/composer.js'(exports) {
     'use strict';
     var node_process = __require('process');
     var directives = require_directives();
@@ -5506,9 +5509,9 @@ ${end.comment}`
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst-scalar.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/parse/cst-scalar.js
 var require_cst_scalar = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst-scalar.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/parse/cst-scalar.js'(exports) {
     'use strict';
     var resolveBlockScalar = require_resolve_block_scalar();
     var resolveFlowScalar = require_resolve_flow_scalar();
@@ -5688,9 +5691,9 @@ var require_cst_scalar = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst-stringify.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/parse/cst-stringify.js
 var require_cst_stringify = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst-stringify.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/parse/cst-stringify.js'(exports) {
     'use strict';
     var stringify = cst => ('type' in cst ? stringifyToken(cst) : stringifyItem(cst));
     function stringifyToken(token) {
@@ -5736,9 +5739,9 @@ var require_cst_stringify = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst-visit.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/parse/cst-visit.js
 var require_cst_visit = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst-visit.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/parse/cst-visit.js'(exports) {
     'use strict';
     var BREAK = /* @__PURE__ */ Symbol('break visit');
     var SKIP = /* @__PURE__ */ Symbol('skip children');
@@ -5791,9 +5794,9 @@ var require_cst_visit = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/parse/cst.js
 var require_cst = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/parse/cst.js'(exports) {
     'use strict';
     var cstScalar = require_cst_scalar();
     var cstStringify = require_cst_stringify();
@@ -5898,9 +5901,9 @@ var require_cst = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/lexer.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/parse/lexer.js
 var require_lexer = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/lexer.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/parse/lexer.js'(exports) {
     'use strict';
     var cst = require_cst();
     function isEmpty(ch) {
@@ -6449,9 +6452,9 @@ var require_lexer = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/line-counter.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/parse/line-counter.js
 var require_line_counter = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/line-counter.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/parse/line-counter.js'(exports) {
     'use strict';
     var LineCounter = class {
       constructor() {
@@ -6476,9 +6479,9 @@ var require_line_counter = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/parser.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/parse/parser.js
 var require_parser = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/parser.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/parse/parser.js'(exports) {
     'use strict';
     var node_process = __require('process');
     var cst = require_cst();
@@ -7305,9 +7308,9 @@ var require_parser = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/public-api.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/public-api.js
 var require_public_api = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/public-api.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/public-api.js'(exports) {
     'use strict';
     var composer = require_composer();
     var Document = require_Document();
@@ -7401,9 +7404,9 @@ var require_public_api = __commonJS({
   },
 });
 
-// ../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/index.js
+// ../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/index.js
 var require_dist = __commonJS({
-  '../../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/index.js'(exports) {
+  '../../../node_modules/.bun/yaml@2.9.1/node_modules/yaml/dist/index.js'(exports) {
     'use strict';
     var composer = require_composer();
     var Document = require_Document();
@@ -7457,12 +7460,12 @@ var require_dist = __commonJS({
 import { spawnSync as spawnSync2 } from 'node:child_process';
 import { createHash as createHash6 } from 'node:crypto';
 import {
-  existsSync as existsSync7,
-  lstatSync as lstatSync5,
-  readFileSync as readFileSync6,
-  realpathSync as realpathSync3,
+  existsSync as existsSync9,
+  lstatSync as lstatSync6,
+  readFileSync as readFileSync8,
+  realpathSync as realpathSync5,
 } from 'node:fs';
-import nodePath10 from 'node:path';
+import nodePath12 from 'node:path';
 
 // ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/scanner.js
 function createScanner(text, ignoreTrivia = false) {
@@ -9158,21 +9161,21 @@ import { createHash as createHash5, randomUUID as randomUUID3 } from 'node:crypt
 import {
   closeSync as closeSync3,
   constants as fsConstants2,
-  existsSync as existsSync6,
+  existsSync as existsSync8,
   fchmodSync,
   fstatSync as fstatSync2,
   fsyncSync as fsyncSync2,
   ftruncateSync,
-  lstatSync as lstatSync4,
+  lstatSync as lstatSync5,
   mkdirSync as mkdirSync4,
   openSync as openSync3,
-  readFileSync as readFileSync5,
+  readFileSync as readFileSync7,
   readSync as readSync2,
   renameSync as renameSync3,
   rmdirSync as rmdirSync2,
   writeSync,
 } from 'node:fs';
-import nodePath9 from 'node:path';
+import nodePath11 from 'node:path';
 
 // cli-protocol/result.ts
 var EMPTY_EFFECTS = {
@@ -9272,7 +9275,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/agents/safeword-reviewer.md':
         '54f2b47dec3639b711b7c2557b017c452b4667aa7092296a01328c7b5668efaf',
       '.claude/skills/audit/SKILL.md':
-        '02c6353beb320c6370788c7845ec193ec08532f05ed6f6174585aa8a68456470',
+        '379473dba1ec5a9322adcc4f46a827811b1caa90991cd7b6a14c32234515332c',
       '.claude/skills/bdd/DISCOVERY.md':
         '9d8f44d62752433582ce76ea019716a09fabcfb3af65c9fc644dd60972372557',
       '.claude/skills/bdd/DONE.md':
@@ -9280,7 +9283,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/PLAN_EXECUTION.md':
         'b32e1b0778773165d0a66bd49d0a57ffc7653c8707381d89090268b3dc56853d',
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
-        '7097df93aee9e2050d756a20b7518eb2c3663ca63a3fc5c8ee72518401a493f4',
+        'da25a09d6caa34f1e1f7ff3e33c64c5c4a59797145a0c6346b5efec46193f62b',
       '.claude/skills/bdd/SCENARIOS.md':
         '1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb',
       '.claude/skills/bdd/SKILL.md':
@@ -9288,7 +9291,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/SPLITTING.md':
         'e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708',
       '.claude/skills/bdd/TDD.md':
-        'db5fa9697dc4c3c7c65f539587150b2ee8c484d1d6f78a94fb0551b3db270cfb',
+        'cb4c44d1e197849eb5cc8ce6304e859cab16f1250974c7e31e112d369d4ac0c3',
       '.claude/skills/bdd/VERIFY.md':
         '85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31',
       '.claude/skills/brainstorm/SKILL.md':
@@ -9304,19 +9307,19 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/elicit/SKILL.md':
         '2638c773ce241a886563d1db8abbee70d72edefa780f762c0ed095df0f65cee5',
       '.claude/skills/explain/SKILL.md':
-        '6673eccef3a9e68659c4e4b81b1e63bf9da03b1ae802dc7d22f419cb7c65472d',
+        '6e50852d12d72fa9cb606e68ec14775fdd9e0d41754674de8a48e89377f96ec3',
       '.claude/skills/figure-it-out/SKILL.md':
         '18e2b44e9a91562079b3e1f52fcd9f952b5f57a0f0e7647b0273809848a75c0d',
       '.claude/skills/finish-review/REVIEWER.md':
-        '9cddbcc9233c8eb60b1a13c4f957edbc314969fde941f0e1e77e03c2555855b7',
+        '82f914df38bff923c0478a82f22e70c71df2aa74f28e2a626a34e4fd5635ca76',
       '.claude/skills/finish-review/SKILL.md':
-        '707ba187ea4f8f77cf5523b1fa4cf75c7ef48458b358f63ab147901ad560546f',
+        '003936abdb031d977fc46341e01135f0d63e953511874693f2dfcbab1c57d96f',
       '.claude/skills/lint/SKILL.md':
         'f8bc868fb10a06ca46a22236309b9f0c3ffbd70eecc024d3c79de8ef0e42fd14',
       '.claude/skills/pr-readiness/SKILL.md':
         '42fc32b8bef9a50d85c5d9ac81dcb3edab91f9d92c3e6bfe842fbabba2eed749',
       '.claude/skills/quality-review/SKILL.md':
-        'ef63c3ca21b2c383c46d143fec48d229b4e17675015a77e858638dbefbdcfbac',
+        '18074e344da7036621dfae6c53d082957ef5c5f6b0d0032c04b7d06bbf59bc47',
       '.claude/skills/refactor/SKILL.md':
         'a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e',
       '.claude/skills/retro-filer/SKILL.md':
@@ -9324,7 +9327,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/retro/SKILL.md':
         'da1244dd4e210480e3754763b982b1f9614c493b9534ea03151a9aafbdd89adb',
       '.claude/skills/review-spec/SKILL.md':
-        'c8f780832cf160bbae051b59a8e6a1e0510558996170a04caefc0ae19c6f0e9b',
+        'e84a6da34e0adbc49446fc253bab119cb8ff1467db4628080e6f6a124bfd0380',
       '.claude/skills/self-review/SKILL.md':
         '7ecb6e4475627e703d09e67c377d70b83acc4e32fa8ad41b6dd34174381b46cc',
       '.claude/skills/spike/SKILL.md':
@@ -9336,67 +9339,65 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/ticket-system/SKILL.md':
         '5a8ce171c60dc7ab07d641dc66d43ae3730d1a2401df86a02250ce82cf53a800',
       '.claude/skills/verify/SKILL.md':
-        'd6b1f8cfa6ad1ccc5fd84a8b7f96cf3a13e13561088eb1de9a5b0ee5045759c5',
+        '440496033f496153e5514028643123b5603bde3ba540750f91aaf8849e8b2675',
     },
     hook_files: {
       '.safeword/hooks/post-tool-bypass-warn.ts':
-        'f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a',
+        '33b1be799f57901e247c9b5478b56e42a727178ad99eebba09ce18a637f69956',
       '.safeword/hooks/post-tool-dependency-readiness.ts':
-        '0142957ea227b630a5ab17d0cee2d6ff2c6df24e7ca3f4bd7a57dbf6940060be',
+        '6418539671ace93e5df04b4ee4d74b9f28b241ec81bbcf2588017702d3b092f6',
       '.safeword/hooks/post-tool-lint.ts':
-        'ca708ea4ff7d184441e8bc5e5d136c2a5f40ffc74bffb98b6d886451669df7d6',
+        'a1779513108c3f0dc6296bb765752507c65f3ff9c29af35e1e28878ace079f06',
       '.safeword/hooks/post-tool-quality.ts':
-        '21a850043772895828c0d75de6d7735bc5566da9711f2ed1eac6ecd8c8cbe5db',
+        '27162fc9d5b74d2f1964b83a50acd652f3a4689583ebaa514639a38d9ee46e40',
       '.safeword/hooks/post-tool-skill-nudge.ts':
-        'a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4',
+        'd71158796facccdd5cbf7b64f460b36ebef0b92c41ee3a2f2a09625483e7af39',
       '.safeword/hooks/post-tool-sync-learnings.ts':
-        'de5f52c221b2f029841beded78d65af80217949072a99c2790d503f492528290',
+        '0bb2a936c94bd99afec58b62b933e8ce097c4aea115f6844a9688f709d66a85f',
       '.safeword/hooks/post-tool-work-log.ts':
-        'f8816f7799c564006aad2b6469fbd4d04a51ba2ca3d6f3bdbe93bb03d17b6978',
+        'd7b4508fa0e3f190c9c8c83d01a08e60fd41330b8f62f7f51376f89423998766',
       '.safeword/hooks/pre-tool-architecture-stage.ts':
-        'e57bfeb13ccb403159fc8b115122937eaf3d9ca808f2ec6c8c39632fb3a4d679',
+        'dbb2fa14ce934ec71e31d7a9258247b4e42684ac69154d96b9fadd2cc18ad9d4',
       '.safeword/hooks/pre-tool-config-guard.ts':
-        '6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084',
+        '6cf974642f71ee8091f19a8d8c68246f4a2dcdba86c7f5966ea22f992c43636a',
       '.safeword/hooks/pre-tool-dependency-readiness.ts':
-        '32b7dc3cd73b8a0361625489238ce88bff32ce01ea27ffcec65d39ceafcb8fdb',
+        '83d1369a1db26474ce498565e1f67711834137276234ca697de3be0f1abbafff',
       '.safeword/hooks/pre-tool-git-bare-fix.sh':
         '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
       '.safeword/hooks/pre-tool-quality.ts':
-        '3e2071275815d93ca154aa0af8d0b766087f3b4824b31fc511dd62112e7369dc',
+        'aa1c7f33bf24f75deaba6c8a60f6659a884ba18314c55da6d277fab9b063ec25',
       '.safeword/hooks/pre-tool-stale-main.ts':
-        'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
+        '6a7c2d75a9955f661f620ee20f4210bec09fa206625d84363cd0376fc56fdf5d',
       '.safeword/hooks/prompt-questions.ts':
-        '9ab95529d1c7ca2ffc1a1303c4f08dc55e35e1e49bd951ca917dfbdf13a95a39',
+        'ac2f53a7c2e87cb4517b7a4c9d965bacdd262828aa28474d0441dc2edafc215d',
       '.safeword/hooks/prompt-retro-nudge.ts':
         '78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457',
       '.safeword/hooks/prompt-timestamp.ts':
         'd7939e98528717fed556adf65dcb9fd3c24fac530ba76be2db9c5faebbac27f3',
       '.safeword/hooks/session-architecture-heal.ts':
-        '142c5a5358d57c9a587019f6e37fe84ed604638d1963e1c28eea12db2a8439f3',
-      '.safeword/hooks/session-author-model.ts':
-        '9cead0101141497aec277d6609ab1bfcbf7048cc02650e7f284ac15141eaf291',
+        '8eedd3ac81844dd2676505d313135c24c8d9ad0b7eec2f7f7734c0870cb7ae90',
       '.safeword/hooks/session-auto-upgrade.ts':
-        '51cb48954d5b6154d1b4f831f9689fc5044cc8abf6aa9eb664fcddbf6fa859c0',
+        '58403ff9922ae1423becd4e9a682fb91d9b68db4881f4c0d8c5e46edc3ea8fc2',
       '.safeword/hooks/session-bun-check.sh':
         '47e97a2f787228347213521d8391ab6b001e19270aed8e2795f13d6ea0603c29',
       '.safeword/hooks/session-cleanup-quality.ts':
-        'b43a169e86d240ecc12ece40d5375a84c59db6dc9708c91849a55038144736a2',
+        'cfabcc1d6b07b9423f497d32624e99824631131c3749ae1d1ff615b054d49e64',
       '.safeword/hooks/session-compact-context.ts':
-        '4810e508b3ef79e162c6e74e169e24f8eb7ae7980549ba3f53e640424ae10773',
+        '9b5276e301d827172bc25bb19e72a52de36eab53b49e7b9bf9385e407e0f851b',
       '.safeword/hooks/session-dependency-readiness.ts':
-        '295d14c5a3d8112b01259cf89ce718144a568e62e0baf5aaa19eca3fcfdc50ff',
+        '12f2c4e6d598ba26a385d534c146d56788b04e71605e917cbdf3f9f254571c31',
       '.safeword/hooks/session-lint-check.ts':
-        '6d8e5819bd52208799089d19bfdbd569fc46b9d518df4c45ab2c3b605d9647dc',
+        '7278a5b62db029b9eb7f4438a7a58d60fe9790c57b6e2fa8a8be645ae8bda88b',
       '.safeword/hooks/session-reply-format.ts':
         '41f7578e93188d5efacdd9ecbf29f72753a6fe98bca71fe321c61f547aeb8532',
       '.safeword/hooks/session-safeword-context.ts':
-        '56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5',
+        '0c54231000694c482d4b2c92fa1bf55f4c6211910c310f2d29836cdb61719937',
       '.safeword/hooks/session-start-reentry.ts':
         'b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d',
       '.safeword/hooks/session-version.ts':
-        'c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64',
+        '7480f836ec466c06b9bc81384710fa32e33fce67070788b1766965282d778e72',
       '.safeword/hooks/stop-quality.ts':
-        'd0bfeac753eb4a2a7f1cc89f8e0f9592546ef52cb9cb923845880e387dfd7274',
+        'd3423c9619b9c116580457a1ad0b075334377cdddd50ca01bdb9c95d2a68dc08',
       '.safeword/hooks/stop-reentry.ts':
         'a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5',
       '.safeword/hooks/stop-retro-filing.ts':
@@ -9404,7 +9405,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/stop-retro.ts':
         'ecdb55e277a4188e5daf1c9a9de3f5e28bed724a14064e374eb4db10a9d0921e',
       '.safeword/hooks/stop-self-report.ts':
-        'baf9f946918f74d2ec2916024c6a5e9818b5468a45ac177bbdb73443f66399e0',
+        '52817f62bf1873883933568fcf29e98be59069d838216db371bf9a5ce4ee5fad',
     },
     hooks: {
       SessionStart: [
@@ -9416,7 +9417,6 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
         '9ecd49f0d9143ba458f3db192dbe811184c6666ea3e74f9bf1d34d310dd0ba33',
         'eaaf5018219f6868c77b5e78e40363a77fd3cd18f6d92890677196616d7ef97d',
         '8c7cf4fdb7cbecebcb4a9f3ec16cdf6aa777c1dfcf7110cb432798c86e31276c',
-        '82821d39ad90cc6d81c5ac22a97e68ecafbba6cf1281ae1c875d0503a26f6d3f',
         'f859fd42b853152ccfb4352e25d9b0c5026ab169d5c20291422395988e22e923',
         'd3086b18bd08c1fc5779951d6d2162bf15ca2ccfc9ac689b7f38007bf27a1bc8',
       ],
@@ -11456,13 +11456,13 @@ function observeClaudeLegacy(cwd) {
 import { createHash as createHash4, randomUUID as randomUUID2 } from 'node:crypto';
 import {
   cpSync,
-  existsSync as existsSync5,
+  existsSync as existsSync7,
   mkdirSync as mkdirSync3,
-  readFileSync as readFileSync4,
+  readFileSync as readFileSync6,
   renameSync as renameSync2,
   rmSync as rmSync3,
 } from 'node:fs';
-import nodePath8 from 'node:path';
+import nodePath10 from 'node:path';
 
 // claude-plugin/inventory.ts
 import {
@@ -11663,31 +11663,121 @@ function claudeNativePayloadFiles(root) {
 // claude-plugin/plugin-data.ts
 import { createHash as createHash3 } from 'node:crypto';
 import { homedir } from 'node:os';
-import nodePath7 from 'node:path';
+import nodePath9 from 'node:path';
 
 // claude-plugin/project-root.ts
 import { spawnSync } from 'node:child_process';
 
+// ../templates/hooks/lib/project-directory.ts
+import {
+  existsSync as existsSync5,
+  readFileSync as readFileSync4,
+  realpathSync as realpathSync3,
+  writeFileSync as writeFileSync2,
+} from 'node:fs';
+import nodePath7 from 'node:path';
+
+// ../templates/hooks/lib/namespace-root.ts
+import {
+  existsSync as existsSync4,
+  lstatSync as lstatSync4,
+  readFileSync as readFileSync3,
+  readlinkSync,
+  realpathSync as realpathSync2,
+  statSync,
+} from 'node:fs';
+import nodePath6 from 'node:path';
+function hasSafewordProjectMarker(projectDirectory) {
+  return ['enrolled', 'SAFEWORD.md'].some(marker =>
+    existsSync4(nodePath6.join(projectDirectory, '.safeword', marker)),
+  );
+}
+function canonicalPathForGate(path, seen = /* @__PURE__ */ new Set()) {
+  if (seen.has(path)) return path;
+  seen.add(path);
+  try {
+    return realpathSync2(path);
+  } catch {
+    try {
+      if (lstatSync4(path).isSymbolicLink()) {
+        const target = readlinkSync(path);
+        return canonicalPathForGate(nodePath6.resolve(nodePath6.dirname(path), target), seen);
+      }
+    } catch {}
+    const parent = nodePath6.dirname(path);
+    if (parent === path) return path;
+    return nodePath6.join(canonicalPathForGate(parent, seen), nodePath6.basename(path));
+  }
+}
+
+// ../templates/hooks/lib/project-directory.ts
+function resolveLaunchDirectory(environment = process.env) {
+  return environment.CLAUDE_PROJECT_DIR || process.cwd();
+}
+function resolveProjectDirectory(input) {
+  const launchDirectory = input.launchDirectory ?? resolveLaunchDirectory();
+  const owner = (lexicalDirectory, realDirectory) => {
+    const lexical = enrolledWorkingTree(launchDirectory, lexicalDirectory);
+    const real = enrolledWorkingTree(launchDirectory, realDirectory);
+    return lexical !== void 0 && real !== void 0 && isSameDirectory(lexical, real) ? lexical : real;
+  };
+  if (input.editedFile) {
+    const file = nodePath7.resolve(baseDirectory(launchDirectory, input.cwd), input.editedFile);
+    const realDirectory = nodePath7.dirname(canonicalPathForGate(file));
+    const fileOwner = owner(nodePath7.dirname(file), realDirectory);
+    if (fileOwner !== void 0) return fileOwner;
+    if (!insideGitTree(realDirectory)) return launchDirectory;
+  }
+  if (!input.cwd) return launchDirectory;
+  const cwd = baseDirectory(launchDirectory, input.cwd);
+  return owner(cwd, canonicalPathForGate(cwd)) ?? launchDirectory;
+}
+function baseDirectory(launchDirectory, cwd) {
+  return cwd ? nodePath7.resolve(launchDirectory, cwd) : launchDirectory;
+}
+function enrolledWorkingTree(launchDirectory, start) {
+  const directory = nearestGitTree(start);
+  if (directory === void 0 || !hasSafewordProjectMarker(directory)) return void 0;
+  return isSameDirectory(directory, launchDirectory) ? launchDirectory : directory;
+}
+function insideGitTree(start) {
+  return nearestGitTree(start) !== void 0;
+}
+function nearestGitTree(start) {
+  for (let directory = start; ; directory = nodePath7.dirname(directory)) {
+    if (existsSync5(nodePath7.join(directory, '.git'))) return directory;
+    if (nodePath7.dirname(directory) === directory) return void 0;
+  }
+}
+function isSameDirectory(left, right) {
+  if (nodePath7.resolve(left) === nodePath7.resolve(right)) return true;
+  try {
+    return realpathSync3(left) === realpathSync3(right);
+  } catch {
+    return false;
+  }
+}
+
 // utils/fs.ts
 import {
   chmodSync,
-  existsSync as existsSync4,
+  existsSync as existsSync6,
   mkdirSync as mkdirSync2,
   readdirSync as readdirSync2,
-  readFileSync as readFileSync3,
-  realpathSync as realpathSync2,
+  readFileSync as readFileSync5,
+  realpathSync as realpathSync4,
   rmdirSync,
   rmSync as rmSync2,
-  statSync,
-  writeFileSync as writeFileSync2,
+  statSync as statSync2,
+  writeFileSync as writeFileSync3,
 } from 'node:fs';
-import nodePath6 from 'node:path';
+import nodePath8 from 'node:path';
 var __dirname = import.meta.dirname;
 function canonicalDirectory(path) {
   if (typeof path !== 'string' || path.trim() === '') return void 0;
   try {
-    if (!statSync(path).isDirectory()) return void 0;
-    return nodePath6.normalize(realpathSync2(path));
+    if (!statSync2(path).isDirectory()) return void 0;
+    return nodePath8.normalize(realpathSync4(path));
   } catch {
     return void 0;
   }
@@ -11704,6 +11794,8 @@ function canonicalClaudeProjectRoot(cwd) {
     });
     const gitRoot = result.status === 0 ? result.stdout?.trim() : void 0;
     candidate = gitRoot === '' || gitRoot === void 0 ? cwd : gitRoot;
+  } else {
+    candidate = resolveProjectDirectory({ cwd, launchDirectory: candidate });
   }
   const canonical = canonicalDirectory(candidate);
   if (canonical === void 0) {
@@ -11717,7 +11809,7 @@ function canonicalClaudeProjectRoot(cwd) {
 // claude-plugin/plugin-data.ts
 function claudeConfigDirectory(environment = process.env) {
   const configured = (environment.CLAUDE_CONFIG_DIR ?? '').trim();
-  return configured === '' ? nodePath7.join(homedir(), '.claude') : configured;
+  return configured === '' ? nodePath9.join(homedir(), '.claude') : configured;
 }
 function claudePluginDataId(pluginId = CLAUDE_PLUGIN_ID) {
   return pluginId.replaceAll(/[^\w-]/gu, '-');
@@ -11725,7 +11817,7 @@ function claudePluginDataId(pluginId = CLAUDE_PLUGIN_ID) {
 function claudePluginDataDirectory(environment = process.env) {
   const exported = (environment.CLAUDE_PLUGIN_DATA ?? '').trim();
   if (exported !== '') return exported;
-  return nodePath7.join(
+  return nodePath9.join(
     claudeConfigDirectory(environment),
     CLAUDE_MIGRATION_SCHEMA.data.pluginsRoot,
     claudePluginDataId(),
@@ -11735,14 +11827,14 @@ function claudeProjectDigest(canonicalProjectRoot) {
   return createHash3('sha256').update(canonicalProjectRoot).digest('hex');
 }
 function claudeProofDirectory(environment = process.env) {
-  return nodePath7.join(
+  return nodePath9.join(
     claudePluginDataDirectory(environment),
     CLAUDE_MIGRATION_SCHEMA.data.proofs,
   );
 }
 function claudeProjectStateDirectory(cwd) {
   const canonical = canonicalClaudeProjectRoot(cwd);
-  return nodePath7.join(
+  return nodePath9.join(
     claudePluginDataDirectory(),
     CLAUDE_MIGRATION_SCHEMA.data.projectState,
     claudeProjectDigest(canonical),
@@ -11793,11 +11885,11 @@ function adoptLegacyProjectState(cwd, directory) {
   if (adopted.has(directory)) return;
   adopted.add(directory);
   for (const key of CLAUDE_ADOPTED_LEGACY_STATE) {
-    const legacy = nodePath8.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]);
-    if (!existsSync5(legacy)) continue;
-    const destination = nodePath8.join(directory, CLAUDE_MIGRATION_SCHEMA.state[key]);
+    const legacy = nodePath10.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]);
+    if (!existsSync7(legacy)) continue;
+    const destination = nodePath10.join(directory, CLAUDE_MIGRATION_SCHEMA.state[key]);
     try {
-      if (existsSync5(adoptionReceipt(directory, key)) || existsSync5(destination)) {
+      if (existsSync7(adoptionReceipt(directory, key)) || existsSync7(destination)) {
         recordAdoption(directory, key);
         rmSync3(legacy, { recursive: true, force: true });
         continue;
@@ -11810,7 +11902,7 @@ function adoptLegacyProjectState(cwd, directory) {
   }
 }
 function adoptionReceipt(directory, key) {
-  return nodePath8.join(directory, `.adopted-${CLAUDE_MIGRATION_SCHEMA.state[key]}`);
+  return nodePath10.join(directory, `.adopted-${CLAUDE_MIGRATION_SCHEMA.state[key]}`);
 }
 function recordAdoption(directory, key) {
   try {
@@ -11824,18 +11916,18 @@ function stateDirectory(cwd) {
 }
 function claudeProjectStatePath(cwd, key) {
   const directory = stateDirectory(cwd);
-  const adoptedPath = nodePath8.join(directory, CLAUDE_MIGRATION_SCHEMA.state[key]);
-  if (existsSync5(adoptedPath)) return adoptedPath;
-  if (existsSync5(adoptionReceipt(directory, key))) return adoptedPath;
-  const legacy = nodePath8.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]);
-  return existsSync5(legacy) ? legacy : adoptedPath;
+  const adoptedPath = nodePath10.join(directory, CLAUDE_MIGRATION_SCHEMA.state[key]);
+  if (existsSync7(adoptedPath)) return adoptedPath;
+  if (existsSync7(adoptionReceipt(directory, key))) return adoptedPath;
+  const legacy = nodePath10.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]);
+  return existsSync7(legacy) ? legacy : adoptedPath;
 }
 function removeClaudeProjectState(cwd, key) {
-  rmSync3(nodePath8.join(stateDirectory(cwd), CLAUDE_MIGRATION_SCHEMA.state[key]), {
+  rmSync3(nodePath10.join(stateDirectory(cwd), CLAUDE_MIGRATION_SCHEMA.state[key]), {
     recursive: true,
     force: true,
   });
-  rmSync3(nodePath8.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]), {
+  rmSync3(nodePath10.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]), {
     recursive: true,
     force: true,
   });
@@ -11860,10 +11952,10 @@ function exclusiveRecord(path, value) {
 function initialSessionDigest(cwd, sessionDigest) {
   const directory = attemptsPath(cwd);
   mkdirSync3(directory, { recursive: true, mode: 448 });
-  const path = nodePath8.join(directory, 'initial-session-v1.json');
+  const path = nodePath10.join(directory, 'initial-session-v1.json');
   exclusiveRecord(path, { schema_version: 1, session_digest: sessionDigest });
   try {
-    const value = JSON.parse(readFileSync4(path, 'utf8'));
+    const value = JSON.parse(readFileSync6(path, 'utf8'));
     return value.schema_version === 1 && validDigest(value.session_digest)
       ? value.session_digest
       : '';
@@ -11880,14 +11972,14 @@ function claimClaudeMigrationAttempt(
   const sessionDigest = migrationSessionDigest(sessionId, fallbackSessionId);
   const initialSession = initialSessionDigest(cwd, sessionDigest) === sessionDigest;
   const limit = initialSession ? 3 : 1;
-  const directory = nodePath8.join(
+  const directory = nodePath10.join(
     attemptsPath(cwd),
     kind === 'recovery' && !initialSession ? 'recoveries' : 'launches',
   );
   mkdirSync3(directory, { recursive: true, mode: 448 });
   for (let slot = 1; slot <= limit; slot += 1) {
     if (
-      exclusiveRecord(nodePath8.join(directory, `${sessionDigest}-${String(slot)}.json`), {
+      exclusiveRecord(nodePath10.join(directory, `${sessionDigest}-${String(slot)}.json`), {
         schema_version: 1,
         session_digest: sessionDigest,
         slot,
@@ -11906,10 +11998,10 @@ function claimClaudeMigrationAdvisory(
 ) {
   if (!validDigest(stateDigest))
     throw new TypeError('Claude migration advisory digest is invalid.');
-  const directory = nodePath8.join(attemptsPath(cwd), 'advisories');
+  const directory = nodePath10.join(attemptsPath(cwd), 'advisories');
   mkdirSync3(directory, { recursive: true, mode: 448 });
   const sessionDigest = migrationSessionDigest(sessionId, fallbackSessionId);
-  return exclusiveRecord(nodePath8.join(directory, `${sessionDigest}-${stateDigest}.json`), {
+  return exclusiveRecord(nodePath10.join(directory, `${sessionDigest}-${stateDigest}.json`), {
     schema_version: 1,
     session_digest: sessionDigest,
     state_digest: stateDigest,
@@ -11921,14 +12013,14 @@ function advisoryStateDigest(advisory) {
 function claudeWatchedSettingsDigest(cwd) {
   const configDirectory = claudeConfigDirectory();
   const paths = [
-    nodePath8.join(cwd, '.claude/settings.json'),
-    nodePath8.join(configDirectory, 'settings.json'),
+    nodePath10.join(cwd, '.claude/settings.json'),
+    nodePath10.join(configDirectory, 'settings.json'),
   ];
   const hash = createHash4('sha256');
   for (const path of paths) {
     hash.update(path);
     hash.update('\0');
-    hash.update(existsSync5(path) ? readFileSync4(path) : '<absent>');
+    hash.update(existsSync7(path) ? readFileSync6(path) : '<absent>');
     hash.update('\0');
   }
   return hash.digest('hex');
@@ -11958,7 +12050,7 @@ function validPluginMode(value) {
 function readClaudePluginMode(cwd) {
   try {
     const path = markerPath(cwd);
-    const value = JSON.parse(readFileSync4(path, 'utf8'));
+    const value = JSON.parse(readFileSync6(path, 'utf8'));
     return validPluginMode(value) ? value : void 0;
   } catch {
     return void 0;
@@ -11998,7 +12090,7 @@ function writeClaudeMigrationAttention(cwd, attention) {
   );
 }
 function removeLegacyClaudePluginMode(cwd) {
-  rmSync3(nodePath8.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy.pluginMarker), { force: true });
+  rmSync3(nodePath10.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy.pluginMarker), { force: true });
 }
 
 // claude-plugin/cleanup.ts
@@ -12012,9 +12104,9 @@ function containsJsonComments(content) {
 }
 function settingsMutation(cwd, legacy) {
   const relative = '.claude/settings.json';
-  const path = nodePath9.join(cwd, relative);
-  if (!existsSync6(path) || legacy.recognizedHooks.length === 0) return void 0;
-  const original = readFileSync5(path, 'utf8');
+  const path = nodePath11.join(cwd, relative);
+  if (!existsSync8(path) || legacy.recognizedHooks.length === 0) return void 0;
+  const original = readFileSync7(path, 'utf8');
   return { path: relative, content: contractHistoricalClaudeSettings(original) };
 }
 function contractHistoricalClaudeSettings(original) {
@@ -12084,7 +12176,7 @@ function transactionPath(cwd) {
 }
 function writeTransaction(cwd, transaction) {
   const path = transactionPath(cwd);
-  mkdirSync4(nodePath9.dirname(path), { recursive: true, mode: 448 });
+  mkdirSync4(nodePath11.dirname(path), { recursive: true, mode: 448 });
   const content = `${JSON.stringify(transaction, void 0, 2)}
 `;
   if (
@@ -12099,9 +12191,9 @@ function writeTransaction(cwd, transaction) {
 }
 function entryFor(cwd, mutation) {
   const path = assertSafeClaudeCleanupTarget(cwd, mutation.path);
-  const before = readFileSync5(path);
+  const before = readFileSync7(path);
   const after = mutation.content === null ? null : Buffer.from(mutation.content);
-  const mode = lstatSync4(path).mode & 511;
+  const mode = lstatSync5(path).mode & 511;
   return {
     path: mutation.path,
     before_sha256: sha2562(before),
@@ -12116,7 +12208,7 @@ function entryFor(cwd, mutation) {
   };
 }
 function observedSha(path) {
-  return existsSync6(path) ? sha2562(readFileSync5(path)) : null;
+  return existsSync8(path) ? sha2562(readFileSync7(path)) : null;
 }
 function sameFile(left, right) {
   return left.dev === right.dev && left.ino === right.ino;
@@ -12134,9 +12226,9 @@ function isValidOpenCleanupTarget(snapshot) {
 }
 function openCleanupTarget(root, relative, flags) {
   const path = assertSafeClaudeCleanupTarget(root, relative);
-  const parentPath = nodePath9.dirname(path);
-  const targetBefore = lstatSync4(path);
-  const parentBefore = lstatSync4(parentPath);
+  const parentPath = nodePath11.dirname(path);
+  const targetBefore = lstatSync5(path);
+  const parentBefore = lstatSync5(parentPath);
   const parentDescriptor = openSync3(
     parentPath,
     fsConstants2.O_RDONLY | (fsConstants2.O_DIRECTORY ?? 0) | (fsConstants2.O_NOFOLLOW ?? 0),
@@ -12144,8 +12236,8 @@ function openCleanupTarget(root, relative, flags) {
   let descriptor;
   try {
     descriptor = openSync3(path, flags | (fsConstants2.O_NOFOLLOW ?? 0));
-    const targetAfter = lstatSync4(path);
-    const parentAfter = lstatSync4(parentPath);
+    const targetAfter = lstatSync5(path);
+    const parentAfter = lstatSync5(parentPath);
     const opened = fstatSync2(descriptor);
     const openedParent = fstatSync2(parentDescriptor);
     if (
@@ -12172,11 +12264,11 @@ function quarantineOpenTarget(root, opened, quarantinePath, beforeQuarantine) {
     throw new Error('Atomic Claude cleanup quarantine is unavailable on this platform.');
   }
   const safeQuarantinePath = containedClaudeCleanupPath(root, quarantinePath);
-  const quarantineDirectory = nodePath9.dirname(safeQuarantinePath);
+  const quarantineDirectory = nodePath11.dirname(safeQuarantinePath);
   mkdirSync4(quarantineDirectory, { recursive: true, mode: 448 });
   beforeQuarantine?.();
   renameSync3(opened.path, safeQuarantinePath);
-  const quarantined = lstatSync4(safeQuarantinePath);
+  const quarantined = lstatSync5(safeQuarantinePath);
   const descriptor = fstatSync2(opened.descriptor);
   if (!sameFile(quarantined, descriptor) || descriptor.size !== opened.target.size) {
     throw new Error('Claude cleanup quarantined a replacement target; retained it for recovery.');
@@ -12187,8 +12279,8 @@ function quarantineOpenTarget(root, opened, quarantinePath, beforeQuarantine) {
 }
 function revalidateOpenTarget(root, relative, opened) {
   const path = assertSafeClaudeCleanupTarget(root, relative);
-  const target = lstatSync4(path);
-  const parent = lstatSync4(nodePath9.dirname(path));
+  const target = lstatSync5(path);
+  const parent = lstatSync5(nodePath11.dirname(path));
   const descriptor = fstatSync2(opened.descriptor);
   if (
     path !== opened.path ||
@@ -12259,10 +12351,10 @@ function pruneEmptyLegacyDirectories(cwd, entries) {
   const candidates = /* @__PURE__ */ new Set();
   for (const entry of entries) {
     if (entry.after_sha256 !== null) continue;
-    let directory = nodePath9.dirname(entry.path);
+    let directory = nodePath11.dirname(entry.path);
     while (directory === '.claude' || directory.startsWith('.claude/')) {
       candidates.add(directory);
-      directory = nodePath9.dirname(directory);
+      directory = nodePath11.dirname(directory);
     }
   }
   const deepestFirst = [...candidates].toSorted(
@@ -12303,11 +12395,11 @@ function waitForPluginMode(cwd, deadline, now) {
   const pause = new Int32Array(new SharedArrayBuffer(4));
   const maximumChecks = 25;
   for (let checks = 0; checks < maximumChecks && now() < deadline; checks += 1) {
-    if (existsSync6(marker)) return true;
+    if (existsSync8(marker)) return true;
     const remaining = Math.max(1, deadline - now());
     Atomics.wait(pause, 0, 0, Math.min(20, remaining));
   }
-  return existsSync6(marker);
+  return existsSync8(marker);
 }
 function writeAutomaticPluginMode(cwd, transaction) {
   const pluginMode = transaction.plugin_mode;
@@ -12435,7 +12527,7 @@ function planCleanupEntries(projectRoot, mutations) {
   try {
     return mutations.map(mutation => entryFor(projectRoot, mutation));
   } catch (error) {
-    if (existsSync6(transactionPath(projectRoot))) return void 0;
+    if (existsSync8(transactionPath(projectRoot))) return void 0;
     throw error;
   }
 }
@@ -12447,7 +12539,7 @@ function performAutomaticMigration(projectRoot, options, now) {
       unresolvedPaths: [],
     };
   }
-  if (existsSync6(transactionPath(projectRoot)))
+  if (existsSync8(transactionPath(projectRoot)))
     return concurrentMigrationResult(projectRoot, options, now);
   const legacy = observeClaudeLegacy(projectRoot);
   const unresolved = unresolvedPaths(legacy);
@@ -12536,13 +12628,13 @@ function isSafeTransactionMetadata(metadata) {
 function readTransactionBytes(path) {
   let descriptor;
   try {
-    const before = lstatSync4(path);
+    const before = lstatSync5(path);
     descriptor = openSync3(
       path,
       fsConstants2.O_RDONLY | fsConstants2.O_NONBLOCK | (fsConstants2.O_NOFOLLOW ?? 0),
     );
     const opened = fstatSync2(descriptor);
-    const after = lstatSync4(path);
+    const after = lstatSync5(path);
     if (!isTransactionFile(before, opened, after)) throw new Error('Unsafe transaction file.');
     const buffer = Buffer.alloc(MAX_CLAUDE_TRANSACTION_BYTES + 1);
     let offset = 0;
@@ -12554,7 +12646,7 @@ function readTransactionBytes(path) {
     const final = fstatSync2(descriptor);
     if (
       offset > MAX_CLAUDE_TRANSACTION_BYTES ||
-      !isTransactionFile(before, final, lstatSync4(path))
+      !isTransactionFile(before, final, lstatSync5(path))
     ) {
       throw new Error('Unsafe transaction file.');
     }
@@ -12630,7 +12722,7 @@ function hasValidQuarantinePath(entry, deleting) {
   return (
     entry.quarantine_path.startsWith('.safeword/claude-plugin/quarantine/') &&
     entry.quarantine_path.endsWith('.retired') &&
-    !nodePath9.isAbsolute(entry.quarantine_path) &&
+    !nodePath11.isAbsolute(entry.quarantine_path) &&
     !entry.quarantine_path.split('/').includes('..')
   );
 }
@@ -12775,7 +12867,7 @@ function ensureQuarantinePaths(projectRoot, transaction) {
 }
 function interruptedAfterImage(path, entry) {
   if (entry.after_base64 === null) return false;
-  const current = readFileSync5(path);
+  const current = readFileSync7(path);
   const after = Buffer.from(entry.after_base64, 'base64');
   return current.length < after.length && after.subarray(0, current.length).equals(current);
 }
@@ -12784,7 +12876,7 @@ function pendingRecoveryEntries(projectRoot, transaction) {
   for (const entry of transaction.entries) {
     if (entry.quarantine_path !== void 0) {
       const quarantine = assertSafeClaudeCleanupTarget(projectRoot, entry.quarantine_path);
-      if (existsSync6(quarantine) && lstatSync4(quarantine).size > 0) {
+      if (existsSync8(quarantine) && lstatSync5(quarantine).size > 0) {
         throw new Error(
           `Claude recovery preserved unverified bytes at ${entry.quarantine_path}; inspect and move or remove that file before retrying recovery`,
         );
@@ -12834,7 +12926,7 @@ function recoverClaudeCleanup(cwd) {
   } catch (error) {
     return cleanupFailure(error);
   }
-  if (!existsSync6(transactionPath(projectRoot))) {
+  if (!existsSync8(transactionPath(projectRoot))) {
     return createResult({
       state: 'healthy',
       data: { command: 'claude recover', classification: 'plugin-mode' },
@@ -12864,10 +12956,10 @@ function recoverClaudeCleanup(cwd) {
 
 // claude-plugin/runtime/dispatch.ts
 function parseSettings(path) {
-  if (!existsSync7(path)) return void 0;
+  if (!existsSync9(path)) return void 0;
   try {
     const errors = [];
-    const parsed = parse2(readFileSync6(path, 'utf8'), errors, {
+    const parsed = parse2(readFileSync8(path, 'utf8'), errors, {
       allowTrailingComma: true,
       disallowComments: false,
     });
@@ -12885,12 +12977,12 @@ function acceptedLegacyHookReference(value, projectRoot) {
   const reference = /\.safeword\/hooks\/[^\s"';&|)]+/u.exec(value)?.[0];
   if (reference === void 0) return false;
   try {
-    const hooksRoot = nodePath10.resolve(projectRoot, '.safeword/hooks');
-    const target = nodePath10.resolve(projectRoot, reference);
-    if (!target.startsWith(`${hooksRoot}${nodePath10.sep}`)) return false;
-    if (realpathSync3(hooksRoot) !== hooksRoot || realpathSync3(target) !== target) return false;
+    const hooksRoot = nodePath12.resolve(projectRoot, '.safeword/hooks');
+    const target = nodePath12.resolve(projectRoot, reference);
+    if (!target.startsWith(`${hooksRoot}${nodePath12.sep}`)) return false;
+    if (realpathSync5(hooksRoot) !== hooksRoot || realpathSync5(target) !== target) return false;
     return (
-      lstatSync5(target).isFile() && isAcceptedHistoricalHookFile(reference, readFileSync6(target))
+      lstatSync6(target).isFile() && isAcceptedHistoricalHookFile(reference, readFileSync8(target))
     );
   } catch {
     return false;
@@ -12906,9 +12998,9 @@ function acceptedLegacyHookFile(value, projectRoot) {
 }
 function viableLegacyAuthority(event, projectRoot) {
   const settingsPaths = /* @__PURE__ */ new Set([
-    nodePath10.join(projectRoot, '.claude/settings.json'),
-    nodePath10.join(projectRoot, '.claude/settings.local.json'),
-    nodePath10.join(claudeConfigDirectory(), 'settings.json'),
+    nodePath12.join(projectRoot, '.claude/settings.json'),
+    nodePath12.join(projectRoot, '.claude/settings.local.json'),
+    nodePath12.join(claudeConfigDirectory(), 'settings.json'),
   ]);
   return [...settingsPaths].some(settingsPath => {
     const settings = parseSettings(settingsPath);
@@ -12930,7 +13022,7 @@ function requiredEnvironment(name) {
   return value;
 }
 function readIdentity(pluginRoot) {
-  const value = JSON.parse(readFileSync6(nodePath10.join(pluginRoot, 'identity.json'), 'utf8'));
+  const value = JSON.parse(readFileSync8(nodePath12.join(pluginRoot, 'identity.json'), 'utf8'));
   if (
     value.schema_version !== 1 ||
     typeof value.plugin_version !== 'string' ||
@@ -12945,7 +13037,7 @@ function assertSafeInventoryAsset(asset) {
   const pathSegments = typeof asset.path === 'string' ? asset.path.split(/[\\/]/u) : [];
   if (
     typeof asset.path !== 'string' ||
-    nodePath10.isAbsolute(asset.path) ||
+    nodePath12.isAbsolute(asset.path) ||
     pathSegments.includes('..') ||
     !/^[\da-f]{64}$/u.test(asset.sha256 ?? '')
   ) {
@@ -12954,10 +13046,10 @@ function assertSafeInventoryAsset(asset) {
 }
 function verifyInventoryAsset(pluginRoot, asset) {
   assertSafeInventoryAsset(asset);
-  const assetPath = nodePath10.join(pluginRoot, asset.path);
+  const assetPath = nodePath12.join(pluginRoot, asset.path);
   let isFile;
   try {
-    isFile = lstatSync5(assetPath).isFile();
+    isFile = lstatSync6(assetPath).isFile();
   } catch (error) {
     if (error.code === 'ENOENT') {
       throw new Error(`Safeword Claude plugin asset is missing: ${asset.path}`, { cause: error });
@@ -12967,7 +13059,7 @@ function verifyInventoryAsset(pluginRoot, asset) {
   if (!isFile) {
     throw new Error(`Safeword Claude plugin asset is not a regular file: ${asset.path}`);
   }
-  const content = readFileSync6(assetPath);
+  const content = readFileSync8(assetPath);
   const actualDigest = createHash6('sha256').update(content).digest('hex');
   if (!claudeAssetMatches(asset, content)) {
     throw new Error(
@@ -12977,7 +13069,7 @@ function verifyInventoryAsset(pluginRoot, asset) {
   return content;
 }
 function verifyInventory(pluginRoot, identity) {
-  const inventoryContent = readFileSync6(nodePath10.join(pluginRoot, 'inventory.json'), 'utf8');
+  const inventoryContent = readFileSync8(nodePath12.join(pluginRoot, 'inventory.json'), 'utf8');
   const inventoryDigest = createHash6('sha256').update(inventoryContent).digest('hex');
   if (inventoryDigest !== identity.inventory_sha256) {
     throw new Error('Safeword Claude plugin inventory does not match its bundled identity.');
@@ -13015,7 +13107,7 @@ function verifyInventory(pluginRoot, identity) {
   return verifiedAssets;
 }
 function verifyManifest(pluginRoot, identity) {
-  const manifest = readFileSync6(nodePath10.join(pluginRoot, 'hooks', 'hooks.json'));
+  const manifest = readFileSync8(nodePath12.join(pluginRoot, 'hooks', 'hooks.json'));
   const digest2 = createHash6('sha256').update(manifest).digest('hex');
   if (digest2 !== identity.hook_manifest_sha256) {
     throw new Error('Safeword Claude plugin hook manifest does not match its bundled identity.');
@@ -13023,7 +13115,7 @@ function verifyManifest(pluginRoot, identity) {
 }
 function writeDurableRecord(pluginData, filename, record2) {
   writeDurableFile(
-    nodePath10.join(pluginData, filename),
+    nodePath12.join(pluginData, filename),
     `${JSON.stringify(record2, void 0, 2)}
 `,
     {
@@ -13127,7 +13219,7 @@ function eventMatcherSubject(event, input) {
   const subject = input[field];
   return {
     supported: true,
-    value: event === 'FileChanged' && subject ? nodePath10.basename(subject) : subject,
+    value: event === 'FileChanged' && subject ? nodePath12.basename(subject) : subject,
   };
 }
 function eventEntryMatches(event, entry, input) {
@@ -13310,8 +13402,8 @@ function scopeDeclaration(path) {
   };
 }
 function incompatibleScopeOverlap(projectRoot) {
-  const project = scopeDeclaration(nodePath10.join(projectRoot, '.claude/settings.json'));
-  const user = scopeDeclaration(nodePath10.join(claudeConfigDirectory(), 'settings.json'));
+  const project = scopeDeclaration(nodePath12.join(projectRoot, '.claude/settings.json'));
+  const user = scopeDeclaration(nodePath12.join(claudeConfigDirectory(), 'settings.json'));
   return (
     project.enabled &&
     user.enabled &&
@@ -13343,7 +13435,7 @@ function scopeOverlapExecution(context, identity, catalogueSha256) {
   return advisoryExecution(context, advisory, stateDigest);
 }
 function automaticMigrationAttemptKind(projectRoot) {
-  return existsSync7(claudeProjectStatePath(projectRoot, 'transaction')) ? 'recovery' : 'migration';
+  return existsSync9(claudeProjectStatePath(projectRoot, 'transaction')) ? 'recovery' : 'migration';
 }
 function automaticMigrationProjectRoot(event, hookCwd) {
   if (event !== 'UserPromptSubmit') return void 0;
@@ -13554,12 +13646,11 @@ function executeConfiguredHooks(input) {
   }
 }
 function exposePackagedSafewordContext(pluginRoot) {
-  const packagedSafewordPath = nodePath10.join(pluginRoot, 'resources', 'SAFEWORD.md');
-  if (existsSync7(packagedSafewordPath)) {
-    process.env.SAFEWORD_PACKAGED_CONTEXT_PATH = packagedSafewordPath;
-  } else {
-    delete process.env.SAFEWORD_PACKAGED_CONTEXT_PATH;
-  }
+  process.env.SAFEWORD_PACKAGED_CONTEXT_PATH = nodePath12.join(
+    pluginRoot,
+    'resources',
+    'SAFEWORD.md',
+  );
 }
 function completeSuccessfulExecution(input) {
   if (input.execution.status !== 0 || input.execution.postExecutionEligible === false) {
@@ -13593,10 +13684,10 @@ function mainUnsafe(event, mode, command) {
   if (mode !== '--event-group' && command.length === 0) {
     throw new Error('A direct hook command is required.');
   }
-  const pluginRoot = realpathSync3(requiredEnvironment('CLAUDE_PLUGIN_ROOT'));
-  process.env.SAFEWORD_PLUGIN_CLI = nodePath10.join(pluginRoot, 'runtime', 'cli.js');
+  const pluginRoot = realpathSync5(requiredEnvironment('CLAUDE_PLUGIN_ROOT'));
+  process.env.SAFEWORD_PLUGIN_CLI = nodePath12.join(pluginRoot, 'runtime', 'cli.js');
   exposePackagedSafewordContext(pluginRoot);
-  const standardInput = readFileSync6(0);
+  const standardInput = readFileSync8(0);
   const hookInput = parseHookInput(standardInput);
   const projectRoot = canonicalClaudeProjectRoot(hookInput.cwd ?? process.cwd());
   const verification = verifyPlugin(event, pluginRoot);

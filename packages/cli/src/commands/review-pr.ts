@@ -28,7 +28,7 @@ export interface InspectPullRequestCommandOptions {
 interface InspectionAudit {
   checkout: false;
   customerCodeExecution: false;
-  githubPermissions: { contents: 'read'; issues: 'read'; pullRequests: 'read' };
+  githubPermissions: { actions: 'read'; contents: 'read'; issues: 'read'; pullRequests: 'read' };
   githubWriteCredential: false;
 }
 
@@ -48,7 +48,7 @@ export type InspectionHandoff =
 const INSPECTION_AUDIT: InspectionAudit = {
   checkout: false,
   customerCodeExecution: false,
-  githubPermissions: { contents: 'read', issues: 'read', pullRequests: 'read' },
+  githubPermissions: { actions: 'read', contents: 'read', issues: 'read', pullRequests: 'read' },
   githubWriteCredential: false,
 };
 
@@ -65,7 +65,13 @@ interface InspectionInput {
     | { kind: 'generated' | 'non_text'; path: string }
     | { kind: 'unreadable_text'; path: string }
   )[];
-  checks: { conclusion: string | null; name: string; status: string }[];
+  checks: {
+    conclusion: string | null;
+    name: string;
+    runNumber?: number;
+    status: string;
+    workflow?: string;
+  }[];
   headSha: string;
   markerReceiptExists: boolean;
   pullState: 'closed' | 'draft' | 'merged' | 'ready';
@@ -252,11 +258,18 @@ function parseInput(inputPath: string): InspectionInput {
       !isRecord(check) ||
       typeof check.name !== 'string' ||
       typeof check.status !== 'string' ||
-      (check.conclusion !== null && typeof check.conclusion !== 'string')
+      (check.conclusion !== null && typeof check.conclusion !== 'string') ||
+      !hasValidRunProvenance(check)
     ) {
       throw new Error('review-pr: invalid check-run sample');
     }
-    return { conclusion: check.conclusion, name: check.name, status: check.status };
+    return {
+      conclusion: check.conclusion,
+      name: check.name,
+      ...(typeof check.runNumber === 'number' && { runNumber: check.runNumber }),
+      status: check.status,
+      ...(typeof check.workflow === 'string' && { workflow: check.workflow }),
+    };
   });
   const statuses = raw.statuses.map(status => {
     if (
@@ -354,8 +367,37 @@ function evaluateCheckRun(
   return PASSING_CHECK_CONCLUSIONS.has(check.conclusion) ? 'passed' : 'pending';
 }
 
+function hasValidRunProvenance(check: Record<string, unknown>): boolean {
+  const { runNumber, workflow } = check;
+  return (
+    (runNumber === undefined ||
+      (typeof runNumber === 'number' && Number.isSafeInteger(runNumber) && runNumber > 0)) &&
+    (workflow === undefined || (typeof workflow === 'string' && workflow.length > 0))
+  );
+}
+
+/** Workers attach provenance only to workflow runs associated with this PR and head. */
+function currentCheckRuns(input: InspectionInput, name: string): InspectionInput['checks'] {
+  const checks = input.checks.filter(check => check.name === name);
+  const byWorkflow = new Map<string, Map<number, number>>();
+  for (const { workflow, runNumber } of checks) {
+    if (workflow === undefined || runNumber === undefined) continue;
+    const counts = byWorkflow.get(workflow) ?? new Map<number, number>();
+    counts.set(runNumber, (counts.get(runNumber) ?? 0) + 1);
+    byWorkflow.set(workflow, counts);
+  }
+  return checks.filter(({ conclusion, workflow, runNumber }) => {
+    if (conclusion !== 'cancelled' || workflow === undefined || runNumber === undefined)
+      return true;
+    const counts = byWorkflow.get(workflow);
+    if (counts?.get(runNumber) !== 1) return true;
+    // A repeated display name in either execution cannot identify the replacement job.
+    return [...counts].every(([later, count]) => later <= runNumber || count !== 1);
+  });
+}
+
 function evaluatePrerequisite(context: string, input: InspectionInput): PrerequisiteState {
-  const checks = input.checks.filter(candidate => candidate.name === context);
+  const checks = currentCheckRuns(input, context);
   if (checks.length > 0) {
     const states = checks.map(check => evaluateCheckRun(check));
     if (states.includes('failed')) return 'failed';
@@ -481,12 +523,13 @@ export async function inspectPullRequestCommand(
     return { ...artifact, path: sanitizedPath.value };
   });
   const prerequisite = resolvePrerequisiteState(config, input);
+  const generatedRuns =
+    config.generatedFilesCheck === undefined
+      ? []
+      : currentCheckRuns(input, config.generatedFilesCheck);
   const generatedCheckPassed =
-    config.generatedFilesCheck !== undefined &&
-    input.checks.some(check => check.name === config.generatedFilesCheck) &&
-    input.checks
-      .filter(check => check.name === config.generatedFilesCheck)
-      .every(check => check.status === 'completed' && check.conclusion === 'success');
+    generatedRuns.length > 0 &&
+    generatedRuns.every(check => check.status === 'completed' && check.conclusion === 'success');
   let published: PublishedReceipt | undefined;
 
   await reviewPullRequest({

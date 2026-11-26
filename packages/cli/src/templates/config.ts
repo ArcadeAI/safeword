@@ -45,13 +45,13 @@ const nextPaths = detect.findNextConfigPaths(${directoryVariable});
 // Note: Astro config only lints .astro files, so we combine it with TypeScript config
 // to also lint .ts files in Astro projects
 // Note: In monorepos, Next.js uses React config + scoped Next.js rules
-const baseConfigs = {
-  next: nextPaths ? configs.recommendedTypeScriptReact : configs.recommendedTypeScriptNext,
-  react: configs.recommendedTypeScriptReact,
-  astro: [...configs.recommendedTypeScript, ...configs.astro],
-  typescript: configs.recommendedTypeScript,
-  javascript: configs.recommended,
-};
+const baseConfigs = new Map([
+  ["next", nextPaths ? configs.recommendedTypeScriptReact : configs.recommendedTypeScriptNext],
+  ["react", configs.recommendedTypeScriptReact],
+  ["astro", [...configs.recommendedTypeScript, ...configs.astro]],
+  ["typescript", configs.recommendedTypeScript],
+  ["javascript", configs.recommended],
+]);
 
 // Build scoped Next.js rules for monorepos
 // Each Next.js app gets its own scoped config with files: pattern
@@ -66,17 +66,17 @@ const scopedNextConfigs = nextPaths?.flatMap((filePath) =>
  * Used by all 3 ESLint config generators.
  */
 const OPTIONAL_CONFIGS_SNIPPET = `  // Testing configs - only if detected (plugins have framework peer deps)
-  ...(detect.hasVitest(deps) ? configs.vitest : []),
-  ...(detect.hasBunTest(deps, __dirname) ? configs.bunTest : []),
-  ...(detect.hasPlaywright(deps) ? configs.playwright : []),
+  ...(detect.hasVitest(dependencies) ? configs.vitest : []),
+  ...(detect.hasBunTest(dependencies, __dirname) ? configs.bunTest : []),
+  ...(detect.hasPlaywright(dependencies) ? configs.playwright : []),
   // Storybook - only if detected (v10+ requires storybook peer dep)
-  ...(detect.hasStorybook(deps) ? configs.storybook : []),
+  ...(detect.hasStorybook(dependencies) ? configs.storybook : []),
   // TanStack Query - only if detected (has typescript peer dep)
-  ...(detect.hasTanstackQuery(deps) ? configs.tanstackQuery : []),
+  ...(detect.hasTanstackQuery(dependencies) ? configs.tanstackQuery : []),
   // Tailwind - only if detected (plugin needs tailwind config to validate classes)
-  ...(detect.hasTailwind(deps) ? configs.tailwind : []),
+  ...(detect.hasTailwind(dependencies) ? configs.tailwind : []),
   // Turborepo - only if detected (validates env vars are declared in turbo.json)
-  ...(detect.hasTurbo(deps) ? configs.turbo : []),`;
+  ...(detect.hasTurbo(dependencies) ? configs.turbo : []),`;
 
 /**
  * Full strict rules for safeword ESLint configs that extend existing project configs.
@@ -113,6 +113,21 @@ const safewordStrictRules = {
 };`;
 
 /**
+ * ESLint 10 lints every file with the config nearest to it, so `eslint .` would
+ * lint the vendored files under `.safeword/` (hook sources included) with this
+ * config. An absolute `basePath` ignores this directory in both nearest-config
+ * lookup and the hook's explicit `--config` run. `basePath` needs ESLint 9.30+,
+ * and nearest-config lookup is only the default from ESLint 10, so gate on 10.
+ */
+const SAFEWORD_DIRECTORY_IGNORE = `// ESLint 10 lints each file with its nearest config, which for vendored files
+// under .safeword/ is this one. Ignore this directory by absolute path so it
+// holds whether ESLint found this file itself or the hook passed --config.
+const ownDirectoryIgnore =
+  Number(ESLint.version.split(".", 1)[0]) >= 10
+    ? [{ basePath: import.meta.dirname, ignores: ["**"] }]
+    : [];`;
+
+/**
  * Generates an ESLint config using safeword.
  *
  * The generated config uses safeword.detect utilities to detect frameworks
@@ -139,14 +154,14 @@ const eslintConfigPrettier = safeword.prettierConfig;
 
 const { detect, configs } = safeword;
 const __dirname = import.meta.dirname;
-const deps = detect.collectAllDeps(__dirname);
-const framework = detect.detectFramework(deps);
+const dependencies = detect.collectAllDeps(__dirname);
+const framework = detect.detectFramework(dependencies);
 
 ${getMonorepoSnippet('__dirname')}
 
 export default defineConfig([
   { ignores: detect.getIgnores() },
-  ...baseConfigs[framework],
+  ...baseConfigs.get(framework),
   ...scopedNextConfigs,
 ${OPTIONAL_CONFIGS_SNIPPET}
   eslintConfigPrettier,
@@ -165,14 +180,14 @@ import safeword from "safeword/eslint";
 
 const { detect, configs } = safeword;
 const __dirname = import.meta.dirname;
-const deps = detect.collectAllDeps(__dirname);
-const framework = detect.detectFramework(deps);
+const dependencies = detect.collectAllDeps(__dirname);
+const framework = detect.detectFramework(dependencies);
 
 ${getMonorepoSnippet('__dirname')}
 
 export default defineConfig([
   { ignores: detect.getIgnores() },
-  ...baseConfigs[framework],
+  ...baseConfigs.get(framework),
   ...scopedNextConfigs,
 ${OPTIONAL_CONFIGS_SNIPPET}
 ]);
@@ -221,6 +236,9 @@ function getSafewordEslintConfigExtending(
 // Used by hooks for LLM enforcement. Human pre-commits use project config.
 // Re-run \`safeword install\` to regenerate after project config changes.
 import { existsSync } from "node:fs";
+import { URL } from "node:url";
+
+import { ESLint } from "eslint";
 ${safewordImport}${prettier.import}
 
 // Ticket 139: existsSync gate + no try/catch.
@@ -232,10 +250,19 @@ ${safewordImport}${prettier.import}
 let projectConfig = [];
 const projectConfigPath = new URL("../${existingConfig}", import.meta.url);
 
+/**
+ * Whether the project config is TypeScript and must be loaded through jiti.
+ * @param {URL} configPath - Location of the project ESLint config.
+ * @returns {boolean} True for .ts, .mts, and .cts configs.
+ */
 function isTypeScriptProjectConfig(configPath) {
   return /\\.[cm]?ts$/.test(configPath.pathname);
 }
 
+/**
+ * Load the project's own ESLint config so its rules stay authoritative.
+ * @returns {Promise<unknown>} The project config's default export.
+ */
 async function loadProjectConfig() {
   if (isTypeScriptProjectConfig(projectConfigPath)) {
     const { createJiti } = await import("jiti");
@@ -255,11 +282,14 @@ if (existsSync(projectConfigPath)) {
 
 ${SAFEWORD_STRICT_RULES_FULL}
 
+${SAFEWORD_DIRECTORY_IGNORE}
+
 // Composition order (ticket 138): safeword rules FIRST, customer config LAST.
 // Flat config is "later wins" — this makes the customer's project config
 // authoritative for the LLM hook. Customer overrides (e.g. 'no-unused-vars': 'off')
 // take effect here instead of being silently overridden by safeword's strict layer.
 export default [
+  ...ownDirectoryIgnore,
   safewordStrictRules,
   ...projectConfig,
 ${prettier.configEntry}
@@ -282,6 +312,7 @@ function getSafewordEslintConfigLegacy(
 // Used by hooks for LLM enforcement. Human pre-commits use project config.
 // NOTE: Legacy .eslintrc.* format is deprecated. Consider migrating to eslint.config.mjs
 import { FlatCompat } from "@eslint/eslintrc";
+import { ESLint } from "eslint";
 ${safewordImport}${prettier.import}
 
 console.warn("Safeword: Legacy .eslintrc.* detected. Consider migrating to eslint.config.mjs");
@@ -299,9 +330,12 @@ try {
 
 ${SAFEWORD_STRICT_RULES_FULL}
 
+${SAFEWORD_DIRECTORY_IGNORE}
+
 // Composition order (ticket 138): safeword rules FIRST, customer config LAST.
 // See getSafewordEslintConfigExtending for rationale.
 export default [
+  ...ownDirectoryIgnore,
   safewordStrictRules,
   ...projectConfig,
 ${prettier.configEntry}
@@ -441,7 +475,6 @@ export const SETTINGS_HOOKS = {
     hook(`bun ${HOOKS_DIR}/session-version.ts`),
     hook(`bun ${HOOKS_DIR}/session-lint-check.ts`),
     hook(`bun ${HOOKS_DIR}/session-architecture-heal.ts`),
-    hook(`bun ${HOOKS_DIR}/session-author-model.ts`),
     hook(`bun ${HOOKS_DIR}/session-start-reentry.ts`),
     matchedHook('compact', `bun ${HOOKS_DIR}/session-compact-context.ts`),
   ],

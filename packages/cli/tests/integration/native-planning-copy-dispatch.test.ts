@@ -15,8 +15,8 @@ import { inspect } from 'node:util';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { EXECUTION_PLAN_CONFORMANCE_CASES } from '../../src/review/execution-plan-conformance.js';
 import { VERSION } from '../../src/version.js';
+import { EXECUTION_PLAN_SAMPLES } from '../fixtures/execution-plan-samples.js';
 import { realBunExecutable } from '../helpers.js';
 import { writePlanningInventories } from '../planning-fixtures.js';
 import { PLANNING_ROLE_PRODUCT } from '../planning-role-fixtures.js';
@@ -28,6 +28,10 @@ import {
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '../..');
 const roots: string[] = [];
+
+function isNonzeroExit(status: number | null): boolean {
+  return typeof status === 'number' && status !== 0;
+}
 
 function generatedSourceSnapshot() {
   return ['review', 'planning'].flatMap(directory => {
@@ -116,7 +120,7 @@ function writePhaseTicket(ticket: string, phase: NativePlanningPhase): void {
     '# Implementation Plan\n\nPreserve the accepted scope and implement its reviewed approach.\n',
   );
   if (phase !== 'plan-execution') return;
-  const executionCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+  const executionCase = EXECUTION_PLAN_SAMPLES.find(
     candidate => candidate.id === 'one-coherent-change',
   );
   if (executionCase === undefined) throw new Error('Missing canonical Execution Plan fixture');
@@ -231,8 +235,8 @@ describe('Complete native planning author-copy dispatch', () => {
           review_kind: kind,
           author_agent: author,
           actual_reviewer: reviewerAgent,
-          // These reviewer fakes provide no confirmed model provenance.
-          independence: 'reduced',
+          // A different agent reviewed, so the review is independent.
+          independence: 'cross-agent',
         },
       });
       expect(readFileSync(reviewer.calls, 'utf8')).toBe('review\n');
@@ -252,7 +256,10 @@ describe('Complete native planning author-copy dispatch', () => {
         `<!-- Native copy drift outside the rubric -->\n${original.toString('utf8')}`,
       );
       const edited = run();
-      expect(edited.status, inspect(edited, { depth: 2, maxStringLength: Infinity })).not.toBe(0);
+      expect(
+        isNonzeroExit(edited.status),
+        inspect(edited, { depth: 2, maxStringLength: Infinity }),
+      ).toBe(true);
       expect(JSON.parse(edited.stdout)).toMatchObject({
         data: { status: 'blocked' },
         findings: expect.arrayContaining([
@@ -268,7 +275,10 @@ describe('Complete native planning author-copy dispatch', () => {
       ).toBe('review\n');
       rmSync(asset);
       const missing = run();
-      expect(missing.status, inspect(missing, { depth: 2, maxStringLength: Infinity })).not.toBe(0);
+      expect(
+        isNonzeroExit(missing.status),
+        inspect(missing, { depth: 2, maxStringLength: Infinity }),
+      ).toBe(true);
       expect(JSON.parse(missing.stdout).data.status).toBe('blocked');
       expect(JSON.parse(missing.stdout).findings).toContainEqual(
         expect.objectContaining({

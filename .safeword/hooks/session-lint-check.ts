@@ -11,8 +11,9 @@ import {
   shouldWarnMissingPrettier,
 } from './lib/lint-config.ts';
 import { BIOME_CONFIG_FILES, resolveHostToolchain } from './lib/host-toolchain.ts';
+import { readSessionProjectDirectory } from './lib/project-directory.ts';
 
-const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const projectDir = readSessionProjectDirectory();
 const safewordDir = `${projectDir}/.safeword`;
 
 // Not a safeword project, skip silently
@@ -41,16 +42,6 @@ const hostToolchain = hostLintConfig
   ? resolveHostToolchain(nodePath.join(projectDir, hostLintConfig), projectDir)
   : undefined;
 
-if (shouldWarnMissingEslint(entries)) {
-  warnings.push("ESLint config not found - run 'bun run lint' may fail");
-}
-
-// Skip Prettier warnings when a non-Prettier formatter owns the repo (V7GGJZ):
-// a Biome/dprint/oxfmt/deno shop deliberately doesn't use Prettier.
-if (shouldWarnMissingPrettier(entries)) {
-  warnings.push('Prettier config not found - formatting may be inconsistent');
-}
-
 if (hostToolchain?.kind === 'unavailable') {
   const owner = hostToolchain.owner === 'biome' ? 'Biome' : 'Ultracite';
   warnings.push(
@@ -60,9 +51,21 @@ if (hostToolchain?.kind === 'unavailable') {
   warnings.push('Biome config resolves outside the project root, so safeword will not run it');
 }
 
-// Check for required dependencies in package.json
+// ESLint and Prettier are JavaScript/TypeScript tooling. Only report their
+// setup warnings when the worktree declares a Node project at its root;
+// language-only worktrees (for example Go services) should stay quiet.
 const pkgJsonFile = Bun.file(`${projectDir}/package.json`);
 if (await pkgJsonFile.exists()) {
+  if (shouldWarnMissingEslint(entries)) {
+    warnings.push("ESLint config not found - run 'bun run lint' may fail");
+  }
+
+  // Skip Prettier warnings when a non-Prettier formatter owns the repo (V7GGJZ):
+  // a Biome/dprint/oxfmt/deno shop deliberately doesn't use Prettier.
+  if (shouldWarnMissingPrettier(entries)) {
+    warnings.push('Prettier config not found - formatting may be inconsistent');
+  }
+
   try {
     const pkgJson = await pkgJsonFile.text();
     if (hostLintConfig === undefined && !pkgJson.includes('"eslint"')) {

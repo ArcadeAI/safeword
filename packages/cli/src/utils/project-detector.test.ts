@@ -4,8 +4,10 @@
  * These are pure unit tests for the detectProjectType function.
  */
 
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
+import process from 'node:process';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -341,6 +343,90 @@ describe('detectProjectType', () => {
       writeTestFile(cwd, 'scripts/release.sh', '#!/usr/bin/env bash\n');
 
       expect(detectProjectType({}, cwd).shell).toBe(true);
+    });
+  });
+
+  describe('Detects an available TypeScript compiler (#6966)', () => {
+    let cwd: string;
+
+    beforeEach(() => {
+      cwd = createTemporaryDirectory();
+    });
+
+    afterEach(() => {
+      removeTemporaryDirectory(cwd);
+    });
+
+    it('reports none for a fresh project without typescript', () => {
+      expect(detectProjectType({}, cwd).typescriptAvailable).toBe(false);
+    });
+
+    it('counts typescript hoisted from monorepo workspaces as available', () => {
+      writeTestFile(cwd, 'node_modules/typescript/package.json', '{"version":"5.9.3"}\n');
+      expect(detectProjectType({}, cwd).typescriptAvailable).toBe(true);
+    });
+
+    it('counts typescript hoisted to the repository root as available', () => {
+      writeTestFile(cwd, '.git/HEAD', 'ref: refs/heads/main\n');
+      writeTestFile(cwd, 'node_modules/typescript/package.json', '{"version":"5.9.3"}\n');
+      writeTestFile(cwd, 'apps/web/package.json', '{"name":"web"}\n');
+      const workspaceMember = nodePath.join(cwd, 'apps/web');
+      expect(detectProjectType({}, workspaceMember).typescriptAvailable).toBe(true);
+    });
+
+    it('ignores a typescript installed above the repository root', () => {
+      // e.g. ~/node_modules: local tools could load it, but CI and teammates would not.
+      writeTestFile(cwd, 'node_modules/typescript/package.json', '{"version":"5.9.3"}\n');
+      writeTestFile(cwd, 'project/.git/HEAD', 'ref: refs/heads/main\n');
+      const project = nodePath.join(cwd, 'project');
+      expect(detectProjectType({}, project).typescriptAvailable).toBe(false);
+    });
+
+    it('looks only in the project folder when it is not in a repository', () => {
+      writeTestFile(cwd, 'node_modules/typescript/package.json', '{"version":"5.9.3"}\n');
+      writeTestFile(cwd, 'project/package.json', '{"name":"project"}\n');
+      const project = nodePath.join(cwd, 'project');
+      expect(detectProjectType({}, project).typescriptAvailable).toBe(false);
+    });
+
+    it('ignores the Bun global install cache when the CLI runs under Bun', () => {
+      // Bun's resolver falls back to its install cache, auto-installing a missing
+      // package from the registry. Isolate that cache, prove Bun's own resolver
+      // finds typescript through it, then require detection to ignore it.
+      const bunCache = createTemporaryDirectory();
+      try {
+        const detector = nodePath.join(import.meta.dirname, 'project-detector.ts');
+        const manifest = JSON.stringify(nodePath.join(cwd, 'package.json'));
+        const script = `
+          const { createRequire } = await import('node:module');
+          const { detectProjectType } = await import(${JSON.stringify(detector)});
+          let resolved = null;
+          try { resolved = createRequire(${manifest}).resolve('typescript/package.json'); } catch {}
+          console.log(JSON.stringify({
+            resolved,
+            available: detectProjectType({}, ${JSON.stringify(cwd)}).typescriptAvailable,
+          }));`;
+        writeTestFile(cwd, 'package.json', '{"name":"fixture"}\n');
+        const result = spawnSync('bun', ['--eval', script], {
+          cwd,
+          encoding: 'utf8',
+          env: { ...process.env, BUN_INSTALL_CACHE_DIR: bunCache },
+        });
+        const { resolved, available } = JSON.parse(result.stdout) as {
+          resolved: string | null;
+          available: boolean;
+        };
+
+        expect(resolved, 'Bun did not resolve typescript through its cache').toContain(bunCache);
+        expect(available).toBe(false);
+      } finally {
+        removeTemporaryDirectory(bunCache);
+      }
+    });
+
+    it('counts a declared typescript as available before it is installed', () => {
+      const declared: PackageJson = { devDependencies: { typescript: '^5.9.0' } };
+      expect(detectProjectType(declared, cwd).typescriptAvailable).toBe(true);
     });
   });
 

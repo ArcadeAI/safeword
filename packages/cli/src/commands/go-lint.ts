@@ -11,6 +11,7 @@ export interface GoLintResult {
   diagnosticContext?: string;
 }
 interface GoLintOptions {
+  fix?: boolean;
   file?: string;
   projectRoot?: string;
   originalCwd?: string;
@@ -81,6 +82,31 @@ function saveTextReport(config: GoLintConfig, output: string, warnings: string[]
   }
 }
 
+async function checkPackage(
+  runner: ReturnType<typeof goLintProcess>,
+  config: GoLintConfig,
+  scope: { file: string; cwd: string; fix: boolean },
+  warnings: string[],
+): Promise<Partial<GoLintResult>> {
+  const { file, cwd, fix } = scope;
+  const formatArguments = ['fmt', ...config.args, file];
+  const lintArguments = ['run', ...config.args, '--path-prefix', config.base, '.'];
+  if (!fix) {
+    formatArguments.push('--diff');
+    lintArguments.push('--fix=false');
+  }
+  const formatted = await runner.run(formatArguments, cwd);
+  if (formatted.code !== 0 && (fix || !formatted.stdout)) warnings.push(failure('fmt', formatted));
+  const checked = await runner.run(lintArguments, cwd);
+  saveTextReport(config, checked.stdout, warnings);
+  const findings = diagnostics(checked, file, cwd);
+  if (!fix && formatted.stdout)
+    findings.errors = [formatted.stdout, findings.errors].filter(Boolean).join('\n');
+  if (checked.code !== 0 && !checked.stdout) warnings.push(failure('run', checked));
+  if (checked.stderr) warnings.push(checked.stderr);
+  return findings;
+}
+
 /** Internal hook action: load a whole package without widening the source edits. */
 export async function goLint(options: GoLintOptions): Promise<GoLintResult> {
   const warnings: string[] = [];
@@ -97,16 +123,12 @@ export async function goLint(options: GoLintOptions): Promise<GoLintResult> {
     );
     warnings.push(...configWarnings(config, root));
     runner = goLintProcess(config.cleanup);
-    const formatted = await runner.run(['fmt', ...config.args, file], cwd);
-    if (formatted.code !== 0) warnings.push(failure('fmt', formatted));
-    const checked = await runner.run(
-      ['run', ...config.args, '--path-prefix', config.base, '.'],
-      cwd,
+    findings = await checkPackage(
+      runner,
+      config,
+      { file, cwd, fix: options.fix !== false },
+      warnings,
     );
-    saveTextReport(config, checked.stdout, warnings);
-    findings = diagnostics(checked, file, cwd);
-    if (checked.code !== 0 && !checked.stdout) warnings.push(failure('run', checked));
-    if (checked.stderr) warnings.push(checked.stderr);
   } catch (error) {
     warnings.push(
       `Go lint could not run: ${error instanceof Error ? error.message : String(error)}`,

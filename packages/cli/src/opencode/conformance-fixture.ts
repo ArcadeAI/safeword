@@ -98,7 +98,7 @@ function prepareCatalogueFixture(
       readFileSync(skillPath),
     );
   }
-  writeFileSync(nodePath.join(project, '.safeword', 'SAFEWORD.md'), '# Safeword\n');
+  writeFileSync(nodePath.join(project, '.safeword', 'enrolled'), 'enrolled\n');
   const profilePaths = openCodeProfilePaths(config);
   mkdirSync(nodePath.dirname(profilePaths.plugin), { recursive: true });
   mkdirSync(profilePaths.safeword, { recursive: true });

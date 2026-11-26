@@ -120,7 +120,6 @@ export async function rankedPlanningReview(project: string, bin: string, example
           ...process.env,
           PATH: `${bin}:/usr/bin:/bin`,
           SAFEWORD_AGENT_RUNTIME: 'claude',
-          SAFEWORD_AUTHOR_MODEL: 'claude-opus-5',
           SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(bin, 'keys'),
           SAFEWORD_REVIEW_FOREGROUND_MS: '25000',
           SAFEWORD_REVIEW_TIMEOUT_MS: '3000',

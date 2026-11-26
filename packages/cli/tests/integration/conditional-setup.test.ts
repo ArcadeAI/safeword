@@ -54,7 +54,7 @@ describe('E2E: Conditional Setup - Project Type Detection', () => {
       expect(eslintConfig).toContain('safeword/eslint"');
       // Config is now dynamic - detects framework at runtime
       expect(eslintConfig).toContain('configs.recommendedTypeScript');
-      expect(eslintConfig).toContain('baseConfigs[framework]');
+      expect(eslintConfig).toContain('baseConfigs.get(framework)');
 
       // Check package.json has safeword (bundles typescript-eslint)
       const pkg = JSON.parse(readTestFile(projectDirectory, 'package.json'));
@@ -79,8 +79,8 @@ describe('E2E: Conditional Setup - Project Type Detection', () => {
       const eslintConfig = readTestFile(projectDirectory, 'eslint.config.mjs');
       expect(eslintConfig).toContain('safeword/eslint"');
       // Config is now dynamic - detects framework at runtime
-      expect(eslintConfig).toContain('javascript: configs.recommended');
-      expect(eslintConfig).toContain('baseConfigs[framework]');
+      expect(eslintConfig).toContain('["javascript", configs.recommended]');
+      expect(eslintConfig).toContain('baseConfigs.get(framework)');
 
       // safeword is installed (bundles everything)
       const pkg = JSON.parse(readTestFile(projectDirectory, 'package.json'));
@@ -107,8 +107,8 @@ describe('E2E: Conditional Setup - Project Type Detection', () => {
       const eslintConfig = readTestFile(projectDirectory, 'eslint.config.mjs');
       expect(eslintConfig).toContain('safeword/eslint"');
       // Config is now dynamic - detects framework at runtime
-      expect(eslintConfig).toContain('react: configs.recommendedTypeScriptReact');
-      expect(eslintConfig).toContain('baseConfigs[framework]');
+      expect(eslintConfig).toContain('["react", configs.recommendedTypeScriptReact]');
+      expect(eslintConfig).toContain('baseConfigs.get(framework)');
 
       // Check package.json has safeword (bundles React plugins)
       const pkg = JSON.parse(readTestFile(projectDirectory, 'package.json'));
@@ -138,7 +138,7 @@ describe('E2E: Conditional Setup - Project Type Detection', () => {
       expect(eslintConfig).toContain(
         'nextPaths ? configs.recommendedTypeScriptReact : configs.recommendedTypeScriptNext',
       );
-      expect(eslintConfig).toContain('baseConfigs[framework]');
+      expect(eslintConfig).toContain('baseConfigs.get(framework)');
 
       // Check standard ignores (detect.getIgnores includes .next/, .astro/, .venv/, etc.)
       expect(eslintConfig).toContain('detect.getIgnores()');

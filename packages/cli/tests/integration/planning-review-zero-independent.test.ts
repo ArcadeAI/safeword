@@ -21,7 +21,7 @@ afterEach(() => {
 });
 
 it.each(['claude', 'cursor'] as const)(
-  'blocks %s planning approval when no independent route was attempted',
+  'does not block %s planning review when no independent route can run',
   async author => {
     const project = createTemporaryDirectory();
     projects.push(project);
@@ -52,7 +52,7 @@ it.each(['claude', 'cursor'] as const)(
     mkdirSync(nodePath.join(project, 'features'), { recursive: true });
     writeFileSync(
       nodePath.join(project, 'features/zero-independent.feature'),
-      '@zero-independent.BU1.R1\nFeature: Independent first\n  Scenario: No independent route\n    Given no independent route\n    When review runs\n    Then approval remains blocked\n',
+      '@zero-independent.BU1.R1\nFeature: Independent first\n  Scenario: No independent route\n    Given no independent route\n    When review runs\n    Then a reduced review is recorded\n',
     );
     const reviewer = createTrustedReviewerDirectory('safeword-zero-independent-');
     const invoked = nodePath.join(reviewer, 'invoked');
@@ -84,10 +84,21 @@ it.each(['claude', 'cursor'] as const)(
       },
     );
     const output = JSON.parse(reviewed.stdout);
-    expect(output.data).toMatchObject({ status: 'blocked', independence: 'none' });
-    expect(output.findings).toContainEqual(
-      expect.objectContaining({ code: 'REVIEW_ROUTES_EXHAUSTED' }),
-    );
-    expect(existsSync(invoked)).toBe(false);
+    if (author === 'claude') {
+      // The only configured route is the author's own agent: it runs and is labeled reduced.
+      expect(reviewed.exitCode, reviewed.stdout).toBe(0);
+      expect(output.data).toMatchObject({
+        status: 'approved',
+        actual_reviewer: 'claude',
+        independence: 'reduced',
+      });
+      expect(existsSync(invoked)).toBe(true);
+    } else {
+      // No headless route exists, so the host's fresh-context review is next rather than a block.
+      expect(output.data).toMatchObject({ status: 'continuation_required', independence: 'none' });
+      expect(output.findings).not.toContainEqual(
+        expect.objectContaining({ code: 'REVIEW_ROUTES_EXHAUSTED' }),
+      );
+    }
   },
 );

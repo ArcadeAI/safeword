@@ -103,7 +103,7 @@ const MONITOR_SOURCES: readonly MonitorSource[] = [
   },
   // Tripwire source (#1907): Safeword works around Codex having no
   // project-scoped plugin activation by gating every Codex hook on the
-  // `.safeword/SAFEWORD.md` enrollment marker. Removal depends on this
+  // `.safeword/enrolled` enrollment marker. Removal depends on this
   // upstream issue, which nothing in this repo would otherwise notice.
   // Complements the pinned-version tripwire in
   // packages/cli/tests/codex-project-scope-tripwire.test.ts: the pin fires when
@@ -120,7 +120,7 @@ const MONITOR_SOURCES: readonly MonitorSource[] = [
       'The upstream issue behind a Safeword workaround changed state: **openai/codex#18115** (project-scoped plugin activation).',
     checklist: [
       '- [ ] Did project-scoped plugin activation actually ship, or was the issue closed as stale/duplicate?',
-      '- [ ] If it shipped: is the `.safeword/SAFEWORD.md` enrollment marker still load-bearing as a scope substitute?',
+      '- [ ] If it shipped: is the `.safeword/enrolled` enrollment marker still load-bearing as a scope substitute?',
       '- [ ] Reassess the `hasSafewordProjectMarker` guards, the packaged hook copies, and the ARCHITECTURE.md ADR "Explicit Project Enrollment for Profile-Scoped Codex Hooks".',
       '- [ ] If it shipped and the workaround is gone: delete `packages/cli/tests/codex-project-scope-tripwire.test.ts` and this monitor source.',
       '- [ ] If it did not ship: advance the snapshot and leave both tripwires in place.',

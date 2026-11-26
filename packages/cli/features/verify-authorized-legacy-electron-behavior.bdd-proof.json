@@ -1,0 +1,327 @@
+{
+  "feature": "packages/cli/features/verify-authorized-legacy-electron-behavior.feature",
+  "scenarios": {
+    "An approved legacy Electron scenario earns separate verified credit": [
+      "packages/cli/tests/review/legacy-electron-authorization.test.ts",
+      "attests an enrolled row using real authenticated reviews and isolated external process replay"
+    ],
+    "Both independent approvals are required before row attestation": [
+      [
+        "packages/cli/tests/review/legacy-electron-authorization.test.ts",
+        "requires both independent reviews for the enrolled Electron row at the public boundary"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-authorization.test.ts",
+        "refuses %s-only or nonindependent approval before replay",
+        "eligibility"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-authorization.test.ts",
+        "refuses %s-only or nonindependent approval before replay",
+        "proof"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-authorization.test.ts",
+        "refuses %s-only or nonindependent approval before replay",
+        "declined"
+      ]
+    ],
+    "Project configuration cannot weaken the independent reviewer requirement": [
+      "packages/cli/tests/review/legacy-electron-authorization.test.ts",
+      "refuses %s-only or nonindependent approval before replay",
+      "author"
+    ],
+    "A claim outside the approved migration boundary is refused": [
+      "packages/cli/tests/review/legacy-electron-eligibility-boundary.test.ts",
+      "refuses a changed historical %s despite current authenticated review records"
+    ],
+    "Invalid historical eligibility cannot authorize a row": [
+      "packages/cli/tests/review/legacy-electron-eligibility-boundary.test.ts",
+      "refuses %s without treating an independent approval as historical proof"
+    ],
+    "The public command observes independently rebuilt original and mutant Electron snapshots": [
+      [
+        "packages/cli/tests/cli-protocol/retrospective-observe.test.ts",
+        "observes through the real public parser and fixed runner without creating verification credit"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-runner.test.ts",
+        "builds committed original and mutant snapshots with independent frozen installs"
+      ]
+    ],
+    "A non-discriminating execution does not earn verification": [
+      [
+        "packages/cli/tests/review/legacy-electron-proof.test.ts",
+        "refuses a coherent failing original execution"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-proof.test.ts",
+        "refuses %s as mutation evidence",
+        "a surviving mutation"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-runner.test.ts",
+        "refuses %s and removes its owned snapshots",
+        "install-failure"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-runner.test.ts",
+        "refuses %s and removes its owned snapshots",
+        "build-failure"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-proof.test.ts",
+        "refuses %s as mutation evidence",
+        "a global test timeout"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-proof.test.ts",
+        "refuses %s as mutation evidence",
+        "a skipped execution"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-proof.test.ts",
+        "refuses %s as mutation evidence",
+        "no selected tests"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-proof.test.ts",
+        "refuses %s as mutation evidence",
+        "multiple selected tests"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-proof.test.ts",
+        "refuses %s as mutation evidence",
+        "retry recovery"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-proof.test.ts",
+        "refuses %s as mutation evidence",
+        "a different assertion location"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-runner.test.ts",
+        "refuses an unreported renderer exception despite an otherwise qualifying matcher report"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-runner.test.ts",
+        "refuses %s and removes its owned snapshots",
+        "process-crash"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-runner.test.ts",
+        "refuses %s and removes its owned snapshots",
+        "malformed-report"
+      ]
+    ],
+    "A retrying matcher can discriminate the declared behavior": [
+      "packages/cli/tests/review/legacy-electron-proof.test.ts",
+      "accepts matcher wait exhaustion at the exact expectation with expected and received values"
+    ],
+    "Unsafe proof preparation cannot produce an observation": [
+      [
+        "packages/cli/tests/review/legacy-electron-runner.test.ts",
+        "refuses dirty tracked source before installing dependencies"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-runner.test.ts",
+        "identifies an untracked declared support input before installation"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-runner.test.ts",
+        "refuses %s and removes its owned snapshots",
+        "occupied-port"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-proof.test.ts",
+        "refuses %s before preparing executable snapshots",
+        "a live build request"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-runner.test.ts",
+        "refuses %s and removes its owned snapshots",
+        "lock-drift"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-runner.test.ts",
+        "refuses %s before installation",
+        "a missing anchor"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-runner.test.ts",
+        "refuses %s before installation",
+        "a repeated anchor"
+      ]
+    ],
+    "Unrelated untracked files cannot enter executable proof": [
+      "packages/cli/tests/review/legacy-electron-runner.test.ts",
+      "builds committed original and mutant snapshots with independent frozen installs"
+    ],
+    "Author-supplied executable commands are not a runner policy": [
+      [
+        "packages/cli/tests/review/legacy-electron-proof.test.ts",
+        "refuses %s before preparing executable snapshots",
+        "an arbitrary command"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-proof.test.ts",
+        "refuses %s before preparing executable snapshots",
+        "an arbitrary working directory"
+      ]
+    ],
+    "A changed bound input invalidates prior credit": [
+      [
+        "packages/cli/tests/review/legacy-electron-stale-input.test.ts",
+        "refuses changed observed policy identity despite fresh successful execution and a current proof review"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-stale-input.test.ts",
+        "fresh successful execution cannot renew the old review after changed %s",
+        "implementation"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-stale-input.test.ts",
+        "fresh successful execution cannot renew the old review after changed %s",
+        "selected test source"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-stale-input.test.ts",
+        "fresh successful execution cannot renew the old review after changed %s request bytes",
+        "test selection"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-stale-input.test.ts",
+        "fresh successful execution cannot renew the old review after changed %s",
+        "support file"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-stale-input.test.ts",
+        "fresh successful execution cannot renew the old review after changed %s",
+        "runner configuration"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-stale-input.test.ts",
+        "fresh successful execution cannot renew the old review after changed %s",
+        "dependency lockfile"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-stale-input.test.ts",
+        "fresh successful execution cannot replace a changed %s",
+        "eligibility receipt"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-stale-input.test.ts",
+        "a fresh proof review cannot replace eligibility review after its explanation changes"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-stale-input.test.ts",
+        "fresh successful execution cannot replace a changed %s",
+        "proof receipt"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-stale-input.test.ts",
+        "fresh successful execution cannot renew the old review after changed %s request bytes",
+        "mutation definition"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-stale-input.test.ts",
+        "fresh successful execution cannot renew the old review after changed %s request bytes",
+        "declared assertion"
+      ]
+    ],
+    "A metadata commit requires fresh row authorization without rewriting history": [
+      "packages/cli/tests/review/legacy-electron-authorization.test.ts",
+      "requires real replay at a metadata HEAD while preserving the producing observation"
+    ],
+    "A metadata commit cannot reuse an old execution": [
+      "packages/cli/tests/review/legacy-electron-authorization.test.ts",
+      "requires real replay at a metadata HEAD while preserving the producing observation"
+    ],
+    "Foreign or forged review and row records are refused": [
+      "packages/cli/tests/review/legacy-electron-foreign-record.test.ts",
+      "refuses genuine row records offered for %s"
+    ],
+    "Failed row replay cannot renew prior credit": [
+      "packages/cli/tests/review/legacy-electron-replay-outcomes.test.ts",
+      "a row replay with %s cannot refresh prior credit"
+    ],
+    "Closing replays every required verified row against the final committed view": [
+      "packages/cli/tests/review/legacy-electron-close.test.ts",
+      "replays exactly all 17 approved rows before signing the current closing view"
+    ],
+    "Failed closing replay cannot renew prior credit": [
+      "packages/cli/tests/review/legacy-electron-replay-outcomes.test.ts",
+      "a closing replay with %s cannot renew the failed row"
+    ],
+    "Closing refuses a stale review even when fresh executions succeed": [
+      "packages/cli/tests/review/legacy-electron-stale-closing.test.ts",
+      "identifies a stale proof row at closing despite fresh successful execution and renewed eligibility"
+    ],
+    "A missing row or dirty or stale closing view cannot close the ticket": [
+      [
+        "packages/cli/tests/review/legacy-electron-close.test.ts",
+        "refuses closing before every enrolled historical row has separate verified credit"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-closing-view.test.ts",
+        "refuses %s against an otherwise valid complete signed view",
+        "a forged row authorization"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-closing-view.test.ts",
+        "refuses %s against an otherwise valid complete signed view",
+        "dirty tracked ticket metadata"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-closing-view.test.ts",
+        "refuses %s against an otherwise valid complete signed view",
+        "a changed view after signing"
+      ]
+    ],
+    "Existing CKWE2D receipts retain their original authorization": [
+      "packages/cli/tests/review/retrospective-row-record.test.ts",
+      "reads a pinned pre-extension CKWE2D row without minting replacement credit"
+    ],
+    "Ordinary work still needs its original test-first evidence": [
+      [
+        "packages/cli/tests/hooks/done-gate.test.ts",
+        "does not count a checked VERIFIED row with invented review IDs as completion"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-policy-receipts.test.ts",
+        "authenticated SGWMBS review and row records cannot authorize CKWE2D"
+      ]
+    ],
+    "Migration records cannot authorize another policy": [
+      [
+        "packages/cli/tests/review/legacy-electron-policy-receipts.test.ts",
+        "authenticated CKWE2D review records cannot enroll an Electron row"
+      ],
+      [
+        "packages/cli/tests/review/retrospective-row-record.test.ts",
+        "rejects SGWMBS eligibility identity against an otherwise authorized CKWE2D row"
+      ]
+    ],
+    "Supported generated installation exposes the trusted observation route": [
+      [
+        "packages/cli/tests/cli-protocol/retrospective-observe.test.ts",
+        "observes through the real public parser and fixed runner without creating verification credit"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-delivery.test.ts",
+        "checks every enrolled row and closing through the installed distribution without creating credit"
+      ]
+    ],
+    "The shared installed closing gate accepts only a signed view": [
+      [
+        "packages/cli/tests/review/legacy-electron-close.test.ts",
+        "replays exactly all 17 approved rows before signing the current closing view"
+      ],
+      [
+        "packages/cli/tests/review/legacy-electron-closing-view.test.ts",
+        "refuses %s against an otherwise valid complete signed view",
+        "an author-written closing JSON"
+      ]
+    ]
+  }
+}

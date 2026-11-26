@@ -288,11 +288,27 @@ else
   DEPCRUISE_CONFIG=""
   [ -f .dependency-cruiser.cjs ] && DEPCRUISE_CONFIG=".dependency-cruiser.cjs"
   [ -f .dependency-cruiser.js ] && DEPCRUISE_CONFIG=".dependency-cruiser.js"
+  # Run only the project-local binary. A bare `bunx depcruise` with no local install
+  # fetches npm's `depcruise` package — a dependency-confusion placeholder — and the
+  # check silently reports nothing. A local install also resolves the project's own
+  # `typescript`, without which dependency-cruiser skips every .ts file.
   if [ -n "$DEPCRUISE_CONFIG" ] && { [ "$AUDIT_SCOPE_MODE" = "repository" ] || [ "$AUDIT_HAS_JS_CHANGE" = true ]; }; then
-    if [ "$AUDIT_SCOPE_MODE" = "diff" ]; then
-      bunx depcruise --output-type err --config "$DEPCRUISE_CONFIG" --affected "$AUDIT_BASE_SHA" . 2>&1 || true
+    if [ ! -x node_modules/.bin/depcruise ]; then
+      echo "Manual evidence required: $DEPCRUISE_CONFIG exists but dependency-cruiser is not installed (no node_modules/.bin/depcruise) — architecture check NOT run. Re-run \`safeword install\` or add dependency-cruiser as a dev dependency."
     else
-      bunx depcruise --output-type err --config "$DEPCRUISE_CONFIG" . 2>&1 || true
+      if [ "$AUDIT_SCOPE_MODE" = "diff" ]; then
+        DEPCRUISE_OUTPUT=$(node_modules/.bin/depcruise --output-type err --config "$DEPCRUISE_CONFIG" --affected "$AUDIT_BASE_SHA" . 2>&1)
+      else
+        DEPCRUISE_OUTPUT=$(node_modules/.bin/depcruise --output-type err --config "$DEPCRUISE_CONFIG" . 2>&1)
+      fi
+      DEPCRUISE_STATUS=$?
+      printf '%s\n' "$DEPCRUISE_OUTPUT"
+      # Non-zero exit with violations listed = findings. Non-zero without = the tool broke.
+      if [ "$DEPCRUISE_STATUS" -ne 0 ] && ! printf '%s' "$DEPCRUISE_OUTPUT" | grep -q 'dependency violations'; then
+        echo "Architecture check failed to run: dependency-cruiser exited $DEPCRUISE_STATUS — treat the architecture check as NOT run."
+      elif printf '%s' "$DEPCRUISE_OUTPUT" | grep -q '(0 modules'; then
+        echo "Manual evidence required: dependency-cruiser cruised 0 modules — check that typescript is a dev dependency and $DEPCRUISE_CONFIG covers the source tree; this is not a pass."
+      fi
     fi
   fi
 

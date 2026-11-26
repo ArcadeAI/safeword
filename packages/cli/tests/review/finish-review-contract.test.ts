@@ -59,6 +59,8 @@ describe('job-bound host review continuation contract', () => {
     expect(contract).toContain('"reviewer_agent"');
     expect(contract).toContain('"verdict": "approve" | "request_changes"');
     expect(contract).toContain('"findings"');
+    expect(normalizedContract).toContain('both verdicts require an `evidence_records` object');
+    expect(contract).toContain('"evidence_records": {"schema_version": 1, "records": []}');
     expect(contract).toContain('untrusted review material');
     expect(normalizedContract).toContain('Do not include failed-route diagnostics');
     expect(normalizedContract).toContain('credentials, or secrets');
@@ -73,7 +75,6 @@ describe('job-bound host review continuation contract', () => {
       "Include the coordinator's recovery command exactly as provided",
     );
     expect(normalizedSkill).toContain('Do not delegate or self-review for any other result');
-    expect(normalizedSkill).toContain('Under `require`, report `State: action required`');
     expect(normalizedSkill).toContain('.safeword/skills/finish-review/REVIEWER.md');
     expect(normalizedSkill).not.toContain('sibling `REVIEWER.md`');
     expect(skill).not.toContain('write-review-stamp');
@@ -86,7 +87,6 @@ describe('job-bound host review continuation contract', () => {
     expect(skill).toContain('legacy non-planning supplemental path');
     expect(skill).toContain('source integrity is not revalidated');
     expect(skill).toContain('no machine receipt or review stamp');
-    expect(skill).toContain('Under `require`, the independent gate remains');
     expect(contract).toContain('omit `schema_version`');
     expect(contract).toContain('read only the accepted target');
     expect(agent).toContain('legacy non-planning');

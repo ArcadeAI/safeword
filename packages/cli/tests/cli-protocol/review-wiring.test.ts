@@ -20,8 +20,8 @@ import {
   parseDeliveryPlanContract,
 } from '../../src/execution-plan/delivery-checklist.js';
 import type { ReviewPacket } from '../../src/review/contract.js';
-import { EXECUTION_PLAN_CONFORMANCE_CASES } from '../../src/review/execution-plan-conformance.js';
 import { EXECUTION_PLAN_REVIEW_RUBRIC } from '../../src/review/execution-plan-rubric.generated.js';
+import { EXECUTION_PLAN_SAMPLES } from '../fixtures/execution-plan-samples.js';
 import { createConfiguredProject, createTemporaryDirectory, runCli } from '../helpers.js';
 import { writePlanningInventories } from '../planning-fixtures.js';
 import { PLANNING_ROLE_PRODUCT } from '../planning-role-fixtures.js';
@@ -928,7 +928,89 @@ describe('cross-agent review public-command wiring', () => {
     expect(existsSync(reviewLog)).toBe(false);
   });
 
-  it('activates Execution Plan review only for a ticket-owned plan through an admitted route', async () => {
+  it('sends a Claude-authored Execution Plan to Codex on the latest Sol as an independent review', async () => {
+    const directory = createTemporaryDirectory();
+    const reviewLog = nodePath.join(directory, 'review.log');
+    const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
+    const acceptedPlan = EXECUTION_PLAN_SAMPLES.find(
+      testCase => testCase.id === 'one-coherent-change',
+    )?.execution_plan;
+    if (acceptedPlan === undefined) throw new Error('Missing accepted slicing fixture');
+    const acceptedContract = parseDeliveryPlanContract(acceptedPlan);
+    if (!acceptedContract.ok) throw new Error(acceptedContract.message);
+    writeFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), acceptedPlan);
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Implementation Plan\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'behavior.feature'), 'Feature: behavior\n');
+    // Both CLIs are installed; with no reviewer qualification, Codex reviews first.
+    const bin = installFakeReviewer(directory, 'claude');
+    installFakeReviewer(directory, 'codex');
+    const executionPlanRecord = JSON.stringify({
+      slicing_decision: 'one_pull_request',
+      rationale: 'One coherent activation change.',
+      slices: [
+        {
+          name: 'Complete delivery',
+          purpose: 'Deliver the complete typed Execution Plan review capability.',
+          boundary: 'The complete reviewed delivery boundary.',
+          prerequisites: [],
+          proof: 'The real CLI integration test passes.',
+          completion_signal: 'The command retains an admitted approval.',
+          relies_on_unmerged_successor: false,
+        },
+      ],
+      obligation_owners: [{ obligation: 'Accepted behavior', slices: ['Complete delivery'] }],
+      decision_statuses: [{ decision: 'Use one coordinator', status: 'unchanged' }],
+      accepted_scenarios_covered: true,
+      accepted_approach_preserved: true,
+      normalized_plan_digest: normalizedExecutionPlanDigest(acceptedPlan),
+      delivery_definition: createExecutionPlanDeliveryDefinition(acceptedContract, false),
+    });
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'plan-execution',
+        '.project/tickets/T1-feature/execution-plan.md',
+        '--context',
+        '.project/tickets/T1-feature/impl-plan.md',
+        '--context',
+        '.project/tickets/T1-feature/behavior.feature',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD: executionPlanRecord,
+          SAFEWORD_REVIEW_LOG: reviewLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    const output = JSON.parse(result.stdout) as {
+      findings: readonly { code: string }[];
+      data: Record<string, unknown>;
+    };
+    expect(output.data).toMatchObject({
+      status: 'approved',
+      review_kind: 'plan-execution',
+      actual_reviewer: 'codex',
+      reviewer_model: 'gpt-6.1-sol',
+      independence: 'cross-agent',
+    });
+    expect(readFileSync(reviewLog, 'utf8').trim().split('\n')).toEqual(['codex']);
+  });
+
+  it('activates Execution Plan review only for a ticket-owned plan', async () => {
     const directory = createTemporaryDirectory();
     const reviewLog = nodePath.join(directory, 'review.log');
     const promptLog = nodePath.join(directory, 'prompt.log');
@@ -936,7 +1018,7 @@ describe('cross-agent review public-command wiring', () => {
     mkdirSync(ticketDirectory, { recursive: true });
     writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
     const executionPlanPath = nodePath.join(ticketDirectory, 'execution-plan.md');
-    const acceptedPlan = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+    const acceptedPlan = EXECUTION_PLAN_SAMPLES.find(
       testCase => testCase.id === 'one-coherent-change',
     )?.execution_plan;
     if (acceptedPlan === undefined) throw new Error('Missing accepted slicing fixture');
@@ -1001,7 +1083,7 @@ describe('cross-agent review public-command wiring', () => {
         status: 'approved',
         review_kind: 'plan-execution',
         assigned_reviewer: 'claude',
-        reviewer_model: 'claude-opus-5',
+        reviewer_model: 'opus',
         reviewer_output: { execution_plan_record: JSON.parse(executionPlanRecord) },
       },
     });
@@ -1104,11 +1186,11 @@ describe('cross-agent review public-command wiring', () => {
     writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Implementation Plan\n');
     writeFileSync(nodePath.join(ticketDirectory, 'behavior.feature'), 'Feature: behavior\n');
     const executionPlanPath = nodePath.join(ticketDirectory, 'execution-plan.md');
-    const unresolvedPlan = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+    const unresolvedPlan = EXECUTION_PLAN_SAMPLES.find(
       testCase => testCase.id === 'omitted-slicing-decision',
     )?.execution_plan;
     if (unresolvedPlan === undefined) throw new Error('Missing unresolved slicing fixture');
-    const acceptedPlan = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+    const acceptedPlan = EXECUTION_PLAN_SAMPLES.find(
       testCase => testCase.id === 'one-coherent-change',
     )?.execution_plan;
     if (acceptedPlan === undefined) throw new Error('Missing accepted slicing fixture');
@@ -1210,7 +1292,7 @@ describe('cross-agent review public-command wiring', () => {
   });
 
   it('keeps an accepted proof obligation open when the plan calls it not applicable', async () => {
-    const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+    const testCase = EXECUTION_PLAN_SAMPLES.find(
       candidate => candidate.id === 'dismissed-applicable-work',
     );
     if (testCase === undefined) throw new Error('Missing applicable-work conformance fixture');
@@ -1267,64 +1349,6 @@ describe('cross-agent review public-command wiring', () => {
       testCase.execution_plan,
     );
     expect(readFileSync(reviewLog, 'utf8').trim()).toBe('claude');
-  });
-
-  it('fails closed before dispatch when no configured route has current admission', async () => {
-    const executionPlan = EXECUTION_PLAN_CONFORMANCE_CASES.find(
-      testCase => testCase.id === 'one-coherent-change',
-    )?.execution_plan;
-    if (executionPlan === undefined) throw new Error('Missing accepted execution plan fixture');
-    const directory = createTemporaryDirectory();
-    const reviewLog = nodePath.join(directory, 'review.log');
-    const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
-    mkdirSync(ticketDirectory, { recursive: true });
-    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
-    writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
-    writeFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), executionPlan);
-    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Implementation Plan\n');
-    writeFileSync(nodePath.join(ticketDirectory, 'behavior.feature'), 'Feature: behavior\n');
-    writeFileSync(
-      nodePath.join(directory, '.safeword', 'config.json'),
-      JSON.stringify({
-        crossAgentReviewRoutes: {
-          codex: [{ reviewer: 'claude', model: 'sonnet' }],
-        },
-      }),
-    );
-    const bin = installFakeReviewer(directory, 'claude');
-
-    const result = await runCli(
-      [
-        'review',
-        'run',
-        'plan-execution',
-        '.project/tickets/T1-feature/execution-plan.md',
-        '--context',
-        '.project/tickets/T1-feature/impl-plan.md',
-        '--context',
-        '.project/tickets/T1-feature/behavior.feature',
-        '--json',
-        '--no-input',
-        '--cwd',
-        directory,
-      ],
-      {
-        cwd: directory,
-        env: {
-          PATH: `${bin}:/usr/bin:/bin`,
-          SAFEWORD_AGENT_RUNTIME: 'codex',
-          SAFEWORD_REVIEW_LOG: reviewLog,
-          SAFEWORD_NO_UPDATE_CHECK: '1',
-        },
-      },
-    );
-
-    expect(result.exitCode, result.stdout).toBe(2);
-    expect(JSON.parse(result.stdout)).toMatchObject({
-      findings: [{ code: 'REVIEW_ROUTES_EXHAUSTED' }],
-      data: { status: 'blocked', review_kind: 'plan-execution', review_routes: [] },
-    });
-    expect(existsSync(reviewLog)).toBe(false);
   });
 
   it('reviews the ticket plan when a divergent host-private copy exists', async () => {
@@ -1525,7 +1549,7 @@ describe('cross-agent review public-command wiring', () => {
       findings: [{ code: 'REVIEW_ROUTES_EXHAUSTED' }],
       data: { status: 'blocked', independence: 'none' },
     });
-    expect(readFileSync(log, 'utf8')).toBe('codex\nclaude\n');
+    expect(readFileSync(log, 'utf8')).toBe('codex\ncodex\nclaude\nclaude\n');
     expect(result.stdout).not.toContain('"state":"healthy"');
   });
 
@@ -1652,7 +1676,7 @@ describe('cross-agent review public-command wiring', () => {
     );
 
     expect(result.exitCode, result.stdout).toBe(0);
-    expect(readFileSync(log, 'utf8')).toBe('codex\nopencode\nclaude\n');
+    expect(readFileSync(log, 'utf8')).toBe('codex\ncodex\nopencode\nclaude\n');
     expect(JSON.parse(result.stdout)).toMatchObject({
       data: {
         actual_reviewer: 'claude',
@@ -1839,20 +1863,12 @@ describe('cross-agent review public-command wiring', () => {
         state: 'action_required',
         findings: [{ code: 'REVIEW_ROUTES_EXHAUSTED' }],
         effects: { network: [] },
-        recovery:
-          policy === 'require'
-            ? [
-                {
-                  command: 'safeword review run quality-review -- review-input.md',
-                  description:
-                    'Run this review in an environment with a usable independent reviewer.',
-                },
-              ]
-            : [],
+        recovery: [],
         data: {
           status: 'blocked',
           author_agent: 'cursor',
-          review_policy: policy,
+          // The retired require policy reads as prefer.
+          review_policy: 'prefer',
           independence: 'none',
         },
       });
@@ -2014,7 +2030,7 @@ describe('cross-agent review public-command wiring', () => {
       );
 
       expect(result.exitCode, result.stdout).toBe(2);
-      expect(readFileSync(log, 'utf8')).toBe('codex\nopencode\nclaude\n');
+      expect(readFileSync(log, 'utf8')).toBe('codex\ncodex\nopencode\nclaude\nclaude\n');
       const payload = JSON.parse(result.stdout);
       expect(payload).toMatchObject({
         state: 'action_required',
@@ -2070,7 +2086,7 @@ describe('cross-agent review public-command wiring', () => {
       expect(JSON.parse(result.stdout)).toMatchObject({
         state: 'failed',
         errors: [{ code: 'REVIEWER_WRITE_ATTEMPT' }],
-        data: { review_policy: policy, independence: 'none' },
+        data: { review_policy: 'prefer', independence: 'none' },
       });
     },
   );
@@ -2299,17 +2315,20 @@ describe('cross-agent review public-command wiring', () => {
     {
       failure: 'auth',
       classification: 'not_authenticated',
-      action: 'Reauthenticate Codex, then retry the original independent review.',
+      action:
+        'Sign Codex in with `codex login`, then run the review again for independent coverage.',
     },
     {
       failure: 'auth-stdout',
       classification: 'not_authenticated',
-      action: 'Reauthenticate Codex, then retry the original independent review.',
+      action:
+        'Sign Codex in with `codex login`, then run the review again for independent coverage.',
     },
     {
       failure: 'auth-expired-stdout',
       classification: 'not_authenticated',
-      action: 'Reauthenticate Codex, then retry the original independent review.',
+      action:
+        'Sign Codex in with `codex login`, then run the review again for independent coverage.',
     },
     {
       failure: 'process',
@@ -2368,10 +2387,14 @@ describe('cross-agent review public-command wiring', () => {
       expect(payload).toMatchObject({
         state: 'action_required',
         effects: {
+          // The latest-Sol attempt and its Terra retry both reach Codex.
           network:
             classification === 'not_installed'
               ? []
-              : [{ kind: 'review', target: 'codex', operation: 'request' }],
+              : [
+                  { kind: 'review', target: 'codex', operation: 'request' },
+                  { kind: 'review', target: 'codex', operation: 'request' },
+                ],
         },
         recovery: [{ description: action }],
         data: {
@@ -2399,7 +2422,7 @@ describe('cross-agent review public-command wiring', () => {
       loginCommand: 'claude auth login',
     },
   ] as const)(
-    'hands an unauthenticated $reviewer route back for reauthentication before fallback',
+    'falls back with a labeled same-agent review and a sign-in hint when $reviewer is signed out',
     async ({ author, reviewer, reviewerName, loginCommand }) => {
       const directory = createTemporaryDirectory();
       const log = nodePath.join(directory, 'review.log');
@@ -2431,36 +2454,28 @@ describe('cross-agent review public-command wiring', () => {
         },
       );
 
-      expect(result.exitCode, result.stdout).toBe(2);
-      expect(JSON.parse(result.stdout)).toMatchObject({
-        state: 'action_required',
-        findings: [
-          {
-            code: 'REVIEW_AUTHENTICATION_REQUIRED',
-            message: expect.stringContaining(
-              `The independent ${reviewerName} review needs authentication. Reauthenticate ${reviewerName}`,
-            ),
-          },
-        ],
-        effects: {
-          network: [{ kind: 'review', target: reviewer, operation: 'request' }],
-        },
-        recovery: [
-          {
-            command: loginCommand,
-            description: expect.stringMatching(/reauthenticate.*retry/iu),
-            requires_human: true,
-          },
-        ],
-        data: {
-          status: 'blocked',
-          assigned_reviewer: reviewer,
-          preferred_failure: 'not_authenticated',
-          review_policy: 'prefer',
-          independence: 'none',
-        },
+      // A signed-out independent reviewer no longer pauses the review: the author's own
+      // headless review runs, is labeled not independent, and names the sign-in command.
+      expect(result.exitCode, result.stdout).toBe(0);
+      const output = JSON.parse(result.stdout) as {
+        findings: readonly { code: string; message: string }[];
+        data: Record<string, unknown>;
+      };
+      expect(output.data).toMatchObject({
+        status: 'approved',
+        assigned_reviewer: reviewer,
+        actual_reviewer: author,
+        preferred_failure: 'not_authenticated',
+        independence: 'degraded',
       });
-      expect(readFileSync(log, 'utf8')).toBe(`${reviewer}\n`);
+      expect(output.findings.map(finding => finding.code)).not.toContain(
+        'REVIEW_AUTHENTICATION_REQUIRED',
+      );
+      expect(JSON.stringify(output.findings)).toContain(loginCommand);
+      expect(JSON.stringify(output.findings)).toContain(reviewerName);
+      const launches = readFileSync(log, 'utf8').trim().split('\n');
+      expect(launches[0]).toBe(reviewer);
+      expect(launches.at(-1)).toBe(author);
     },
   );
 
@@ -2569,7 +2584,7 @@ describe('cross-agent review public-command wiring', () => {
         independence: 'degraded',
       },
     });
-    expect(readFileSync(log, 'utf8')).toBe('codex\nclaude\n');
+    expect(readFileSync(log, 'utf8')).toBe('codex\ncodex\nclaude\n');
   });
 
   it('tries the next configured model after an attempt-scoped failure', async () => {
@@ -2861,7 +2876,7 @@ describe('cross-agent review public-command wiring', () => {
     await expectOpenCodeFallback({
       author: 'claude',
       preferred: 'codex',
-      attempts: ['codex', 'opencode'],
+      attempts: ['codex', 'codex', 'opencode'],
       policy: 'prefer',
     });
   });
@@ -2870,7 +2885,7 @@ describe('cross-agent review public-command wiring', () => {
     await expectOpenCodeFallback({
       author: 'claude',
       preferred: 'codex',
-      attempts: ['codex', 'opencode'],
+      attempts: ['codex', 'codex', 'opencode'],
       policy: 'require',
     });
   });
@@ -2918,7 +2933,7 @@ describe('cross-agent review public-command wiring', () => {
     );
 
     expect(result.exitCode, result.stdout).toBe(0);
-    expect(readFileSync(log, 'utf8')).toBe('codex\nopencode\n');
+    expect(readFileSync(log, 'utf8')).toBe('codex\ncodex\nopencode\n');
     expect(JSON.parse(result.stdout)).toMatchObject({
       state: 'healthy',
       data: {
@@ -3046,7 +3061,7 @@ describe('cross-agent review public-command wiring', () => {
       },
     });
     expect(JSON.parse(result.stdout).data).not.toHaveProperty('reviewer_output');
-    expect(readFileSync(log, 'utf8')).toBe('codex\nopencode\nclaude\n');
+    expect(readFileSync(log, 'utf8')).toBe('codex\ncodex\nopencode\nclaude\nclaude\n');
   });
 
   async function expectOpenCodeFailure(input: {
@@ -3100,6 +3115,7 @@ describe('cross-agent review public-command wiring', () => {
       effects: {
         network: [
           { kind: 'review', target: 'codex', operation: 'request' },
+          { kind: 'review', target: 'codex', operation: 'request' },
           { kind: 'review', target: 'opencode', operation: 'request' },
           { kind: 'review', target: 'claude', operation: 'request' },
         ],
@@ -3112,7 +3128,7 @@ describe('cross-agent review public-command wiring', () => {
         independence: 'degraded',
       },
     });
-    expect(readFileSync(log, 'utf8')).toBe('codex\nopencode\nclaude\n');
+    expect(readFileSync(log, 'utf8')).toBe('codex\ncodex\nopencode\nclaude\n');
   }
 
   it('returns degraded same-author feedback after OpenCode fails under prefer policy', async () => {
@@ -3122,16 +3138,6 @@ describe('cross-agent review public-command wiring', () => {
       policy: 'prefer',
       exitCode: 0,
       state: 'healthy',
-    });
-  });
-
-  it('blocks after OpenCode fails under require policy', async () => {
-    await expectOpenCodeFailure({
-      routeFailure: 'process',
-      recordedFailure: 'process_failed',
-      policy: 'require',
-      exitCode: 2,
-      state: 'action_required',
     });
   });
 
@@ -3155,7 +3161,7 @@ describe('cross-agent review public-command wiring', () => {
     });
   });
 
-  it('preserves the configured-model rejection when the default-model retry needs authentication', async () => {
+  it('preserves the configured-model rejection when the default-model retry is signed out', async () => {
     const directory = createTemporaryDirectory();
     const log = nodePath.join(directory, 'review.log');
     mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
@@ -3190,22 +3196,26 @@ describe('cross-agent review public-command wiring', () => {
       },
     );
 
+    // No other reviewer is installed, so nothing completes; the result keeps both causes
+    // and names the signed-out state instead of pausing for reauthentication.
     expect(result.exitCode, result.stdout).toBe(2);
-    expect(JSON.parse(result.stdout)).toMatchObject({
-      state: 'action_required',
-      findings: [{ code: 'REVIEW_AUTHENTICATION_REQUIRED' }],
-      recovery: [{ command: 'codex login', requires_human: true }],
-      data: {
-        status: 'blocked',
-        assigned_reviewer: 'codex',
-        preferred_model: 'vendor-model-1',
-        preferred_model_failure: 'unsupported',
-        preferred_failure: 'not_authenticated',
-        review_policy: 'prefer',
-        independence: 'none',
-      },
+    const output = JSON.parse(result.stdout) as {
+      findings: readonly { code: string }[];
+      data: Record<string, unknown>;
+    };
+    expect(output.data).toMatchObject({
+      status: 'blocked',
+      assigned_reviewer: 'codex',
+      preferred_model: 'vendor-model-1',
+      preferred_model_failure: 'unsupported',
+      preferred_failure: 'not_authenticated',
+      independence: 'none',
     });
-    expect(readFileSync(log, 'utf8')).toBe('codex\n');
+    expect(output.findings.map(finding => finding.code)).not.toContain(
+      'REVIEW_AUTHENTICATION_REQUIRED',
+    );
+    expect(result.stdout).toContain('is not signed in');
+    expect(readFileSync(log, 'utf8').trim().split('\n', 1)[0]).toBe('codex');
   });
 
   it.each([
@@ -3264,82 +3274,6 @@ describe('cross-agent review public-command wiring', () => {
       expect(readFileSync(log, 'utf8')).toBe(`${author}\n${author}\n`);
     },
   );
-
-  it('does not let a degraded fallback satisfy hard cross-agent enforcement', async () => {
-    const directory = createTemporaryDirectory();
-    const log = nodePath.join(directory, 'review.log');
-    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
-    writeFileSync(
-      nodePath.join(directory, '.safeword', 'config.json'),
-      JSON.stringify({ crossAgentReview: 'require' }),
-    );
-    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
-    const bin = installFakeReviewer(directory, 'codex');
-    installFakeReviewer(directory, 'claude');
-
-    const result = await runCli(
-      [
-        'review',
-        'run',
-        'quality-review',
-        'review-input.md',
-        '--json',
-        '--no-input',
-        '--cwd',
-        directory,
-      ],
-      {
-        cwd: directory,
-        env: {
-          PATH: `${bin}:/usr/bin:/bin`,
-          SAFEWORD_AGENT_RUNTIME: 'claude',
-          SAFEWORD_REVIEW_FAKE_FAILURE: 'process',
-          SAFEWORD_REVIEW_FAKE_FAILURE_AGENT: 'codex',
-          SAFEWORD_REVIEW_LOG: log,
-          SAFEWORD_NO_UPDATE_CHECK: '1',
-        },
-      },
-    );
-
-    const output = JSON.parse(result.stdout);
-    expect(result.exitCode).toBe(2);
-    expect(output).toMatchObject({
-      state: 'action_required',
-      recovery: [
-        {
-          command: 'safeword review run quality-review -- review-input.md',
-          description: 'Restore the Codex reviewer, then retry the independent review.',
-        },
-      ],
-      data: {
-        status: 'blocked',
-        assigned_reviewer: 'codex',
-        actual_reviewer: 'claude',
-        preferred_failure: 'process_failed',
-        review_policy: 'require',
-        independence: 'degraded',
-      },
-    });
-    const humanResult = await runCli(
-      ['review', 'run', 'quality-review', 'review-input.md', '--no-input', '--cwd', directory],
-      {
-        cwd: directory,
-        env: {
-          PATH: `${bin}:/usr/bin:/bin`,
-          SAFEWORD_AGENT_RUNTIME: 'claude',
-          SAFEWORD_REVIEW_FAKE_FAILURE: 'process',
-          SAFEWORD_REVIEW_FAKE_FAILURE_AGENT: 'codex',
-          SAFEWORD_REVIEW_LOG: log,
-          SAFEWORD_NO_UPDATE_CHECK: '1',
-        },
-      },
-    );
-    expect(humanResult.stdout.split('\n', 1)[0]).toBe(
-      'Review blocked — standard coverage achieved; required independent coverage is unsatisfied.',
-    );
-    expect(humanResult.stdout).toContain(output.findings[0].message);
-    expect(readFileSync(log, 'utf8')).toBe('codex\nclaude\ncodex\nclaude\n');
-  });
 
   it('blocks with one recovery action after exhausting safe review routes', async () => {
     const directory = createTemporaryDirectory();
@@ -4619,7 +4553,7 @@ describe('cross-agent review public-command wiring', () => {
     });
   });
 
-  it('continues past a same-author success to the next independent route', async () => {
+  it('tries the independent route before a same-author route listed first', async () => {
     const directory = createTemporaryDirectory();
     const log = nodePath.join(directory, 'review.log');
     mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
@@ -4657,16 +4591,14 @@ describe('cross-agent review public-command wiring', () => {
       },
     );
 
+    // A different agent always goes first, even when the user listed the author first.
     expect(result.exitCode, result.stdout).toBe(0);
-    expect(readFileSync(log, 'utf8')).toBe('claude\ncodex\n');
+    expect(readFileSync(log, 'utf8')).toBe('codex\n');
     expect(JSON.parse(result.stdout)).toMatchObject({
       data: {
         assigned_reviewer: 'codex',
         independence: 'cross-agent',
-        review_routes: [
-          { reviewer: 'claude', independence: 'degraded', status: 'attempted' },
-          { reviewer: 'codex', independence: 'cross-agent', status: 'attempted' },
-        ],
+        review_routes: [{ reviewer: 'codex', independence: 'cross-agent', status: 'attempted' }],
       },
     });
   });
@@ -4800,7 +4732,7 @@ describe('cross-agent review public-command wiring', () => {
     });
   });
 
-  it('hands ranked-route authentication back before any fallback runs', async () => {
+  it('moves past a signed-out ranked route to the next independent reviewer', async () => {
     const directory = createTemporaryDirectory();
     const log = nodePath.join(directory, 'review.log');
     mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
@@ -4843,23 +4775,18 @@ describe('cross-agent review public-command wiring', () => {
       },
     );
 
-    expect(result.exitCode, result.stdout).toBe(2);
-    expect(readFileSync(log, 'utf8')).toBe('codex\n');
+    // The signed-out Codex profile makes every Codex route unusable, so OpenCode reviews next.
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(readFileSync(log, 'utf8')).toBe('codex\nopencode\n');
     expect(JSON.parse(result.stdout)).toMatchObject({
-      findings: [{ code: 'REVIEW_AUTHENTICATION_REQUIRED' }],
-      recovery: [{ command: 'codex login', requires_human: true }],
       data: {
-        assigned_reviewer: 'codex',
-        preferred_model: 'model-a',
-        preferred_failure: 'not_authenticated',
-        independence: 'none',
+        status: 'approved',
+        actual_reviewer: 'opencode',
+        independence: 'cross-agent',
         review_routes: [
-          {
-            reviewer: 'codex',
-            model: 'model-a',
-            status: 'attempted',
-            failure: 'not_authenticated',
-          },
+          { reviewer: 'codex', model: 'model-a', failure: 'not_authenticated' },
+          { reviewer: 'codex', model: 'model-b', status: 'skipped' },
+          { reviewer: 'opencode', model: 'vendor/model-c', status: 'attempted' },
         ],
       },
     });

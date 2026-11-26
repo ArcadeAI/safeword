@@ -20,7 +20,7 @@ afterEach(() => {
   cleanupTrustedReviewerDirectories();
 });
 
-it('blocks planning fallback when the configured independent route is unavailable', async () => {
+it('falls back to a reduced same-agent review when the independent route is unavailable', async () => {
   const project = createTemporaryDirectory();
   projects.push(project);
   await createConfiguredProject(project);
@@ -80,12 +80,14 @@ it('blocks planning fallback when the configured independent route is unavailabl
     },
   );
   const output = JSON.parse(reviewed.stdout);
-  expect(output.data).toMatchObject({ status: 'blocked', independence: 'none' });
-  expect(output.findings).toContainEqual(
-    expect.objectContaining({ code: 'REVIEW_ROUTES_EXHAUSTED' }),
-  );
+  expect(reviewed.exitCode, reviewed.stdout).toBe(0);
+  expect(output.data).toMatchObject({
+    status: 'approved',
+    actual_reviewer: 'claude',
+    independence: 'reduced',
+  });
   expect(output.data.review_routes).toContainEqual(
     expect.objectContaining({ reviewer: 'codex', status: 'unavailable' }),
   );
-  expect(existsSync(invoked)).toBe(false);
+  expect(existsSync(invoked)).toBe(true);
 });

@@ -20,7 +20,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 import { atomicWriteFile } from './jsonl-spool.js';
-import { draftSpoolPath, readSpooledDrafts, spoolSiblingPath } from './retro-draft-spool.js';
+import { readSpooledDrafts, spoolSiblingPath, stageRetroSpool } from './retro-draft-spool.js';
 
 /** The per-session marker recording the last unfiled batch already surfaced. */
 function nudgeMarkerPath(projectDirectory: string, sessionId: string): string {
@@ -87,6 +87,8 @@ export function decideRetroFilingNudge(
   if (drafts.length === 0) return undefined;
   const key = batchKey(drafts.map(draft => draft.signature));
   if (readNudgeMarker(projectDirectory, sessionId) === key) return undefined;
+  const spoolPath = stageRetroSpool(projectDirectory, sessionId);
+  if (spoolPath === undefined) return undefined;
   writeNudgeMarker(projectDirectory, sessionId, key);
-  return formatRetroNudge(drafts.length, draftSpoolPath(projectDirectory, sessionId));
+  return formatRetroNudge(drafts.length, spoolPath);
 }

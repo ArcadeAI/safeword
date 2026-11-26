@@ -155,7 +155,14 @@ function requiredPlanningSource(
     if (escapes(resolved.root, resolved.source) || !lstatSync(resolved.source).isFile()) {
       throw new PlanningContextError(role, relative);
     }
-    if (readFileSync(resolved.source, 'utf8').trim() === '') {
+    if (escapes(resolved.root, realpathSync(resolved.source)))
+      throw new PlanningContextError(role, relative);
+    // Oversized files are rejected by bounded packet capture. Do not read them
+    // into memory merely to check for empty content.
+    if (
+      lstatSync(resolved.source).size <= MAX_FILE_BYTES &&
+      readFileSync(resolved.source, 'utf8').trim() === ''
+    ) {
       throw new PlanningContextError(role, relative);
     }
   } catch {
@@ -251,7 +258,13 @@ function requiredDownstreamProductContext(
           ),
         ]
       : [];
-  return [...inherited, product, ...upstream];
+  // Capture the configured overview before deriving citations so discovery and
+  // the reviewer both see the same bytes, even when the file is being edited.
+  const architecture = resolveConfiguredPath(cwd, 'architecture');
+  const overview = lstatSync(architecture, { throwIfNoEntry: false })?.isFile()
+    ? [nodePath.relative(cwd, architecture)]
+    : [];
+  return [...inherited, product, ...upstream, ...overview];
 }
 
 function requiredPlanningBoundaryContext(

@@ -65,6 +65,7 @@ brand/
 experiments/**/checker
 
 # Safeword - Local cache and transient state
+node_modules/
 **/architecture.generated.md
 .safeword/.update-cache.json
 .safeword/config.local.json
@@ -82,7 +83,7 @@ experiments/**/checker
 .project/re-entry.md
 .project/dependency-readiness.json
 .project/readiness-ticket.json
-.project/closeout-session-binding.json
+.project/closeout-session-binding*.json
 .project/codex-review-stamp-identity.json
 .project/cursor-review-stamp-identity.json
 .safeword-project/quality-state*.json
@@ -93,6 +94,6 @@ experiments/**/checker
 .safeword-project/re-entry.md
 .safeword-project/dependency-readiness.json
 .safeword-project/readiness-ticket.json
-.safeword-project/closeout-session-binding.json
+.safeword-project/closeout-session-binding*.json
 .safeword-project/codex-review-stamp-identity.json
 .safeword-project/cursor-review-stamp-identity.json

@@ -32,6 +32,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Check architecture overview size
+        run: sh scripts/check-architecture-size.sh
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -116,10 +119,16 @@ jobs:
         #   lint config.
         # - GHSA-ch52-4w7c-c8xp: http-cache-semantics <=4.2.0. Docs website build
         #   only (astro); never shipped.
+        # - GHSA-fc5q-39xc-vjpf: picomatch <=4.0.7 (latest release), ReDoS via
+        #   repeated extglobs. Reaches the published CLI via typescript-eslint →
+        #   tinyglobby and @next/eslint-plugin-next → fast-glob → micromatch;
+        #   exploiting it needs attacker-controlled glob patterns, which come
+        #   from the project's own lint and TypeScript config.
         run: >-
           bun audit --audit-level high
           --ignore GHSA-vfj7-8cjw-p6xm
           --ignore GHSA-ch52-4w7c-c8xp
+          --ignore GHSA-fc5q-39xc-vjpf
 
   go-lint-context:
     name: Go lint context (${{ matrix.linter }})
@@ -135,7 +144,7 @@ jobs:
             go: '1.25.x'
     steps:
       - uses: actions/checkout@v7
-      - uses: jdx/mise-action@v4
+      - uses: jdx/mise-action@v5
         with:
           install_args: 'bun node'
       - uses: actions/setup-go@v7
@@ -160,9 +169,9 @@ jobs:
   test:
     name: test (node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
-    # 30 (was 20): headroom for the growing suite + setup. The suite runs
-    # parallel (vitest maxWorkers:3 on the 4-vCPU runner); sequential timed out.
-    timeout-minutes: 30
+    # Package tests can take 26 minutes before the acceptance and release lanes.
+    # Keep those lanes within one bounded job without truncating their assertions.
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -183,7 +192,7 @@ jobs:
           bun-version-file: package.json
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v7.1.0
         with:
           node-version: ${{ matrix.node-version }}
 
@@ -199,7 +208,7 @@ jobs:
           python-version: '3.12'
 
       - name: Setup uv
-        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
           version-file: pyproject.toml
           enable-cache: true
@@ -356,7 +365,7 @@ jobs:
 
       - name: Upload the regenerated plugin tree
         if: ${{ failure() && steps.catalogue-freshness.outputs.drifted == 'true' }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: regenerated-plugin
           # Both trees carry required hidden paths — plugin/.claude-plugin/plugin.json
@@ -444,7 +453,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: 24.18.1
 
@@ -508,7 +517,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: 24.18.1
 
@@ -575,7 +584,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: 24.18.1
 
