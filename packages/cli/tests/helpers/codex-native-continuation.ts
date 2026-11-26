@@ -90,7 +90,7 @@ export function reportsMissingVerification(text: string): boolean {
   const negatedGap =
     /\b(?:no|not|without)\s+(?:missing|unmet)\s+(?:required\s+)?(?:verify\.md|verification\s+(?:evidence|requirement))\b/iu;
   const nothingMissing =
-    /\bno\s+(?:valid\s+)?(?:verify\.md|verification\s+(?:evidence|requirement))\s+(?:is|was)\s+(?:missing|unmet|absent)\b/iu;
+    /\bno\s+(?:valid\s+)?(?:verify\.md|verification\s+(?:evidence|requirement))\s+(?:(?:is|was)\s+)?(?:missing|unmet|absent)\b/iu;
   if (negatedGap.test(text) || nothingMissing.test(text) || /\bnot\s+unable\s+to\b/iu.test(text))
     return false;
   return (

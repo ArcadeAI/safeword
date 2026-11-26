@@ -26,6 +26,7 @@ describe('native Codex missing-verification response', () => {
     'Verification evidence is complete.',
     'No verification issues remain.',
     'No verification evidence is missing.',
+    'There is no verification requirement missing.',
     'There is no missing verification evidence.',
     'The verification evidence is not missing.',
     'verify.md exists and all checks passed.',
