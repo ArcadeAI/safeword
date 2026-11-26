@@ -24,3 +24,36 @@ uv run --locked python -m intake.score jobs/csv-intake --expect-case intake-csv-
 Replay reads saved evidence and costs no model calls. Open `intake-results.md` for the handoff result, estimated spend, and review count. Each lane has an evidence index with observed errors, tool usage, trace-visible URLs, relay exchanges and phase history. Codex shell inputs show referenced files and URLs. For passed lanes, the indexed plan belongs to the same ticket as the approval. Missing evidence or a stale plugin identity produces an incomplete row and a nonzero scoring exit. A well-recorded failed trial still counts as a completed measurement.
 
 Judge the product outcome separately. Read the first question before its answer to establish whether the author elicited the decision. Read `final-plan.md` to see whether the plan honored it. A correct guess, a direct clarification, and an independently approved plan are three distinct observations.
+
+## Pilot automatic product decisions
+
+Set `SAFEWORD_EVAL_DECISIONS=1` for a trial that uses a case in
+`intake/decisions.json`. For example, prepare with `--task bookmark`
+and run `trial DIRECTORY codex intake-bookmark-duplicate`. The public
+prompt delegates CLI naming and storage details. The hidden policy selects
+what happens to an existing bookmark. Both hosts receive the same prompt.
+For the disclosed-preference control, prepare with `--task bookmark-specified`
+and run the `intake-bookmark-specified` case.
+
+The host checks exact saved answers first. On new wording, a tools-disabled
+interpreter sees the question topic and the entire message. The host supplies
+the stored answer or approves routine permission. Mixed or uncertain requests
+produce a numbered `-operator.md` in the lane's relay directory. The operator
+writes the usual `-response.json`. Exact repeats reuse that answer across
+local runs of the same case and policy. Set `SAFEWORD_EVAL_DECISION_MEMORY`
+to isolate an operator's database. To generalize a new product decision to
+paraphrases, explicitly add its policy to the catalog.
+
+Run `python -m intake.score DIRECTORY --product` to score elicitation and plan
+agreement alongside the existing handoff. The interpreter extracts evidence
+from the chronological exchanges and separately from the numbered plan. A second
+check reads each positive citation by itself before awarding elicitation credit.
+Only the host sees which option is expected. Inspect `product-evidence.json`
+for citations and metering. Missing or ambiguous evidence requires review.
+The first product replay invokes the model; unchanged evidence reuses the
+local cache. Interpreter costs are separate from author and reviewer spend.
+The pilot defaults to `claude-sonnet-4-6` and accepts a pinned override via
+`SAFEWORD_EVAL_DECISION_MODEL`.
+
+To check new wording against the real host interpreter on demand, run
+`SAFEWORD_EVAL_CALIBRATE=1 uv run --locked python -m unittest test_decision_pilot.LiveControls`.

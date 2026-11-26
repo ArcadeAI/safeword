@@ -1,6 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: 38c80b611748e1a267482c3d7477589c73a676fdbdd43bd9e72490a2c5a682cd
+fingerprint: a2e7a5961befe2cbf158dff727222f4a8a4be954f06060ac764a604a119d2e1d
 ---
 
 # Architecture
@@ -17,6 +17,8 @@ fingerprint: 38c80b611748e1a267482c3d7477589c73a676fdbdd43bd9e72490a2c5a682cd
 
 Build a fixture-only Claude plugin variant from a committed Safeword revision.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### comparison_agent
 
 <!-- reconciled: 38c80b611748e1a267482c3d7477589c73a676fdbdd43bd9e72490a2c5a682cd -->
@@ -25,6 +27,8 @@ Build a fixture-only Claude plugin variant from a committed Safeword revision.
 
 No description yet — awaiting prose.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### completion_feedback
 
 <!-- reconciled: 38c80b611748e1a267482c3d7477589c73a676fdbdd43bd9e72490a2c5a682cd -->
@@ -32,6 +36,8 @@ No description yet — awaiting prose.
 `completion_feedback.py`
 
 No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### fixture_grader
 
@@ -43,6 +49,8 @@ No description yet — awaiting prose.
 
 Shared hidden functional and preservation checks for generated JavaScript tasks.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### grade_workflow
 
 <!-- reconciled: 38c80b611748e1a267482c3d7477589c73a676fdbdd43bd9e72490a2c5a682cd -->
@@ -52,6 +60,8 @@ Shared hidden functional and preservation checks for generated JavaScript tasks.
 <!-- seeded-purpose: 4aebe0c5d7f67de2f7d21b6e0b93ba39c386b4f99a5283ee681c0367f9b6fcb7 -->
 
 Grade Safeword feature milestones from a completed Claude Harbor trace.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### human_relay
 
@@ -63,6 +73,8 @@ Grade Safeword feature milestones from a completed Claude Harbor trace.
 
 Host-side relay for Claude's turn-ending messages in a Harbor trial.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### intake_cutoff
 
 <!-- reconciled: 38c80b611748e1a267482c3d7477589c73a676fdbdd43bd9e72490a2c5a682cd -->
@@ -72,6 +84,8 @@ Host-side relay for Claude's turn-ending messages in a Harbor trial.
 <!-- seeded-purpose: fb71fad5d58165e3dc0deb42e6b4019ffdc92d9a0b82d606e77054ba4bee3e09 -->
 
 Stop a Harbor author at the observed boundary of feature intake.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### model_spend
 
@@ -83,6 +97,8 @@ Stop a Harbor author at the observed boundary of feature intake.
 
 Report API-equivalent spend for the author and the reviewer processes.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### report_trials
 
 <!-- reconciled: 38c80b611748e1a267482c3d7477589c73a676fdbdd43bd9e72490a2c5a682cd -->
@@ -92,6 +108,8 @@ Report API-equivalent spend for the author and the reviewer processes.
 <!-- seeded-purpose: 495f256436c9cde0bfd4a0d2c8c991cd72c2fac4df80bf1d21edd519e4bc5649 -->
 
 Summarize Harbor traces and close drafts with an observed creation receipt.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### resolve_comparison
 
@@ -103,6 +121,16 @@ Summarize Harbor traces and close drafts with an observed creation receipt.
 
 Resolve signed-in models and freeze their rates for one Harbor comparison.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
+### test_decision_pilot
+
+<!-- reconciled: a2e7a5961befe2cbf158dff727222f4a8a4be954f06060ac764a604a119d2e1d -->
+
+`test_decision_pilot.py`
+
+No description yet — awaiting prose.
+
 ### test_fixture_graders
 
 <!-- reconciled: 38c80b611748e1a267482c3d7477589c73a676fdbdd43bd9e72490a2c5a682cd -->
@@ -110,6 +138,8 @@ Resolve signed-in models and freeze their rates for one Harbor comparison.
 `test_fixture_graders.py`
 
 No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### test_human_relay
 
@@ -119,6 +149,8 @@ No description yet — awaiting prose.
 
 No description yet — awaiting prose.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### test_intake_cutoff
 
 <!-- reconciled: 38c80b611748e1a267482c3d7477589c73a676fdbdd43bd9e72490a2c5a682cd -->
@@ -126,6 +158,8 @@ No description yet — awaiting prose.
 `test_intake_cutoff.py`
 
 No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### test_launchers
 
@@ -135,6 +169,8 @@ No description yet — awaiting prose.
 
 No description yet — awaiting prose.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### test_model_spend
 
 <!-- reconciled: 38c80b611748e1a267482c3d7477589c73a676fdbdd43bd9e72490a2c5a682cd -->
@@ -142,6 +178,8 @@ No description yet — awaiting prose.
 `test_model_spend.py`
 
 No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### test_trace_events
 
@@ -151,6 +189,8 @@ No description yet — awaiting prose.
 
 No description yet — awaiting prose.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### test_trial_evidence
 
 <!-- reconciled: 38c80b611748e1a267482c3d7477589c73a676fdbdd43bd9e72490a2c5a682cd -->
@@ -158,3 +198,5 @@ No description yet — awaiting prose.
 `test_trial_evidence.py`
 
 No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.

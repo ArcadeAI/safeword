@@ -1,4 +1,4 @@
-"""Replay an intake comparison from saved Harbor evidence, without model calls."""
+"""Replay an intake comparison from saved Harbor evidence, optionally grading product decisions."""
 
 import argparse
 import json
@@ -159,7 +159,7 @@ def trial_result(lane, build, models):
     }
 
 
-def score(directory, expected_cases):
+def score(directory, expected_cases, product=False):
     build, models = (
         document(directory / "build.json"),
         document(directory / "comparison.json")["models"],
@@ -178,6 +178,11 @@ def score(directory, expected_cases):
         "| Trial | Observed outcome | Estimated spend | Review calls |",
         "| --- | --- | ---: | ---: |",
     ]
+    if product:
+        rows[2] += (
+            " Needed to ask | Asked | Plan matches | Question turns | Operator interruptions | Evaluation spend |"
+        )
+        rows[3] += " --- | --- | --- | ---: | ---: | ---: |"
     for lane in sorted(lanes):
         name = lane.relative_to(directory).as_posix()
         try:
@@ -192,10 +197,64 @@ def score(directory, expected_cases):
         rows.append(
             f"| {label} | {result['outcome']} | {f'${cost:.2f}' if cost is not None else 'unknown'} | {result.get('review_calls', 'unknown')} |"
         )
+        if product:
+            from .decisions import grade, policy
+
+            spec = policy(lane.parent.name)
+            judgment = {"asked": "unclear", "plan_matches": "unclear"}
+            if spec and result.get("evidence"):
+                try:
+                    plan = (
+                        (lane / result["plan"]).read_text()
+                        if result.get("plan")
+                        else ""
+                    )
+                    judgment = grade(lane, plan, spec)
+                except (OSError, ValueError, TypeError, KeyError) as exc:
+                    judgment["error"] = str(exc)
+            requests = list((lane / "relay").glob("*-request.md"))
+            audits = list((lane / "relay").glob("*-routing.json"))
+            expected_audits = {
+                f.name.replace("-request.md", "-routing.json") for f in requests
+            }
+            audits_complete = (
+                bool(result.get("evidence"))
+                and {f.name for f in audits} == expected_audits
+            )
+            receipts = [document(f) for f in audits]
+            count = (
+                sum(r["operator_needed"] for r in receipts)
+                if audits_complete
+                else "unknown"
+            )
+            evaluation_cost = None
+            if audits_complete and judgment.get("evidence"):
+                meters = document(lane / judgment["evidence"])["meters"] + [
+                    r["interpreter"] for r in receipts if "interpreter" in r
+                ]
+                if all(isinstance(m.get("cost_usd"), (int, float)) for m in meters):
+                    evaluation_cost = sum(m["cost_usd"] for m in meters)
+            cost_text = (
+                "unknown" if evaluation_cost is None else f"${evaluation_cost:.2f}"
+            )
+            result["product"] = {
+                **judgment,
+                "relay_checkpoints": len(requests),
+                "operator_interruptions": count,
+                "evaluation_cost_usd": evaluation_cost,
+            }
+            needed = (
+                "unknown" if spec is None else ("no" if spec["supplied"] else "yes")
+            )
+            rows[-1] += (
+                f" {needed} | {judgment['asked']} | {judgment['plan_matches']} | {judgment.get('question_turns', 'unknown')} | {count} | {cost_text} |"
+            )
     rows.extend(
         [
             "",
-            "Score elicitation and plan correctness separately by comparing each relay transcript and final plan with the hidden product decision. The verifier scores the independent handoff.",
+            "An unclear product grade needs a transcript check. Estimated spend covers author and reviewer. Product grading and routing have separate cost receipts."
+            if product
+            else "Score elicitation and plan correctness separately by comparing each relay transcript and final plan with the hidden product decision. The verifier scores the independent handoff.",
         ]
     )
     write_json(directory / "intake-results.json", scores)
@@ -212,7 +271,14 @@ if __name__ == "__main__":
         default=[],
         help="Require a lane from both author hosts for this case",
     )
+    parser.add_argument(
+        "--product",
+        action="store_true",
+        help="Grade decision evidence with a host-side model; reuse cached extractions",
+    )
     options = parser.parse_args()
     raise SystemExit(
-        0 if score(options.directory.resolve(), options.expect_case) else 1
+        0
+        if score(options.directory.resolve(), options.expect_case, options.product)
+        else 1
     )

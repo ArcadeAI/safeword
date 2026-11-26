@@ -50,9 +50,39 @@ async def request_action(directory: Path, checkpoint: int, message: str) -> tupl
     pending = request.with_suffix(".tmp")
     pending.write_text(message)
     pending.replace(request)
-    if reply := answer_key_reply(message):
+    case = os.environ.get("SAFEWORD_EVAL_TASK", "")
+    from intake.decisions import operator_decision, policy, remember, route
+    spec = policy(case) if os.environ.get("SAFEWORD_EVAL_DECISIONS") == "1" else None
+    details = {}
+    if spec:
+        key = os.environ.get("SAFEWORD_EVAL_ANSWER_KEY")
+        entries = json.loads(Path(key).read_text()).get(case, {}) if key else {}
+        reply = entries.get(message.strip()) or remember(case, message)
+        if reply is not None and (not isinstance(reply, str) or not reply.strip()):
+            raise ValueError("An answer-key reply must be nonempty text")
+        source = "saved-answer"
+        if not reply:
+            try:
+                reply, kind, meter = await asyncio.to_thread(route, message, spec)
+            except (ValueError, OSError, KeyError, TypeError):
+                reply, kind, meter = None, "unknown", {}
+            details = {"kind": kind, "interpreter": meter}
+            source = "routine-approval" if kind == "approval" else "decision-key"
+        if details.get("kind") == "handoff":
+            (directory / f"{checkpoint:02d}-routing.json").write_text(json.dumps(
+                {**details, "operator_needed": False, "source": "continue"}))
+            response.write_text(json.dumps({"action": "continue", "source": "continue"}))
+            return "continue", None
+        if not reply:
+            return await operator_decision(directory, checkpoint, case, message, response, details)
+        audit = directory / f"{checkpoint:02d}-routing.json"
+        audit.write_text(json.dumps({**details, "operator_needed": False, "source": source}))
+    else:
+        reply = answer_key_reply(message)
+        source = "answer-key"
+    if reply:
         pending = response.with_suffix(".tmp")
-        pending.write_text(json.dumps({"action": "reply", "reply": reply, "source": "answer-key"}))
+        pending.write_text(json.dumps({"action": "reply", "reply": reply, "source": source}))
         pending.replace(response)
         return "reply", reply
     print(f"Awaiting relay decision: {request}", flush=True)

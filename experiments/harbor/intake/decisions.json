@@ -1,0 +1,24 @@
+{
+  "topics": {
+    "partial_csv": {
+      "question": "When conversion stops at the first invalid row, what happens to output from earlier valid rows?",
+      "options": {
+        "keep": "Write valid rows preceding the first invalid row and no later rows.",
+        "discard": "Leave the destination untouched and publish no partial output."
+      }
+    },
+    "duplicate_label": {
+      "question": "When a user saves a new bookmark using a label that already exists, what happens to the original bookmark?",
+      "options": {
+        "replace": "Replace the saved URL for that label with the new URL.",
+        "reject": "Reject the duplicate label and preserve the original URL."
+      }
+    }
+  },
+  "cases": {
+    "intake-csv-keep": ["partial_csv", "keep"],
+    "intake-csv-discard": ["partial_csv", "discard"],
+    "intake-bookmark-specified": ["duplicate_label", "reject", "supplied"],
+    "intake-bookmark-duplicate": ["duplicate_label", "reject"]
+  }
+}
