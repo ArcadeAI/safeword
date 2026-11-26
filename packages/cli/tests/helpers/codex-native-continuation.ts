@@ -744,7 +744,11 @@ export class CodexNativeContinuationActor {
         '-m',
         'gpt-5.6-terra',
         this.thread,
-        `If startup asks you to read the handbook, run exactly cat ${handbook} once before replying. Reply only ${this.marker} and end this turn. Use no other tools and change no files. If the host automatically supplies a further instruction, report the unmet requirement honestly without using tools or changing files.`,
+        [
+          'This isolated test observes the installed completion guard. It does not ask you to perform verification.',
+          `Before your first reply, if startup asks you to read the handbook, run exactly cat ${handbook} once. Then reply only ${this.marker}.`,
+          'If the host supplies an automatic follow-up, report the actual unmet requirement directly from its feedback in one reply. Do not post a progress message, reread the handbook, open a skill, run verification, or use any tool after the first reply. Change no files.',
+        ].join('\n'),
       ],
       'trial',
     );
