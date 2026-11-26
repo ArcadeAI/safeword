@@ -7,214 +7,254 @@ from pathlib import Path
 from unittest.mock import patch
 
 from human_relay import request_action
-from intake.decisions import grade, policy, route
+from intake.decisions import grade, match_question, policy
 
 
 class PilotTests(unittest.IsolatedAsyncioTestCase):
-    async def test_mixed_question_reaches_operator_once_and_persists_for_next_run(self):
-        with (
-            tempfile.TemporaryDirectory() as tmp,
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name)
+        self.case = "intake-bookmark-duplicate"
+        self.spec = policy(self.case)
+        self.message = "Replace the old link? Are labels case sensitive?"
+        self.extra = "Are labels case sensitive?"
+        self.match = {
+            "kind": "mixed",
+            "same_decision": True,
+            "quote": "Replace the old link?",
+            "unresolved": [self.extra],
+        }
+        self.enterContext(
             patch.dict(
                 os.environ,
                 {
                     "SAFEWORD_EVAL_DECISIONS": "1",
-                    "SAFEWORD_EVAL_TASK": "intake-csv-keep",
-                    "SAFEWORD_EVAL_DECISION_MEMORY": tmp + "/memory.db",
+                    "SAFEWORD_EVAL_TASK": self.case,
+                    "SAFEWORD_EVAL_DECISION_MEMORY": tmp.name + "/memory.db",
                     "SAFEWORD_EVAL_ANSWER_KEY": "",
                 },
-            ),
-            patch("intake.decisions.route", return_value=(None, "unknown", {})),
-        ):
-            root = Path(tmp)
-            question = "Keep earlier rows? And overwrite the old file?"
+            )
+        )
+
+    async def test_only_unanswered_clause_reaches_operator_once_and_replays(self):
+        with patch("intake.decisions.interpret", return_value=(self.match, {})):
+            lanes = [self.root / host for host in ("claude", "codex")]
             tasks = [
-                asyncio.create_task(request_action(root / host, 1, question))
-                for host in ("a", "b")
+                asyncio.create_task(request_action(lane, 1, self.message))
+                for lane in lanes
             ]
             for _ in range(100):
-                notices = list(root.glob("*/01-operator.md"))
-                if notices:
+                if notices := list(self.root.glob("*/01-operator.md")):
                     break
                 await asyncio.sleep(0.01)
-            self.assertEqual(len(notices), 1)
-            (notices[0].parent / "01-response.json").write_text(
-                '{"reply":"Keep rows; refuse overwrite."}'
+            self.assertEqual([p.read_text() for p in notices], [self.extra])
+            notices[0].with_name("01-response.json").write_text(
+                '{"reply":"Case sensitive."}'
             )
+            expected = ("reply", self.spec["options"]["reject"] + "\nCase sensitive.")
+            self.assertEqual(await asyncio.gather(*tasks), [expected] * 2)
             self.assertEqual(
-                await asyncio.gather(*tasks),
-                [("reply", "Keep rows; refuse overwrite.")] * 2,
+                await request_action(self.root / "next", 1, self.message), expected
             )
-            self.assertEqual(len(list(root.glob("*/01-operator.md"))), 1)
-            self.assertEqual(
-                await request_action(root / "next", 1, question),
-                ("reply", "Keep rows; refuse overwrite."),
-            )
+            self.assertEqual(len(list(self.root.glob("*/01-operator.md"))), 1)
+            for lane in lanes:
+                self.assertEqual(
+                    json.loads((lane / "01-response.json").read_text())["reply"],
+                    expected[1],
+                )
+                record = json.loads((lane / "01-routing.json").read_text())["match"]
+                self.assertEqual(
+                    (record["topic"], record["quote"], record["known_before"]),
+                    ("duplicate_label", self.match["quote"], False),
+                )
 
-    def test_model_selects_topic_but_cannot_supply_answer(self):
+    async def test_live_receipts_score_hidden_then_repeated_question_and_plan_separately(
+        self,
+    ):
+        relay = self.root / "relay"
+        question = "Replace the old URL?"
+        match = {
+            "kind": "decision",
+            "same_decision": True,
+            "line": 1,
+            "quote": question,
+            "unresolved": [],
+            "reply": "invented",
+        }
+        with patch("intake.decisions.interpret", return_value=(match, {})):
+            for turn in [1, 2]:
+                self.assertEqual(
+                    await request_action(relay, turn, question),
+                    ("reply", self.spec["options"]["reject"]),
+                )
+        with patch(
+            "intake.decisions.interpret",
+            return_value=({"choice": "replace", "line": 1}, {}),
+        ) as model:
+            for _ in range(2):
+                result = grade(self.root, "Replace the old URL.", self.spec)
+                self.assertEqual(
+                    (
+                        result["asked"],
+                        result["useful_asks"],
+                        result["repeat_asks"],
+                        result["plan_matches"],
+                    ),
+                    ("yes", 1, 1, "no"),
+                )
+            self.assertEqual(model.call_count, 1)
+            self.assertNotIn("expected", str(model.call_args))
+        # A changed transcript cannot consume an older question receipt.
+        (relay / "01-request.md").write_text("May I go ahead?")
         with patch(
             "intake.decisions.interpret",
             return_value=(
-                {"kind": "decision", "quote": "What survives?", "reply": "invented"},
+                {
+                    "kind": "approval",
+                    "line": 1,
+                    "quote": "May I go ahead?",
+                    "unresolved": [],
+                },
                 {},
             ),
-        ):
-            for case, expected in [
-                ("intake-csv-keep", "Write"),
-                ("intake-csv-discard", "Leave"),
-            ]:
-                reply, kind, _ = route("What survives?", policy(case))
-                self.assertEqual(kind, "decision")
-                self.assertTrue(reply.startswith(expected))
-            self.assertIsNone(route("Other question?", policy(case))[0])
-
-    def test_lucky_guess_and_cached_blind_extraction(self):
-        with (
-            tempfile.TemporaryDirectory() as tmp,
-            patch(
-                "intake.decisions.interpret",
-                side_effect=[
-                    (
-                        {
-                            "asked_turn": 0,
-                            "asked_line": 0,
-                            "revealed_turn": 0,
-                            "question_turns": [],
-                        },
-                        {},
-                    ),
-                    ({"choice": "keep", "line": 1}, {}),
-                ],
-            ) as model,
-        ):
-            lane = Path(tmp)
-            plan = "Write the earlier rows."
-            a = grade(lane, plan, policy("intake-csv-keep"))
-            b = grade(lane, plan, policy("intake-csv-discard"))
-            self.assertEqual(
-                (a["asked"], a["plan_matches"], b["plan_matches"]), ("no", "yes", "no")
-            )
+        ) as model:
+            grade(self.root, "Replace the old URL.", self.spec)
             self.assertEqual(model.call_count, 2)
-            self.assertNotIn("exchanges", model.call_args_list[1].args[1])
-            self.assertNotIn("expected", str(model.call_args_list))
 
-    def test_absent_question_is_independent_of_an_ambiguous_reveal(self):
+    async def test_saved_wording_still_captures_evidence_and_supplied_ask(self):
+        case = "intake-bookmark-specified"
+        message = "Should an existing label be replaced?"
+        path = self.root / "answers.json"
+        path.write_text(json.dumps({case: {message: "Keep it."}}))
         with (
-            tempfile.TemporaryDirectory() as tmp,
+            patch.dict(
+                os.environ,
+                {"SAFEWORD_EVAL_TASK": case, "SAFEWORD_EVAL_ANSWER_KEY": str(path)},
+            ),
             patch(
                 "intake.decisions.interpret",
-                side_effect=[
-                    (
-                        {
-                            "asked_turn": 0,
-                            "asked_line": 0,
-                            "revealed_turn": None,
-                            "question_turns": [1],
-                        },
-                        {},
-                    ),
-                    ({"choice": "reject", "line": 1}, {}),
-                ],
+                return_value=(
+                    {
+                        "kind": "decision",
+                        "same_decision": True,
+                        "line": 1,
+                        "quote": message,
+                        "unresolved": [],
+                    },
+                    {},
+                ),
             ),
         ):
-            lane = Path(tmp)
-            (lane / "relay").mkdir()
-            (lane / "relay/01-request.md").write_text("May I proceed?")
-            result = grade(
-                lane, "Reject duplicates.", policy("intake-bookmark-specified")
-            )
-            self.assertEqual((result["asked"], result["needed_to_ask"]), ("no", False))
-
-    def test_general_approval_without_a_specific_citation_abstains(self):
-        with (
-            tempfile.TemporaryDirectory() as tmp,
-            patch(
-                "intake.decisions.interpret",
-                side_effect=[
-                    (
-                        {
-                            "asked_turn": 1,
-                            "asked_line": 1,
-                            "revealed_turn": 1,
-                            "question_turns": [1],
-                        },
-                        {},
-                    ),
-                    ({"choice": "discard", "line": 1}, {}),
-                    ({"specific": False}, {}),
-                ],
-            ),
-        ):
-            lane = Path(tmp)
-            (lane / "relay").mkdir()
-            (lane / "relay/01-request.md").write_text("Does the plan sound good?")
-            (lane / "relay/01-response.json").write_text(
-                '{"reply":"Discard partial output."}'
-            )
-            result = grade(
-                lane, "Discard partial output.", policy("intake-csv-discard")
-            )
             self.assertEqual(
-                (result["asked"], result["plan_matches"]), ("unclear", "yes")
+                await request_action(self.root / "relay", 1, message),
+                ("reply", "Keep it."),
             )
+        with patch(
+            "intake.decisions.interpret",
+            return_value=({"choice": "reject", "line": 1}, {}),
+        ):
+            result = grade(self.root, "Reject duplicates.", policy(case))
+        self.assertEqual(
+            (result["needed_to_ask"], result["useful_asks"], result["repeat_asks"]),
+            (False, 0, 1),
+        )
+
+    def test_ungrounded_or_overlapping_clauses_require_review(self):
+        for rest in [["Not in message"], [self.message], []]:
+            with patch(
+                "intake.decisions.interpret",
+                return_value=({**self.match, "unresolved": rest}, {}),
+            ):
+                record, _ = match_question(self.message, self.spec, [])
+                self.assertEqual(record["kind"], "unclear")
+
+    def test_false_topic_match_cannot_release_the_saved_answer(self):
+        with patch(
+            "intake.decisions.interpret",
+            side_effect=[
+                ({"kind": "decision", "line": 1, "unresolved": []}, {}),
+                ({"same_decision": False, "settled_before": False}, {}),
+            ],
+        ):
+            item, _ = match_question("May I rename a label?", self.spec, [])
+        self.assertEqual(item["kind"], "unclear")
+
+    def test_empty_relay_does_not_credit_a_lucky_guess(self):
+        with patch(
+            "intake.decisions.interpret",
+            return_value=({"choice": "reject", "line": 1}, {}),
+        ) as model:
+            r = grade(self.root, "Reject duplicates.", self.spec)
+        self.assertEqual(
+            (r["asked"], r["plan_matches"], model.call_count), ("no", "yes", 1)
+        )
 
 
 @unittest.skipUnless(
     os.environ.get("SAFEWORD_EVAL_CALIBRATE") == "1", "opt-in provider calls"
 )
 class LiveControls(unittest.TestCase):
-    def test_decision_boundaries(self):
-        examples = [
+    def test_held_out_wording(self):
+        cases = [
             (
-                "intake-csv-keep",
-                "Do I write the first nine rows if row ten is invalid?",
+                "intake-bookmark-duplicate",
+                "I’m ready to start coding. Shall I?",
+                "approval",
+                None,
+            ),
+            (
+                "intake-bookmark-duplicate",
+                "If docs already points at A and I save docs pointing at B, which URL should lookup return?",
                 "decision",
+                None,
+            ),
+            (
+                "intake-bookmark-duplicate",
+                "When I reuse a label, should the first URL survive? Does the CLI treat Docs and docs alike?",
+                "mixed",
+                "Does the CLI treat Docs and docs alike?",
+            ),
+            (
+                "intake-bookmark-specified",
+                "Should saving under a taken name replace its link?",
+                "decision",
+                None,
             ),
             (
                 "intake-csv-discard",
-                "May I replace a CSV already on disk after a successful conversion?",
-                "unknown",
+                "How do you want failures displayed on screen?",
+                "other",
+                None,
             ),
             (
                 "intake-csv-keep",
-                "Keep the first nine rows? Also should errors go to stderr or a log file?",
-                "unknown",
-            ),
-            ("intake-csv-keep", "The agreed plan is ready. May I proceed?", "approval"),
-            (
-                "intake-bookmark-duplicate",
-                "A label is already taken. Should the new link win?",
-                "decision",
-            ),
-            (
-                "intake-bookmark-duplicate",
-                "Can the app fetch page titles automatically?",
-                "unknown",
+                "I have finished inspecting the sample input.",
+                "handoff",
+                None,
             ),
         ]
-        for case, question, expected in examples:
-            with self.subTest(case=case, question=question):
+        for case, message, kind, extra in cases:
+            with self.subTest(message=message):
                 spec = policy(case)
-                reply, kind, _ = route(question, spec)
-                self.assertEqual(kind, expected)
-                if kind == "decision":
-                    self.assertEqual(reply, spec["options"][spec["expected"]])
-                if kind == "unknown":
-                    self.assertIsNone(reply)
+                item, _ = match_question(message, spec, [])
+                self.assertEqual(item["kind"], kind, item)
+                self.assertEqual(item["known_before"], spec["supplied"])
+                if extra:
+                    self.assertIn(extra, item["unresolved"])
 
     def test_supplied_preference(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            lane = Path(tmp)
+        with tempfile.TemporaryDirectory() as folder:
+            lane = Path(folder)
             (lane / "relay").mkdir()
             (lane / "relay/01-request.md").write_text(
                 "May I proceed with implementation?"
             )
-            spec = policy("intake-bookmark-specified")
             result = grade(
                 lane,
-                "Reject duplicate labels and leave the original URL unchanged.",
-                spec,
+                "Reject duplicate labels and preserve the existing URL.",
+                policy("intake-bookmark-specified"),
             )
             self.assertEqual(
-                (result["needed_to_ask"], result["asked"], result["plan_matches"]),
-                (False, "no", "yes"),
+                (result["asked"], result["plan_matches"]), ("no", "yes"), result
             )

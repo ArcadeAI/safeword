@@ -35,23 +35,27 @@ what happens to an existing bookmark. Both hosts receive the same prompt.
 For the disclosed-preference control, prepare with `--task bookmark-specified`
 and run the `intake-bookmark-specified` case.
 
-The host checks exact saved answers first. On new wording, a tools-disabled
-interpreter sees the question topic and the entire message. The host supplies
-the stored answer or approves routine permission. Mixed or uncertain requests
-produce a numbered `-operator.md` in the lane's relay directory. The operator
-writes the usual `-response.json`. Exact repeats reuse that answer across
-local runs of the same case and policy. Set `SAFEWORD_EVAL_DECISION_MEMORY`
-to isolate an operator's database. To generalize a new product decision to
-paraphrases, explicitly add its policy to the catalog.
+The relay records the decision topic, the author's exact question, and whether
+the preference was known before the agent asked. This includes turns with a
+saved reply. A classifier sees the topic and the author’s message. The host
+selects the answer. Before disclosing a hidden preference, a separate call
+checks that the cited question asks for that decision. A routine approval
+earns zero clarification credit.
+For a mixed request, the coordinator sees only the outstanding clauses in
+`-operator.md`. The relay combines the saved answers with the operator's
+`-response.json` and remembers the new reply for exact repeats in the same
+case. If the clauses cannot be isolated confidently, the coordinator gets
+the original message. Set `SAFEWORD_EVAL_DECISION_MEMORY` for a separate store.
 
-Run `python -m intake.score DIRECTORY --product` to score elicitation and plan
-agreement alongside the existing handoff. The interpreter extracts evidence
-from the chronological exchanges and separately from the numbered plan. A second
-check reads each positive citation by itself before awarding elicitation credit.
-Only the host sees which option is expected. Inspect `product-evidence.json`
-for citations and metering. Missing or ambiguous evidence requires review.
-The first product replay invokes the model; unchanged evidence reuses the
-local cache. Interpreter costs are separate from author and reviewer spend.
+Run `python -m intake.score DIRECTORY --product`. New trials use their recorded
+matches. Old trials replay each author message with only the preceding exchanges
+available. The scorer separately reads the final plan without seeing the assigned
+option. A correct guess can earn plan credit with zero useful questions. A
+question about an already supplied or answered decision counts as a repeat.
+The JSON records unclear turns and asks where prior knowledge was uncertain.
+Review those counts alongside confirmed useful and repeat asks. Scoring an archive
+never contacts the operator. `product-evidence.json` records the citations and
+evaluation costs, and caches unchanged results.
 The pilot defaults to `claude-sonnet-4-6` and accepts a pinned override via
 `SAFEWORD_EVAL_DECISION_MODEL`.
 

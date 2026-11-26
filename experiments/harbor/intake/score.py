@@ -180,9 +180,9 @@ def score(directory, expected_cases, product=False):
     ]
     if product:
         rows[2] += (
-            " Needed to ask | Asked | Plan matches | Question turns | Operator interruptions | Evaluation spend |"
+            " Needed to ask | Asked | Useful asks | Repeat asks | Plan matches | Question turns | Operator interruptions | Evaluation spend |"
         )
-        rows[3] += " --- | --- | --- | ---: | ---: | ---: |"
+        rows[3] += " --- | --- | ---: | ---: | --- | ---: | ---: | ---: |"
     for lane in sorted(lanes):
         name = lane.relative_to(directory).as_posix()
         try:
@@ -247,7 +247,7 @@ def score(directory, expected_cases, product=False):
                 "unknown" if spec is None else ("no" if spec["supplied"] else "yes")
             )
             rows[-1] += (
-                f" {needed} | {judgment['asked']} | {judgment['plan_matches']} | {judgment.get('question_turns', 'unknown')} | {count} | {cost_text} |"
+                f" {needed} | {judgment['asked']} | {judgment.get('useful_asks', 'unknown')} | {judgment.get('repeat_asks', 'unknown')} | {judgment['plan_matches']} | {judgment.get('question_turns', 'unknown')} | {count} | {cost_text} |"
             )
     rows.extend(
         [
