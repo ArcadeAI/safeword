@@ -20,6 +20,7 @@ import { getStateFilePath } from '../../templates/hooks/lib/quality-state.js';
 import { resolveRunIdentity } from '../../templates/hooks/lib/run-identity.js';
 import { parseShellWords } from '../../templates/hooks/lib/shell-segments.js';
 import { assertMatchingTree } from './codex-plugin-package.js';
+import { CodexScriptedHandoff } from './codex-scripted-handoff.js';
 import { messageText, type Rollout } from './codex-workflow-observation.js';
 import { observeExactHostVersion } from './host-contract-version.js';
 import { catalogueHelperRuntime, observedHelperProgram } from './native-helper-command.js';
@@ -67,7 +68,7 @@ export interface StopObservation {
   stdout: string;
   status: number;
 }
-interface Event {
+export interface Event {
   type: string;
   thread_id?: string;
   item?: {
@@ -165,11 +166,13 @@ export class CodexNativeContinuationActor {
   private readonly ticketId = randomUUID().slice(0, 6).toUpperCase();
   private readonly marker = `FINISH_${randomUUID()}`;
   private handoffTurn = 0;
+  private readonly scripted?: CodexScriptedHandoff;
 
   constructor(
     private readonly fixture: CodexGuardFixture,
     private readonly expectedPackage = nodePath.resolve(import.meta.dirname, '../../codex-plugin'),
     private readonly modelArguments?: () => Promise<string[]>,
+    mode?: 'scripted-handoff',
   ) {
     assertCodexGuardFixture(fixture);
     this.directory = mkdtempSync(nodePath.join(fixture.root, 'codex-unfinished-ticket-stop-'));
@@ -194,6 +197,47 @@ export class CodexNativeContinuationActor {
       SAFEWORD_OBSERVER_LOG: nodePath.join(this.directory, 'stop-observations.jsonl'),
     };
     delete this.environment.SAFEWORD_CLI;
+    if (mode === 'scripted-handoff')
+      this.scripted = new CodexScriptedHandoff(fixture, this.environment, this.directory);
+  }
+
+  private async scriptedTurn(prompt: string, command: string, answer: string): Promise<Event[]> {
+    assert.ok(this.scripted);
+    return this.scripted.turn(
+      this.modelArguments ? await this.modelArguments() : [],
+      prompt,
+      command,
+      answer,
+    );
+  }
+
+  private async handoffCommand(prompt: string, command: string): Promise<Event[]> {
+    return this.scripted
+      ? this.scriptedTurn(prompt, command, 'READY')
+      : this.command(
+          [
+            'exec',
+            'resume',
+            '--json',
+            '-c',
+            'approval_policy="never"',
+            '-m',
+            'gpt-5.6-terra',
+            this.thread,
+            prompt,
+          ],
+          `handoff-${++this.handoffTurn}`,
+        );
+  }
+
+  private get scriptedEvidence() {
+    return this.scripted
+      ? {
+          model_input: 'scripted',
+          event_source: 'codex-app-server',
+          protocol: nodePath.join(this.directory, 'app-server.jsonl'),
+        }
+      : {};
   }
 
   private async command(args: string[], name: string): Promise<Event[]> {
@@ -460,20 +504,7 @@ export class CodexNativeContinuationActor {
     const command = handoff.currentTool ? helper.command : '';
     const prompt = `${handoff.currentTool ? 'Execute the following packaged helper in one shell call, exactly once, in this current turn.' : 'Use no tools in this turn.'} Then reply only READY and end this turn. Do not edit other files or configuration, write helper results yourself or do other work. If the host supplies a correction, report it honestly without further tools.\nHANDOFF_HELPER_COMMAND=${JSON.stringify(command)}`;
     const offset = this.observations().length;
-    const events = await this.command(
-      [
-        'exec',
-        'resume',
-        '--json',
-        '-c',
-        'approval_policy="never"',
-        '-m',
-        'gpt-5.6-terra',
-        this.thread,
-        prompt,
-      ],
-      `handoff-${++this.handoffTurn}`,
-    );
+    const events = await this.handoffCommand(prompt, command);
     const observations = this.observations().slice(offset);
     assert.ok(observations.length, 'HOST_CONTRACT_PROOF_UNAVAILABLE: native Codex Stop missing');
     for (const stop of observations) {
@@ -504,6 +535,7 @@ export class CodexNativeContinuationActor {
       raw: JSON.stringify({
         observations,
         events,
+        ...this.scriptedEvidence,
         helper: observedHelper,
         configuration: snapshot,
       }),
@@ -539,6 +571,10 @@ export class CodexNativeContinuationActor {
     }
   }
 
+  close(): void {
+    this.scripted?.close();
+  }
+
   async prepareContinuation(host: string, version: string): Promise<void> {
     assert.equal(host, 'Codex');
     assert.equal(version, hostReleases.codex.version);
@@ -547,26 +583,36 @@ export class CodexNativeContinuationActor {
     assertMatchingTree(this.expectedPackage, this.fixture.installedPath);
     assert.equal(existsSync(nodePath.join(this.fixture.project, '.codex')), false);
     console.log(`Codex continuation evidence: ${this.directory}`);
-    const events = await this.command(
-      [
-        'exec',
-        '--json',
-        '-s',
-        'workspace-write',
-        '-c',
-        'approval_policy="never"',
-        '-m',
-        'gpt-5.6-terra',
-        [
-          'This is isolated setup. Complete any required startup handbook reads, then take no other actions and change no files. Reply with exactly the plain Markdown below, without a code fence.',
-          '**CONFIDENT** — The isolated setup turn is ready.',
-          '**Decided:** Keep the setup read-only and leave the test ready for its next turn.',
-          '**Open:** none.',
-          '**Next:** Action: Continue. Object: the native test.',
-        ].join('\n\n'),
-      ],
-      'setup',
-    );
+    const answer = [
+      '**CONFIDENT** — The isolated setup turn is ready.',
+      '**Decided:** Keep the setup read-only and leave the test ready for its next turn.',
+      '**Open:** none.',
+      '**Next:** Action: Continue. Object: the native test.',
+    ].join('\n\n');
+    const prompt = [
+      'This is isolated setup. Complete any required startup handbook reads, then take no other actions and change no files. Reply with exactly the plain Markdown below, without a code fence.',
+      answer,
+    ].join('\n\n');
+    const events = this.scripted
+      ? await this.scriptedTurn(
+          prompt,
+          `cat ${shellQuote(nodePath.join(this.fixture.installedPath, 'resources/SAFEWORD.md'))}`,
+          answer,
+        )
+      : await this.command(
+          [
+            'exec',
+            '--json',
+            '-s',
+            'workspace-write',
+            '-c',
+            'approval_policy="never"',
+            '-m',
+            'gpt-5.6-terra',
+            prompt,
+          ],
+          'setup',
+        );
     const thread = events.find(row => row.type === 'thread.started')?.thread_id;
     assert.ok(thread);
     this.thread = thread;
