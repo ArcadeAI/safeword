@@ -1507,7 +1507,7 @@ async function runDegradedFallback(input: DegradedReviewInput): Promise<CliResul
     });
   }
   const completedOutput = assessment.output;
-  const assurance = fallbackAssurance(input.kind, input.assignedReviewer, input);
+  const assurance = fallbackAssurance(input.kind, completedOutput.reviewer_agent, input);
 
   return createResult({
     state: completedOutput.verdict === 'approve' ? 'healthy' : 'action_required',
