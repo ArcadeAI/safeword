@@ -58,3 +58,5 @@ The [neutral-wording follow-up](./scorecard.md#neutral-wording-of-the-café-requ
 The [shipping-label comparison](./scorecard.md#shipping-label-recovery) recorded 48 reviews testing repeat charges and manual recovery.
 
 The [delegated shipping trial](./scorecard.md#delegating-the-shipping-label-recovery-decision) found zero required requester approvals in 24 reviews and three actionable objections to silent repeat charges.
+
+The [intake skill-routing pilot](./scorecard.md#choosing-a-skill-during-intake) checked the supplied, delegated, open, routine and handoff cases on both author hosts.

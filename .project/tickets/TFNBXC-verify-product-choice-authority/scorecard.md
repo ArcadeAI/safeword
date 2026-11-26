@@ -227,3 +227,27 @@ The three requests for changes all concerned an ordinary retry silently spending
 The only change to the logical plan and context files was the delegation sentence appended to each user request. We reused the byte-identical reviewer bundle, container image, model pins, and per-review spend cap from the clarified comparison. Two order-balanced wordings, three fresh isolated reviews per wording, policy and host. The undelegated results are historical controls. All 24 verdicts matched their dispatch and pinned reviewer and had individual usage receipts. Estimated spend was **$1.55**. Private fixtures, protocol, raw findings, annotations and scores are in `experiments/harbor/jobs/TFNBXC-shipping-delegated/`.
 
 For this fixture, score requester approval, optional suggestions, and changes to the clerk-facing design separately. A reviewer can respect delegated authority and still find a problem with how an ordinary retry spends money.
+
+## Choosing a skill during intake
+
+**Keep the candidate experimental.** The proposed intake paragraph tells the author to apply a supplied rule, choose a routine delegated detail directly, use `figure-it-out` for a delegated decision with material consequences, and use `elicit` when a consequential choice depends on the user's preference. An isolated worktree generated the two native plugins from the same source change at base `a6dd9653b`. No live user prompt named a skill.
+
+| Request at the remaining shipping-desk decision | Claude Opus 5.5 | Codex GPT-6.2 Sol |
+| --- | --- | --- |
+| Never charge twice | Recorded the constraint directly | Recorded the constraint directly |
+| You choose the recovery policy | Chose close-first and explained why, without loading the skill | Loaded `figure-it-out`, chose close-first and explained why |
+| You choose the command name | Chose `ship <parcel-id>` directly | Chose `shipping-desk <parcel-id>` directly |
+| Recovery preference open | Chose and wrote a rule without asking | Loaded `figure-it-out` and wrote a rule without asking |
+| Same open request, with delegation queued if asked | Wrote a rule before asking | Wrote a rule before asking |
+| Follow-up: neutral open request, “the plan still has an open item” | Asked the recovery question directly | Loaded `elicit` and asked the recovery question |
+| Follow-up: clerk explicitly wants to discuss and decide, then replies “you choose” | Asked before editing and wrote a reasoned rule after the reply. No target skill observed | Asked before editing, then loaded `figure-it-out` and wrote a reasoned rule. No `elicit` load observed |
+
+The original open and handoff requests were identical before the first reply. Their shared introduction included “settle the remaining point,” which could be read as permission to choose. In neither handoff lane was the queued delegation delivered. In the explicit-discussion follow-up both authors asked one recovery question, left the spec byte-identical until the reply, and then chose without asking again. Claude recommended clerk verification before every purchase; Codex chose portal verification for uncertain purchases. The two skills were available in both plugin bundles. Claude went from the startup handbook to the project files and bypassed the intake guide on the primary trials. Codex read the guide and still sometimes treated an open decision as delegated.
+
+The neutral follow-up removed “settle” and described an open item. Both authors asked the clerk a recovery question before changing the plan. Codex opened the actual `elicit/SKILL.md` file. Claude asked directly; its explanation also incorrectly said only purchase-first preserves retry after a rejection, although the fixture guarantees an open request on definitive rejection. These single runs establish which behaviors occurred and motivate a controlled repeat.
+
+Score the observable choice and the skill load separately. On Claude, look for a successful Skill call or a direct read of the skill. On Codex, inspect the command and its returned skill contents; seeing a path in a directory listing earns no credit. For the handoff, compare the plan snapshot taken before the relay with the original and the final rule. Clerk confirmations inside a proposed product design are distinct from questions sent to the requester.
+
+The 14 scored author runs cost an estimated $2.42. Ten excluded launches used a macOS-generated tar archive containing AppleDouble files that tripped Claude's plugin integrity check. Those cost $1.31, bringing total metered spend to **$3.73**. The corrected archive was identical across the three scored sets. All runs used isolated Harbor containers, native account authentication and a $3 per-trial budget. Snapshots covered the intake decision only. No draft PRs appeared in the traces. Each private job directory under `experiments/harbor/jobs/TFNBXC-skill-routing*` retains its native transcripts, relay messages, plan snapshots and activity report. The clean job also retains `routing.patch`.
+
+First test whether one sentence in the startup handbook brings resumed intake tickets back through the BDD intake guide on Claude. Repeat the open and delegated cases using a neutral shared introduction, and grade both the question and the actual skill load.
