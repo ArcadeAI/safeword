@@ -143,6 +143,7 @@ interface GraphRelations {
   envelopes: readonly GraphRelation[];
   requirements: readonly { host: string; source_family?: string; behavior_id: string }[];
 }
+const controllerRoot = nodePath.resolve(import.meta.dirname, '../../../..');
 const templatesPrefix = 'packages/cli/templates/';
 function sourceOwner(owner: string): string {
   if (!owner) return '';
@@ -173,7 +174,7 @@ export function repoOwnershipGraph(
   // Integration metadata owns lanes; this snapshot is an independent expected set.
   const expected = JSON.parse(
     readFileSync(
-      nodePath.join(root, 'packages/cli/tests/fixtures/host-contract/targets.json'),
+      nodePath.join(controllerRoot, 'packages/cli/tests/fixtures/host-contract/targets.json'),
       'utf8',
     ),
   ) as {
@@ -517,6 +518,7 @@ function committedInputs(root: string, commit: string) {
     'packages/cli/',
     'packages/opencode-v2-plugin/',
     'scripts/',
+    'features/',
     'plugin/',
     '.claude/',
     '.cursor/',
@@ -594,16 +596,18 @@ function currentGraphReport(root: string) {
   // This is the executing trusted controller's public check, never candidate code.
   const result = spawnSync(
     process.execPath,
-    ['packages/cli/scripts/check-host-contract.ts', '--json'],
+    ['packages/cli/scripts/check-host-contract.ts', '--json', '--source-root', root],
     {
-      cwd: root,
+      cwd: controllerRoot,
       encoding: 'utf8',
       timeout: 120_000,
       maxBuffer: 16 * 1024 * 1024,
     },
   );
   if (result.error || result.signal || result.status === null || result.status === 3)
-    throw new Error(`OWNER_CAPTURE_GRAPH_UNAVAILABLE: ${result.error?.message ?? result.stderr}`);
+    throw new Error(
+      `OWNER_CAPTURE_GRAPH_UNAVAILABLE: ${result.error?.message ?? (result.stderr || result.stdout)}`,
+    );
   const report = JSON.parse(result.stdout) as {
     errors: unknown[];
     findings: Finding[];
@@ -651,7 +655,7 @@ async function intendedCurrentGraph(
   const intended = await import('../../tests/helpers/intended-contract-graph.js');
   const fixtureRoot = 'packages/cli/tests/fixtures/host-contract/';
   const sourceOracle = JSON.parse(
-    readFileSync(nodePath.join(root, fixtureRoot, 'intended-sources.json'), 'utf8'),
+    readFileSync(nodePath.join(controllerRoot, fixtureRoot, 'intended-sources.json'), 'utf8'),
   ) as { paths: string[]; additions: string[] };
   const ordered = (rows: unknown[]) =>
     rows.map(row => JSON.stringify(row)).toSorted((a, b) => a.localeCompare(b));
@@ -688,13 +692,10 @@ async function intendedCurrentGraph(
     'owners/cursor-rule-purposes-baseline.txt',
   ].map(path => `${fixtureRoot}${path}`);
   oracleFiles.push('packages/cli/tests/helpers/intended-contract-graph.ts');
-  const oracleInputs = oracleFiles.map(path => inputs.sources.find(row => row.path === path));
-  if (oracleInputs.includes(undefined))
-    findings.push({
-      code: 'OWNER_CAPTURE_ORACLE_MISSING',
-      severity: 'error',
-      message: 'Independent intended fixture has no committed blob.',
-    });
+  const oracleInputs = oracleFiles.map(path => ({
+    path,
+    sha256: hashBytes(readFileSync(nodePath.join(controllerRoot, path))),
+  }));
   const captured = new Set(inputs.sources.map(row => row.path));
   for (const owner of [
     ...ownedGraph.facets.map(row => row.path),
@@ -760,11 +761,20 @@ function options(args: readonly string[]) {
   return { baseline, candidate };
 }
 
+function separateCandidateRoot(root: string): string {
+  const project = realpathSync(root);
+  if (project === realpathSync(controllerRoot))
+    throw new CaptureInputError(
+      'Run the reviewed checker from a separate checkout with the candidate as the working directory.',
+    );
+  return project;
+}
+
 /** Read committed blobs with the executing controller; never execute candidate imports or accept savings. */
 export async function captureOwnerDelta(root: string, args: readonly string[]) {
   try {
     const input = options(args);
-    const project = realpathSync(root);
+    const project = separateCandidateRoot(root);
     const beforeShape = graph(project, revision(project, input.baseline));
     const afterShape = graph(project, revision(project, input.candidate));
     const before = { ...beforeShape, ...committedInputs(project, beforeShape.commit) };
@@ -807,12 +817,16 @@ export async function captureOwnerDelta(root: string, args: readonly string[]) {
       scope: oracle.scope,
       project_directory: project,
       controller_sha256: hashBytes(readFileSync(import.meta.filename, 'utf8')),
+      checker_sha256: hashBytes(
+        readFileSync(nodePath.join(controllerRoot, 'packages/cli/scripts/check-host-contract.ts')),
+      ),
       detector_sha256: hashBytes(
         readFileSync(nodePath.join(import.meta.dirname, 'source-ownership.ts'), 'utf8'),
       ),
       oracle_sha256: digest({ oracle, inputs: current.oracleInputs }),
       baseline: { ...before, sha256: digest(before) },
       candidate: { ...candidate, sha256: digest(candidate) },
+      generated_outputs_checked: false,
       retirement_basis: 'committed-source-graph-and-known-retirement-shapes',
       // Identical capture replay returns its original record; it never advances the history head.
       replay_advances_history: false,

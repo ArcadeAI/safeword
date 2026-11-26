@@ -114,7 +114,7 @@ function check(before = baseline, after = candidate, extra: string[] = []) {
   const result = spawnSync(
     'bun',
     [
-      'packages/cli/scripts/check-host-contract.ts',
+      nodePath.resolve(import.meta.dirname, '../../scripts/check-host-contract.ts'),
       '--owner-delta',
       '--baseline',
       before,
@@ -315,7 +315,7 @@ describe('committed owner capture through required repository checker', () => {
       expect(report.data.owner_delta[field].tree).toBe(tree.stdout.trim());
     }
     expect(report.data.owner_delta.candidate.graph_scope).toBe(
-      'source-derivation-and-registration-graph',
+      'independent-source-and-registration-graph',
     );
     const graph = report.data.owner_delta.candidate.ownership_graph;
     expect(graph, 'SEALED_GRAPH_DIFFERS_FROM_ACTUAL_PUBLIC_CHECK').toEqual(currentGraph);
