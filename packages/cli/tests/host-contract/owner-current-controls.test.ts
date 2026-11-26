@@ -6,11 +6,14 @@ import nodePath from 'node:path';
 
 import { afterAll, beforeAll, beforeEach, expect, it } from 'vitest';
 
-import { createContractRepoFixture } from '../helpers/contract-repo-fixture.js';
+import {
+  createContractRepoFixture,
+  runContractRepoCheck,
+} from '../helpers/contract-repo-fixture.js';
 
 const baseline = 'f48275b5e616010f3ce76bf5baf7329603f9ac57';
 const emitter = 'packages/cli/src/host-contract/owner-inventory.ts';
-let directory: string, candidate: string;
+let directory: string, controller: string, candidate: string;
 function git(...args: string[]) {
   const result = spawnSync(
     'git',
@@ -40,7 +43,7 @@ function check(revision = candidate, preload?: string) {
     'bun',
     [
       ...(preload ? ['--preload', preload] : []),
-      'packages/cli/scripts/check-host-contract.ts',
+      nodePath.join(controller, 'packages/cli/scripts/check-host-contract.ts'),
       '--owner-delta',
       '--baseline',
       baseline,
@@ -71,6 +74,7 @@ function rejected(result: ReturnType<typeof check>, code: string) {
   expect(result.report.data.admission_eligible).toBe(false);
 }
 beforeAll(() => {
+  controller = createContractRepoFixture({ generated: false });
   directory = createContractRepoFixture();
   const history = nodePath.join(directory, '.git');
   assert.ok(lstatSync(history).isSymbolicLink());
@@ -96,6 +100,7 @@ beforeAll(() => {
   candidate = commit();
 }, 60_000);
 afterAll(() => {
+  rmSync(nodePath.dirname(controller), { recursive: true, force: true });
   rmSync(nodePath.dirname(directory), { recursive: true, force: true });
 });
 beforeEach(() => {
@@ -117,6 +122,69 @@ it('binds the exact candidate inputs without importing candidate code, and repai
   rejected(check(foreign), 'OWNER_CAPTURE_CURRENT_INPUT_MISMATCH');
   expect(existsSync(marker)).toBe(false);
   expect(check().status).toBe(0);
+}, 120_000);
+
+it('detects an agent removed from both candidate lists using the reviewed checker', () => {
+  const releases = 'packages/cli/src/lifecycle/host-releases.json';
+  const targets = 'packages/cli/tests/fixtures/host-contract/targets.json';
+  const checker = 'packages/cli/scripts/check-host-contract.ts';
+  const releasePath = nodePath.join(directory, releases);
+  const targetPath = nodePath.join(directory, targets);
+  const checkerPath = nodePath.join(directory, checker);
+  const originals = new Map(
+    [releasePath, targetPath, checkerPath].map(path => [path, readFileSync(path, 'utf8')]),
+  );
+  const declarations = JSON.parse(readFileSync(releasePath, 'utf8'));
+  const expected = JSON.parse(readFileSync(targetPath, 'utf8'));
+  const missing = expected.targets.find((row: { agent: string }) => row.agent === 'codex');
+  assert.ok(missing);
+  delete declarations.codex;
+  expected.targets = expected.targets.filter((row: { agent: string }) => row.agent !== 'codex');
+  const marker = nodePath.join(nodePath.dirname(directory), 'candidate-checker-ran');
+  try {
+    writeFileSync(releasePath, JSON.stringify(declarations));
+    writeFileSync(targetPath, JSON.stringify(expected));
+    writeFileSync(
+      checkerPath,
+      `import {writeFileSync} from 'node:fs'; writeFileSync(${JSON.stringify(marker)}, 'ran');`,
+    );
+    const result = check(commit(releases, targets, checker));
+    rejected(result, 'HOST_CONTRACT_TARGET_UNDECLARED');
+    expect(result.report.findings).toContainEqual(
+      expect.objectContaining({
+        code: 'HOST_CONTRACT_TARGET_UNDECLARED',
+        message: `codex:${missing.version}:CLI:native`,
+      }),
+    );
+    expect(existsSync(marker)).toBe(false);
+  } finally {
+    for (const [path, original] of originals) writeFileSync(path, original);
+  }
+}, 120_000);
+
+it('requires the candidate handler declarations to match the reviewed modules', () => {
+  const relative = 'packages/cli/src/lifecycle/integrations.ts';
+  const path = nodePath.join(directory, relative);
+  const original = readFileSync(path, 'utf8');
+  try {
+    writeFileSync(
+      path,
+      original.replace(
+        'export const CURRENT_HOST_RELEASES = hostReleases;',
+        'export const CURRENT_HOST_RELEASES = {};',
+      ),
+    );
+    const result = check(commit(relative));
+    rejected(result, 'HOST_CONTRACT_REVIEWED_MODULE_MISMATCH');
+    expect(result.report.findings).toContainEqual(
+      expect.objectContaining({
+        code: 'HOST_CONTRACT_REVIEWED_MODULE_MISMATCH',
+        message: relative,
+      }),
+    );
+  } finally {
+    writeFileSync(path, original);
+  }
 }, 120_000);
 
 it.each([
@@ -159,16 +227,15 @@ it.each([
 ] as const)(
   'refuses to seal a passing current graph with %s, then repairs',
   (_name, from, to, code) => {
-    const path = nodePath.join(directory, emitter);
+    const path = nodePath.join(controller, emitter);
     const original = readFileSync(path, 'utf8');
     expect(original).toContain(from);
     writeFileSync(
       path,
       original.replace(from, () => to),
     );
-    const mutated = commit(emitter);
     try {
-      rejected(check(mutated), code);
+      rejected(check(), code);
     } finally {
       writeFileSync(path, original);
     }
@@ -211,16 +278,17 @@ mock.module('node:child_process', () => ({...cp, spawnSync(program,args,options)
   expect(check().status).toBe(0);
 }, 120_000);
 
-it('retains stale generated-output failure at the capture boundary and repairs', () => {
+it('the ordinary repository check rejects stale generated output and accepts the repair', () => {
   const relative = 'plugin/runtime/cli.js';
   const path = nodePath.join(directory, relative);
   const original = readFileSync(path, 'utf8');
   writeFileSync(path, `${original}\n// stale private bundle\n`);
-  const stale = commit(relative);
   try {
-    rejected(check(stale), 'HOST_CONTRACT_GENERATED_OUTPUT_STALE');
+    const result = runContractRepoCheck(directory);
+    expect(result.status).toBe(2);
+    expect(result.output).toContain('HOST_CONTRACT_GENERATED_OUTPUT_STALE');
   } finally {
     writeFileSync(path, original);
   }
-  expect(check().status).toBe(0);
+  expect(runContractRepoCheck(directory).status).toBe(0);
 }, 120_000);

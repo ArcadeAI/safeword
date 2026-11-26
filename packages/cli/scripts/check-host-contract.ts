@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { readFileSync, realpathSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { createResult, renderJsonResult } from '../src/cli-protocol/result.js';
@@ -35,9 +36,8 @@ import { discoverTemplateSources, runParity } from '../src/parity.js';
 import { SAFEWORD_SCHEMA } from '../src/schema.js';
 import { SHARED_BEHAVIOR_BINDINGS } from '../templates/hooks/lib/behavior-contract.js';
 
-const root = nodePath.resolve(import.meta.dirname, '../../..');
 if (process.argv.includes('--owner-delta')) {
-  const result = await captureOwnerDelta(root, process.argv.slice(2));
+  const result = await captureOwnerDelta(process.cwd(), process.argv.slice(2));
   await new Promise<void>((resolve, reject) => {
     process.stdout.write(`${renderJsonResult(result)}\n`, error => {
       if (error) reject(error);
@@ -47,7 +47,38 @@ if (process.argv.includes('--owner-delta')) {
   process.exit(result.exitCode);
 }
 try {
+  const controllerRoot = nodePath.resolve(import.meta.dirname, '../../..');
+  const sourceIndex = process.argv.indexOf('--source-root');
+  const independent = sourceIndex !== -1;
+  const root = independent ? realpathSync(process.argv[sourceIndex + 1] ?? '') : controllerRoot;
   const findings = findCompetingHostContractOwners(root);
+  if (independent) {
+    // Imported declarations describe the reviewed checkout. Only apply them to
+    // matching candidate modules. Candidate modules are never loaded here.
+    const loaded = Object.keys(require.cache);
+    for (const declaration of [
+      '../src/lifecycle/integrations.ts',
+      '../src/schema.ts',
+      '../templates/hooks/lib/behavior-contract.ts',
+    ]) {
+      if (!loaded.includes(require.resolve(declaration)))
+        throw new Error(`Reviewed declaration is absent from the module inventory: ${declaration}`);
+    }
+    for (const file of loaded) {
+      const relative = nodePath.relative(controllerRoot, file);
+      if (
+        !relative.startsWith('packages/cli/src/') &&
+        !relative.startsWith('packages/cli/templates/')
+      )
+        continue;
+      if (!readFileSync(nodePath.join(root, relative)).equals(readFileSync(file)))
+        findings.push({
+          code: 'HOST_CONTRACT_REVIEWED_MODULE_MISMATCH',
+          severity: 'error',
+          message: relative,
+        });
+    }
+  }
   const handlers = PRODUCTION_INTEGRATIONS.flatMap(adapter => [
     ...(adapter.configuredHandlers?.() ?? []),
     ...(adapter.nativeHandlerSources ?? []).flatMap(source =>
@@ -247,7 +278,7 @@ try {
   );
   // Failed source/ownership checks already prevent completion. Derivation is
   // mandatory on every otherwise-successful path, not a redundant failure probe.
-  if (findings.length === 0) {
+  if (!independent && findings.length === 0) {
     const generated = spawnSync(
       process.execPath,
       ['packages/cli/scripts/check-generated-surfaces.ts'],
@@ -271,7 +302,9 @@ try {
     findings,
     data: {
       command: 'host-contract check',
-      scope: 'source-derivation-and-registration-graph',
+      scope: independent
+        ? 'independent-source-and-registration-graph'
+        : 'source-derivation-and-registration-graph',
       source_inventory: sourceInventory,
       handler_inventory: handlers,
       behavior_bindings: SHARED_BEHAVIOR_BINDINGS,
