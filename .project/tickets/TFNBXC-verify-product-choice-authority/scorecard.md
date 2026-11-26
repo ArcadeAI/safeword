@@ -98,3 +98,33 @@ The candidate inserted this text at the start of the first intake step:
 Baseline `f1ea8ab00`, experimental bundle `5c7f0bea3`. Each trial had an isolated workspace, the same pinned models, a $3 author-plus-reviewer cap, and the same reviewer rubric digest. Approval receipts were checked against the saved plans. Total metered estimate was **$8.30**, including $0.0184 for relay classification. Private protocols, instructions, transcripts, plans, receipts and scores are under `experiments/harbor/jobs/TFNBXC-author/` in the Harbor infrastructure worktree. No draft PRs were observed.
 
 The next distinct hypothesis is to give a reviewer the request first and record which recovery choices it considers open before showing it the author's plan. Blind that first pass to the author's proposed answer and score both omission and explicit delegation.
+
+## Request-first reviewer experiment
+
+**Keep one review pass as the default.** From the request alone, reviewers found the unresolved CSV publication choice in 12/12 trials. They found the unresolved café announcement/removal choice in 0/12. The second pass reproduced that split exactly. Seeing the draft first therefore cannot fully explain these café misses. A crash that corrupts the queue file and an interruption after staff hear a name but before removal is saved are distinct failures. Several inventories discussed only the former or raised unrelated questions such as undoing a mistaken call.
+
+| Reviewer and feature | Exact open choice blocked, current → request-first (of 6) | Matching or delegated plan approved (of 6) | Contradictory plan corrected (of 3) | Complete sets (of 3) |
+| --- | ---: | ---: | ---: | ---: |
+| Claude, café | 0 → 0 | 6 → 6 | 3 → 3 | 0 → 0 |
+| Codex, café | 0 → 0 | 5 → 6 | 3 → 3 | 0 → 0 |
+| Claude, CSV | 0 → 6 | 6 → 6 | 3 → 3 | 0 → 3 |
+| Codex, CSV | 3 → 6 | 6 → 6 | 3 → 3 | 0 → 3 |
+
+Neither host met the two-of-three-set threshold on the café. The inventories correctly identified explicit delegation in 12/12 delegated trials. All 24 matching or delegated plans passed the two-pass review without reopening the target choice. One approval suggested confirming an adjacent detail about warning staff that a repeat announcement might be occurring. No question was sent to a user.
+
+### How the comparison worked
+
+We reused the frozen café and repaired CSV packets, image, models and prices from the opposite-policy experiment. For each host and feature we varied only the user instruction across five conditions: silent about the decision, delegated naming only, explicitly chose the plan's policy, delegated the exact choice, or explicitly chose the opposite. Three repeats per condition. The 60 new single-pass controls and 60 two-pass trials were interleaved.
+
+Before seeing the plan, the same pinned model read only the user request and listed consequential recovery choices under Chosen, Delegated and Open. A fresh container ran the unchanged Safeword reviewer over the full original packet plus the exact first-pass summary, marked as reviewer notes. The first process had no mounted plan, answer key or expectations. We checked source content, review packet parity, exact note transfer, confirmed models and usage ledgers. Scores reflect the target issue in the actual finding text. An unrelated blocking finding earns no credit. The experiment measures this whole two-pass treatment; it does not isolate ordering from the additional model call and instructions.
+
+| Calls | Count | Estimated spend |
+| --- | ---: | ---: |
+| Single-pass controls | 60 | $2.42 |
+| Request-first inventories and final reviews | 120 | $7.33 |
+| Excluded setup and retry calls | 18 | $0.79 |
+| **Total** | **198** | **$10.54** |
+
+Sixteen early inventories used a runtime path without the required confirmed-model receipt. We repeated them using the planning-review runtime before scoring. Two additional metered retry inventories were excluded after output collection failed. The reported 120 final verdicts all have verified model and dispatch identity. Runs used Claude Opus 5.5 and Codex GPT-6.2 Sol, with a $3 cap per scored trial. Private inputs, inventories, verdicts, metering, exclusions and scores are in `experiments/harbor/jobs/TFNBXC-request-first/` in the Harbor infrastructure worktree.
+
+A smaller next experiment would ask for one concrete interruption between a visible action and a saved change. Test whether that surfaces the actual user decision in both the café and an unseen two-step feature, while preserving explicit choices and delegation.

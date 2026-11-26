@@ -6,7 +6,7 @@ epic: 3TJD0A
 phase: done
 status: done
 created: 2026-11-26T16:19:57.264Z
-last_modified: 2026-11-26T17:12:12Z
+last_modified: 2026-11-26T17:21:49Z
 ---
 
 # Catch unapproved product choices before feature intake closes
@@ -46,3 +46,5 @@ Retain the current rubric. The proposed change passed the adoption threshold onl
 The opposite-policy and severity follow-ups also missed the adoption threshold. [180-review follow-up](./scorecard.md#follow-up-opposite-policy-and-verdict-severity).
 
 The [author pilot](./scorecard.md#author-pilot-asking-before-writing-a-recovery-rule) found zero early questions in either arm. Retain the existing intake guide.
+
+The [request-first reviewer experiment](./scorecard.md#request-first-reviewer-experiment) improved CSV results and still missed every open café choice. Retain the single-pass default.
