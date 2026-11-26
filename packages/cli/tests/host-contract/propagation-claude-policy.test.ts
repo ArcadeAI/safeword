@@ -109,6 +109,16 @@ if(handoff){
   emit({type:'assistant',message:{content:[{type:'tool_use',id:'source-inspection',name:'Read',input:{file_path}}]}});
   emit({type:'user',message:{content:[{type:'tool_result',tool_use_id:existsSync(${JSON.stringify(nodePath.join(root, 'wrong-read-result'))})?'unmatched-read':'source-inspection',is_error:false,content:readFileSync(file_path,'utf8')}]}});
  }
+ function readHandbook(id){
+  const file_path=plugin+'/resources/SAFEWORD.md';
+  emit({type:'assistant',message:{content:[{type:'tool_use',id,name:'Read',input:{file_path}}]}});
+  emit({type:'user',message:{content:[{type:'tool_result',tool_use_id:id,is_error:false,content:readFileSync(file_path,'utf8')}]}});
+ }
+ if(command&&!resume)readHandbook('source-handbook');
+ if(existsSync(${JSON.stringify(nodePath.join(root, 'duplicate-handbook'))})){
+  readHandbook('source-handbook');
+  readHandbook('source-handbook-duplicate');
+ }
  if((command||existsSync(${JSON.stringify(nodePath.join(root, 'inspect-without-request'))}))&&!existsSync(${JSON.stringify(nodePath.join(root, 'inspect-after-helper'))}))inspect();
  if(existsSync(${JSON.stringify(nodePath.join(root, 'drop-option'))})){
   const file=process.cwd()+'/.safeword/config.json';
@@ -364,6 +374,7 @@ console.log(JSON.stringify({ type: 'result', is_error: false }));
       ['duplicate-helper', 'CLAUDE_HANDOFF_HELPER_MISSING'],
       ['compound-helper', 'CLAUDE_HANDOFF_HELPER_MISSING'],
       ['wrong-inspection', 'CLAUDE_HANDOFF_UNEXPECTED_TOOL'],
+      ['duplicate-handbook', 'CLAUDE_HANDOFF_UNEXPECTED_TOOL'],
       ['wrong-read-result', 'CLAUDE_HANDOFF_HELPER_RESULT_MISSING'],
       ['inspect-after-helper', 'CLAUDE_HANDOFF_UNEXPECTED_TOOL'],
       ['unexpected-bash', 'CLAUDE_HANDOFF_UNEXPECTED_TOOL'],
