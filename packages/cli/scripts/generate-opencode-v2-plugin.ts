@@ -21,7 +21,7 @@ import { OPENCODE_V2_PLUGIN_LAYOUT as layout, SAFEWORD_SCHEMA } from '../src/sch
 import { VERSION } from '../src/version.js';
 import { generateTestingCore } from './generate-testing-core.js';
 import { buildPluginCliBundle, normalizePluginCliBundle } from './lib/build-plugin-cli-bundle.js';
-import { publishFreshDirectory } from './lib/codex-plugin-generation.js';
+import { publishFreshDirectory } from './lib/publish-fresh-directory.js';
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '..');
 const { values } = parseArgs({ options: { output: { type: 'string' } }, strict: true });

@@ -300,6 +300,24 @@ export function captureNativePropagationActor(
     );
     return { raw_artifact: raw, raw_sha256: sha256(raw) };
   };
+  const captureObservation = async <Result>(
+    kind: 'design' | 'handoff' | 'policy',
+    observe: () => Promise<Result>,
+    observationOf: (result: Result) => { raw: string },
+  ): Promise<Result> => {
+    try {
+      const result = await observe();
+      persist(kind, observationOf(result));
+      return result;
+    } catch (error) {
+      if (!(error instanceof ObservedPropagationMismatch)) throw error;
+      persist(`${kind}-mismatch`, error.observation);
+      throw new PropagationOutcomeError({
+        exit: 2,
+        failures: [`PROPAGATION_${kind.toUpperCase()}_MISMATCH:${lane}:${error.message}`],
+      });
+    }
+  };
   return {
     ...actor,
     observeContinuation: async () => {
@@ -314,51 +332,23 @@ export function captureNativePropagationActor(
       return observed;
     },
     observeDesignApproval: async options => {
-      if (!actor.observeDesignApproval)
+      const observe = actor.observeDesignApproval?.bind(actor, options);
+      if (!observe)
         throw new Error('HOST_CONTRACT_PROOF_UNAVAILABLE: design setting observation missing');
-      try {
-        const observed = await actor.observeDesignApproval(options);
-        persist('design', observed.observation);
-        return observed;
-      } catch (error) {
-        if (!(error instanceof ObservedPropagationMismatch)) throw error;
-        persist('design-mismatch', error.observation);
-        throw new PropagationOutcomeError({
-          exit: 2,
-          failures: [`PROPAGATION_DESIGN_MISMATCH:${lane}:${error.message}`],
-        });
-      }
+      return captureObservation('design', observe, result => result.observation);
     },
     observeHandoff: async setting => {
-      if (!actor.observeHandoff)
+      const observe = actor.observeHandoff?.bind(actor, setting);
+      if (!observe)
         throw new Error('HOST_CONTRACT_PROOF_UNAVAILABLE: terminal setting observation missing');
-      try {
-        const observed = await actor.observeHandoff(setting);
-        persist('handoff', observed);
-        return observed;
-      } catch (error) {
-        if (!(error instanceof ObservedPropagationMismatch)) throw error;
-        persist('handoff-mismatch', error.observation);
-        throw new PropagationOutcomeError({
-          exit: 2,
-          failures: [`PROPAGATION_HANDOFF_MISMATCH:${lane}:${error.message}`],
-        });
-      }
+      return captureObservation('handoff', observe, result => result);
     },
-    observeVerification: async (evidence, setup, setting) => {
-      try {
-        const observed = await actor.observeVerification(evidence, setup, setting);
-        persist('policy', observed.observation);
-        return observed;
-      } catch (error) {
-        if (!(error instanceof ObservedPropagationMismatch)) throw error;
-        persist('policy-mismatch', error.observation);
-        throw new PropagationOutcomeError({
-          exit: 2,
-          failures: [`PROPAGATION_POLICY_MISMATCH:${lane}:${error.message}`],
-        });
-      }
-    },
+    observeVerification: (evidence, setup, setting) =>
+      captureObservation(
+        'policy',
+        () => actor.observeVerification(evidence, setup, setting),
+        result => result.observation,
+      ),
   };
 }
 
