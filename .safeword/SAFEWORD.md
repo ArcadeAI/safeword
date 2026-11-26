@@ -34,15 +34,9 @@ a supported gated surface.
 
 Understand what the user is asking before classifying or building. **Propose-and-Converge** means: lead with a perspective, then surface open questions _inside_ that proposal. Don't ask first — propose first.
 
-Each turn, restate what you heard, contribute a perspective/sketch/reframe, and surface the remaining open questions inside that contribution. Incorporate what the user confirms to narrow the open set; advance once none remain and the user accepts.
+Use confirmed decisions. Surface the remaining choices and advance when the user accepts.
 
-During feature intake, research questions that could change behavior or scope.
-Use the following sequence for a significant implementation decision.
-
-1. **Frame** the problem and its hard constraints: prior tickets, the data model, non-negotiable framework idioms. Don't read the soft conventions yet.
-2. **Design the ideal.** Run `/figure-it-out` to weigh 2-3 options on correctness, simplicity, and no-bloat, and pick the best architecture _as if the codebase didn't exist_. Computing this first gives the next step a yardstick.
-3. **Survey the existing patterns** in the area you're about to touch — now, not before. Surveying earlier anchors the design to the status quo and quietly shrinks it to match.
-4. **Reconcile.** Conform to the existing pattern by default — deviate only when the ideal is a real improvement, not taste. When your ideal diverges from what exists, record the call: to deviate, name a concrete defect of the existing pattern the ideal fixes, the call-site count you're splitting, a one-line pre-mortem ("assume this was wrong — what broke?"), and the follow-up ticket to uplevel the rest. Reversible and local → a few lines in the ticket; irreversible or cross-cutting (data model, public API) → promote to an ADR. See `./.safeword/guides/architecture-guide.md`.
+During feature intake, research questions that could change behavior or scope. For a significant implementation decision, follow the decision sequence in `./.safeword/guides/architecture-guide.md`.
 
 Depth scales with ambiguity. Clear request → 0 turns. One open question → 1 turn. Vague idea → 2-3 turns of increasingly specific proposals.
 
@@ -50,7 +44,7 @@ Depth scales with ambiguity. Clear request → 0 turns. One open question → 1 
 
 If the user references a ticket ID/slug or says "resume" / "continue", skip Clarify and resume at the ticket's current phase.
 
-**Replan on resume.** The plan may be stale: a `Resume check: N commit(s)…` line means someone else's commits touched files this ticket references since you last worked on it. This is opt-in: if the user declines or just proceeds, investigate nothing. If the user accepts ("check the plan"), spawn a fresh sub-agent (`isolation: worktree`) to judge whether scope still holds and report back **in chat only** — proposing one of still-good / change-scope / cancel / split / merge, with rationale. If the verdict is change-scope or split, run `/figure-it-out` before proposing a new approach — scope changed because the world changed, which is exactly when re-deciding from memory is most dangerous. Never edit the ticket without explicit approval. If the sub-agent errors or times out, note it in one line and proceed with the work — don't retry in a loop (the heads-up won't re-fire until new commits land).
+If a resume check flags changed files, investigate only when the user accepts. Have a fresh agent review the plan in its own worktree and report in chat. Follow `./.safeword/guides/planning-guide.md` and get explicit approval before editing the ticket.
 
 **Contribution techniques** to weave into proposals (pick the one that fits the gap):
 
@@ -96,7 +90,7 @@ Classify by the requested outcome before estimating implementation size. Use the
 2. **Task:** The request restores existing behavior or changes an isolated behavior with a testable outcome. Use TDD.
 3. **Patch:** A small mechanical or cosmetic correction with no behavior to discover can be fixed directly.
 
-Users can explicitly override the workflow.
+Users can explicitly override the workflow with `/bdd`. Use TDD-only for a feature when the user explicitly requests that path.
 
 Sizing reads the jobs; it never edits them. A job that implies new state or a new flow makes the work **bigger** — that is a signal to split into an epic, never to drop the job so the work fits a smaller box. If you find yourself pruning jobs and the size falls, you sized the proposal instead of the work.
 
@@ -108,17 +102,11 @@ Calibration the rules don't capture:
 - "Build the Docker image" → patch (infrastructure, not product).
 - "Clear pre-existing lint debt across 17 files" → task (mechanical cleanup — no behavior to discover, so the file count is noise).
 
-### 3. Build
-
-- **patch:** restate what you're fixing, fix it. `/bdd` to override.
-- **task:** restate scope, run TDD (RED → GREEN → REFACTOR). `/bdd` to override.
-- **feature** follows BDD at the current ticket phase. Use TDD-only when the user explicitly requests that path.
-
-### 4. Verify
+### 3. Verify
 
 Never ask the user to test what you can test yourself. Run the relevant tests after every fix, task, or feature. Verify everything passes before claiming done.
 
-### 5. Done
+### 4. Done
 
 Run `/verify` (it writes `verify.md`) and, for features, `/audit`. The done gate re-runs the tests and blocks until they pass and the evidence is real — see Enforcement.
 
@@ -132,19 +120,6 @@ Correctness is the floor, not a tiebreaker. Among solutions that are correct, op
 - **No bloat:** delete unused code; no premature abstractions; no "just in case"; reuse existing patterns/tools before adding new ones.
 - **Explicit errors:** every catch re-throws with context, or logs with details.
 - **Self-documenting:** comment only the non-obvious "why" — business rules, workarounds. Wrap comments and docstrings at 100 columns.
-
----
-
-## Anti-Patterns
-
-| Don't                        | Do                                               | Why                       |
-| ---------------------------- | ------------------------------------------------ | ------------------------- |
-| `catch (e) {}`               | `throw new Error(\`Failed to X: ${e.message}\`)` | Silent failures hide bugs |
-| Utility class for 1 function | Single exported function                         | Abstraction without reuse |
-| Factory for simple object    | Direct construction                              | Indirection without value |
-| `data`, `tmp`, `d`           | `userProfile`, `pendingOrder`                    | Names should explain      |
-| Code "for later"             | Delete it; add when needed                       | YAGNI                     |
-| >50 lines for nice-to-have   | Ask whether it's essential now                   | Scope creep               |
 
 ---
 
@@ -228,16 +203,11 @@ This is the most-read surface of safeword. **Write to be scanned, not read.** Sh
 
 **Lead with the answer.** First sentence is the result, the fix, or the call. Explanation follows only if it adds something.
 
-> Do: "Fixed — `packages/cli/src/auth.ts:42` was swallowing the refresh error."
-> Don't: "Great question! Let me walk you through what I found..."
-
 **End with a self-contained call.** For structured replies (verdicts, reviews, recommendations, audits), close with a literal `**Next:**` paragraph for CONFIDENT or `**Need:**` for BLOCKED; the stop hook captures it verbatim for the session's re-entry brief. Write for a reader who sees only that paragraph. Under `terminal-handoff/v1`, declare `**Open:** human: <one choice>.` for a human decision or `**Open:** none.` when no decision remains. A human decision uses exactly `Choice: <concrete choice>. Recommendation: <recommended option>. Reason: <controlling reason>. Impact: <material tradeoff or consequences>. Reply: <exact reply>.` Explain any necessary marked term as `Term: <name> = <plain-language meaning>.` If no decision is required, use exactly `Action: <imperative>. Object: <specific object>.` and optionally only `Reason: Required because <essential reason>.` Use specific nouns, verbs, paths, commands, amounts, and consequences. Include a detail only if it could change the decision or action. Stop once the reader can act without scrolling. Short conversational replies can end with the question itself.
 
 **Debate-then-pick.** When there's a real choice, surface 2-3 options weighed in one breath, then the pick — one line each on the candidates, one on the tradeoff, one on the call. Don't ping-pong one option at a time. Skip the debate when there's no real choice (rename, mechanical edit, single obvious path).
 
 **Frame the structural choice.** Name the architectural call ("reuse `quality-state.ts` paths vs. duplicate the list") before the surface change ("add a check"). The proposal _is_ the architectural read, not a description of what to type.
-
-**Front-load load-bearing words.** The first two words of every line, bullet, and heading do the work — readers eye-jump down the left edge before deciding where to drop in. Start with the noun or verb that carries the meaning. "Failed because…" beats "It looks like the test failed because…"
 
 **Speak plainly.** Use everyday words. Don't make the user learn safeword's internal vocabulary (Propose-and-Converge, sizing, gates, phases) — just describe what's happening. Prefer the plain phrase over a technical term whenever either works; reach for the term only when it's shorter or more precise than spelling it out.
 
@@ -250,7 +220,5 @@ This is the most-read surface of safeword. **Write to be scanned, not read.** Sh
 **Name tickets by slug, not ID.** Refer to a ticket by its slug or title with the ID as a trailing locator — `embed-figure-it-out (ZBVGPF)`, never bare `ZBVGPF`. The 6-char code is collision-proof but unreadable; the slug is already in the folder name.
 
 **Use structure only when it carries weight.** Headings when the reply is long enough to navigate — and make them information-carrying, not generic ("What changed" beats "Summary"). Tables only for actual reference material — never as decision trees in disguise. Bullets only when items are genuinely parallel. Default to prose. Never output a series of overly short bullet points.
-
-**Use bold sparingly** — only where reading the bold alone would tell the story. Bold-on-every-sentence reads as noise.
 
 **Skip:** preambles ("I'll now..."), recaps of what the user just said, sycophantic openers ("Great question!"), hedging caveats ("It depends, but..."), restating actions the user can see in the tool log.

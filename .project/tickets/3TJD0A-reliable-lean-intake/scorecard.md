@@ -139,3 +139,5 @@ All 16 fresh-feature plans received independent approval before downstream edits
 Four Claude trials asked how to identify a tool. The operator approved case-insensitive matching, trimming leading and trailing spaces, and collapsing repeated spaces between words for both lending and returns. All four approved plans record that policy. The other twelve trials finished before it was supplied and were graded against their original inputs. The map-only Codex author also asked to confirm its proposed storage-error behavior. The coordinator confirmed that a failed operation reports the error, preserves existing loans and does not claim success.
 
 On the bookmark regression both authors asked about saving an existing label and used the previously recorded decision. Both approved plans preserve the original URL.
+
+[Follow-up handbook experiments and decisions](../QJ3EK7-lean-session-guidance/scorecard.md)

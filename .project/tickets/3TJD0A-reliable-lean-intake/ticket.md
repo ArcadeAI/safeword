@@ -2,12 +2,13 @@
 id: 3TJD0A
 slug: reliable-lean-intake
 type: epic
-phase: done
-status: done
+phase: verify
+status: in_progress
 scope:
+  - Evaluate handbook reductions, including downstream routing, stale-plan consent and architecture decisions.
   - Five intake evaluations on Claude and Codex.
 out_of_scope:
-  - Implementation and later phases.
+  - Full feature implementation outside the focused routing and code-quality checks.
 done_when:
   - Each candidate has a recorded two-host decision and selected changes pass combined verification.
 product_plan_contract: v1
@@ -17,8 +18,9 @@ children:
   - XACF52
   - 4BAM6A
   - WCXR0P
+  - QJ3EK7
 created: 2026-11-26T07:08:24.535Z
-last_modified: 2026-11-26T10:54:39Z
+last_modified: 2026-11-26T12:19:28Z
 ---
 
 # Get reliable feature plans with shorter instructions for Claude and Codex
@@ -35,7 +37,7 @@ last_modified: 2026-11-26T10:54:39Z
 
 ## Evaluation plan
 
-Baseline is product revision `904e78010`. Pin both hosts to the same comparison snapshot. Keep each candidate isolated.
+For the original five intake evaluations, baseline is product revision `904e78010`. Pin both hosts to the same comparison snapshot. Keep each candidate isolated.
 
 1. Replay the café reviewer pair three times per host with a single sentence about the source of product choices. Require at least two paired successes out of three per host. Measure exact findings, approvals and spend.
 2. Run a new equipment-loan feature on both hosts. Test disclosure of an existing-loan conflict and preservation of the supplied unmatched-return rule. Each trial needs a correct plan and independent approval before any scenario or code. Charge author and reviewer against the shared $3 cap. Route new product decisions to the operator.
@@ -50,3 +52,5 @@ Compare each deletion to baseline on the same inputs, verify both host bundles, 
 [Scorecard, evidence and decisions](./scorecard.md)
 
 All five evaluations have recorded decisions. The 65-line reduction passed six trials on both hosts across three features. Keep the original reviewer wording. Raw evidence showed no draft PRs requiring cleanup.
+
+Follow-up: [Handbook reductions and behavioral checks](../QJ3EK7-lean-session-guidance/ticket.md).

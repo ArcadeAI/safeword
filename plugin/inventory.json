@@ -23,7 +23,7 @@
     },
     {
       "path": "resources/guides/architecture-guide.md",
-      "sha256": "db4378d366ee1c92d0f9910645dc93f30dc8848e622c442141a30d026e9aa98b"
+      "sha256": "a19e1d8687b17d681d5fae6b25efe19dca16e9de2f5a0bb180caa23b75aa9f25"
     },
     {
       "path": "resources/guides/cold-start-check.md",
@@ -63,7 +63,7 @@
     },
     {
       "path": "resources/guides/planning-guide.md",
-      "sha256": "c2123444dbad01dba709c5c8c5c28032e21318eee8dc147e27e907798c569b19"
+      "sha256": "1265e28a4be510ec4d94378dea8f5a8bd977aa7ccadeaa6731cdc048a43c9364"
     },
     {
       "path": "resources/guides/release-recovery-guide.md",
@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "513ffb68b8ff8206ab8376576fe1ab5c18ac0d77bfcbc9d53d3edf483e62d39f"
+      "sha256": "83c1f6c4e5aad4a6cf63e4c60a0f2f3222ea87142348b8ecfe7b0aa41a38d52f"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -1047,7 +1047,7 @@
     },
     {
       "path": "templates/guides/architecture-guide.md",
-      "sha256": "db4378d366ee1c92d0f9910645dc93f30dc8848e622c442141a30d026e9aa98b"
+      "sha256": "a19e1d8687b17d681d5fae6b25efe19dca16e9de2f5a0bb180caa23b75aa9f25"
     },
     {
       "path": "templates/guides/cold-start-check.md",
@@ -1087,7 +1087,7 @@
     },
     {
       "path": "templates/guides/planning-guide.md",
-      "sha256": "45eb5ac575724ee340537aee9d9cc7c2481f4829664bee031d9631f572eab7a8"
+      "sha256": "27ee51ee2f2512bd322c4da9316bbe1d3cd5ff301fb6993ef67c0f68833cb0d1"
     },
     {
       "path": "templates/guides/release-recovery-guide.md",
@@ -1651,7 +1651,7 @@
     },
     {
       "path": "templates/SAFEWORD.md",
-      "sha256": "d779432630975c07be88be6f7739eb710a8e6abe800b2f54ee336c752a2bb2f9"
+      "sha256": "3106da65ffff5bbfab52054c938f37cb0b8f331061525895d7219eb5b389ff10"
     },
     {
       "path": "templates/scripts/bisect-test-pollution.sh",
