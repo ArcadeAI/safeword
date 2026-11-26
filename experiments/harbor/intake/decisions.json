@@ -14,6 +14,14 @@
         "reject": "Reject the duplicate label and preserve the original URL."
       }
     },
+    "waitlist_call_crash": {
+      "question": "If calling the next party is interrupted between announcing their name and removing them, which operation comes first?",
+      "options": {
+        "announce_first": "Announce the party first, then remove them. Keep it a single command. A repeat call is preferable to silently losing a party.",
+        "remove_first": "Remove the party before announcing them.",
+        "confirm": "Require a separate staff confirmation before removal."
+      }
+    },
     "shift_overlap": {
       "question": "When a proposed shift overlaps an existing assignment for the same employee, should the new assignment be accepted or refused?",
       "options": {
@@ -23,6 +31,7 @@
     }
   },
   "cases": {
+    "intake-cafe-waitlist": ["waitlist_call_crash", "announce_first"],
     "intake-csv-keep": ["partial_csv", "keep"],
     "intake-csv-discard": ["partial_csv", "discard"],
     "intake-bookmark-specified": ["duplicate_label", "reject", "supplied"],

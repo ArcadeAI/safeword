@@ -16,8 +16,12 @@ MODEL = "claude-sonnet-4-6"
 REVISION = 6
 
 
+def catalog_path():
+    return Path(os.environ.get("SAFEWORD_EVAL_DECISION_CATALOG", CATALOG))
+
+
 def policy(case):
-    catalog = json.loads(CATALOG.read_text())
+    catalog = json.loads(catalog_path().read_text())
     if case in catalog["cases"]:
         topic, expected, *flags = catalog["cases"][case]
         return {

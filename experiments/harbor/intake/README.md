@@ -1,5 +1,7 @@
 # Intake-only comparisons
 
+For a baseline-versus-candidate change to intake, start with the [repeatable handoff comparison](HANDOFF.md).
+
 Harbor starts a fresh Docker workspace for each author. Claude and Codex install the selected Safeword commit as a native plugin. Each uses the other provider to review the plan. The observer stops the author at scenario definition or the first observed downstream edit. Each trial has a shared author and reviewer dollar budget. The 60-second grace period applies after Claude emits a terminal result. Provider usage arrives after work is performed, so the last reported request can cross the budget.
 
 Run from `experiments/harbor` with Docker, Git, uv, and the signed-in Claude and Codex CLIs. Use local account credentials as described in the [comparison setup](../README.md). Set `CLAUDE_CODE_OAUTH_TOKEN` in the environment and `SAFEWORD_EVAL_CODEX_REVIEW_AUTH` to the Codex account's auth file. Use trusted fixtures and plugin revisions because the agent processes can use these credentials. Jobs contain private transcripts and stay local. The observer and author share the container; this measures ordinary agent behavior and assumes the author leaves the measurement files intact.
@@ -23,7 +25,7 @@ uv run --locked python -m intake.score jobs/csv-intake --expect-case intake-csv-
 
 Replay reads saved evidence and costs no model calls. Open `intake-results.md` for the handoff result, estimated spend, and review count. Each lane has an evidence index with observed errors, tool usage, trace-visible URLs, relay exchanges and phase history. Codex shell inputs show referenced files and URLs. For passed lanes, the indexed plan belongs to the same ticket as the approval. Missing evidence or a stale plugin identity produces an incomplete row and a nonzero scoring exit. A well-recorded failed trial still counts as a completed measurement.
 
-Judge the product outcome separately. Read the first question before its answer to establish whether the author elicited the decision. Read `final-plan.md` to see whether the plan honored it. A correct guess, a direct clarification, and an independently approved plan are three distinct observations.
+Judge the product outcome separately. Read the first question before its answer to establish whether the author elicited the decision. Read `final-plan.md` for the independently approved plan. A failed handoff can still yield an `observed-draft-plan.md` for product grading when the trace identifies the ticket. A correct guess, a direct clarification, and an independently approved plan are three distinct observations.
 
 ## Pilot automatic product decisions
 

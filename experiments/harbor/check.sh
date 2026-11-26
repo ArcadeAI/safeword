@@ -3,7 +3,7 @@ set -eu
 cd "$(dirname "$0")"
 export LANGSMITH_TRACING=false
 uv run --locked python -m unittest discover -v
-uv run --locked python -m unittest -v intake.test_runner
+uv run --locked python -m unittest discover -v -s intake -p 'test_*.py'
 node --test ./test-*.cjs
 
 # Exercise the actual Docker verifier with both an untouched and a solved task.

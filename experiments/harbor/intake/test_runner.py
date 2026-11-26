@@ -168,6 +168,37 @@ class IntakeRunnerTest(unittest.TestCase):
             outcome,
         )
 
+        import tarfile
+
+        outcome = "downstream_edit"
+        write_json(verifier / "intake-outcome.json", {"outcome": outcome})
+        draft = self.root / "spec.md"
+        draft.write_text("Reject overlapping shifts.")
+        with tarfile.open(agent / "workflow-artifacts.tar.gz", "w:gz") as archive:
+            archive.add(draft, arcname=".project/tickets/ABC/spec.md")
+        for tickets, expected in [
+            ([".project/tickets/ABC/ticket.md"], "observed-draft-plan.md"),
+            (
+                [".project/tickets/ABC/ticket.md", ".project/tickets/DEF/ticket.md"],
+                None,
+            ),
+        ]:
+            with self.subTest(tickets=tickets):
+                write_json(
+                    agent / "intake-stop.json",
+                    {
+                        "outcome": outcome,
+                        "observed_intake_tickets": tickets,
+                    },
+                )
+                result = trial_result(
+                    lane, {"archive_sha256": "fixture"}, self.snapshot["models"]
+                )
+                self.assertEqual(result["outcome"], outcome)
+                self.assertEqual(result["plan"], expected)
+                if expected:
+                    self.assertEqual((lane / expected).read_text(), draft.read_text())
+
     def test_codex_spend_includes_distinct_sessions_and_deduplicates_resume(self):
         from shutil import copyfile
 

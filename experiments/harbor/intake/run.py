@@ -16,6 +16,7 @@ from .decisions import policy as decision_policy
 HERE = Path(__file__).resolve().parent
 HARBOR = HERE.parent
 PAIRED_TASKS = {
+    "intake-cafe-waitlist": "cafe-waitlist",
     "intake-bookmark-duplicate": "bookmark",
     "intake-bookmark-specified": "bookmark-specified",
     "intake-shift-overlap": "shift",
@@ -58,9 +59,11 @@ def materialize_fixture(snapshot, destination, task):
             write_json(
                 destination / "environment/package.json",
                 {
-                    "name": {"bookmark": "bookmarks", "shift": "shift-scheduler"}.get(
-                        prompt_name, "parcel-shelf"
-                    ),
+                    "name": {
+                        "bookmark": "bookmarks",
+                        "shift": "shift-scheduler",
+                        "cafe-waitlist": "cafe-waitlist",
+                    }.get(prompt_name, "parcel-shelf"),
                     "private": True,
                 },
             )
@@ -226,7 +229,7 @@ def main():
     setup.add_argument(
         "--task",
         default="csv",
-        help="csv, parcel, parcel-specified, bookmark, bookmark-specified, shift, shift-specified, or path to a trusted Harbor intake task",
+        help="csv, parcel, parcel-specified, bookmark, bookmark-specified, shift, shift-specified, cafe-waitlist, or path to a trusted Harbor intake task",
     )
     trial = subs.add_parser("trial")
     trial.add_argument("directory", type=Path)

@@ -236,7 +236,7 @@ own archived plugin with project dependency installation disabled by
 
 ## Intake cutoff
 
-[Run and score fresh intake trials with Claude or Codex](intake/README.md).
+[Compare an intake change with the frozen handoff protocol](intake/HANDOFF.md) or [run a single intake trial](intake/README.md).
 
 Use `intake_cutoff.py` around the author when a trial ends at feature intake.
 It records the intake ticket, the first downstream edits, and the result of

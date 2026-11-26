@@ -1,0 +1,1 @@
+Build a local CLI for a cafe waitlist. Staff can add parties, see the waiting list, and call the next party. Store each party’s name and size, preserve the list across restarts, call parties in arrival order and remove the called party from the waiting list. Use sensible defaults for command names and storage.

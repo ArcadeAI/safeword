@@ -112,6 +112,9 @@ def trial_result(lane, build, models):
     evidence["boundary"] = boundary
     write_json(lane / "evidence-index.json", evidence)
     ticket = boundary.get("ticket")
+    observed = boundary.get("observed_intake_tickets", [])
+    if outcome == "downstream_edit" and not ticket and len(observed) == 1:
+        ticket = observed[0]
     plan = None
     archive_path = agent / "workflow-artifacts.tar.gz"
     if ticket and archive_path.exists():
@@ -144,7 +147,7 @@ def trial_result(lane, build, models):
                         raise ValueError(
                             "Archived approval does not match the plan, reviewer, or intake boundary"
                         )
-                plan = "final-plan.md"
+                plan = "final-plan.md" if passed else "observed-draft-plan.md"
                 (lane / plan).write_bytes(contents)
     if passed and not plan:
         raise ValueError("Passing grade lacks its approved plan")
