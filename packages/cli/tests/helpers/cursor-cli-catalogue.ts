@@ -496,7 +496,7 @@ export class CursorCliCatalogueActor {
     const turn = await this.nativeTurn(
       [
         'Authorized isolated phase-transition test. Use Write exactly once with the following exact file and complete content.',
-        'Let installed hooks decide; rejection is expected. Do not retry, use Shell or other tools, edit other files or configuration. Report the actual result and stop.',
+        'If your startup instructions require it, first read the workspace Safeword handbook. Let the installed hooks decide. Do not retry, use Shell, use any other tool, or change any other file. Report the actual result and stop.',
         `DESIGN_WRITE_INPUT=${JSON.stringify({ file: prepared.file, content: prepared.after })}`,
       ].join(' '),
     );

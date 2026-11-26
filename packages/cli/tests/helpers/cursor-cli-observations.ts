@@ -49,6 +49,45 @@ export function requireNativeHelperExecution(stdout: string): ObservedShell[] {
   return executed;
 }
 
+interface FileOperation {
+  args?: { path: string; fileText?: string; streamContent?: string };
+  result?: Record<string, unknown>;
+}
+interface FileToolEvent {
+  type: string;
+  subtype: string;
+  call_id?: string;
+  session_id?: string;
+  tool_call?: {
+    readToolCall?: FileOperation;
+    writeToolCall?: FileOperation;
+    editToolCall?: FileOperation;
+  };
+}
+
+function assertHandbookRead(
+  start: FileToolEvent,
+  complete: FileToolEvent,
+  workspace: string,
+  session: string,
+): void {
+  const expected = nodePath.join(workspace, '.safeword/SAFEWORD.md');
+  const actual = [start, complete].map(row => {
+    const forms = Object.keys(row.tool_call ?? {}).filter(key => key.endsWith('ToolCall'));
+    const path = row.tool_call?.readToolCall?.args?.path;
+    return forms.length === 1 && forms[0] === 'readToolCall' && path
+      ? nodePath.resolve(workspace, path)
+      : undefined;
+  });
+  const message = 'HOST_CONTRACT_PROOF_UNAVAILABLE: unexpected Cursor CLI call before the write';
+  assert.deepEqual(actual, [expected, expected], message);
+  assert.deepEqual([start.subtype, complete.subtype], ['started', 'completed'], message);
+  assert.deepEqual([start.session_id, complete.session_id], [session, session], message);
+  assert.ok(typeof start.call_id === 'string' && start.call_id.length > 0, message);
+  assert.equal(start.call_id, complete.call_id, message);
+  assert.ok(complete.tool_call?.readToolCall?.result?.success, message);
+}
+
 /** Current create-file Write or existing-file Edit pair, not a Shell or Stop projection. */
 export function observedNativeWrite(
   raw: string,
@@ -57,25 +96,20 @@ export function observedNativeWrite(
   content: string,
   session: string,
 ) {
-  interface FileOperation {
-    args?: { path: string; fileText?: string; streamContent?: string };
-    result?: Record<string, unknown>;
-  }
-  interface WriteEvent {
-    type: string;
-    subtype: string;
-    call_id?: string;
-    session_id?: string;
-    tool_call?: {
-      writeToolCall?: FileOperation;
-      editToolCall?: FileOperation;
-    };
-  }
   const events = raw
     .trim()
     .split('\n')
-    .map(line => JSON.parse(line) as WriteEvent);
+    .map(line => JSON.parse(line) as FileToolEvent);
   const calls = events.filter(row => row.type === 'tool_call');
+  if (calls.length === 4) {
+    const [started, completed, write] = calls;
+    assert.ok(started);
+    assert.ok(completed);
+    assert.ok(write);
+    assertHandbookRead(started, completed, workspace, session);
+    assert.notEqual(started.call_id, write.call_id, 'Cursor CLI reused the handbook read call ID');
+    calls.splice(0, 2);
+  }
   assert.equal(calls.length, 2, 'HOST_CONTRACT_PROOF_UNAVAILABLE: CLI Write pair cardinality');
   const [start, complete] = calls;
   assert.ok(start && complete);
@@ -84,7 +118,7 @@ export function observedNativeWrite(
   assert.ok(typeof start.call_id === 'string' && start.call_id.length > 0);
   assert.equal(complete.call_id, start.call_id);
   for (const row of calls) assert.equal(row.session_id, session);
-  const operation = (row: WriteEvent) => {
+  const operation = (row: FileToolEvent) => {
     const forms = (['writeToolCall', 'editToolCall'] as const).filter(
       kind => row.tool_call?.[kind] !== undefined,
     );
