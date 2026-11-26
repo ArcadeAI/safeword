@@ -185,6 +185,7 @@ export class CodexNativeCatalogueActor {
   }
 
   close(): void {
+    this.completion?.close();
     this.handoffCompletion?.close();
     if (this.staged) rmSync(nodePath.join(this.profile, 'auth.json'), { force: true });
   }
