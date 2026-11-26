@@ -39,7 +39,7 @@ it('preserves emitted Codex startup, prompt, lint and quality-state context in a
       recursive: true,
     });
     const manifest = JSON.parse(readFileSync(nodePath.join(plugin, 'hooks.json'), 'utf8'));
-    const invoke = (event: string, extra: Record<string, unknown> = {}) => {
+    const runHook = (event: string, extra: Record<string, unknown> = {}) => {
       const group = manifest.hooks[event][0];
       expect(group.hooks).toHaveLength(1);
       const result = spawnSync('sh', ['-c', group.hooks[0].command], {
@@ -69,46 +69,35 @@ it('preserves emitted Codex startup, prompt, lint and quality-state context in a
         undefined,
         `CODEX_COMPONENT_UNAVAILABLE: ${result.error?.message}`,
       );
+      return result;
+    };
+    const invoke = (event: string, extra: Record<string, unknown> = {}) => {
+      const result = runHook(event, extra);
       expect(result.status, result.stderr).toBe(0);
       return result.stdout;
     };
-    const startup = JSON.parse(invoke('SessionStart', { source: 'startup' }));
-    expect(startup.hookSpecificOutput.additionalContext).toContain('Safeword session bootstrap');
-    expect(startup.hookSpecificOutput.additionalContext).toContain(
-      'the packaged Safeword handbook',
-    );
-    expect(startup.hookSpecificOutput.additionalContext).not.toContain(
-      'CUSTOM-PROJECT-CONTEXT-MUST-NOT-APPEAR',
-    );
-    // A real selected-authority miss distinguishes the reader from CLI fallback.
+    const resourceHandbook = nodePath.join(plugin, 'resources/SAFEWORD.md');
+    const startup = () =>
+      JSON.parse(invoke('SessionStart', { source: 'startup' })).hookSpecificOutput
+        .additionalContext;
+    const context = startup();
+    expect(context).toContain(resourceHandbook);
+    expect(context).not.toContain('CUSTOM-PROJECT-CONTEXT-MUST-NOT-APPEAR');
     const handbook = nodePath.join(plugin, 'templates/SAFEWORD.md');
     const handbookBytes = readFileSync(handbook);
-    const resourceHandbook = nodePath.join(plugin, 'resources/SAFEWORD.md');
     const resourceHandbookBytes = readFileSync(resourceHandbook);
     rmSync(handbook);
     rmSync(resourceHandbook);
-    const localStartup = () =>
-      JSON.parse(invoke('SessionStart')).hookSpecificOutput.additionalContext;
-    expect(localStartup()).toContain('`.safeword/SAFEWORD.md`');
-    const dispatcher = nodePath.join(plugin, 'templates/hooks/session-codex-start.ts');
-    const dispatcherBytes = readFileSync(dispatcher, 'utf8');
-    expect(dispatcherBytes).toContain('readSafewordContext(projectDir)');
-    writeFileSync(
-      dispatcher,
-      dispatcherBytes.replace(
-        'readSafewordContext(projectDir)',
-        () => "readSafewordContext('/missing-owned-context')",
-      ),
-    );
-    expect(localStartup()).not.toContain('`.safeword/SAFEWORD.md`');
-    writeFileSync(dispatcher, dispatcherBytes);
-    expect(localStartup()).toContain('`.safeword/SAFEWORD.md`');
+    const missing = runHook('SessionStart');
+    expect(missing.status).toBe(1);
+    expect(missing.stderr).toContain('missing its packaged handbook');
+    expect(missing.stdout).toBe('');
     writeFileSync(handbook, handbookBytes);
     writeFileSync(resourceHandbook, resourceHandbookBytes);
+    const dispatcher = nodePath.join(plugin, 'templates/hooks/session-codex-start.ts');
+    const dispatcherBytes = readFileSync(dispatcher);
     rmSync(dispatcher);
-    expect(JSON.parse(invoke('SessionStart')).hookSpecificOutput.additionalContext).toContain(
-      'the packaged Safeword handbook',
-    );
+    expect(startup()).toContain(resourceHandbook);
     writeFileSync(dispatcher, dispatcherBytes);
 
     // Substitute only the clock at the copied canonical owner, not its result.

@@ -156,9 +156,9 @@ it.each(['project', 'native'] as const)(
       .split('\n')
       .map(line => JSON.parse(line));
     expect(observations).toEqual([
-      { cwd: realpathSync(project), args: ['check', '--write', '--', 'sample.ts'] },
       { cwd: realpathSync(project), args: ['check', '--', 'sample.ts'] },
     ]);
+    expect(readFileSync(edited, 'utf8')).toBe('const sample = 1;\n');
     const start = manifest.hooks.sessionStart?.[0];
     assert.ok(start);
     const context = spawnSync('sh', ['-c', start.command], {
@@ -169,7 +169,9 @@ it.each(['project', 'native'] as const)(
       input: JSON.stringify({ workspace_roots: [project], conversation_id: 'cursor-feedback' }),
     });
     expect(context.status, context.stderr).toBe(0);
-    expect(JSON.parse(context.stdout).additional_context).toContain('Before non-trivial work');
+    expect(JSON.parse(context.stdout).additional_context).toContain(
+      nodePath.join(project, '.safeword/SAFEWORD.md'),
+    );
     for (const event of ['preToolUse', 'beforeShellExecution']) {
       const rows = manifest.hooks[event];
       expect(rows).toHaveLength(1);
