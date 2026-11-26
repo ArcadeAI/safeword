@@ -2,6 +2,8 @@
 
 Use this protocol when changing how Safeword takes an ordinary feature request through independent Product Plan approval. The [Harbor suite guide](../README.md) covers implementation, TDD, and end-to-end benchmarks. Start from its existing fixture and scorecard for those questions.
 
+For eval authors, the [LLM Evals Guide](../../../packages/cli/templates/guides/llm-evals-guide.md) explains how to grade observable behavior from traces. When comparing skill wording, use the [Skill-Eval Optimization Guide](../../../packages/cli/templates/guides/skill-eval-optimization-guide.md) for repeated trials and verification in the actual agent hosts. Keep both guides on the evaluator side so the feature request stays blind.
+
 ## Before spending money
 
 1. Name the single change and the failure it should fix. Replay the original trace. A correct draft and an edit made before independent approval must earn separate grades. Keep the motivating failure outside the new sample.
@@ -44,7 +46,7 @@ Workflow failures and reaching the actual dollar cap count in the comparison. Re
 
 A primary success requires a correct plan **and** independent approval before scenarios or code. Check each author separately. Promote a candidate to a fresh-feature check only if it improves supplied-case successes, preserves each host’s baseline success count, and preserves useful clarification on the hidden case without increasing repeated or already-answered questions. A tie favors the current version. Report useful questions, repeat questions, operator interruptions, reviewer activity, and total author-plus-reviewer cost per success alongside those counts.
 
-Before adopting a change, use the reserved feature and criteria on both hosts with both versions and the same frozen comparison snapshot. An advance applies only to the phase measured. Record the result, exact revisions, host counts, known-cost bounds and missing evidence in the PR or tracked experiment notes. Keep raw transcripts and private job files local. Check the evidence index for draft PRs and close any drafts created by the trials.
+The 16 trials cover shift scheduling. Preparation saves the holdout plan for a separate run. Before adopting a change, use the [single-trial runner](README.md) to test that reserved feature against its criteria on both hosts with both versions and the same frozen comparison snapshot. An advance applies only to the phase measured. Record the result, exact revisions, host counts, known-cost bounds and missing evidence in the PR or tracked experiment notes. Keep raw transcripts and private job files local. Check the evidence index for draft PRs and close any drafts created by the trials.
 
 When reviewer counts differ, run this on each author’s trial directory:
 
