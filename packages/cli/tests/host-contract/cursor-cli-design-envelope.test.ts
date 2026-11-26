@@ -115,6 +115,13 @@ it('preserves the current edit after the exact required handbook read', () => {
   expect(decode([...handbookRead(), start, complete])).toEqual({ start, complete });
 });
 
+it('preserves the edit after a retried read which the host did not complete', () => {
+  const [start, complete] = pair('editToolCall');
+  const [readStart] = handbookRead();
+  const abandoned = { ...readStart, call_id: 'abandoned-handbook-read' };
+  expect(decode([abandoned, ...handbookRead(), start, complete])).toEqual({ start, complete });
+});
+
 it('refuses extra, unrelated or unpaired handbook calls', () => {
   const edit = pair('editToolCall');
   for (const events of [

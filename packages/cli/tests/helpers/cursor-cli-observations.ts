@@ -65,27 +65,46 @@ interface FileToolEvent {
   };
 }
 
-function assertHandbookRead(
-  start: FileToolEvent,
-  complete: FileToolEvent,
+const unexpectedRead =
+  'HOST_CONTRACT_PROOF_UNAVAILABLE: unexpected Cursor CLI call before the write';
+
+function requireHandbookReadEvent(row: FileToolEvent, workspace: string, session: string): string {
+  const forms = Object.keys(row.tool_call ?? {}).filter(key => key.endsWith('ToolCall'));
+  assert.deepEqual(forms, ['readToolCall'], unexpectedRead);
+  const path = row.tool_call?.readToolCall?.args?.path;
+  assert.ok(path, unexpectedRead);
+  assert.equal(
+    nodePath.resolve(workspace, path),
+    nodePath.join(workspace, '.safeword/SAFEWORD.md'),
+    unexpectedRead,
+  );
+  assert.equal(row.session_id, session, unexpectedRead);
+  assert.ok(typeof row.call_id === 'string' && row.call_id.length > 0, unexpectedRead);
+  return row.call_id;
+}
+
+function assertStartupReads(
+  reads: FileToolEvent[],
   workspace: string,
   session: string,
+  writeId: string | undefined,
 ): void {
-  const expected = nodePath.join(workspace, '.safeword/SAFEWORD.md');
-  const actual = [start, complete].map(row => {
-    const forms = Object.keys(row.tool_call ?? {}).filter(key => key.endsWith('ToolCall'));
-    const path = row.tool_call?.readToolCall?.args?.path;
-    return forms.length === 1 && forms[0] === 'readToolCall' && path
-      ? nodePath.resolve(workspace, path)
-      : undefined;
-  });
-  const message = 'HOST_CONTRACT_PROOF_UNAVAILABLE: unexpected Cursor CLI call before the write';
-  assert.deepEqual(actual, [expected, expected], message);
-  assert.deepEqual([start.subtype, complete.subtype], ['started', 'completed'], message);
-  assert.deepEqual([start.session_id, complete.session_id], [session, session], message);
-  assert.ok(typeof start.call_id === 'string' && start.call_id.length > 0, message);
-  assert.equal(start.call_id, complete.call_id, message);
-  assert.ok(complete.tool_call?.readToolCall?.result?.success, message);
+  if (reads.length === 0) return;
+  const started = new Map<string, boolean>();
+  for (const row of reads) {
+    const id = requireHandbookReadEvent(row, workspace, session);
+    assert.notEqual(id, writeId, unexpectedRead);
+    if (row.subtype === 'started') {
+      assert.equal(started.has(id), false, unexpectedRead);
+      started.set(id, false);
+    } else {
+      assert.equal(row.subtype, 'completed', unexpectedRead);
+      assert.equal(started.get(id), false, unexpectedRead);
+      assert.ok(row.tool_call?.readToolCall?.result?.success, unexpectedRead);
+      started.set(id, true);
+    }
+  }
+  assert.ok(started.values().some(Boolean), unexpectedRead);
 }
 
 /** Current create-file Write or existing-file Edit pair, not a Shell or Stop projection. */
@@ -101,23 +120,16 @@ export function observedNativeWrite(
     .split('\n')
     .map(line => JSON.parse(line) as FileToolEvent);
   const calls = events.filter(row => row.type === 'tool_call');
-  if (calls.length === 4) {
-    const [started, completed, write] = calls;
-    assert.ok(started);
-    assert.ok(completed);
-    assert.ok(write);
-    assertHandbookRead(started, completed, workspace, session);
-    assert.notEqual(started.call_id, write.call_id, 'Cursor CLI reused the handbook read call ID');
-    calls.splice(0, 2);
-  }
-  assert.equal(calls.length, 2, 'HOST_CONTRACT_PROOF_UNAVAILABLE: CLI Write pair cardinality');
-  const [start, complete] = calls;
+  const writes = calls.slice(-2);
+  assert.equal(writes.length, 2, 'HOST_CONTRACT_PROOF_UNAVAILABLE: CLI Write pair cardinality');
+  const [start, complete] = writes;
   assert.ok(start && complete);
+  assertStartupReads(calls.slice(0, -2), workspace, session, start.call_id);
   assert.equal(start.subtype, 'started');
   assert.equal(complete.subtype, 'completed');
   assert.ok(typeof start.call_id === 'string' && start.call_id.length > 0);
   assert.equal(complete.call_id, start.call_id);
-  for (const row of calls) assert.equal(row.session_id, session);
+  for (const row of writes) assert.equal(row.session_id, session);
   const operation = (row: FileToolEvent) => {
     const forms = (['writeToolCall', 'editToolCall'] as const).filter(
       kind => row.tool_call?.[kind] !== undefined,
