@@ -3618,7 +3618,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/session-cleanup-quality.ts": "cfabcc1d6b07b9423f497d32624e99824631131c3749ae1d1ff615b054d49e64",
         ".safeword/hooks/session-compact-context.ts": "9b5276e301d827172bc25bb19e72a52de36eab53b49e7b9bf9385e407e0f851b",
         ".safeword/hooks/session-dependency-readiness.ts": "12f2c4e6d598ba26a385d534c146d56788b04e71605e917cbdf3f9f254571c31",
-        ".safeword/hooks/session-lint-check.ts": "fd8520c78e491419251654cf7124213c77fd3a2291cb25c5b0f0592c43eaa772",
+        ".safeword/hooks/session-lint-check.ts": "7278a5b62db029b9eb7f4438a7a58d60fe9790c57b6e2fa8a8be645ae8bda88b",
         ".safeword/hooks/session-reply-format.ts": "41f7578e93188d5efacdd9ecbf29f72753a6fe98bca71fe321c61f547aeb8532",
         ".safeword/hooks/session-safeword-context.ts": "0c54231000694c482d4b2c92fa1bf55f4c6211910c310f2d29836cdb61719937",
         ".safeword/hooks/session-start-reentry.ts": "b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d",
@@ -66601,7 +66601,7 @@ async function runDegradedFallback(input) {
     });
   }
   const completedOutput = assessment.output;
-  const assurance = fallbackAssurance(input.kind, input.assignedReviewer, input);
+  const assurance = fallbackAssurance(input.kind, completedOutput.reviewer_agent, input);
   return createResult({
     state: completedOutput.verdict === "approve" ? "healthy" : "action_required",
     findings: [assurance.finding, ...reviewerFeedback(completedOutput)],

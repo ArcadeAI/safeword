@@ -1,0 +1,240 @@
+=== diagnostics-red-final.log: last 110 lines (verbatim) ===
+ESM dist/chunk-4VORK37W.js.map                   1.23 KB
+ESM dist/self-report-CIRJHQMM.js.map             71.00 B
+ESM dist/chunk-QOIQQY4E.js.map                   19.01 KB
+ESM dist/chunk-RYDEPCC3.js.map                   31.72 KB
+ESM dist/chunk-SK6TC4BO.js.map                   6.18 KB
+ESM dist/chunk-XSCHFMVU.js.map                   18.20 KB
+ESM dist/chunk-VTC3ZUUA.js.map                   92.46 KB
+ESM dist/chunk-TQOCRYWI.js.map                   19.81 KB
+ESM dist/chunk-QSLVO4XF.js.map                   2.25 KB
+ESM dist/architecture-monorepo-DW5IYKQR.js.map   71.00 B
+ESM dist/configured-paths-5BX7RN2T.js.map        71.00 B
+ESM dist/chunk-ZZYOOX62.js.map                   495.00 B
+ESM dist/chunk-DAPJ73HN.js.map                   939.44 KB
+ESM ⚡️ Build success in 153ms
+DTS ⚡️ Build success in 2258ms
+DTS dist/cli.d.ts                      20.00 B
+DTS dist/index.d.ts                    3.03 KB
+DTS dist/presets/typescript/index.d.ts 17.74 KB
+DTS dist/opencode/dispatcher.d.ts      13.00 B
+
+ RUN  v5.0.3 /Users/alex/.codex/worktrees/require-scenario-red-before-code/safeword/packages/cli
+
+ ❯ tests/lint-hook-result.test.ts (9 tests | 3 failed) 4ms
+   ❯ assertLintHookSucceeded (9)
+     × preserves captured output on timeout 2ms
+     × preserves captured output on startup error 0ms
+     × preserves captured output on unsuccessful exit 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/lint-hook-result.test.ts > assertLintHookSucceeded > preserves captured output on timeout
+AssertionError: expected error to match asymmetric matcher
+
+- Expected
++ Received
+
+- ObjectContaining {
+-   "message": "Lint hook timed out: spawnSync bash ETIMEDOUT
+- stdout: completed ESLint fix
+- stderr: checking remaining errors",
++ Error {
++   "message": "Lint hook failed to start: spawnSync bash ETIMEDOUT",
+  }
+
+ ❯ tests/lint-hook-result.test.ts:73:55
+     71|     });
+     72|
+     73|     expect(() => assertLintHookSucceeded(failedHook)).toThrow(
+       |                                                       ^
+     74|       expect.objectContaining({
+     75|         message: `${reason}\nstdout: completed ESLint fix\nstderr: che…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/lint-hook-result.test.ts > assertLintHookSucceeded > preserves captured output on startup error
+AssertionError: expected error to match asymmetric matcher
+
+- Expected
++ Received
+
+- ObjectContaining {
+-   "message": "Lint hook failed to start: startup message mentions ETIMEDOUT
+- stdout: completed ESLint fix
+- stderr: checking remaining errors",
++ Error {
++   "message": "Lint hook failed to start: startup message mentions ETIMEDOUT",
+  }
+
+ ❯ tests/lint-hook-result.test.ts:73:55
+     71|     });
+     72|
+     73|     expect(() => assertLintHookSucceeded(failedHook)).toThrow(
+       |                                                       ^
+     74|       expect.objectContaining({
+     75|         message: `${reason}\nstdout: completed ESLint fix\nstderr: che…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  tests/lint-hook-result.test.ts > assertLintHookSucceeded > preserves captured output on unsuccessful exit
+AssertionError: expected error to match asymmetric matcher
+
+- Expected
++ Received
+
+- ObjectContaining {
+-   "message": "Lint hook exited with status 2
+- stdout: completed ESLint fix
+- stderr: checking remaining errors",
++ Error {
++   "message": "Lint hook exited with status 2",
+  }
+
+ ❯ tests/lint-hook-result.test.ts:73:55
+     71|     });
+     72|
+     73|     expect(() => assertLintHookSucceeded(failedHook)).toThrow(
+       |                                                       ^
+     74|       expect.objectContaining({
+     75|         message: `${reason}\nstdout: completed ESLint fix\nstderr: che…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 6 passed (9)
+   Start at  19:52:43
+   Duration  86ms (transform 61%, import 20%, tests 12%, worker 7%)
+
+error: script "test" exited with code 1
+error: script "test" exited with code 1
+
+=== diagnostics-green.log: last 9 lines (verbatim) ===
+
+ RUN  v5.0.3 /Users/alex/.codex/worktrees/require-scenario-red-before-code/safeword/packages/cli
+
+
+ Test Files  2 passed (2)
+      Tests  19 passed (19)
+   Start at  19:53:56
+   Duration  23.67s (tests 100%)
+
+
+=== isolated-focused.log: last 9 lines (verbatim) ===
+
+ RUN  v5.0.3 /Users/alex/.codex/worktrees/lint-failure-evidence/safeword/packages/cli
+
+
+ Test Files  2 passed (2)
+      Tests  19 passed (19)
+   Start at  20:12:50
+   Duration  22.66s (tests 99%)
+
+
+=== full-trace.log: last 10 lines (verbatim) ===
+The legacy raw JSON format for `project test-plan` remains available; use global `--json` for the canonical versioned envelope.
+
+ Test Files  728 passed (728)
+      Tests  11839 passed | 12 skipped (11851)
+   Start at  19:31:21
+   Duration  963.14s (tests 99%, import 1%)
+
+    Isolate  728 workers spawned · ~46ms startup each (spawn + environment, per file)
+             at least ~11.22s faster with isolate: false — reuses workers across files instead of one per file
+
+
+=== final-full.log: last 60 lines (verbatim) ===
+Switched to a new branch 'main'
+To /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-test-k7dJaI
+ * [new branch]      main -> main
+Switched to a new branch 'main'
+To /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-test-hMbcPy
+ * [new branch]      main -> main
+Cloning into '.'...
+done.
+To /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-test-hMbcPy
+   9b63666..14b03fc  main -> main
+From /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-test-hMbcPy
+   9b63666..14b03fc  main       -> origin/main
+Switched to a new branch 'main'
+To /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-test-GHhjq0
+ * [new branch]      main -> main
+The legacy raw JSON format for `project test-plan` remains available; use global `--json` for the canonical versioned envelope.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/hooks/lint-go-context.test.ts > Go post-edit package context (real Go and golangci-lint) > loads sibling declarations when the edited file is a package test
+{
+  stack: 'Error: \n' +
+    '    at ChildProcess.<anonymous> (/Users/alex/.codex/worktrees/require-scenario-red-before-code/safeword/packages/cli/tests/hooks/lint-go-context.test.ts:88:19)\n' +
+    '    at ChildProcess.emit (node:events:521:24)\n' +
+    '    at maybeClose (node:internal/child_process:1124:16)\n' +
+    '    at Process.ChildProcess._handle.onexit (node:internal/child_process:306:5)',
+  message: '',
+  constructor: 'Function<Error>',
+  name: 'Error',
+  toString: 'Function<toString>',
+  stacks: [
+    {
+      method: 'ChildProcess.<anonymous>',
+      file: '/Users/alex/.codex/worktrees/require-scenario-red-before-code/safeword/packages/cli/tests/hooks/lint-go-context.test.ts',
+      line: 88,
+      column: 19
+    }
+  ]
+}
+ ❯ ChildProcess.<anonymous> tests/hooks/lint-go-context.test.ts:88:19
+     86|     child.on('close', code => {
+     87|       if (code === 0) resolve(stdout.trim());
+     88|       else reject(new Error(stderr));
+       |                   ^
+     89|     });
+     90|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 727 passed (728)
+      Tests  1 failed | 11841 passed | 12 skipped (11854)
+   Start at  19:56:17
+   Duration  978.64s (tests 99%, import 1%)
+
+    Isolate  728 workers spawned · ~45ms startup each (spawn + environment, per file)
+             at least ~10.79s faster with isolate: false — reuses workers across files instead of one per file
+
+error: script "test" exited with code 1
+error: script "test" exited with code 1
+
+=== go-focused.log: last 9 lines (verbatim) ===
+
+ RUN  v5.0.3 /Users/alex/.codex/worktrees/require-scenario-red-before-code/safeword/packages/cli
+
+
+ Test Files  1 passed (1)
+      Tests  18 passed (18)
+   Start at  20:13:54
+   Duration  15.61s (tests 99%, import 1%)
+
+
+=== lint.log: last 5 lines (verbatim) ===
+$ eslint . && bun run lint:gherkin && bun run --cwd packages/cli typecheck
+$ bun packages/cli/src/cli.ts project lint-gherkin
+Healthy
+Changed: no
+$ tsc --noEmit
+
+=== isolated-lint.log: last 5 lines (verbatim) ===
+$ eslint . && bun run lint:gherkin && bun run --cwd packages/cli typecheck
+$ bun packages/cli/src/cli.ts project lint-gherkin
+Healthy
+Changed: no
+$ tsc --noEmit
+
+=== Additional raw evidence ===
+ ❯ tests/hooks/lint-go-context.test.ts (18 tests | 1 failed) 58979ms
+     × loads sibling declarations when the edited file is a package test 30813ms
+=== generated.log (complete) ===
+All 5 generated surfaces current.
+=== parity.log (complete) ===
+All 277 pairs and 11 contracts in sync; no unregistered templates; cursor rules are thin @reference pointers.

@@ -1,0 +1,35 @@
+{
+  "workspace_source_hashes": {
+    "/Users/alex/.codex/worktrees/require-scenario-red-before-code/safeword": {
+      "packages/cli/tests/hooks/lint-go-context.test.ts": "d9beb19969e6f2bf29b1eae04595d6b64c053ad0e262b6cea7f977616d279a6b",
+      "packages/cli/templates/hooks/post-tool-lint.ts": "ca708ea4ff7d184441e8bc5e5d136c2a5f40ffc74bffb98b6d886451669df7d6",
+      "packages/cli/templates/hooks/lib/lint.ts": "e091fa62640e153666cb5c19e88a45e2685faa3f730b762330ab3cc9214527d3",
+      "packages/cli/src/commands/go-lint.ts": "8fb843d5fe7d7bb17d38fc0b9bae6438af491068bcbedfa0d9cf1dafbf6eb61b",
+      "packages/cli/src/go-lint/process.ts": "29d3b82dfcd3fd602e7db764c0791275201586d6b840088ff38fe01da93c7f38",
+      "packages/cli/src/go-lint/config.ts": "6352d3c72db1e5c4c3536d70314a3df102f93ae5d2b06ea4c248363543b49c90"
+    },
+    "/Users/alex/.codex/worktrees/lint-failure-evidence/safeword": {
+      "packages/cli/tests/hooks/lint-go-context.test.ts": "d9beb19969e6f2bf29b1eae04595d6b64c053ad0e262b6cea7f977616d279a6b",
+      "packages/cli/templates/hooks/post-tool-lint.ts": "ca708ea4ff7d184441e8bc5e5d136c2a5f40ffc74bffb98b6d886451669df7d6",
+      "packages/cli/templates/hooks/lib/lint.ts": "e091fa62640e153666cb5c19e88a45e2685faa3f730b762330ab3cc9214527d3",
+      "packages/cli/src/commands/go-lint.ts": "8fb843d5fe7d7bb17d38fc0b9bae6438af491068bcbedfa0d9cf1dafbf6eb61b",
+      "packages/cli/src/go-lint/process.ts": "29d3b82dfcd3fd602e7db764c0791275201586d6b840088ff38fe01da93c7f38",
+      "packages/cli/src/go-lint/config.ts": "6352d3c72db1e5c4c3536d70314a3df102f93ae5d2b06ea4c248363543b49c90"
+    }
+  },
+  "probe_hashes": {
+    "preload.cjs": "b65bf98e760831a1063f2f0620bd751202d9c3dac74f3a1a0b1fbc49274408d3",
+    "bin/golangci-lint": "518179cd4eb70d9fd85d9d5b94507fad596aea1378f726c67a1c0bed70399b7e",
+    "sample.cjs": "427d8e187829af1854e75007467faa49be00cac913b2623e31e6efb8f14e08c5"
+  },
+  "probe_copies": "Text snapshots for provenance, not installed or portable launchers",
+  "commit_observations_after_runs": {
+    "observed_at_utc": "2026-10-26T04:30:57.714185+00:00",
+    "workspaces": {
+      "/Users/alex/.codex/worktrees/require-scenario-red-before-code/safeword": "e8e64c1eb1c9929e9ead31d762ec0aa78b7c8c69",
+      "/Users/alex/.codex/worktrees/lint-failure-evidence/safeword": "597f4482590f38420294f3c13eb7808ebe653ba4"
+    },
+    "limitation": "Post-run observations, not a sealed start-of-run attestation"
+  },
+  "v2_probe_hash": "8e8db56d3e22d41fc4497a069cdf4de71179032d491ea9438af8afb868480bd7"
+}
