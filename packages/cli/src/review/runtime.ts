@@ -1694,6 +1694,7 @@ async function runCodexAppServerCandidate(
       let stdoutBytes = 0;
       let stderrBytes = 0;
       let settled = false;
+      let turnRequested = false;
       const settle = (finish: () => void): void => {
         if (settled) return;
         settled = true;
@@ -1710,6 +1711,7 @@ async function runCodexAppServerCandidate(
       }, timeoutMs);
       const startTurn = (result: unknown): void => {
         if (!isRecord(result) || !isRecord(result.thread)) throw new Error('thread start failed');
+        turnRequested = true;
         send({
           id: 3,
           method: 'turn/start',
@@ -1732,7 +1734,8 @@ async function runCodexAppServerCandidate(
           throw new ReviewRuntimeError('process_failed', 'codex turn failed');
         }
         const proof = codexAppServerProof(messages, attempt.model);
-        if (proof === undefined) return;
+        if (proof === undefined)
+          throw new ReviewRuntimeError('invalid_output', 'codex turn produced no review proof');
         const parsed = codexAppServerReviewOutput(attempt.packet, proof.text, proof.confirmedModel);
         settle(() => {
           resolve(parsed);
@@ -1810,7 +1813,7 @@ async function runCodexAppServerCandidate(
         settle(() => {
           reject(
             new ReviewRuntimeError(
-              classifyExit(stdout, stderr, 'unsupported'),
+              classifyExit(stdout, stderr, turnRequested ? 'process_failed' : 'unsupported'),
               'codex app-server did not complete the review',
             ),
           );
@@ -1845,26 +1848,31 @@ function useCodexAppServer(attempt: ReviewAttempt): boolean {
 async function runCandidate(
   executable: string,
   attempt: ReviewAttempt,
-  timeoutMs: number,
+  deadline: number,
 ): Promise<ReviewerExecution> {
+  const { reviewer, packet, cwd, model, schemaPath } = attempt;
   if (useCodexAppServer(attempt)) {
     const appServer = await supportsReviewContract(
       'codex',
       executable,
-      attempt.cwd,
-      Math.min(5000, timeoutMs),
+      cwd,
+      Math.min(5000, remainingReviewTime(deadline, reviewer)),
       { arguments: ['app-server', '--help'], required: ['--stdio', '--config'] },
     );
     if (appServer.kind === 'supported') {
       try {
-        return await runCodexAppServerCandidate(executable, attempt, timeoutMs);
+        return await runCodexAppServerCandidate(
+          executable,
+          attempt,
+          remainingReviewTime(deadline, reviewer),
+        );
       } catch (error) {
         if (!(error instanceof ReviewRuntimeError) || error.failure !== 'unsupported') throw error;
       }
     }
     // Older Codex CLIs can still return readable review evidence through exec.
   }
-  const { reviewer, packet, cwd, model, schemaPath } = attempt;
+  const timeoutMs = remainingReviewTime(deadline, reviewer);
   const argumentEnvironment =
     attempt.effort === undefined
       ? process.env
@@ -2038,11 +2046,7 @@ async function runReviewerCandidates(
       // The capability probe and review share one candidate deadline. A hanging
       // candidate therefore cannot spend the time reserved for later trusted
       // installations, while a fast rejection returns its unused share.
-      return await runCandidate(
-        candidate,
-        attempt,
-        remainingReviewTime(candidateDeadline, reviewer, lastFailure),
-      );
+      return await runCandidate(candidate, attempt, candidateDeadline);
     } catch (error) {
       if (!(error instanceof ReviewRuntimeError)) throw error;
       if (error.terminal) throw error;

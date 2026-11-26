@@ -21,14 +21,12 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import nodePath from 'node:path';
-
-import { safewordCli } from '../lib/safeword-cli.ts';
 import process from 'node:process';
 
 import { getActiveTicket } from '../lib/active-ticket.ts';
 import { architectureDocumentNudgeForProject } from '../lib/architecture-document-nudge.ts';
 import { architectureReviewReason } from '../lib/architecture-review-gate.ts';
-import { evaluateSessionDoneEvidence } from '../lib/done-gate.ts';
+import { evaluateDoneEvidence, evaluateSessionDoneEvidence } from '../lib/done-gate.ts';
 import { updateTicketStatus } from '../lib/hierarchy.ts';
 import {
   canonicalPathForGate,
@@ -48,6 +46,7 @@ import { recordRetroDebugEvent } from '../lib/retro-debug.ts';
 import { decideRetroFilingGate, formatCodexFilingDispatch } from '../lib/retro-filing-gate.ts';
 import { RETRO_CHILD_ENV, retroChildArgs } from '../lib/retro-extract.ts';
 import { resolveRunIdentity, type RunIdentity } from '../lib/run-identity.ts';
+import { safewordCli } from '../lib/safeword-cli.ts';
 import { installCrashCapture, readSelfReportConfig } from '../lib/self-report.ts';
 import {
   countCompletedToolUsesCodex,

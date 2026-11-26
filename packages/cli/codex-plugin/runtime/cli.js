@@ -65102,6 +65102,7 @@ async function runCodexAppServerCandidate(executable, attempt, timeoutMs) {
       let stdoutBytes = 0;
       let stderrBytes = 0;
       let settled = false;
+      let turnRequested = false;
       const settle = (finish) => {
         if (settled)
           return;
@@ -65121,6 +65122,7 @@ async function runCodexAppServerCandidate(executable, attempt, timeoutMs) {
       const startTurn = (result) => {
         if (!isRecord8(result) || !isRecord8(result.thread))
           throw new Error("thread start failed");
+        turnRequested = true;
         send({
           id: 3,
           method: "turn/start",
@@ -65138,7 +65140,7 @@ async function runCodexAppServerCandidate(executable, attempt, timeoutMs) {
         }
         const proof = codexAppServerProof(messages, attempt.model);
         if (proof === undefined)
-          return;
+          throw new ReviewRuntimeError("invalid_output", "codex turn produced no review proof");
         const parsed = codexAppServerReviewOutput(attempt.packet, proof.text, proof.confirmedModel);
         settle(() => {
           resolve(parsed);
@@ -65211,7 +65213,7 @@ async function runCodexAppServerCandidate(executable, attempt, timeoutMs) {
       });
       child.on("close", () => {
         settle(() => {
-          reject(new ReviewRuntimeError(classifyExit(stdout, stderr, "unsupported"), "codex app-server did not complete the review"));
+          reject(new ReviewRuntimeError(classifyExit(stdout, stderr, turnRequested ? "process_failed" : "unsupported"), "codex app-server did not complete the review"));
         });
       });
       send({
@@ -65240,19 +65242,20 @@ function useCodexAppServer(attempt) {
     throw new ReviewRuntimeError("process_failed", "Isolated grader scope mismatch", true);
   return grade === "valid";
 }
-async function runCandidate(executable, attempt, timeoutMs) {
+async function runCandidate(executable, attempt, deadline) {
+  const { reviewer, packet, cwd, model, schemaPath } = attempt;
   if (useCodexAppServer(attempt)) {
-    const appServer = await supportsReviewContract("codex", executable, attempt.cwd, Math.min(5000, timeoutMs), { arguments: ["app-server", "--help"], required: ["--stdio", "--config"] });
+    const appServer = await supportsReviewContract("codex", executable, cwd, Math.min(5000, remainingReviewTime(deadline, reviewer)), { arguments: ["app-server", "--help"], required: ["--stdio", "--config"] });
     if (appServer.kind === "supported") {
       try {
-        return await runCodexAppServerCandidate(executable, attempt, timeoutMs);
+        return await runCodexAppServerCandidate(executable, attempt, remainingReviewTime(deadline, reviewer));
       } catch (error) {
         if (!(error instanceof ReviewRuntimeError) || error.failure !== "unsupported")
           throw error;
       }
     }
   }
-  const { reviewer, packet, cwd, model, schemaPath } = attempt;
+  const timeoutMs = remainingReviewTime(deadline, reviewer);
   const argumentEnvironment = attempt.effort === undefined ? process.env : { ...process.env, SAFEWORD_REVIEW_EFFORT_CLAUDE: attempt.effort };
   const child = spawn(executable, reviewerArguments(reviewer, model, schemaPath, argumentEnvironment, packet), {
     cwd,
@@ -65370,7 +65373,7 @@ async function runReviewerCandidates(attempt, candidates, deadline) {
     }
     foundCompatible = true;
     try {
-      return await runCandidate(candidate, attempt, remainingReviewTime(candidateDeadline, reviewer, lastFailure));
+      return await runCandidate(candidate, attempt, candidateDeadline);
     } catch (error) {
       if (!(error instanceof ReviewRuntimeError))
         throw error;
