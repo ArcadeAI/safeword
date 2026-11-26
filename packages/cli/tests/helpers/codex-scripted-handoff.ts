@@ -108,7 +108,7 @@ export class CodexScriptedHandoff {
       response.writeHead(403).end();
       return;
     }
-    if (request.method === 'GET' && request.url === '/v1/models') {
+    if (request.method === 'GET' && request.url?.split('?', 1)[0] === '/v1/models') {
       response.writeHead(200, { 'Content-Type': 'application/json' }).end('{"data":[]}');
       return;
     }
@@ -225,6 +225,8 @@ export class CodexScriptedHandoff {
   }
 
   private async start(args: string[]): Promise<void> {
+    const reviewed = args.length > 0;
+    if (reviewed) assert.deepEqual(args, ['--dangerously-bypass-hook-trust']);
     const ready = once(this.server, 'listening');
     this.server.listen(0, '127.0.0.1');
     await ready;
@@ -236,7 +238,6 @@ export class CodexScriptedHandoff {
     this.process = spawn(
       this.fixture.binary,
       [
-        ...args,
         '-c',
         'model_provider="safeword_test"',
         '-c',
@@ -274,6 +275,8 @@ export class CodexScriptedHandoff {
       model,
       sandbox: 'workspace-write',
       approvalPolicy: 'never',
+      // Match the exec client's thread-scoped override for the independently reviewed fixture.
+      ...(reviewed && { config: { bypass_hook_trust: true } }),
     });
     assert.ok(thread?.id);
     this.thread = thread.id;
