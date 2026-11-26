@@ -6,7 +6,7 @@ epic: 3TJD0A
 phase: done
 status: done
 created: 2026-11-26T16:19:57.264Z
-last_modified: 2026-11-26T18:12:58Z
+last_modified: 2026-11-26T18:24:06Z
 ---
 
 # Catch unapproved product choices before feature intake closes
@@ -52,3 +52,5 @@ The [request-first reviewer experiment](./scorecard.md#request-first-reviewer-ex
 The [single-pass interruption question](./scorecard.md#single-pass-interruption-and-retry-question) missed every open café choice. Retain the current rubric.
 
 The [paired café plan reversal](./scorecard.md#café-plan-reversal) showed that reviewers blocked missing authorization much more often for removal before announcement.
+
+The [neutral-wording follow-up](./scorecard.md#neutral-wording-of-the-café-request) reproduced the directional difference without “remove the called party.”

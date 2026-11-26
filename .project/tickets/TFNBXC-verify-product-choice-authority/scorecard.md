@@ -177,3 +177,21 @@ On the open cases, ten announce-first plans were approved, and two were blocked 
 **Method.** Base `410355a5d`, current single-pass rubric, pinned Claude Opus 5.5 and Codex GPT-6.2 Sol. For this matched pair, shared inventory and cross-references were made neutral in both drafts. The serialized spec files then differed by exactly one line, Rule R3, which described the two orders and their respective failure and retry outcomes. The surrounding ticket, request and other packet context were identical within each pair. Each model received each plan in isolation for three repeats under five request conditions. Scoring used the finding text and distinguished an authority objection from an implementation issue. This was a diagnostic on one feature without a production prompt change.
 
 All 60 scored verdicts have matching dispatch and model identity. Measured spend was **$3.56** across 59 verdicts. One additional completed verdict and one timed-out attempt lacked final cost receipts. The timeout was retried. Private frozen packets, condition definitions, receipt logs and verdict annotations are under `experiments/harbor/jobs/TFNBXC-policy-reversal/` in the Harbor infrastructure worktree.
+
+## Neutral wording of the café request
+
+**The direction of the proposed policy still mattered when the user described only success.** On the two neutral phrasings combined, reviewers required authorization for risking a missed party in **11/12** trials and for risking a repeat call in **1/12**. Codex flagged the repeat-call risk once. Claude approved one remove-first plan on the grounds that it achieved the requested successful outcome. The original phrase “remove the called party” was unnecessary for the observed asymmetry.
+
+| Request wording in the concurrent comparison | Missing-authorization blocks when announcing first | Missing-authorization blocks when removing first |
+| --- | ---: | ---: |
+| Original request, including “remove the called party” | 0/6 | 6/6 |
+| Successful outcome, name received listed first | 0/6 | 6/6 |
+| Same successful outcome, party absent listed first | 1/6 | 5/6 |
+
+The neutral variants described the same state at the end of a successful call: staff have received the earliest waiting party's name and that party is absent from the saved list. We counterbalanced which outcome was mentioned first. None of the three requests chose a crash policy. The ticket and shared spec restatements used neutral language in all three conditions. For each wording, only Rule R3 differed between the two plans. For each plan, only the user request changed across the three wordings. This concurrent comparison is separate from the prior reversal trial.
+
+The score counts a blocking finding on user authority for the specific missed-party versus repeat-call choice. An objection about output delivery or what happens after both steps finish did not count. On the neutral inputs, the host totals were 0/6 announce-first and 5/6 remove-first for Claude, and 1/6 and 6/6 respectively for Codex.
+
+All 36 reviews completed with verified dispatch and model identities, one metered call each and **$2.49** in estimated spend. No retries or live questions. Base `eaf29f312`, unchanged production reviewer, pinned Claude Opus 5.5 and Codex GPT-6.2 Sol. Private packets, protocol, findings and per-trial scores are in `experiments/harbor/jobs/TFNBXC-neutral-order/` in the Harbor infrastructure worktree.
+
+This is one feature with three repeats per model and cell. It supports a café-specific directional effect. It cannot identify the reviewers' motivations or show how they would respond when repeating an action does more harm. A useful next comparison would reverse the relative consequences in a new feature while leaving the user's retry preference unspecified.

@@ -30,7 +30,7 @@ children:
   - P4H33N
   - ZX3EEA
 created: 2026-11-26T07:08:24.535Z
-last_modified: 2026-11-26T18:12:58Z
+last_modified: 2026-11-26T18:24:06Z
 ---
 
 # Get reliable feature plans with shorter instructions for Claude and Codex
@@ -138,3 +138,5 @@ The [request-first comparison](../TFNBXC-verify-product-choice-authority/scoreca
 The [café and label-station comparison](../TFNBXC-verify-product-choice-authority/scorecard.md#single-pass-interruption-and-retry-question) completed with the existing reviewer rubric retained.
 
 The [café plan reversal](../TFNBXC-verify-product-choice-authority/scorecard.md#café-plan-reversal) isolated the effect of changing the proposed crash policy.
+
+The [neutral-wording café trial](../TFNBXC-verify-product-choice-authority/scorecard.md#neutral-wording-of-the-café-request) completed with 36 verified reviews.
