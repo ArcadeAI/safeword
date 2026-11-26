@@ -19,7 +19,7 @@ const stamp = (reviewId: string): ReviewStamp => ({
   reviewer: 'claude',
 });
 
-describe('stamp verification shares the receipt budget in ledger order', () => {
+describe('stamp verification checks recent receipts first within the shared budget', () => {
   let project: string;
   let plugin: string;
   let target: string;
@@ -83,6 +83,11 @@ describe('stamp verification shares the receipt budget in ledger order', () => {
     expect(gatePhaseAdvance(scope, verified)).toEqual({ ok: true });
     expect(Date.now() - started).toBe(12_000);
     expect(stamps).toEqual(before);
+  });
+
+  it('returns verified stamps in their original ledger order', () => {
+    const stamps = [stamp('old'), stamp('new')];
+    expect(verifiedStamps(stamps, project, scope)).toEqual(stamps);
   });
 
   it('falls through an invalid latest entry to an older valid approval within budget', () => {

@@ -1,0 +1,3221 @@
+{
+  "scope": "Go-context hooks only, in one instrumented full run on preserved stacked checkout e8e64c1eb; no historical cause inferred",
+  "exit_status_provenance": "Observed exec tool completion metadata, not a signed attestation",
+  "full_run": {
+    "exec_session_id": 24050,
+    "exit_code": 1,
+    "files_passed": 727,
+    "files_failed": 1,
+    "tests_passed": 11839,
+    "tests_failed": 1,
+    "tests_skipped": 14,
+    "duration_seconds": 1022.17,
+    "failed_file": "tests/integration/native-planning-copy-dispatch.test.ts"
+  },
+  "go_context": {
+    "hook_count": 23,
+    "maximum_elapsed_ms": 1258,
+    "parent_kill_requests": 0,
+    "hooks": [
+      {
+        "trace": "hook-7023-1792987676940.jsonl",
+        "sha256": "b191f90d663d147df35ff4251988bdcef72d11a58cf2a183babbbd4c428412b2",
+        "started_at_ms": 1792987676940,
+        "elapsed_ms": 1075,
+        "code": 0,
+        "signal": null,
+        "killed": false,
+        "kill_requests": 0,
+        "tools": [
+          {
+            "event": "tool-start",
+            "time": 1792987677173,
+            "pid": 9796,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987677226,
+            "pid": 9796,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ],
+            "elapsed": 53,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987677488,
+            "pid": 10566,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987677539,
+            "pid": 10566,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ],
+            "elapsed": 51,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987677567,
+            "pid": 10795,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Kzlwg7/.safeword/.safeword-go-lint-28e1e3d9-3238-40f9-b1e4-6738afaf7ae3.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Kzlwg7/apps/engine/value_test.go"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987677627,
+            "pid": 10795,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Kzlwg7/.safeword/.safeword-go-lint-28e1e3d9-3238-40f9-b1e4-6738afaf7ae3.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Kzlwg7/apps/engine/value_test.go"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ],
+            "elapsed": 60,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987677650,
+            "pid": 11055,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Kzlwg7/.safeword/.safeword-go-lint-28e1e3d9-3238-40f9-b1e4-6738afaf7ae3.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Kzlwg7/.safeword",
+              "."
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987678007,
+            "pid": 11055,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Kzlwg7/.safeword/.safeword-go-lint-28e1e3d9-3238-40f9-b1e4-6738afaf7ae3.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Kzlwg7/.safeword",
+              "."
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ],
+            "elapsed": 357,
+            "code": 0,
+            "signal": null
+          }
+        ]
+      },
+      {
+        "trace": "hook-7023-1792987678069.jsonl",
+        "sha256": "a79464cd5ce3f098250d33853d7f581f007b4878f87bf88fe46f066ea95c3799",
+        "started_at_ms": 1792987678069,
+        "elapsed_ms": 834,
+        "code": 0,
+        "signal": null,
+        "killed": false,
+        "kill_requests": 0,
+        "tools": [
+          {
+            "event": "tool-start",
+            "time": 1792987678293,
+            "pid": 12677,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987678344,
+            "pid": 12677,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ],
+            "elapsed": 51,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987678605,
+            "pid": 13317,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987678658,
+            "pid": 13317,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ],
+            "elapsed": 53,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987678688,
+            "pid": 13465,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Nv9NZ9/.safeword/.safeword-go-lint-3dfdc94a-7168-4a2c-aafb-c302dea8f8b8.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Nv9NZ9/apps/engine/internal/service/value.go"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987678749,
+            "pid": 13465,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Nv9NZ9/.safeword/.safeword-go-lint-3dfdc94a-7168-4a2c-aafb-c302dea8f8b8.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Nv9NZ9/apps/engine/internal/service/value.go"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ],
+            "elapsed": 61,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987678773,
+            "pid": 13636,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Nv9NZ9/.safeword/.safeword-go-lint-3dfdc94a-7168-4a2c-aafb-c302dea8f8b8.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Nv9NZ9/.safeword",
+              "."
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987678892,
+            "pid": 13636,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Nv9NZ9/.safeword/.safeword-go-lint-3dfdc94a-7168-4a2c-aafb-c302dea8f8b8.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Nv9NZ9/.safeword",
+              "."
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ],
+            "elapsed": 119,
+            "code": 0,
+            "signal": null
+          }
+        ]
+      },
+      {
+        "trace": "hook-7023-1792987678906.jsonl",
+        "sha256": "0a9b0c6807f47efc4ae6e0da29b25bd162e2c23afefdb0db79de596909539be7",
+        "started_at_ms": 1792987678906,
+        "elapsed_ms": 1001,
+        "code": 0,
+        "signal": null,
+        "killed": false,
+        "kill_requests": 0,
+        "tools": [
+          {
+            "event": "tool-start",
+            "time": 1792987679206,
+            "pid": 14463,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987679258,
+            "pid": 14463,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ],
+            "elapsed": 52,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987679512,
+            "pid": 15280,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987679562,
+            "pid": 15280,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ],
+            "elapsed": 50,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987679589,
+            "pid": 15425,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-esUyUT/.safeword/.safeword-go-lint-cf10c8b7-1cdb-4f65-bb0e-3fd1c8d2e414.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-esUyUT/apps/engine/value_test.go"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987679646,
+            "pid": 15425,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-esUyUT/.safeword/.safeword-go-lint-cf10c8b7-1cdb-4f65-bb0e-3fd1c8d2e414.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-esUyUT/apps/engine/value_test.go"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ],
+            "elapsed": 57,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987679669,
+            "pid": 15570,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-esUyUT/.safeword/.safeword-go-lint-cf10c8b7-1cdb-4f65-bb0e-3fd1c8d2e414.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-esUyUT/.safeword",
+              "."
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987679898,
+            "pid": 15570,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-esUyUT/.safeword/.safeword-go-lint-cf10c8b7-1cdb-4f65-bb0e-3fd1c8d2e414.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-esUyUT/.safeword",
+              "."
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ],
+            "elapsed": 229,
+            "code": 1,
+            "signal": null
+          }
+        ]
+      },
+      {
+        "trace": "hook-7023-1792987679909.jsonl",
+        "sha256": "fc3f9e84a478623acc25d2f3bab8350b60d6bfcdc4ce02e9a5ceb24bde700872",
+        "started_at_ms": 1792987679909,
+        "elapsed_ms": 1001,
+        "code": 0,
+        "signal": null,
+        "killed": false,
+        "kill_requests": 0,
+        "tools": [
+          {
+            "event": "tool-start",
+            "time": 1792987680130,
+            "pid": 16568,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987680182,
+            "pid": 16568,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ],
+            "elapsed": 52,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987680541,
+            "pid": 17362,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987680595,
+            "pid": 17362,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ],
+            "elapsed": 54,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987680623,
+            "pid": 17508,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-OhJkhG/.safeword-go-lint-38f4a9ff-6fdd-42a4-bf58-0375c1ab2443.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-OhJkhG/apps/engine/value.go"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987680682,
+            "pid": 17508,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-OhJkhG/.safeword-go-lint-38f4a9ff-6fdd-42a4-bf58-0375c1ab2443.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-OhJkhG/apps/engine/value.go"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ],
+            "elapsed": 59,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987680705,
+            "pid": 17653,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-OhJkhG/.safeword-go-lint-38f4a9ff-6fdd-42a4-bf58-0375c1ab2443.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-OhJkhG",
+              "."
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987680902,
+            "pid": 17653,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-OhJkhG/.safeword-go-lint-38f4a9ff-6fdd-42a4-bf58-0375c1ab2443.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-OhJkhG",
+              "."
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ],
+            "elapsed": 197,
+            "code": 0,
+            "signal": null
+          }
+        ]
+      },
+      {
+        "trace": "hook-7023-1792987680910.jsonl",
+        "sha256": "5dc7f3b4c807cf5a26c092d3cc5a996059ed717374c2795d26d53137a0de5a06",
+        "started_at_ms": 1792987680910,
+        "elapsed_ms": 858,
+        "code": 0,
+        "signal": null,
+        "killed": false,
+        "kill_requests": 0,
+        "tools": [
+          {
+            "event": "tool-start",
+            "time": 1792987681121,
+            "pid": 18627,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987681170,
+            "pid": 18627,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ],
+            "elapsed": 49,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987681409,
+            "pid": 19224,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987681458,
+            "pid": 19224,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ],
+            "elapsed": 49,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987681486,
+            "pid": 19408,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-OhJkhG/.safeword/.safeword-go-lint-5b62bf79-2d5a-4700-b5d9-b4cae9792981.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-OhJkhG/apps/engine/value.go"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987681544,
+            "pid": 19408,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-OhJkhG/.safeword/.safeword-go-lint-5b62bf79-2d5a-4700-b5d9-b4cae9792981.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-OhJkhG/apps/engine/value.go"
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ],
+            "elapsed": 58,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987681565,
+            "pid": 19575,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-OhJkhG/.safeword/.safeword-go-lint-5b62bf79-2d5a-4700-b5d9-b4cae9792981.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-OhJkhG/.safeword",
+              "."
+            ],
+            "load": [
+              8.33349609375,
+              7.5146484375,
+              6.30712890625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987681759,
+            "pid": 19575,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-OhJkhG/.safeword/.safeword-go-lint-5b62bf79-2d5a-4700-b5d9-b4cae9792981.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-OhJkhG/.safeword",
+              "."
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ],
+            "elapsed": 194,
+            "code": 1,
+            "signal": null
+          }
+        ]
+      },
+      {
+        "trace": "hook-7023-1792987681772.jsonl",
+        "sha256": "7ef5023aeb5f9c345e39f46ef1e4c6b96210b5f60193e593d12e9343925f59b5",
+        "started_at_ms": 1792987681772,
+        "elapsed_ms": 929,
+        "code": 0,
+        "signal": null,
+        "killed": false,
+        "kill_requests": 0,
+        "tools": [
+          {
+            "event": "tool-start",
+            "time": 1792987682068,
+            "pid": 20556,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987682119,
+            "pid": 20556,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ],
+            "elapsed": 51,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987682415,
+            "pid": 21278,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987682467,
+            "pid": 21278,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ],
+            "elapsed": 52,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987682495,
+            "pid": 21481,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Hj54bF/.safeword/.safeword-go-lint-fed989a3-4857-44d2-bb28-6f57b0bfd35c.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Hj54bF/apps/engine/value.go"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987682553,
+            "pid": 21481,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Hj54bF/.safeword/.safeword-go-lint-fed989a3-4857-44d2-bb28-6f57b0bfd35c.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Hj54bF/apps/engine/value.go"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ],
+            "elapsed": 58,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987682576,
+            "pid": 21652,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Hj54bF/.safeword/.safeword-go-lint-fed989a3-4857-44d2-bb28-6f57b0bfd35c.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Hj54bF/.safeword",
+              "."
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987682694,
+            "pid": 21652,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Hj54bF/.safeword/.safeword-go-lint-fed989a3-4857-44d2-bb28-6f57b0bfd35c.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Hj54bF/.safeword",
+              "."
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ],
+            "elapsed": 118,
+            "code": 0,
+            "signal": null
+          }
+        ]
+      },
+      {
+        "trace": "hook-7023-1792987682702.jsonl",
+        "sha256": "95cc1e97f46ccb6e0fd6f518ca569fe4b9c582d04db9aae0662c0bd82439cc7b",
+        "started_at_ms": 1792987682702,
+        "elapsed_ms": 861,
+        "code": 0,
+        "signal": null,
+        "killed": false,
+        "kill_requests": 0,
+        "tools": [
+          {
+            "event": "tool-start",
+            "time": 1792987682946,
+            "pid": 22580,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987682994,
+            "pid": 22580,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ],
+            "elapsed": 48,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987683263,
+            "pid": 23354,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987683314,
+            "pid": 23354,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ],
+            "elapsed": 51,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987683343,
+            "pid": 23556,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Hj54bF/.safeword/.safeword-go-lint-c1d90883-316d-41d4-9fb4-a92a3743175a.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Hj54bF/apps/engine/value.go"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987683401,
+            "pid": 23556,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Hj54bF/.safeword/.safeword-go-lint-c1d90883-316d-41d4-9fb4-a92a3743175a.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Hj54bF/apps/engine/value.go"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ],
+            "elapsed": 58,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987683424,
+            "pid": 23701,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Hj54bF/.safeword/.safeword-go-lint-c1d90883-316d-41d4-9fb4-a92a3743175a.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Hj54bF/.safeword",
+              "."
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987683555,
+            "pid": 23701,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Hj54bF/.safeword/.safeword-go-lint-c1d90883-316d-41d4-9fb4-a92a3743175a.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Hj54bF/.safeword",
+              "."
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ],
+            "elapsed": 131,
+            "code": 1,
+            "signal": null
+          }
+        ]
+      },
+      {
+        "trace": "hook-7023-1792987683565.jsonl",
+        "sha256": "bdd93ed7bd85df88aa53b47d0b8089731c04354a22ea9a4cf1f32cdf059bdc32",
+        "started_at_ms": 1792987683565,
+        "elapsed_ms": 878,
+        "code": 0,
+        "signal": null,
+        "killed": false,
+        "kill_requests": 0,
+        "tools": [
+          {
+            "event": "tool-start",
+            "time": 1792987683819,
+            "pid": 24481,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987683868,
+            "pid": 24481,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ],
+            "elapsed": 49,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987684142,
+            "pid": 25096,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987684196,
+            "pid": 25096,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ],
+            "elapsed": 54,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987684226,
+            "pid": 25238,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-3VAkZq/.safeword/.safeword-go-lint-99d469d3-2646-48dc-9841-caf0b1a9f823.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-3VAkZq/apps/engine/value.go"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987684289,
+            "pid": 25238,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-3VAkZq/.safeword/.safeword-go-lint-99d469d3-2646-48dc-9841-caf0b1a9f823.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-3VAkZq/apps/engine/value.go"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ],
+            "elapsed": 63,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987684314,
+            "pid": 25361,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-3VAkZq/.safeword/.safeword-go-lint-99d469d3-2646-48dc-9841-caf0b1a9f823.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-3VAkZq/.safeword",
+              "."
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987684435,
+            "pid": 25361,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-3VAkZq/.safeword/.safeword-go-lint-99d469d3-2646-48dc-9841-caf0b1a9f823.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-3VAkZq/.safeword",
+              "."
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ],
+            "elapsed": 121,
+            "code": 1,
+            "signal": null
+          }
+        ]
+      },
+      {
+        "trace": "hook-7023-1792987684445.jsonl",
+        "sha256": "ded5d721200003383f2524184b2ed341477bd5a38aec46287fe17abe05fe769b",
+        "started_at_ms": 1792987684445,
+        "elapsed_ms": 1047,
+        "code": 0,
+        "signal": null,
+        "killed": false,
+        "kill_requests": 0,
+        "tools": [
+          {
+            "event": "tool-start",
+            "time": 1792987684769,
+            "pid": 26045,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987684823,
+            "pid": 26045,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ],
+            "elapsed": 54,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987685189,
+            "pid": 26753,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987685244,
+            "pid": 26753,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ],
+            "elapsed": 55,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987685281,
+            "pid": 26925,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-aRzTbO/.safeword/.safeword-go-lint-be4b525b-38fb-40be-815c-2807305ae643.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-aRzTbO/apps/engine/value.go"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987685345,
+            "pid": 26925,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-aRzTbO/.safeword/.safeword-go-lint-be4b525b-38fb-40be-815c-2807305ae643.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-aRzTbO/apps/engine/value.go"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ],
+            "elapsed": 64,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987685368,
+            "pid": 27099,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-aRzTbO/.safeword/.safeword-go-lint-be4b525b-38fb-40be-815c-2807305ae643.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-aRzTbO/.safeword",
+              "."
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987685483,
+            "pid": 27099,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-aRzTbO/.safeword/.safeword-go-lint-be4b525b-38fb-40be-815c-2807305ae643.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-aRzTbO/.safeword",
+              "."
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ],
+            "elapsed": 115,
+            "code": 1,
+            "signal": null
+          }
+        ]
+      },
+      {
+        "trace": "hook-7023-1792987685494.jsonl",
+        "sha256": "9f98796598cb7d2e6db90be4faa50f320933d2504561d73798b51c0f2cbaf95b",
+        "started_at_ms": 1792987685494,
+        "elapsed_ms": 690,
+        "code": 0,
+        "signal": null,
+        "killed": false,
+        "kill_requests": 0,
+        "tools": [
+          {
+            "event": "tool-start",
+            "time": 1792987685722,
+            "pid": 27762,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987685779,
+            "pid": 27762,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ],
+            "elapsed": 57,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987686119,
+            "pid": 28503,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987686171,
+            "pid": 28503,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.427734375,
+              7.7548828125,
+              6.39892578125
+            ],
+            "elapsed": 52,
+            "code": 0,
+            "signal": null
+          }
+        ]
+      },
+      {
+        "trace": "hook-7023-1792987686188.jsonl",
+        "sha256": "1dddca27eda0b5d565ab5b93483ac437c617d7958092cb5d0faa5cc78685a708",
+        "started_at_ms": 1792987686188,
+        "elapsed_ms": 217,
+        "code": 0,
+        "signal": null,
+        "killed": false,
+        "kill_requests": 0,
+        "tools": []
+      },
+      {
+        "trace": "hook-7023-1792987686546.jsonl",
+        "sha256": "3c539346a60ae4c0c2a8c7788722c6655eeff79bd254c7c2e6fcd44e1f6034bd",
+        "started_at_ms": 1792987686546,
+        "elapsed_ms": 1076,
+        "code": 0,
+        "signal": null,
+        "killed": false,
+        "kill_requests": 0,
+        "tools": [
+          {
+            "event": "tool-start",
+            "time": 1792987686901,
+            "pid": 30114,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987686955,
+            "pid": 30114,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ],
+            "elapsed": 54,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987687310,
+            "pid": 30881,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987687359,
+            "pid": 30881,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ],
+            "elapsed": 49,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987687388,
+            "pid": 31146,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-0AV7QU/.safeword-go-lint-ece8d745-02b3-4daf-b46a-f1c0a595b24d.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-0AV7QU/apps/engine/value.go"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987687448,
+            "pid": 31146,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-0AV7QU/.safeword-go-lint-ece8d745-02b3-4daf-b46a-f1c0a595b24d.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-0AV7QU/apps/engine/value.go"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ],
+            "elapsed": 60,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987687470,
+            "pid": 31290,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-0AV7QU/.safeword-go-lint-ece8d745-02b3-4daf-b46a-f1c0a595b24d.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-0AV7QU",
+              "."
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987687614,
+            "pid": 31290,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-0AV7QU/.safeword-go-lint-ece8d745-02b3-4daf-b46a-f1c0a595b24d.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-0AV7QU",
+              "."
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ],
+            "elapsed": 144,
+            "code": 1,
+            "signal": null
+          }
+        ]
+      },
+      {
+        "trace": "hook-7023-1792987687679.jsonl",
+        "sha256": "78e25ebbc01d77e5d3b0c3ee33b09b7999609764da33aaae821609389e71232b",
+        "started_at_ms": 1792987687679,
+        "elapsed_ms": 828,
+        "code": 0,
+        "signal": null,
+        "killed": false,
+        "kill_requests": 0,
+        "tools": [
+          {
+            "event": "tool-start",
+            "time": 1792987687912,
+            "pid": 32214,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987687961,
+            "pid": 32214,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ],
+            "elapsed": 49,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987688212,
+            "pid": 32810,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987688261,
+            "pid": 32810,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ],
+            "elapsed": 49,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987688288,
+            "pid": 32988,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-tSHE8k/.safeword/.safeword-go-lint-42f483e4-d82d-40f6-be85-5284cabbc2d9.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-tSHE8k/apps/engine/value.go"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987688345,
+            "pid": 32988,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-tSHE8k/.safeword/.safeword-go-lint-42f483e4-d82d-40f6-be85-5284cabbc2d9.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-tSHE8k/apps/engine/value.go"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ],
+            "elapsed": 57,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987688371,
+            "pid": 33133,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-tSHE8k/.safeword/.safeword-go-lint-42f483e4-d82d-40f6-be85-5284cabbc2d9.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-tSHE8k/.safeword",
+              "."
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987688500,
+            "pid": 33133,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-tSHE8k/.safeword/.safeword-go-lint-42f483e4-d82d-40f6-be85-5284cabbc2d9.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-tSHE8k/.safeword",
+              "."
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ],
+            "elapsed": 129,
+            "code": 0,
+            "signal": null
+          }
+        ]
+      },
+      {
+        "trace": "hook-7023-1792987688563.jsonl",
+        "sha256": "e3a57b76b02cb3cac3d2dcbe507ff1e220b2b401994562a906e56d621e24264c",
+        "started_at_ms": 1792987688563,
+        "elapsed_ms": 946,
+        "code": 0,
+        "signal": null,
+        "killed": false,
+        "kill_requests": 0,
+        "tools": [
+          {
+            "event": "tool-start",
+            "time": 1792987688860,
+            "pid": 34119,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987688915,
+            "pid": 34119,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ],
+            "elapsed": 55,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987689292,
+            "pid": 35061,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987689342,
+            "pid": 35061,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ],
+            "elapsed": 50,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987689373,
+            "pid": 35211,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-xwbv0c/.safeword/.safeword-go-lint-178d23ee-4eab-4443-b73e-3570ce989759.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-xwbv0c/apps/engine/value.go"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987689423,
+            "pid": 35211,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-xwbv0c/.safeword/.safeword-go-lint-178d23ee-4eab-4443-b73e-3570ce989759.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-xwbv0c/apps/engine/value.go"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ],
+            "elapsed": 50,
+            "code": 3,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987689447,
+            "pid": 35346,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-xwbv0c/.safeword/.safeword-go-lint-178d23ee-4eab-4443-b73e-3570ce989759.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-xwbv0c/.safeword",
+              "."
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987689501,
+            "pid": 35346,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-xwbv0c/.safeword/.safeword-go-lint-178d23ee-4eab-4443-b73e-3570ce989759.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-xwbv0c/.safeword",
+              "."
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ],
+            "elapsed": 54,
+            "code": 3,
+            "signal": null
+          }
+        ]
+      },
+      {
+        "trace": "hook-7023-1792987689566.jsonl",
+        "sha256": "f5e7d178cb233cd2e202368d4bb818cdd064115f78d24bf3c66226e064808249",
+        "started_at_ms": 1792987689566,
+        "elapsed_ms": 873,
+        "code": 0,
+        "signal": null,
+        "killed": false,
+        "kill_requests": 0,
+        "tools": [
+          {
+            "event": "tool-start",
+            "time": 1792987689837,
+            "pid": 36038,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987689890,
+            "pid": 36038,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ],
+            "elapsed": 53,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987690226,
+            "pid": 36667,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987690278,
+            "pid": 36667,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ],
+            "elapsed": 52,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987690306,
+            "pid": 36753,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Y1XEM7/.safeword/.safeword-go-lint-34fe35b1-f94c-4f86-8a62-51848b4bf858.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Y1XEM7/apps/engine/value.go"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987690357,
+            "pid": 36753,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Y1XEM7/.safeword/.safeword-go-lint-34fe35b1-f94c-4f86-8a62-51848b4bf858.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Y1XEM7/apps/engine/value.go"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ],
+            "elapsed": 51,
+            "code": 3,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987690379,
+            "pid": 36812,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Y1XEM7/.safeword/.safeword-go-lint-34fe35b1-f94c-4f86-8a62-51848b4bf858.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Y1XEM7/.safeword",
+              "."
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987690431,
+            "pid": 36812,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Y1XEM7/.safeword/.safeword-go-lint-34fe35b1-f94c-4f86-8a62-51848b4bf858.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-Y1XEM7/.safeword",
+              "."
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ],
+            "elapsed": 52,
+            "code": 3,
+            "signal": null
+          }
+        ]
+      },
+      {
+        "trace": "hook-7023-1792987690493.jsonl",
+        "sha256": "dbabee320e6949657ae9490b74660fa8133f3c8567f5a3892b54749474bb53c5",
+        "started_at_ms": 1792987690493,
+        "elapsed_ms": 763,
+        "code": 0,
+        "signal": null,
+        "killed": false,
+        "kill_requests": 0,
+        "tools": [
+          {
+            "event": "tool-start",
+            "time": 1792987690701,
+            "pid": 36952,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987690751,
+            "pid": 36952,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ],
+            "elapsed": 50,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987691036,
+            "pid": 37176,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987691088,
+            "pid": 37176,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ],
+            "elapsed": 52,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987691116,
+            "pid": 37178,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-QvgdNk/.safeword/.safeword-go-lint-38ef3b96-9559-4a13-b660-e37db22c1a40.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-QvgdNk/apps/engine/value.go"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987691171,
+            "pid": 37178,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-QvgdNk/.safeword/.safeword-go-lint-38ef3b96-9559-4a13-b660-e37db22c1a40.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-QvgdNk/apps/engine/value.go"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ],
+            "elapsed": 55,
+            "code": 3,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987691195,
+            "pid": 37184,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-QvgdNk/.safeword/.safeword-go-lint-38ef3b96-9559-4a13-b660-e37db22c1a40.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-QvgdNk/.safeword",
+              "."
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987691248,
+            "pid": 37184,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-QvgdNk/.safeword/.safeword-go-lint-38ef3b96-9559-4a13-b660-e37db22c1a40.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-QvgdNk/.safeword",
+              "."
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ],
+            "elapsed": 53,
+            "code": 3,
+            "signal": null
+          }
+        ]
+      },
+      {
+        "trace": "hook-7023-1792987691311.jsonl",
+        "sha256": "f895545486d74930d98bb49de14f98b314d815567e279e74560a60956bd325d8",
+        "started_at_ms": 1792987691311,
+        "elapsed_ms": 740,
+        "code": 0,
+        "signal": null,
+        "killed": false,
+        "kill_requests": 0,
+        "tools": [
+          {
+            "event": "tool-start",
+            "time": 1792987691529,
+            "pid": 37380,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987691578,
+            "pid": 37380,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.55322265625,
+              7.80859375,
+              6.42578125
+            ],
+            "elapsed": 49,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987691827,
+            "pid": 37404,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987691877,
+            "pid": 37404,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ],
+            "elapsed": 50,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987691910,
+            "pid": 37462,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-cuALIf/.safeword/.safeword-go-lint-a8aff2c5-b3cd-4387-84cf-ce2f7ac98fa8.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-cuALIf/apps/engine/value.go"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987691965,
+            "pid": 37462,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-cuALIf/.safeword/.safeword-go-lint-a8aff2c5-b3cd-4387-84cf-ce2f7ac98fa8.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-cuALIf/apps/engine/value.go"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ],
+            "elapsed": 55,
+            "code": 3,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987691989,
+            "pid": 37549,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-cuALIf/.safeword/.safeword-go-lint-a8aff2c5-b3cd-4387-84cf-ce2f7ac98fa8.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-cuALIf/.safeword",
+              "."
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987692043,
+            "pid": 37549,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-cuALIf/.safeword/.safeword-go-lint-a8aff2c5-b3cd-4387-84cf-ce2f7ac98fa8.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-cuALIf/.safeword",
+              "."
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ],
+            "elapsed": 54,
+            "code": 3,
+            "signal": null
+          }
+        ]
+      },
+      {
+        "trace": "hook-7023-1792987692055.jsonl",
+        "sha256": "703a18746cb04309e178f1e0818c4be46abc956e2d431e5dd2cee8fb53ba88af",
+        "started_at_ms": 1792987692055,
+        "elapsed_ms": 1222,
+        "code": 0,
+        "signal": null,
+        "killed": false,
+        "kill_requests": 0,
+        "tools": [
+          {
+            "event": "tool-start",
+            "time": 1792987692475,
+            "pid": 37705,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987692526,
+            "pid": 37705,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ],
+            "elapsed": 51,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987692889,
+            "pid": 37953,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987692943,
+            "pid": 37953,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ],
+            "elapsed": 54,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987692971,
+            "pid": 38078,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-rjXCQt/.safeword/.safeword-go-lint-a36eaa8e-2309-4b9a-9783-096f664649a7.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-rjXCQt/apps/engine/value.go"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987693032,
+            "pid": 38078,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-rjXCQt/.safeword/.safeword-go-lint-a36eaa8e-2309-4b9a-9783-096f664649a7.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-rjXCQt/apps/engine/value.go"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ],
+            "elapsed": 61,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987693056,
+            "pid": 38101,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-rjXCQt/.safeword/.safeword-go-lint-a36eaa8e-2309-4b9a-9783-096f664649a7.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-rjXCQt/.safeword",
+              "."
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987693269,
+            "pid": 38101,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-rjXCQt/.safeword/.safeword-go-lint-a36eaa8e-2309-4b9a-9783-096f664649a7.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-rjXCQt/.safeword",
+              "."
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ],
+            "elapsed": 213,
+            "code": 0,
+            "signal": null
+          }
+        ]
+      },
+      {
+        "trace": "hook-7023-1792987693277.jsonl",
+        "sha256": "be127c20060920f83735a4de331be878fc67e8621991fd0645a3839da8de5f71",
+        "started_at_ms": 1792987693277,
+        "elapsed_ms": 1081,
+        "code": 0,
+        "signal": null,
+        "killed": false,
+        "kill_requests": 0,
+        "tools": [
+          {
+            "event": "tool-start",
+            "time": 1792987693593,
+            "pid": 38353,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987693645,
+            "pid": 38353,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ],
+            "elapsed": 52,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987694002,
+            "pid": 38570,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987694055,
+            "pid": 38570,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ],
+            "elapsed": 53,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987694083,
+            "pid": 38602,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-rjXCQt/.safeword/.safeword-go-lint-6d2c3ab8-65b0-491d-9ecc-dc939f8ca691.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-rjXCQt/apps/engine/value.go"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987694140,
+            "pid": 38602,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-rjXCQt/.safeword/.safeword-go-lint-6d2c3ab8-65b0-491d-9ecc-dc939f8ca691.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-rjXCQt/apps/engine/value.go"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ],
+            "elapsed": 57,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987694163,
+            "pid": 38637,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-rjXCQt/.safeword/.safeword-go-lint-6d2c3ab8-65b0-491d-9ecc-dc939f8ca691.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-rjXCQt/.safeword",
+              "."
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987694349,
+            "pid": 38637,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-rjXCQt/.safeword/.safeword-go-lint-6d2c3ab8-65b0-491d-9ecc-dc939f8ca691.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-rjXCQt/.safeword",
+              "."
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ],
+            "elapsed": 186,
+            "code": 1,
+            "signal": null
+          }
+        ]
+      },
+      {
+        "trace": "hook-7023-1792987694360.jsonl",
+        "sha256": "abffc648dea4e0a4ec6c86faeaeee58c346e28954de3c843e54b755a3d54427b",
+        "started_at_ms": 1792987694360,
+        "elapsed_ms": 1207,
+        "code": 0,
+        "signal": null,
+        "killed": false,
+        "kill_requests": 0,
+        "tools": [
+          {
+            "event": "tool-start",
+            "time": 1792987694662,
+            "pid": 38685,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987694713,
+            "pid": 38685,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ],
+            "elapsed": 51,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987695179,
+            "pid": 38758,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987695231,
+            "pid": 38758,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ],
+            "elapsed": 52,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987695280,
+            "pid": 38763,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-FOcA0h/.safeword-go-lint-f6156707-b9ff-4624-a751-b7e115c75bda.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-FOcA0h/apps/engine/value.go"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987695339,
+            "pid": 38763,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-FOcA0h/.safeword-go-lint-f6156707-b9ff-4624-a751-b7e115c75bda.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-FOcA0h/apps/engine/value.go"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ],
+            "elapsed": 59,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987695362,
+            "pid": 38773,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-FOcA0h/.safeword-go-lint-f6156707-b9ff-4624-a751-b7e115c75bda.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-FOcA0h",
+              "."
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987695559,
+            "pid": 38773,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-FOcA0h/.safeword-go-lint-f6156707-b9ff-4624-a751-b7e115c75bda.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-FOcA0h",
+              "."
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ],
+            "elapsed": 197,
+            "code": 0,
+            "signal": null
+          }
+        ]
+      },
+      {
+        "trace": "hook-7023-1792987695568.jsonl",
+        "sha256": "7a2dfeaab98951f8697a92436fd84fa23091ef9920e2db16ef8c79299ad34aae",
+        "started_at_ms": 1792987695568,
+        "elapsed_ms": 1140,
+        "code": 0,
+        "signal": null,
+        "killed": false,
+        "kill_requests": 0,
+        "tools": [
+          {
+            "event": "tool-start",
+            "time": 1792987695923,
+            "pid": 38819,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987695977,
+            "pid": 38819,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ],
+            "elapsed": 54,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987696342,
+            "pid": 38844,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987696395,
+            "pid": 38844,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ],
+            "elapsed": 53,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987696441,
+            "pid": 38851,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-FOcA0h/.safeword-go-lint-7b7b4ce7-afa7-47ee-92bf-6c308caffc77.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-FOcA0h/apps/engine/value.go"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987696499,
+            "pid": 38851,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-FOcA0h/.safeword-go-lint-7b7b4ce7-afa7-47ee-92bf-6c308caffc77.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-FOcA0h/apps/engine/value.go"
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ],
+            "elapsed": 58,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987696521,
+            "pid": 38857,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-FOcA0h/.safeword-go-lint-7b7b4ce7-afa7-47ee-92bf-6c308caffc77.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-FOcA0h",
+              "."
+            ],
+            "load": [
+              9.1083984375,
+              7.7451171875,
+              6.4111328125
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987696700,
+            "pid": 38857,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-FOcA0h/.safeword-go-lint-7b7b4ce7-afa7-47ee-92bf-6c308caffc77.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-FOcA0h",
+              "."
+            ],
+            "load": [
+              9.01953125,
+              7.7490234375,
+              6.42041015625
+            ],
+            "elapsed": 179,
+            "code": 1,
+            "signal": null
+          }
+        ]
+      },
+      {
+        "trace": "hook-7023-1792987696743.jsonl",
+        "sha256": "8f60c366cb9ba74d72d0a210a63188ac6a240770d64305fcb52523406760c16d",
+        "started_at_ms": 1792987696743,
+        "elapsed_ms": 1258,
+        "code": 0,
+        "signal": null,
+        "killed": false,
+        "kill_requests": 0,
+        "tools": [
+          {
+            "event": "tool-start",
+            "time": 1792987697153,
+            "pid": 39004,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.01953125,
+              7.7490234375,
+              6.42041015625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987697206,
+            "pid": 39004,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.01953125,
+              7.7490234375,
+              6.42041015625
+            ],
+            "elapsed": 53,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987697617,
+            "pid": 39038,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.01953125,
+              7.7490234375,
+              6.42041015625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987697667,
+            "pid": 39038,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.01953125,
+              7.7490234375,
+              6.42041015625
+            ],
+            "elapsed": 50,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987697708,
+            "pid": 39041,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-WUuS7y/.safeword-go-lint-c468681d-b240-44fd-bfa1-8b111bd46b58.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-WUuS7y/apps/engine/value.go"
+            ],
+            "load": [
+              9.01953125,
+              7.7490234375,
+              6.42041015625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987697767,
+            "pid": 39041,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-WUuS7y/.safeword-go-lint-c468681d-b240-44fd-bfa1-8b111bd46b58.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-WUuS7y/apps/engine/value.go"
+            ],
+            "load": [
+              9.01953125,
+              7.7490234375,
+              6.42041015625
+            ],
+            "elapsed": 59,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987697790,
+            "pid": 39049,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-WUuS7y/.safeword-go-lint-c468681d-b240-44fd-bfa1-8b111bd46b58.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-WUuS7y",
+              "."
+            ],
+            "load": [
+              9.01953125,
+              7.7490234375,
+              6.42041015625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987697993,
+            "pid": 39049,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-WUuS7y/.safeword-go-lint-c468681d-b240-44fd-bfa1-8b111bd46b58.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-WUuS7y",
+              "."
+            ],
+            "load": [
+              9.01953125,
+              7.7490234375,
+              6.42041015625
+            ],
+            "elapsed": 203,
+            "code": 0,
+            "signal": null
+          }
+        ]
+      },
+      {
+        "trace": "hook-7023-1792987698001.jsonl",
+        "sha256": "cac1a484f88cc56e9d2a6c7f5427bc23f2ff2f706b4633c1881e9a91cd5ebec4",
+        "started_at_ms": 1792987698001,
+        "elapsed_ms": 1190,
+        "code": 0,
+        "signal": null,
+        "killed": false,
+        "kill_requests": 0,
+        "tools": [
+          {
+            "event": "tool-start",
+            "time": 1792987698388,
+            "pid": 39120,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.01953125,
+              7.7490234375,
+              6.42041015625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987698440,
+            "pid": 39120,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.01953125,
+              7.7490234375,
+              6.42041015625
+            ],
+            "elapsed": 52,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987698814,
+            "pid": 39174,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.01953125,
+              7.7490234375,
+              6.42041015625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987698866,
+            "pid": 39174,
+            "args": [
+              "version",
+              "--short"
+            ],
+            "load": [
+              9.01953125,
+              7.7490234375,
+              6.42041015625
+            ],
+            "elapsed": 52,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987698904,
+            "pid": 39177,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-WUuS7y/.safeword-go-lint-5e0e6788-ce2f-481d-9c1f-409f358e5b72.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-WUuS7y/apps/engine/value.go"
+            ],
+            "load": [
+              9.01953125,
+              7.7490234375,
+              6.42041015625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987698964,
+            "pid": 39177,
+            "args": [
+              "fmt",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-WUuS7y/.safeword-go-lint-5e0e6788-ce2f-481d-9c1f-409f358e5b72.json",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-WUuS7y/apps/engine/value.go"
+            ],
+            "load": [
+              9.01953125,
+              7.7490234375,
+              6.42041015625
+            ],
+            "elapsed": 60,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "event": "tool-start",
+            "time": 1792987698988,
+            "pid": 39180,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-WUuS7y/.safeword-go-lint-5e0e6788-ce2f-481d-9c1f-409f358e5b72.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-WUuS7y",
+              "."
+            ],
+            "load": [
+              9.01953125,
+              7.7490234375,
+              6.42041015625
+            ]
+          },
+          {
+            "event": "tool-close",
+            "time": 1792987699184,
+            "pid": 39180,
+            "args": [
+              "run",
+              "--config",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-WUuS7y/.safeword-go-lint-5e0e6788-ce2f-481d-9c1f-409f358e5b72.json",
+              "--path-prefix",
+              "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-WUuS7y",
+              "."
+            ],
+            "load": [
+              9.01953125,
+              7.7490234375,
+              6.42041015625
+            ],
+            "elapsed": 196,
+            "code": 1,
+            "signal": null
+          }
+        ]
+      }
+    ]
+  },
+  "native_uninstrumented_repeat": {
+    "exec_session_id": 64848,
+    "exit_code": 0,
+    "passed": 6,
+    "seconds": 26.27
+  }
+}

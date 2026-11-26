@@ -205,9 +205,10 @@ export function verifiedStamps(
 ): ReviewStamp[] {
   const readReceipt = createReviewReceiptReader(projectDirectory);
   let claimContext: ReturnType<typeof reviewClaimContext> | undefined;
-  return stamps
+  // Spend the budget newest-first, then restore ledger order for callers.
+  const verified = stamps
     .filter(stamp => stamp.scope === scope)
-    .toReversed()
+    .reverse()
     .filter(stamp => {
       if (stamp.skipReason !== undefined || !claimsCoordinatorVerdict(stamp.independence))
         return true;
@@ -230,4 +231,5 @@ export function verifiedStamps(
 
       return receiptGateVerdict(claim, readReceipt(stamp.reviewId)).ok;
     });
+  return verified.reverse();
 }
