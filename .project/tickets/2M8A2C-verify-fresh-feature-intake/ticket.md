@@ -23,6 +23,6 @@ last_modified: 2026-11-26T07:41:04.507Z
 
 ## Latest evidence
 
-Both baseline agents requested a decision about lending an item that already has an active loan. The prompt already specifies the rule for an unmatched return. Saved operator decisions govern the remaining trial checkpoints.
+All 16 loan authors received the approved second-checkout refusal. Per-host approvals and outstanding questions are in the scorecard.
 
 [Full scorecard](../3TJD0A-reliable-lean-intake/scorecard.md)

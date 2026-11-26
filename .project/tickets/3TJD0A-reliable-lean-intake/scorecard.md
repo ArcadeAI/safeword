@@ -36,24 +36,24 @@ The equipment loan request supplies the rule for an unmatched return and leaves 
 | Arm | Case | Author | Observed intake outcome |
 |---|---|---|---|
 | baseline | equipment-loans | claude | awaiting a reply |
-| baseline | equipment-loans | codex | awaiting a reply |
+| baseline | equipment-loans | codex | passed |
 | bookmark-lean | bookmark-duplicate | claude | passed |
 | bookmark-lean | bookmark-duplicate | codex | passed |
-| combined | equipment-loans | claude | awaiting a reply |
-| combined | equipment-loans | codex | awaiting a reply |
+| combined | equipment-loans | claude | passed |
+| combined | equipment-loans | codex | passed |
 | guide | equipment-loans | claude | awaiting a reply |
-| guide | equipment-loans | codex | awaiting a reply |
+| guide | equipment-loans | codex | passed |
 | handbook | equipment-loans | claude | awaiting a reply |
-| handbook | equipment-loans | codex | awaiting a reply |
+| handbook | equipment-loans | codex | passed |
 | lean | equipment-loans | claude | awaiting a reply |
 | lean | equipment-loans | codex | incomplete; see retry |
-| lean-retry-codex | equipment-loans | codex | awaiting a reply |
-| map | equipment-loans | claude | awaiting a reply |
-| map | equipment-loans | codex | awaiting a reply |
-| narrow | equipment-loans | claude | awaiting a reply |
-| narrow | equipment-loans | codex | awaiting a reply |
-| owner | equipment-loans | claude | awaiting a reply |
-| owner | equipment-loans | codex | awaiting a reply |
+| lean-retry-codex | equipment-loans | codex | passed |
+| map | equipment-loans | claude | passed |
+| map | equipment-loans | codex | passed |
+| narrow | equipment-loans | claude | passed |
+| narrow | equipment-loans | codex | passed |
+| owner | equipment-loans | claude | passed |
+| owner | equipment-loans | codex | passed |
 | shift-combined | shift-specified | claude | downstream_edit |
 | shift-combined | shift-specified | codex | passed |
 | shift-guide | shift-specified | claude | passed |
@@ -79,8 +79,20 @@ The broad intake cut failed 27 of 47 targeted checks. It removed the explicit co
 
 | Trial | Host | Handoff | Author + reviewer | Review starts | Trial draft PRs observed | Evidence |
 |---|---|---|---:|---:|---:|---|
+| baseline | codex | passed | $0.38 | 1 | 0 | `baseline/trials/intake-equipment-loans/codex/evidence-index.json` |
 | bookmark-lean | claude | passed | ≥$1.31 | 8 | 0 | `bookmark-lean/trials/intake-bookmark-duplicate/claude/evidence-index.json` |
 | bookmark-lean | codex | passed | $0.52 | 3 | 0 | `bookmark-lean/trials/intake-bookmark-duplicate/codex/evidence-index.json` |
+| combined | claude | passed | $0.89 | 2 | 0 | `combined/trials/intake-equipment-loans/claude/evidence-index.json` |
+| combined | codex | passed | $0.69 | 2 | 0 | `combined/trials/intake-equipment-loans/codex/evidence-index.json` |
+| guide | codex | passed | $0.56 | 2 | 0 | `guide/trials/intake-equipment-loans/codex/evidence-index.json` |
+| handbook | codex | passed | $0.63 | 2 | 0 | `handbook/trials/intake-equipment-loans/codex/evidence-index.json` |
+| lean-retry-codex | codex | passed | $0.62 | 2 | 0 | `lean-retry-codex/trials/intake-equipment-loans/codex/evidence-index.json` |
+| map | claude | passed | $1.39 | 10 | 0 | `map/trials/intake-equipment-loans/claude/evidence-index.json` |
+| map | codex | passed | $0.76 | 2 | 0 | `map/trials/intake-equipment-loans/codex/evidence-index.json` |
+| narrow | claude | passed | $1.07 | 4 | 0 | `narrow/trials/intake-equipment-loans/claude/evidence-index.json` |
+| narrow | codex | passed | $0.63 | 2 | 0 | `narrow/trials/intake-equipment-loans/codex/evidence-index.json` |
+| owner | claude | passed | $1.13 | 4 | 0 | `owner/trials/intake-equipment-loans/claude/evidence-index.json` |
+| owner | codex | passed | $0.60 | 2 | 0 | `owner/trials/intake-equipment-loans/codex/evidence-index.json` |
 | shift-combined | claude | downstream_edit | ≥$1.47 | 14 | 0 | `shift-combined/trials/intake-shift-specified/claude/evidence-index.json` |
 | shift-combined | codex | passed | $0.43 | 2 | 0 | `shift-combined/trials/intake-shift-specified/codex/evidence-index.json` |
 | shift-guide | claude | passed | $0.66 | 5 | 0 | `shift-guide/trials/intake-shift-specified/claude/evidence-index.json` |
@@ -104,6 +116,10 @@ The broad combination failed on Claude: it edited `src/shifts.ts` before approva
 
 The equipment-loan case is recorded in the Harbor runbook at harness commit `de1531495`. The archived private trials used the shared CSV starter package. Both revisions received the same starter. The reusable fixture has its own package name.
 
-16 equipment-loan author trials have asked about the existing borrower. The unmatched-return rule is present in the user request. An unanswered question leaves each fresh-feature handoff pending.
+All 16 authors asked about an existing borrower. The operator approved refusing the second checkout and preserving the borrower until return. One human decision answered 16 separate clarification checkpoints. The relay sent the answer to each original session. The reusable host-side answer key and decision catalog are in harness commit `6f0e98bc4`.
 
-On the bookmark regression, both authors asked about saving an existing label, used the saved answer and obtained independent approval. Both plans preserve the original URL. Codex also reported a pending review and resumed it. On the equipment-loan request, only an operator can settle the borrower policy. The test counts these questions as clarification and holds final grading until after the answer and independent approval.
+12 fresh-feature plans have independently verified approval before downstream edits. 4 trials are waiting for an operator answer and 0 others have not yet produced a verified plan.
+
+The follow-up product question concerns matching tool names that differ in capitalization or spacing. That choice affects which loan a return closes. The map-only Codex author also asked to confirm its proposed storage-error behavior. The coordinator confirmed that a failed operation reports the error, preserves existing loans and does not claim success.
+
+On the bookmark regression both authors asked about saving an existing label and used the previously recorded decision. Both approved plans preserve the original URL.
