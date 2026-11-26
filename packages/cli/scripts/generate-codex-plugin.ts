@@ -28,11 +28,9 @@ import { generateScenarioRubric } from './generate-scenario-rubric.js';
 import { generateTestingCore } from './generate-testing-core.js';
 import { generatedTreeDifferences, reconcileGeneratedTree } from './generated-tree-differences.js';
 import { buildPluginCliBundle } from './lib/build-plugin-cli-bundle.js';
-import {
-  parseCodexPluginGenerationOptions,
-  publishFreshDirectory,
-} from './lib/codex-plugin-generation.js';
+import { parseCodexPluginGenerationOptions } from './lib/codex-plugin-generation.js';
 import { planningAuthorCopies } from './lib/planning-author-copies.js';
+import { publishFreshDirectory } from './lib/publish-fresh-directory.js';
 
 type NativePluginManifest = Omit<PortablePackageMetadata, 'version'> & {
   version: string;

@@ -4,10 +4,8 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import {
-  parseCodexPluginGenerationOptions,
-  publishFreshDirectory,
-} from '../../scripts/lib/codex-plugin-generation.js';
+import { parseCodexPluginGenerationOptions } from '../../scripts/lib/codex-plugin-generation.js';
+import { publishFreshDirectory } from '../../scripts/lib/publish-fresh-directory.js';
 
 describe('Codex plugin generation boundary', () => {
   it('keeps portable pilot selection explicit and outside checked-in output', () => {
