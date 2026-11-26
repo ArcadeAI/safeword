@@ -515,13 +515,18 @@ function adaptWorkflowMarkdown(
   return formatMarkdownTables(adapted);
 }
 
+function splitReferenceDestination(destination: string): { pathname: string; suffix: string } {
+  const suffixIndex = destination.search(/[?#]/u);
+  return suffixIndex === -1
+    ? { pathname: destination, suffix: '' }
+    : { pathname: destination.slice(0, suffixIndex), suffix: destination.slice(suffixIndex) };
+}
+
 function adaptReferenceDestination(
   destination: string,
   referenceNames: ReadonlySet<string>,
 ): string {
-  const suffixIndex = destination.search(/[?#]/u);
-  const path = suffixIndex === -1 ? destination : destination.slice(0, suffixIndex);
-  const suffix = suffixIndex === -1 ? '' : destination.slice(suffixIndex);
+  const { pathname: path, suffix } = splitReferenceDestination(destination);
   const unprefixedPath = path.startsWith('./') ? path.slice(2) : path;
 
   return referenceNames.has(unprefixedPath) ? `references/${unprefixedPath}${suffix}` : destination;
@@ -775,9 +780,7 @@ export function generatePluginAssets(
     const guidePath = projection?.guideResourcePath;
     if (guidePath)
       rendered = rendered.replaceAll(/`([^`\n]+)`/gu, (span, reference: string) => {
-        const suffixAt = reference.search(/[?#]/u);
-        const pathname = suffixAt === -1 ? reference : reference.slice(0, suffixAt);
-        const suffix = suffixAt === -1 ? '' : reference.slice(suffixAt);
+        const { pathname, suffix } = splitReferenceDestination(reference);
         const template = PROJECT_GUIDE_FILES[pathname]?.template;
         if (template === undefined) return span;
         const installed = guidePath(template);
@@ -804,9 +807,7 @@ export function generatePluginAssets(
       },
     );
     return rendered.replaceAll(/\]\(([^\s)]+)\)/gu, (link: string, target: string) => {
-      const suffixAt = target.search(/[?#]/u);
-      const pathname = suffixAt === -1 ? target : target.slice(0, suffixAt);
-      const suffix = suffixAt === -1 ? '' : target.slice(suffixAt);
+      const { pathname, suffix } = splitReferenceDestination(target);
       const canonical = nodePath.resolve(nodePath.dirname(source), pathname);
       const templates = nodePath.resolve(canonicalSkillsDirectory, '..');
       if (!canonical.startsWith(`${templates}/`) || !existsSync(canonical)) return link;
