@@ -124,7 +124,12 @@ def trial_result(lane, build, models):
     reward = document(trial / "verifier/reward.json")["reward"]
     boundary = json_file(agent / "intake-stop.json")
     passed = outcome == "passed"
-    if reward != int(passed) or (boundary and outcome != boundary.get("outcome")):
+    budget_stop = agent / "budget-stop.json"
+    interrupted = (
+        budget_stop.is_file() and document(budget_stop).get("reason") != "combined_cap"
+    )
+    expected = "budget_before_gate" if interrupted else boundary.get("outcome")
+    if reward != int(passed) or ((interrupted or boundary) and outcome != expected):
         raise ValueError("Verifier and observed intake boundary disagree")
     reviewer = "codex" if host == "claude" else "claude"
     approval = boundary.get("approval") or {}

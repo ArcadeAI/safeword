@@ -8,6 +8,21 @@ from intake.agent import IntakeAgent
 
 
 class IntakeCleanupTest(unittest.IsolatedAsyncioTestCase):
+    async def test_setup_error_removes_login_and_preserves_failure(self):
+        agent = SimpleNamespace(
+            host="claude",
+            expected="fixture",
+            checked=AsyncMock(side_effect=[None, RuntimeError("setup failed"), None]),
+            record=AsyncMock(side_effect=RuntimeError("evidence unavailable")),
+        )
+        env = AsyncMock()
+        with self.assertRaisesRegex(RuntimeError, "setup failed") as caught:
+            await IntakeAgent.setup(agent, env)
+        self.assertIn(
+            "rm -f /root/intake-codex/auth.json", agent.checked.await_args.args
+        )
+        self.assertIn("evidence unavailable", caught.exception.__notes__[0])
+
     async def run_trial(self, author_result, failing_command):
         with TemporaryDirectory() as directory:
             relay = Path(directory)

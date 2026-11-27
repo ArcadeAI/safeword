@@ -202,6 +202,42 @@ class IntakeRunnerTest(unittest.TestCase):
                 if expected:
                     self.assertEqual((lane / expected).read_text(), draft.read_text())
 
+    def test_meter_interruption_overrides_a_simultaneous_gate_approval(self):
+        lane = self.root / "claude"
+        trial = lane / "harbor" / "trial"
+        agent = trial / "agent"
+        agent.mkdir(parents=True)
+        write_json(trial / "result.json", {})
+        write_json(
+            agent / "setup-evidence.json",
+            {
+                "status": "ready",
+                "host": "claude",
+                "bundle_sha256": "fixture",
+                "expected_model": "claude-test",
+            },
+        )
+        write_json(agent / "intake-stop.json", {"outcome": "passed"})
+        grader = Path(__file__).parent / "csv/tests/test.sh"
+
+        for reason, reward, conclusive in [
+            ("combined_cap", 1, 1),
+            ("author_model_mismatch", 0, 0),
+            ("unpriced_reviewer_usage", 0, 0),
+        ]:
+            with self.subTest(reason=reason):
+                write_json(agent / "budget-stop.json", {"reason": reason})
+                subprocess.run(["sh", grader, trial], check=True)
+                grade = json.loads((trial / "verifier/reward.json").read_text())
+                self.assertEqual(
+                    (grade["reward"], grade["intake_conclusive"]), (reward, conclusive)
+                )
+                if not conclusive:
+                    row = trial_result(
+                        lane, {"archive_sha256": "fixture"}, self.snapshot["models"]
+                    )
+                    self.assertEqual(row["outcome"], "budget_before_gate")
+
     def test_codex_spend_includes_distinct_sessions_and_deduplicates_resume(self):
         from shutil import copyfile
 

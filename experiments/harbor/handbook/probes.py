@@ -193,6 +193,7 @@ def run(args, arm, revision, host, case):
             "60",
             "/log/comparison.json",
             "3",
+            model,
         ]
         setup = ""
     else:

@@ -103,6 +103,45 @@ test('the combined cap includes each review attempt and survives an author resum
   assert.ok(Math.abs(trialSpend(logs) - 1.03) < 1e-12);
 });
 
+test('Claude intake uses its selected host model for messages and terminal usage', t => {
+  const logs = mkdtempSync(join(tmpdir(), 'harbor-intake-model-'));
+  t.after(() => rmSync(logs, { recursive: true, force: true }));
+  const comparison = join(logs, 'comparison.json');
+  saveJson(comparison, { pricing, models: { author: 'another-model', claude: model } });
+  const script = join(logs, 'trace.jsonl');
+  const run = actual => {
+    const events = [
+      {
+        type: 'assistant',
+        message: { id: 'msg', model: actual, usage: { input_tokens: 0, output_tokens: 10 } },
+      },
+      {
+        type: 'result',
+        is_error: false,
+        modelUsage: { [actual]: { inputTokens: 0, outputTokens: 10 } },
+      },
+    ];
+    writeFileSync(script, events.map(event => JSON.stringify(event)).join('\n') + '\n');
+    const result = spawnSync(
+      process.execPath,
+      [
+        join(__dirname, 'supervise-claude.mjs'),
+        'cat ' + JSON.stringify(script) + (actual === model ? '' : ' && sleep 5'),
+        '5',
+        comparison,
+        '2',
+        model,
+      ],
+      { encoding: 'utf8', timeout: 8000 },
+    );
+    assert.equal(result.status, 0, result.error?.message ?? result.stderr);
+    return readJson(join(logs, 'budget-stop.json'), null);
+  };
+  assert.equal(run(model), null);
+  assert.ok(trialSpend(logs) > 0);
+  assert.equal(run('another-model').reason, 'author_model_mismatch');
+});
+
 test('Codex reviewer prices each request across the long-context threshold once', t => {
   const dir = mkdtempSync(join(tmpdir(), 'harbor-review-meter-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));

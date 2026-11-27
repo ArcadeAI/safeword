@@ -158,6 +158,8 @@ class IntakeAgent(BaseAgent):
             for tool in ("claude", "codex"):
                 entry = await self.checked(env, f"command -v {tool}")
                 executable = await self.checked(env, f"readlink -f {Q(entry)}")
+                if executable == entry:
+                    raise RuntimeError(f"Expected an npm executable symlink for {tool}")
                 await env.upload_file(
                     HARBOR / "review-meter.cjs", f"{BASE}/meter/{tool}"
                 )
@@ -184,9 +186,16 @@ class IntakeAgent(BaseAgent):
             details["reviewer_model"] = self.snapshot["models"][provider]
             details["status"] = "ready"
             await self.record(env, "setup-evidence.json", details)
-        except (RuntimeError, ValueError) as error:
+        except Exception as error:
             details.update(status="setup_failure", reason=str(error))
-            await self.record(env, "setup-evidence.json", details)
+            for operation in (
+                lambda: self.checked(env, f"rm -f {CODEX_HOME}/auth.json"),
+                lambda: self.record(env, "setup-evidence.json", details),
+            ):
+                try:
+                    await operation()
+                except Exception as secondary:
+                    error.add_note(f"Setup failure handling: {secondary}")
             raise
 
     def author_command(self, instruction, output, step):
@@ -202,7 +211,7 @@ class IntakeAgent(BaseAgent):
                 f"--max-budget-usd {self.budget} -- {Q(instruction)}"
             )
             supervisor = f"node {LOG}/supervise-claude.mjs"
-            args = f"60 {LOG}/comparison.json {self.budget}"
+            args = f"60 {LOG}/comparison.json {self.budget} {Q(self.expected)}"
         else:
             resume = " resume --last" if step > 1 else ""
             command = (

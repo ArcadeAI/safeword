@@ -3,9 +3,10 @@ import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { priceUsage, readJson, saveJson, settleClaude, trialSpend } from './trial-spend.cjs';
 
-const [command, graceSeconds, comparisonFile, budgetUsd] = process.argv.slice(2);
+const [command, graceSeconds, comparisonFile, budgetUsd, hostModel] = process.argv.slice(2);
 const graceMs = Number(graceSeconds) * 1000;
 const comparison = comparisonFile ? readJson(comparisonFile, null) : null;
+const expectedModel = hostModel ?? comparison?.models.author;
 const logs = comparison && dirname(comparisonFile);
 const authorFile = logs && join(logs, 'author-spend.json');
 const author = authorFile && readJson(authorFile, { cost_usd: 0, messages: {} });
@@ -98,7 +99,7 @@ stream.on('line', line => {
   const message = event?.type === 'assistant' && event.message;
   if (author && message?.id && message.usage && message.model !== '<synthetic>') {
     const cost = priceUsage(comparison.pricing, 'claude', message.model, message.usage);
-    if (cost === null || message.model !== comparison.models.author) {
+    if (cost === null || message.model !== expectedModel) {
       stopForModel(message.model);
     } else if (author.messages[message.id] !== cost) {
       author.messages[message.id] = cost;
@@ -108,7 +109,7 @@ stream.on('line', line => {
   if (event?.type === 'result') {
     if (author && event.modelUsage && Object.keys(event.modelUsage).length) {
       const models = Object.keys(event.modelUsage);
-      if (models.length !== 1 || models[0] !== comparison.models.author) {
+      if (models.length !== 1 || models[0] !== expectedModel) {
         stopForModel(models.join(', '));
       } else {
         const settled = settleClaude(comparison.pricing, models[0], event.modelUsage[models[0]]);
