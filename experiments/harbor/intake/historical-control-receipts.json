@@ -1,0 +1,188 @@
+{
+  "first_scenario": {
+    "claude": {
+      "elapsed_seconds": 368.454150579,
+      "author_estimate_usd": 1.1738554,
+      "reviewer_estimate_usd": 0.33050999999999997,
+      "started_reviewer_processes": 7,
+      "reviewer_usage_complete": true,
+      "plan_review": {
+        "id": "a3b8ed16-751f-463d-812f-1f00120ffa19",
+        "target": ".project/tickets/TW46FZ-temperature-csv-converter/spec.md",
+        "status": "approved",
+        "author_agent": "claude",
+        "actual_reviewer": "codex",
+        "independence": "cross-agent",
+        "updated_at": "2026-11-24T21:54:39.712Z"
+      }
+    },
+    "codex": {
+      "elapsed_seconds": 115.641681497,
+      "author_estimate_usd": 0.1442676,
+      "reviewer_estimate_usd": 0,
+      "started_reviewer_processes": 0,
+      "reviewer_usage_complete": true
+    }
+  },
+  "draft_verdicts": [
+    {
+      "draft": "complete",
+      "author": "claude",
+      "reviewer": "codex",
+      "model": "gpt-6.2-sol",
+      "verdict": "approved"
+    },
+    {
+      "draft": "complete",
+      "author": "codex",
+      "reviewer": "claude",
+      "model": "claude-opus-5-5",
+      "verdict": "approved"
+    },
+    {
+      "draft": "early",
+      "author": "claude",
+      "reviewer": "codex",
+      "model": "gpt-6.2-sol",
+      "verdict": "changes_requested"
+    },
+    {
+      "draft": "early",
+      "author": "codex",
+      "reviewer": "claude",
+      "model": "claude-opus-5-5",
+      "verdict": "changes_requested"
+    },
+    {
+      "draft": "silent-drop",
+      "author": "claude",
+      "reviewer": "codex",
+      "model": "gpt-6.2-sol",
+      "verdict": "changes_requested"
+    },
+    {
+      "draft": "silent-drop",
+      "author": "codex",
+      "reviewer": "claude",
+      "model": "claude-opus-5-5",
+      "verdict": "changes_requested"
+    }
+  ],
+  "stale_approval": {
+    "claude": {
+      "trial_id": "stale-review__xgzpmEA",
+      "codes": ["REVIEW_STALE"]
+    },
+    "codex": {
+      "trial_id": "stale-review__aTKQ4TX",
+      "codes": ["REVIEW_STALE"]
+    }
+  },
+  "description_only_search": {
+    "training_case": "CSV",
+    "training_outcome": "passed",
+    "training_review_calls": 12,
+    "held_out": [
+      {
+        "trial_id": "workshop-checkin__4ZWFX53",
+        "case": "intake-workshop-checkin",
+        "host": "claude",
+        "grades": {
+          "reward": 0,
+          "intake_gate": 0,
+          "intake_conclusive": 1
+        }
+      },
+      {
+        "trial_id": "library-hold-cli__gBgbLxg",
+        "case": "intake-library-hold-cli",
+        "host": "claude",
+        "grades": {
+          "reward": 0,
+          "intake_gate": 0,
+          "intake_conclusive": 1
+        }
+      },
+      {
+        "trial_id": "workshop-checkin__9E2HWLF",
+        "case": "intake-workshop-checkin",
+        "host": "codex",
+        "grades": {
+          "reward": 0,
+          "intake_gate": 0,
+          "intake_conclusive": 1
+        }
+      },
+      {
+        "trial_id": "library-hold-cli__GPWVqLu",
+        "case": "intake-library-hold-cli",
+        "host": "codex",
+        "grades": {
+          "reward": 0,
+          "intake_gate": 0,
+          "intake_conclusive": 1
+        }
+      },
+      {
+        "trial_id": "default-banner__WY6zfze",
+        "case": "patch-negative",
+        "host": "claude",
+        "grades": {
+          "reward": 1,
+          "functional": 1,
+          "preservation": 1
+        }
+      },
+      {
+        "trial_id": "default-banner__uuPpRTx",
+        "case": "patch-negative",
+        "host": "codex",
+        "grades": {
+          "reward": 1,
+          "functional": 1,
+          "preservation": 1
+        }
+      }
+    ]
+  },
+  "observed_tool_sequence": {
+    "routing-feature/claude": [
+      ["01-claude.jsonl:25", "Write", "write implementation"],
+      ["01-claude.jsonl:50", "Bash", "check behavior"]
+    ],
+    "routing-feature/codex": [
+      ["01-codex.jsonl:16", "command_execution", "read BDD skill"],
+      ["01-codex.jsonl:18", "command_execution", "observe missing export"],
+      ["01-codex.jsonl:20", "file_change", "edit implementation"],
+      ["01-codex.jsonl:24", "command_execution", "rerun check"]
+    ],
+    "routing-bug/codex": [
+      ["01-codex.jsonl:13", "command_execution", "read debug skill"],
+      ["01-codex.jsonl:19", "command_execution", "reproduce overlap failure"],
+      ["01-codex.jsonl:21", "file_change", "edit implementation"],
+      ["01-codex.jsonl:23", "command_execution", "verify fix"]
+    ],
+    "intake-open/claude": [
+      ["01-claude.jsonl:30", "Write", "write provisional implementation"],
+      ["02-claude.jsonl:6", "Edit", "replace provisional rule after reply"]
+    ],
+    "intake-open/codex": [
+      ["02-codex.jsonl:12", "file_change", "first production edit after reply"]
+    ],
+    "handoff-live/claude": [
+      ["02-claude.jsonl:728", "Edit", "phase advance succeeded"],
+      ["02-claude.jsonl:752", "Write", "scenario write succeeded"],
+      ["02-claude.jsonl:836", "Write", "production edit succeeded"]
+    ]
+  },
+  "parking_exclusions": {
+    "runs": 4,
+    "estimated_usd": 0.662856
+  },
+  "incomplete_spend": {
+    "case": "reading-bookmarks",
+    "host": "claude",
+    "attempt": 3,
+    "review_has_missing_usage": true
+  }
+}

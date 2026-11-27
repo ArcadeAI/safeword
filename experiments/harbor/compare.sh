@@ -9,7 +9,7 @@ task_path="$task"
 case "$task" in
   edit-preservation) dataset=safeword-edit-preservation-v2 ;;
   reservation) dataset=safeword-reservation-v3 ;;
-  extractor-trace-empty) dataset=safeword-extractor-trace-empty-v2 ;;
+  extractor-trace-empty) dataset=safeword-extractor-trace-empty-v3 ;;
   extractor-discovery) dataset=safeword-extractor-discovery-v2 ;;
   extractor-thin-text) dataset=safeword-extractor-thin-text-v2 ;;
   false-done | simple-fix | behavior-proof | regression-proof | eval-proof | arcade-outlook | www-home) dataset="safeword-$task-v1" ;;

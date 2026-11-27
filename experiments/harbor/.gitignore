@@ -24,5 +24,7 @@ auth.json
 
 # Derived from private source checkouts by prepare-extractor*.sh.
 /extractor-trace-empty/tests/fixture-trace.ts
+/extractor-trace-empty/tests/trace-regressions.ts
+/extractor-trace-empty/tests/trace-inputs.json
 /extractor-*/environment/treatment-package.json
 /extractor-*/environment/treatment-bun.lock

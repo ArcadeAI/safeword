@@ -1,5 +1,7 @@
 # Intake-only comparisons
 
+The [historical controls](historical-intake-scorecard.md) show how hidden correctness, useful questions, independent approval, and retained regression tests were scored on individual trials.
+
 For a baseline-versus-candidate change to intake, start with the [repeatable handoff comparison](HANDOFF.md).
 
 Harbor starts a fresh Docker workspace for each author. Claude and Codex install the selected Safeword commit as a native plugin. Each uses the other provider to review the plan. The observer stops the author at scenario definition or the first observed downstream edit. Each trial has a shared author and reviewer dollar budget. The 60-second grace period applies after Claude emits a terminal result. Provider usage arrives after work is performed, so the last reported request can cross the budget.
