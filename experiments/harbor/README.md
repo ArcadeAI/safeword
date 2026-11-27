@@ -316,6 +316,8 @@ A fresh run creates new evidence under its own job directory.
 
 ## Manual baseline suite
 
+The [merged feature and bug comparison](merged-feature-bug-scorecard.md) records three attempts per arm, including a CLI replay that exposed two different reasons for a zero reward.
+
 Run `./prepare-extractor.sh` and `./prepare-extractor-trace.sh` to prepare the
 two historical fixtures. Build the synthetic base image as shown above.
 Resolve the npm `latest` tag to a stable version and ensure it matches the

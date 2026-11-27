@@ -1,0 +1,13 @@
+fixture,author,trial_id,reward,passing_checks,native_turns,saved_product_replies,observed_ticket_phase
+routing-feature,claude,library-holds__9JqCVdU,1,"functional, preservation",6,0,
+routing-feature,codex,library-holds__ivt7zdu,1,"functional, preservation",1,0,
+routing-bug,claude,overlap-minutes__HF7RYCQ,1,"functional, preservation",5,0,
+routing-bug,codex,overlap-minutes__BXku9S3,1,"functional, preservation",1,0,
+routing-patch,claude,default-banner__o32Y2kU,1,"functional, preservation",8,0,
+routing-patch,codex,default-banner__PS3MDAf,1,"functional, preservation",1,0,
+intake-clear,claude,intake-clear__nWfcRLB,1,"functional, preservation, fullQueue",5,0,
+intake-clear,codex,intake-clear__JCsfaSL,1,"functional, preservation, fullQueue",1,0,
+intake-open,claude,intake-open__S7wm7Am,1,"functional, preservation, fullQueue",8,1,
+intake-open,codex,intake-open__SfS9Mz2,1,"functional, preservation, fullQueue",2,1,
+handoff-live,claude,csv-live-claude__6WhsLRm,1,"conversion, skip_invalid, fail_invalid",71,0,ticket.md:phase: define-behavior
+handoff-live,codex,csv-live-codex__o9asN9u,1,"conversion, skip_invalid, fail_invalid",1,0,ticket.md:phase: intake
