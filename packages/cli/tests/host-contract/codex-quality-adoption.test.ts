@@ -24,16 +24,21 @@ function report(root: string) {
     };
   };
 }
-it('adopts the actual native Codex quality chain and rejects a delegated-call bypass', () => {
+function selected(j: ReturnType<typeof report>) {
+  return j.data.behavior_adoptions.filter(
+    row => row.host === 'codex' && row.behavior_id === 'quality.pre-tool',
+  );
+}
+it('adopts the actual native Codex quality chain', () => {
   const root = createContractRepoFixture();
   roots.push(root);
-  const selected = (j: ReturnType<typeof report>) =>
-    j.data.behavior_adoptions.filter(
-      row => row.host === 'codex' && row.behavior_id === 'quality.pre-tool',
-    );
   expect(selected(report(root)), 'CODEX_SHARED_QUALITY_ADOPTION_MISSING').toEqual([
     expect.objectContaining({ owner: 'hooks/pre-tool-quality.ts' }),
   ]);
+});
+it('rejects a delegated-call bypass and verifies the repaired Codex quality chain', () => {
+  const root = createContractRepoFixture();
+  roots.push(root);
   const path = nodePath.join(root, 'packages/cli/templates/hooks/codex/pre-tool-quality.ts'),
     original = readFileSync(path, 'utf8');
   writeFileSync(
