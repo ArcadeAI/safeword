@@ -91,19 +91,17 @@ describe('canonical command purpose reaches actual delivery', () => {
         commandDescription = commands.find(command => command.name === 'bdd')?.description ?? '';
         commandNames = commands.map(command => command.name);
       } else {
-        const agent = 'cursor';
-        if (agent === 'cursor') {
-          run(directory, ['packages/cli/scripts/generate-cursor-wrappers.ts'], {});
-          // Generation also writes dogfood wrappers; installation must recreate them itself.
-          rmSync(nodePath.join(directory, '.cursor/commands'), { recursive: true });
-        }
+        run(directory, ['packages/cli/scripts/generate-cursor-wrappers.ts'], {});
+        const customer = nodePath.join(parent, 'customer');
+        mkdirSync(customer);
+        writeFileSync(nodePath.join(customer, 'package.json'), '{"private":true}');
         run(
-          directory,
+          customer,
           [
-            'packages/cli/src/cli.ts',
+            nodePath.join(directory, 'packages/cli/src/cli.ts'),
             'install',
             '--agents',
-            agent,
+            'cursor',
             '--no-input',
             '--no-modify',
             '--offline',
@@ -115,10 +113,10 @@ describe('canonical command purpose reaches actual delivery', () => {
             CLAUDE_CONFIG_DIR: nodePath.join(parent, 'claude-profile'),
           },
         );
-        const commandPath = nodePath.join(directory, '.cursor/commands/bdd.md');
-        workflowPath = nodePath.join(directory, '.safeword/skills/bdd/SKILL.md');
+        const commandPath = nodePath.join(customer, '.cursor/commands/bdd.md');
+        workflowPath = nodePath.join(customer, '.safeword/skills/bdd/SKILL.md');
         commandDescription = readCommandDescription(commandPath);
-        const commandDirectory = nodePath.join(directory, '.cursor/commands');
+        const commandDirectory = nodePath.join(customer, '.cursor/commands');
         commandNames = readdirSync(commandDirectory)
           .filter(name => name.endsWith('.md'))
           .map(name => nodePath.basename(name, '.md').replace(/^safeword-/u, ''));

@@ -79,7 +79,7 @@ it.each([
     mkdirSync(authProfile);
     writeFileSync(path.join(authProfile, 'auth.json'), '{"nonreceipt":"opaque-control"}');
     const f = provisionIsolatedGrade(root, authProfile);
-    const bin = mkdtempSync(path.join(repo, 'node_modules/.cache/grader-dispatch-'));
+    const bin = mkdtempSync(path.join(repo, 'node_modules/grader-dispatch-'));
     roots.push(bin);
     const stub = readFileSync(
       path.join(repo, 'packages/cli/tests/fixtures/host-contract/isolated-grader-reviewer.cjs'),
