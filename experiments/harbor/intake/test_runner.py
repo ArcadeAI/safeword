@@ -189,6 +189,7 @@ class IntakeRunnerTest(unittest.TestCase):
                     {
                         "outcome": outcome,
                         "observed_intake_tickets": tickets,
+                        "changed": ["src/store.ts"],
                     },
                 )
                 result = trial_result(
@@ -196,6 +197,8 @@ class IntakeRunnerTest(unittest.TestCase):
                 )
                 self.assertEqual(result["outcome"], outcome)
                 self.assertEqual(result["plan"], expected)
+                self.assertEqual(result["edits_before_handoff"], ["src/store.ts"])
+                self.assertEqual(result["plan_review_routes"], {} if expected else None)
                 if expected:
                     self.assertEqual((lane / expected).read_text(), draft.read_text())
 
