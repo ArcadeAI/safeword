@@ -1,0 +1,1 @@
+Fix this bug in the BDD Extractor trace command. A trace can write an empty match report and exit successfully even though it found no matches. Make that run exit unsuccessfully and explain whether it compared data and found no matches or had nothing to compare. Keep writing the diagnostic report. Runs with matches should still succeed, including when some areas fail.

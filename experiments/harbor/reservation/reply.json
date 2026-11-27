@@ -1,0 +1,3 @@
+{
+  "reply": "Use the existing `reserve(inventory, itemId, requestId)` function. The caller supplies the starting stock and reuses the same `requestId` when retrying. Keep reservation state in memory and limit the feature to that function. A retry must never reduce stock again."
+}

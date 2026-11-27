@@ -1,0 +1,1 @@
+Build a single-user CLI to save a web bookmark by label and URL, and look it up later by that exact label. Keep bookmarks in a local file across invocations. A lookup for an unknown label should exit unsuccessfully and say it was not found. There is no network access or account setup. Use sensible defaults for command names, file format and location.

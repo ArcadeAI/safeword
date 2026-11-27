@@ -1,0 +1,4 @@
+services:
+  main:
+    build:
+      target: ${SAFEWORD_EXTRACTOR_IMAGE_TARGET:-baseline}

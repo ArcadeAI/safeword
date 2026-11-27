@@ -1,0 +1,28 @@
+.venv/
+/jobs/
+__pycache__/
+
+/extractor-thin-text/environment/snapshot.tar.gz
+/extractor-thin-text/tests/fixture-page-text.ts
+
+/preservation-pilot/tasks/
+
+/debug-routing/tasks/
+
+/extractor-trace-empty/environment/snapshot.tar.gz
+/extractor-discovery/environment/snapshot.tar.gz
+/arcade-outlook/environment/snapshot.tar.gz
+/arcade-outlook/tests/feature-test.py
+/arcade-outlook/tests/search-regression.py
+/www-home/environment/snapshot.tar.gz
+/www-home/tests/home-adoption.spec.ts
+
+# Local relay configuration and credentials.
+.env
+.env.*
+auth.json
+
+# Derived from private source checkouts by prepare-extractor*.sh.
+/extractor-trace-empty/tests/fixture-trace.ts
+/extractor-*/environment/treatment-package.json
+/extractor-*/environment/treatment-bun.lock

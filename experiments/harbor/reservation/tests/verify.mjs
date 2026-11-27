@@ -1,0 +1,23 @@
+import assert from 'node:assert/strict';
+import { reserve } from './task.mjs';
+const inventory = { pen: 2, book: 0 };
+const first = reserve(inventory, 'pen', 'request-a');
+assert.equal(first.status, 'reserved');
+assert.equal(first.inventory.pen, 1);
+const retry = reserve(first.inventory, 'pen', 'request-a');
+assert.equal(retry.status, 'reserved');
+assert.equal(retry.inventory.pen, 1);
+const second = reserve(retry.inventory, 'pen', 'request-b');
+assert.equal(second.status, 'reserved');
+assert.equal(second.inventory.pen, 0);
+const soldOut = reserve(second.inventory, 'book', 'request-c');
+assert.equal(soldOut.status, 'sold-out');
+assert.equal(soldOut.inventory.pen, 0);
+assert.equal(soldOut.inventory.book, 0);
+
+const last = reserve({ pen: 1 }, 'pen', 'last-unit');
+assert.equal(last.status, 'reserved');
+assert.equal(last.inventory.pen, 0);
+const lastRetry = reserve(last.inventory, 'pen', 'last-unit');
+assert.equal(lastRetry.status, 'reserved');
+assert.equal(lastRetry.inventory.pen, 0);

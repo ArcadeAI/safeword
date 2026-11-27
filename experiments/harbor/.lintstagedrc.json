@@ -1,0 +1,4 @@
+{
+  "*.md": "markdownlint-cli2 --config ../../.markdownlint-cli2.jsonc",
+  "*.sh": "shellcheck"
+}
