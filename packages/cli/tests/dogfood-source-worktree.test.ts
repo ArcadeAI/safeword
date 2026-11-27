@@ -111,13 +111,16 @@ describe('dogfood source worktree package resolution (470)', () => {
       python: '3.12',
       uv: '0.12.9',
     });
-    expect(workflow).toContain(`node-version: ['22.23.2', '${mise.tools.node}']`);
     expect(workflow).toContain(`go-version: '${mise.tools.go}'`);
     expect(workflow).toContain(`python-version: '${mise.tools.python}'`);
     const ci = parseYaml(workflow) as { jobs?: Record<string, CiJob> };
     expect(ci.jobs).toBeDefined();
     if (ci.jobs === undefined) throw new Error('CI jobs are missing');
-    expect(ci.jobs.test?.strategy?.matrix?.['node-version']).toEqual(['22.23.2', mise.tools.node]);
+    for (const job of ['test', 'host-contract-tests'])
+      expect(ci.jobs[job]?.strategy?.matrix?.['node-version']).toEqual([
+        '22.23.2',
+        mise.tools.node,
+      ]);
     const configuredNodeVersions = directNodeVersions(ci.jobs ?? {});
     expect(configuredNodeVersions.length).toBeGreaterThan(0);
     expect(new Set(configuredNodeVersions)).toEqual(new Set([mise.tools.node]));
