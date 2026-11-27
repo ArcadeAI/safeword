@@ -10,13 +10,15 @@ else
   git diff --binary "$base" > /logs/verifier/candidate.patch
 fi
 git ls-files --others --exclude-standard > /logs/verifier/untracked-files.txt
-cp /tests/fixture-trace.ts packages/extractor/src/.harbor-trace.ts
-set +e
-bun packages/extractor/src/.harbor-trace.ts
-code=$?
-set -e
-if [ "$code" -eq 0 ]; then
-  echo 1 > /logs/verifier/reward.txt
-else
-  echo 0 > /logs/verifier/reward.txt
-fi
+# Run the existing regression suite in its normal module-resolution context.
+test -s /tests/trace-regressions.ts
+fixture=$(mktemp packages/extractor/src/.harbor-trace-XXXXXX.ts)
+trap 'rm -f "$fixture"' EXIT
+cp /tests/trace-regressions.ts "$fixture"
+regressions=0
+if bun "$fixture"; then regressions=1; fi
+rm -f "$fixture"
+python3 /tests/grade_trace.py "$regressions"
+# Supplemental inspection has its own allowance. A slow mentioned commit must
+# never prevent Harbor from publishing the final checkout's reward.
+timeout -k 1 25 python3 /tests/grade_trace.py mentions || echo "Supplemental replay incomplete" >&2
