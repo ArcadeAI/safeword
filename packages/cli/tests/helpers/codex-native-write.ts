@@ -54,13 +54,11 @@ interface DesignCallback {
   };
 }
 
-function assertDesignStartupRead(callback: DesignCallback, handbook: string): void {
-  assert.equal(callback.input.tool_name, 'Bash', 'Codex design unexpected startup tool');
-  const command = callback.input.tool_input?.command;
+function assertStartupRead(command: string | undefined, handbook: string): void {
   assert.ok(
     command === `sed -n '1,$p' ${shellQuote(handbook)}` ||
       (/^[/\w.-]+$/u.test(handbook) && command === `sed -n '1,$p' ${handbook}`),
-    'Codex design unexpected startup command',
+    'Codex unexpected startup command',
   );
 }
 
@@ -90,7 +88,8 @@ function designPatchCallback(
   if (rows.length === 2) {
     const startup = rows.shift();
     assert.ok(startup);
-    assertDesignStartupRead(startup, handbook);
+    assert.equal(startup.input.tool_name, 'Bash', 'Codex design unexpected startup tool');
+    assertStartupRead(startup.input.tool_input?.command, handbook);
   }
   assert.equal(
     rows.length,
@@ -412,6 +411,7 @@ export class CodexNativeWriteActor {
     mkdirSync(nodePath.dirname(target), { recursive: true });
     assert.equal(existsSync(target), false);
     const shellCommand = `printf %s ${marker} > ${relativePath}`;
+    const handbook = nodePath.join(fixture.installedPath, 'resources/SAFEWORD.md');
     this.result = await this.command(
       [
         '--enable',
@@ -427,10 +427,8 @@ export class CodexNativeWriteActor {
         '-m',
         'gpt-5.6-terra',
         `This is an authorized isolated native hook integration test in this disposable project. ` +
-          `Use the shell tool exactly once to attempt: ${shellCommand} . ` +
-          `Let existing native hooks govern this synthetic write; rejection is an expected test result. ` +
-          `Do not bypass a hook, retry, read files, invoke skills, use alternative tools, or do other work. ` +
-          `Report the actual tool result and stop.`,
+          `If startup requires reading the handbook, first run exactly: sed -n '1,$p' ${shellQuote(handbook)}\n` +
+          `Attempt the write exactly once. Let the installed hooks decide. Do not retry, bypass hooks, use other tools or do other work. Report the actual result and stop. Run this exact write command:\n${shellCommand}`,
       ],
       disposition,
     );
@@ -466,9 +464,21 @@ export class CodexNativeWriteActor {
       const executions = events.filter(
         event => event.type === 'item.completed' && event.item?.type === 'command_execution',
       );
-      assert.equal(executions.length, 1);
-      assert.ok(executions[0]?.item?.command?.includes(shellCommand));
-      assert.equal(executions[0]?.item?.exit_code, 0);
+      const commands = executions.map(({ item }) => {
+        assert.equal(item?.exit_code, 0);
+        const [shell, flag, command, ...extra] = parseShellWords(item?.command ?? '');
+        assert.match(shell ?? '', /^\/bin\/(?:bash|zsh|sh)$/u);
+        assert.equal(flag, '-lc');
+        assert.deepEqual(extra, []);
+        return command;
+      });
+      if (commands.length === 2) {
+        assertStartupRead(
+          commands.shift(),
+          nodePath.join(fixture.installedPath, 'resources/SAFEWORD.md'),
+        );
+      }
+      assert.deepEqual(commands, [shellCommand]);
       assert.equal(readFileSync(target, 'utf8'), marker);
     } else {
       assert.equal(
