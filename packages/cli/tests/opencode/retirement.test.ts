@@ -3,6 +3,7 @@ import nodePath from 'node:path';
 
 import { afterEach, expect, it } from 'vitest';
 
+import hostReleases from '../../src/lifecycle/host-releases.json' with { type: 'json' };
 import {
   createTemporaryDirectory,
   removeTemporaryDirectory,
@@ -13,7 +14,7 @@ const roots: string[] = [];
 afterEach(() => {
   for (const root of roots.splice(0)) removeTemporaryDirectory(root);
 });
-function fixture() {
+function fixture(version: string) {
   const root = createTemporaryDirectory();
   roots.push(root);
   const project = nodePath.join(root, 'project');
@@ -32,7 +33,7 @@ function fixture() {
   const executable = nodePath.join(bin, 'opencode');
   writeFileSync(
     executable,
-    '#!/bin/sh\nif [ "$1" = "--version" ]; then echo 1.18.23; else exit 99; fi\n',
+    `#!/bin/sh\nif [ "$1" = "--version" ]; then echo ${version}; else exit 99; fi\n`,
   );
   chmodSync(executable, 0o755);
   return {
@@ -44,7 +45,7 @@ function fixture() {
 }
 
 it('normal public installation cannot generate V1 or silently activate unadmitted V2', async () => {
-  const { project, profile, config, env } = fixture();
+  const { project, profile, config, env } = fixture(hostReleases.opencode.version);
   const result = await runCliWithoutInstall(
     ['install', '--agents=opencode', '--json', '--no-input', '--offline', '--cwd', project],
     { cwd: project, env },
@@ -58,6 +59,8 @@ it('normal public installation cannot generate V1 or silently activate unadmitte
     existsSync(nodePath.join(profile, 'plugins/safeword.js')),
     'OPENCODE_V1_ACTIVE_DELIVERY_REMAINS',
   ).toBe(false);
+  for (const directory of ['hooks', 'skills', 'scripts', 'guides'])
+    expect(existsSync(nodePath.join(project, '.safeword', directory))).toBe(false);
   expect(envelope.state).toBe('action_required');
   expect(JSON.stringify(envelope)).toContain('OPENCODE_V2_ADMISSION_REQUIRED');
   expect(readFileSync(nodePath.join(profile, 'opencode.jsonc'), 'utf8')).toBe(config);
@@ -118,7 +121,7 @@ it('requires every V2 case and no retired V1 executable or case', async () => {
 });
 
 it('public conformance rejects 1.x before host launch and preserves old external files', async () => {
-  const { project, profile, env } = fixture();
+  const { project, profile, env } = fixture('1.18.23');
   const oldPlugin = nodePath.join(profile, 'plugins/safeword.js');
   mkdirSync(nodePath.dirname(oldPlugin));
   writeFileSync(oldPlugin, 'throw new Error("external old plugin must not execute");\n');

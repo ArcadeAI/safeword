@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -110,7 +110,7 @@ describe('Codex plugin catalogue runtime authority', () => {
     }
   });
 
-  it('rejects generated catalogue drift when its package runtime path changes', () => {
+  it('rejects a changed runtime path and an unpinned helper in a generated Codex skill', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-unpinned-'));
     const canonical = nodePath.join(root, 'canonical');
     const plugin = nodePath.join(root, 'plugin');
@@ -130,6 +130,13 @@ describe('Codex plugin catalogue runtime authority', () => {
       );
       writeCodexPluginCatalogue(canonical, plugin, '1.2.3');
       const generatedPath = nodePath.join(plugin, 'skills/audit/SKILL.md');
+      const original = readFileSync(generatedPath, 'utf8');
+      const bundled = 'bun "$SAFEWORD_PLUGIN_RUNTIME"';
+      expect(original).toContain(bundled);
+      writeFileSync(generatedPath, original.replace(bundled, 'bunx --bun safeword'));
+      expect(() => {
+        assertCodexPluginCatalogue(canonical, plugin, '1.2.3');
+      }).toThrow('skills/audit/SKILL.md');
       writeFileSync(
         generatedPath,
         generatedSkill(
