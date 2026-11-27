@@ -55,6 +55,11 @@ it('adopts both actual quality matchers in legacy and native Claude without coun
       guarantees: ['reject_action'],
     });
   expect(current.data).toMatchObject({ inventory_complete: true, admission_eligible: false });
+});
+
+it('detects and restores a bypassed Claude quality matcher', () => {
+  const root = createContractRepoFixture();
+  roots.push(root);
   const path = nodePath.join(root, 'packages/cli/src/templates/config.ts');
   const original = readFileSync(path, 'utf8');
   writeFileSync(

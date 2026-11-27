@@ -257,7 +257,7 @@ it.each([
   },
 );
 
-it('adopts both actual Git repair registrations, preserving selection and explicit provenance after repair', () => {
+it('adopts both actual Git repair registrations with distinct source families', () => {
   const root = fixture(),
     current = report(root);
   const selected = current.data.behavior_adoptions.filter(
@@ -276,6 +276,10 @@ it('adopts both actual Git repair registrations, preserving selection and explic
       hook: { if: 'Bash(git *)' },
     });
   }
+});
+
+it('reports missing legacy Git repair registration and restores its explicit adoption', () => {
+  const root = fixture();
   const path = nodePath.join(root, integrationsPath),
     original = readFileSync(path, 'utf8');
   writeFileSync(
