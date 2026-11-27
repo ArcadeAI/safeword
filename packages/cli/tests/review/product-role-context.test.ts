@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { prepareReviewPacket } from '../../src/review/packet.js';
 import { PLANNING_CONTEXT_ROLES } from '../../src/review/planning-context-error.js';
 import { createPlanningReviewIdentity } from '../../src/review/planning-context-identity.js';
+import { createTicket } from '../../src/utils/ticket-writer.js';
 import { writePlanningInventories } from '../planning-fixtures.js';
 
 const roots: string[] = [];
@@ -123,6 +124,45 @@ describe('Product review role context', () => {
         );
       } else {
         expect(identify()?.ticket_id).toBe('OWN123');
+      }
+    } finally {
+      prepared.cleanup();
+    }
+  });
+  it.each([
+    ['scaffolded', 'OWN123-product', 'product-plan'],
+    ['hand-written', 'SEED01-packet-claims', undefined],
+    ['pre-existing', '054-declarative-rule-engine', undefined],
+  ] as const)('routes the same plan on a %s ticket', (origin, name, expectedPhase) => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-route-'));
+    roots.push(root);
+    writePlanningInventories(root);
+    const directory = nodePath.join(root, '.project/tickets', name);
+    const ticket = nodePath.join(directory, 'ticket.md');
+    if (origin === 'scaffolded') {
+      createTicket(root, { mint: () => 'OWN123' }, { slug: 'product', type: 'feature' });
+    } else {
+      mkdirSync(directory, { recursive: true });
+      if (origin === 'pre-existing') {
+        copyFileSync(
+          new URL(`../../../../.project/tickets/${name}/ticket.md`, import.meta.url),
+          ticket,
+        );
+      } else {
+        // Fields the blind Codex trial supplied without the scaffold or product-plan contract.
+        writeFileSync(ticket, '---\ntype: feature\nstatus: in_progress\nphase: intake\n---\n');
+      }
+    }
+    const spec = `.project/tickets/${name}/spec.md`;
+    writeFileSync(nodePath.join(root, spec), product);
+    const prepared = prepareReviewPacket(root, 'quality-review', [spec]);
+    try {
+      expect(prepared.packet.planning_phase).toBe(expectedPhase);
+      const identity = createPlanningReviewIdentity(prepared.packet);
+      if (expectedPhase) {
+        expect(identity?.targets).toEqual([{ path: spec, digest: expect.any(String) }]);
+      } else {
+        expect(identity).toBeUndefined();
       }
     } finally {
       prepared.cleanup();
