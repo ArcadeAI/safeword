@@ -87,10 +87,11 @@ export function parseJtbdSection(specContent: string): JtbdSection {
   return { entries, skip };
 }
 
-/** Add a persona code and its combined `Name (code)` form to the ref set. */
+/** Add a persona code and both spellings of the combined reference. */
 function addCodeForms(references: Set<string>, name: string, code: string): void {
   references.add(code);
   references.add(`${name} (${code})`);
+  references.add(`${name} (\`${code}\`)`);
 }
 
 /** Allocate a deterministic collision suffix without exceeding four characters. */

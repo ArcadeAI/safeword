@@ -10,7 +10,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/audit/SKILL.md':
         '379473dba1ec5a9322adcc4f46a827811b1caa90991cd7b6a14c32234515332c',
       '.claude/skills/bdd/DISCOVERY.md':
-        '9d8f44d62752433582ce76ea019716a09fabcfb3af65c9fc644dd60972372557',
+        '27681dc600d4eec5f08f1b747edb6348709a0e661eb74f0ff8c6d01ce86395e5',
       '.claude/skills/bdd/DONE.md':
         'e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60',
       '.claude/skills/bdd/PLAN_EXECUTION.md':
@@ -20,7 +20,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/SCENARIOS.md':
         '1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb',
       '.claude/skills/bdd/SKILL.md':
-        '898e21405b0735f13087e3c986df79b2a6428309536cb43d77f5c57777f1bd90',
+        'bb7d3fd97a247fd83874f2caf0fcd10d27d72229829e9a194b0bad4005065097',
       '.claude/skills/bdd/SPLITTING.md':
         'e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708',
       '.claude/skills/bdd/TDD.md':

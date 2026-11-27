@@ -13,6 +13,9 @@ allowed-tools: '*'
 Behavior-first development for features. Discovery → Scenarios → Implementation Planning →
 Execution Planning → Implementation.
 
+For a new feature, open [DISCOVERY.md](DISCOVERY.md) and finish the Product Plan
+and intake exit before writing scenarios or editing implementation code.
+
 Safeword planning review and approval are enforced on local Claude Code, local
 Codex, local Cursor, OpenCode CLI and TUI, Claude Code Cloud, and Cursor Cloud
 Agents. Codex Cloud and OpenCode Desktop execution is advisory. Do not claim
@@ -67,14 +70,9 @@ typed `nextActions` until terminal, and never start a replacement review or
 advance/stamp while it is pending. `REVIEW_STALE` means rerun against the
 current artifacts. Only a terminal verdict may advance the phase.
 
-The plan-implementation and plan-execution exits apply the same discipline to their respective
-plans (see [PLAN_IMPLEMENTATION.md](PLAN_IMPLEMENTATION.md) and
-[PLAN_EXECUTION.md](PLAN_EXECUTION.md)). Other phase exits don't need an independent review by default — they carry their
-own guards (intake's user sub-phase gates, implement's tests, the done-gate's
-evidence checks). When the **review gate** is enabled (`reviewGate` in
-`.safeword/config.json` — e.g. autonomous runs where user gates auto-confirm,
-ticket 2VCSZY), every phase advance requires a stamp, or a logged skip reason
-(`… --phase <phase> --skip "<why no independent review is needed>"`).
+The phase-exit review gate is on by default. In `.safeword/config.json`,
+`reviewGate: false` disables it and a list limits it to those phases. Use the
+current phase guide for its review target, stamp, and applicable fallback.
 
 ---
 
@@ -104,20 +102,5 @@ Understand first and size internally (see SAFEWORD.md "Understanding" and "Sizin
 **Artifact-first:** before doing a phase's work, create or verify its artifact — intake → `<namespace-root>/tickets/{ID}-{slug}/ticket.md`; define-behavior → the feature source at `features/<slug>.feature` (or the configured `paths.features` directory) plus the R/G/R ledger at `<namespace-root>/tickets/{ID}-{slug}/test-definitions.md`. Then execute the phase using its phase file, and update `phase:` on transition.
 
 ---
-
-## Phase Files
-
-Load the appropriate file based on current phase:
-
-| Phase                 | File                                             |
-| --------------------- | ------------------------------------------------ |
-| `intake`              | [DISCOVERY.md](DISCOVERY.md)                     |
-| `define-behavior`     | [SCENARIOS.md](SCENARIOS.md)                     |
-| `scenario-gate`       | [SCENARIOS.md](SCENARIOS.md)                     |
-| `plan-implementation` | [PLAN_IMPLEMENTATION.md](PLAN_IMPLEMENTATION.md) |
-| `plan-execution`      | [PLAN_EXECUTION.md](PLAN_EXECUTION.md)           |
-| `implement`           | [TDD.md](TDD.md)                                 |
-| `verify`              | [VERIFY.md](VERIFY.md)                           |
-| `done`                | [DONE.md](DONE.md)                               |
 
 For splitting large features, see [SPLITTING.md](SPLITTING.md).
