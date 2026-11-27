@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { parse, stringify } from 'yaml';
 
 import { validatedResourceRevision } from '../../src/codex-plugin/resource-revision.js';
+import { VERSION } from '../../src/version.js';
 import { createContractRepoFixture } from '../helpers/contract-repo-fixture.js';
 
 const fixtures: string[] = [];
@@ -94,7 +95,7 @@ describe('canonical skill invocation settings reach delivery', () => {
         run(directory, [
           'packages/cli/scripts/generate-codex-plugin.ts',
           '--version',
-          '1.2.0',
+          VERSION,
           '--output',
           output,
           ...(delivery === 'portable-core' ? ['--portable-core'] : []),
