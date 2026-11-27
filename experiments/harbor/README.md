@@ -286,14 +286,20 @@ SAFEWORD_EVAL_TASK=extractor-trace-empty ./compare.sh checkout
 ```
 
 The preparation script also accepts a path to a local BDD Extractor clone
-containing the frozen revision. The corrected verifier lives alongside
-the task and stays outside the agent's workspace while the agent works. It
-accepts equivalent empty-result diagnostics and requires successful completion
-when matches exist despite a partial failure. This grader uses
-`safeword-extractor-trace-empty-v2`. Run `./calibrate-graders.sh` after
-preparing the trace snapshot to check the reservation and trace verifiers
-against known-good and broken implementations before running models. See the [trace scorecard](extractor-trace-empty/scorecard.md)
-for the original run and the corrected replay.
+containing the frozen revision. The v3 verifier runs the real `trace` CLI with a deterministic matcher in four cases:
+compared with no matches, no overlapping areas, a match, and a match alongside an
+area failure. It checks exit status, the empty-result explanation and the written
+report. The remaining historical regression tests also have to pass.
+
+Harbor scores the **final checkout**. In `trial-report.json`, `trace_delivery`
+shows the four results and the separate CLI replay for commit hashes mentioned
+in the final author message. A missing Git object is recorded as unresolved.
+A pending entry means supplemental replay did not finish. Commit results never
+replace the checkout score. Raw results are in `verifier/trace-delivery.json`.
+Use dataset `safeword-extractor-trace-empty-v3` for new comparisons. Run
+`./calibrate-graders.sh` after preparing the snapshot to check the grader
+against known-good and broken implementations. The [trace scorecard](extractor-trace-empty/scorecard.md)
+documents earlier versions and their results.
 
 ### Debug guidance decision
 
@@ -309,6 +315,8 @@ Historical scorecards refer to the original operator’s local `jobs/` archive.
 A fresh run creates new evidence under its own job directory.
 
 ## Manual baseline suite
+
+The [merged feature and bug comparison](merged-feature-bug-scorecard.md) records three attempts per arm, including a CLI replay that exposed two different reasons for a zero reward.
 
 Run `./prepare-extractor.sh` and `./prepare-extractor-trace.sh` to prepare the
 two historical fixtures. Build the synthetic base image as shown above.
