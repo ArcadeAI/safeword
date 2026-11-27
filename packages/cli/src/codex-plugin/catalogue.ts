@@ -199,6 +199,7 @@ export function adaptCodexWorkflowInvocations(
 //
 // `{cli}` in a replacement is filled with the host's packaged CLI command.
 const SCRIPT_REWRITES: readonly { readonly invocation: string; readonly replacement: string }[] = [
+  { invocation: '`safeword ticket new ', replacement: '`{cli} ticket new ' },
   // Prefix swap: `review run …` and its own arguments follow unchanged.
   //
   // The rewrite carries the one thing the wrapper did that the bare subcommand

@@ -90,7 +90,7 @@ Rule, design choice, or proof.
 
 ## Full Product Plan
 
-Use the `spec.md` that `safeword ticket new` scaffolds from `spec-template.md`.
+For a new feature, run `safeword ticket new <slug> --type feature` and fill in its generated `spec.md`.
 When repairing a hand-written plan, read `spec-template.md` in the active
 Safeword plugin's templates directory or the project's Safeword templates
 directory. Keep the five template sections and no others. Preserve the Product Bet field labels and fill
