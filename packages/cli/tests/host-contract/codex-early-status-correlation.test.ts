@@ -299,3 +299,29 @@ it('keeps the early form unavailable for explicit-ID status', async () => {
     'HOST_CONTRACT_PROOF_UNAVAILABLE',
   );
 }, 20_000);
+
+it('binds the exported runtime and literal project of the tested review chain', async () => {
+  const f = await fixture();
+  const runtime = path.join(f.locations.installed, 'runtime/cli.js');
+  const command = `SAFEWORD_PLUGIN_RUNTIME='${runtime}'; export SAFEWORD_PLUGIN_RUNTIME; cd ${f.locations.project} && node --version && npm test && SAFEWORD_REVIEW_PROGRESS=1 bun "$SAFEWORD_PLUGIN_RUNTIME" review run quality-review --agent-handoff --json -- clamp.js clamp.test.js`;
+  setCommand(f, command);
+  expect(authenticatedWiringReview(f.locations, f.before, f.turn).callId).toBe('control');
+  for (const wrong of [
+    command.replace(' && npm test &&', ' ; npm test &&'),
+    command.replace(' && node --version', '/other && node --version'),
+  ]) {
+    setCommand(f, wrong);
+    expect(() => authenticatedWiringReview(f.locations, f.before, f.turn)).toThrow(
+      'authenticated current review evidence',
+    );
+  }
+  setCommand(f, command);
+  const event = f.turn.events[0]?.item;
+  assert.ok(event?.aggregated_output);
+  const foreign = JSON.parse(event.aggregated_output);
+  foreign.data.review_id = 'foreign-review';
+  event.aggregated_output = JSON.stringify(foreign);
+  expect(() => authenticatedWiringReview(f.locations, f.before, f.turn)).toThrow(
+    'authenticated current review evidence',
+  );
+}, 20_000);

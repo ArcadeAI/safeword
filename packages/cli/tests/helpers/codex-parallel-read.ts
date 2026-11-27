@@ -4,6 +4,43 @@ import ts from 'typescript';
 
 const unavailable = 'HOST_CONTRACT_PROOF_UNAVAILABLE: unsupported parallel exec encoding';
 
+/** Match the two observed literal requests to their own fields in the single host print. */
+export function pairedExecOutput(input: string, command: string, raw: unknown): string | undefined {
+  const [first, second, print, ...rest] = input.trim().split('\n');
+  if (print !== 'text(JSON.stringify({a:a.output,b:b.output}));' || rest.length > 0) return;
+  const requests = [first, second].map((line, index) => {
+    const prefix = `const ${index === 0 ? 'a' : 'b'} = await tools.exec_command(`;
+    assert.ok(line && line.startsWith(prefix) && line.endsWith(');'), unavailable);
+    const literal = line.slice(prefix.length, -2);
+    const request = JSON.parse(literal);
+    assert.ok(typeof request?.cmd === 'string' && JSON.stringify(request) === literal, unavailable);
+    return request.cmd as string;
+  });
+  assert.notEqual(requests[0], requests[1], unavailable);
+  const fields = pairedFields(raw);
+  if (requests[0] === command) return fields.a;
+  return requests[1] === command ? fields.b : '';
+}
+
+function pairedFields(raw: unknown): { a: string; b: string } {
+  assert.ok(Array.isArray(raw) && raw.length === 2, unavailable);
+  const [header, payload] = raw;
+  assert.ok(
+    header?.type === 'input_text' &&
+      /^Script completed\nWall time [\d.]+ seconds\nOutput:\n$/u.test(header.text),
+    unavailable,
+  );
+  assert.ok(payload?.type === 'input_text' && typeof payload.text === 'string', unavailable);
+  const fields = JSON.parse(payload.text);
+  assert.ok(
+    typeof fields?.a === 'string' &&
+      typeof fields.b === 'string' &&
+      JSON.stringify({ a: fields.a, b: fields.b }) === payload.text,
+    unavailable,
+  );
+  return fields;
+}
+
 /** Workdir provenance for one literal direct request, never inherited shell context.
  * Reuse the bounded producer/emitter AST owner; parallel metadata remains unsupported.
  */
