@@ -76,21 +76,23 @@ export const workflowReviewSources = [
   'packages/cli/templates/hooks/run-review.ts',
 ];
 
+const headlessPropagationReviewSources = [
+  'packages/cli/tests/helpers/headless-codex-propagation.ts',
+  'packages/cli/scripts/lib/resource-propagation-run.ts',
+  'packages/cli/scripts/lib/resource-propagation.ts',
+  'packages/cli/scripts/lib/propagation-policy-phases.ts',
+  'packages/cli/scripts/lib/propagation-policy-grade.ts',
+  'packages/cli/scripts/lib/propagation-settings.ts',
+  'packages/cli/scripts/lib/headless-completion-controls.ts',
+  'packages/cli/scripts/run-host-contract-proof.ts',
+  'packages/cli/scripts/generated-tree-differences.ts',
+  'packages/cli/tests/helpers/propagation-source.ts',
+  'packages/cli/tests/fixtures/host-contract/native-runtime-observer.mjs',
+];
+
 export function workflowReviewTargets(selection?: WorkflowSelection): string[] {
   return selection?.caseId === 'headless-propagation'
-    ? [
-        ...workflowReviewSources,
-        'packages/cli/tests/helpers/headless-codex-propagation.ts',
-        'packages/cli/scripts/lib/resource-propagation-run.ts',
-        'packages/cli/scripts/lib/resource-propagation.ts',
-        'packages/cli/scripts/lib/propagation-policy-phases.ts',
-        'packages/cli/scripts/lib/propagation-policy-grade.ts',
-        'packages/cli/scripts/lib/propagation-settings.ts',
-        'packages/cli/scripts/run-host-contract-proof.ts',
-        'packages/cli/scripts/generated-tree-differences.ts',
-        'packages/cli/tests/helpers/propagation-source.ts',
-        'packages/cli/tests/fixtures/host-contract/native-runtime-observer.mjs',
-      ]
+    ? [...workflowReviewSources, ...headlessPropagationReviewSources]
     : workflowReviewSources;
 }
 
@@ -185,15 +187,21 @@ export function workflowReviewGroups(
   const first = pair.stages[0];
   assert.ok(first, unavailable);
   const staged = (file: string) => path.join(first.source, 'packages/cli', file);
+  const propagationSources = new Set(
+    headlessPropagationReviewSources.map(file => path.join(first.source, file)),
+  );
   return [
     {
       role: 'code',
-      targets: pair.targets,
+      targets: pair.targets.filter(file => !propagationSources.has(file)),
       context,
     },
     {
       role: 'raw-deltas',
-      targets: pair.context.filter(file => !context.includes(file)),
+      targets: [
+        ...pair.context.filter(file => !context.includes(file)),
+        ...pair.targets.filter(file => propagationSources.has(file)),
+      ],
       context: [...context, ...workflowReviewCallers.map(staged)],
     },
   ] as const;
