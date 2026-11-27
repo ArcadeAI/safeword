@@ -26,6 +26,7 @@ import {
 import type { observeOpenCodeV2Removal } from '../opencode/v2-profile.js';
 import { CURSOR_HOOKS, EDIT_TOOLS, SETTINGS_HOOKS } from '../templates/config.js';
 import hostReleases from './host-releases.json' with { type: 'json' };
+import { claudeRetainsProject, codexRetainsProject } from './sibling-registration.js';
 
 /** Current supported host releases; SDK and development toolchain pins are separate. */
 export const CURRENT_HOST_RELEASES = hostReleases;
@@ -620,6 +621,8 @@ const claude = defineIntegrationAdapter({
   profile: {
     available: true,
     async observePrecondition(context) {
+      if (context.operation === 'uninstall' && !context.agents.includes('claude'))
+        return claudeRetainsProject(context.cwd, context.environment);
       const { claudeInstallRequiresMutation, observeClaudeProfile } =
         await import('../claude-plugin/profile.js');
       return {
@@ -828,6 +831,8 @@ const codex = defineIntegrationAdapter({
   profile: {
     available: true,
     async observePrecondition(context) {
+      if (context.operation === 'uninstall' && !context.agents.includes('codex'))
+        return codexRetainsProject(context.environment);
       const { codexInstallRequiresMutation, observeCodexMigrationResult } =
         await import('../codex-plugin/operations.js');
       const observation = observeCodexMigrationResult(context.cwd);
@@ -1044,7 +1049,8 @@ const opencode = defineIntegrationAdapter({
       if (context.operation !== 'uninstall') return observeOpenCode(context);
       const root = await resolveOpenCodeRoot(context);
       const { observeOpenCodeV2Removal } = await import('../opencode/v2-profile.js');
-      return root && observeOpenCodeV2Removal(root, context.cwd);
+      const removal = root ? observeOpenCodeV2Removal(root, context.cwd) : undefined;
+      return context.agents.includes('opencode') ? removal : removal?.enrollment !== undefined;
     },
     async preflight(context) {
       return (await resolveOpenCodeRoot(context)) === undefined

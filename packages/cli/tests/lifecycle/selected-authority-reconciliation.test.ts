@@ -11,6 +11,7 @@ import { installOpenCodeProfile } from '../../src/opencode/profile.js';
 import { selectedOpenCodeV2Enrollment } from '../../src/opencode/v2-profile.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
 
+const probes = vi.hoisted(() => ({ claude: vi.fn(), codex: vi.fn() }));
 const profileState = vi.hoisted(() => ({ codex: false, claude: false, opencode: false }));
 
 vi.mock('../../src/opencode/profile.js', async importOriginal => ({
@@ -25,7 +26,10 @@ vi.mock('../../src/opencode/profile.js', async importOriginal => ({
 vi.mock('../../src/opencode/conformance.js', () => ({ observeOpenCodeVersion: () => {} }));
 
 vi.mock('../../src/claude-plugin/profile.js', () => ({
-  observeClaudeProfile: () => ({ plugin: profileState.claude ? { installed: true } : undefined }),
+  observeClaudeProfile: () => {
+    probes.claude();
+    return { plugin: profileState.claude ? { installed: true } : undefined };
+  },
   claudeInstallRequiresMutation: () => false,
   uninstallClaudePlugin: () => {
     const changed = profileState.claude;
@@ -39,7 +43,10 @@ vi.mock('../../src/claude-plugin/status.js', () => ({
 }));
 
 vi.mock('../../src/codex-plugin/operations.js', () => ({
-  observeCodexMigrationResult: () => ({ plugin: { installed: profileState.codex } }),
+  observeCodexMigrationResult: () => {
+    probes.codex();
+    return { plugin: { installed: profileState.codex } };
+  },
   codexInstallRequiresMutation: () => !profileState.codex,
   observeCodexMigration: () =>
     createResult({ state: profileState.codex ? 'healthy' : 'action_required' }),
@@ -92,6 +99,9 @@ function projectBytes(cwd: string, relativePath: string): string {
 // pushed single cases past 60 s on CI (#6357).
 beforeEach(() => {
   vi.stubEnv('SAFEWORD_SKIP_INSTALL', '1');
+  vi.stubEnv('CODEX_HOME', project());
+  vi.stubEnv('OPENCODE_CONFIG_DIR', project());
+  vi.stubEnv('CLAUDE_CONFIG_DIR', project());
 });
 
 afterEach(() => {
@@ -167,22 +177,51 @@ describe('selected authority lifecycle reconciliation', () => {
       expect(installed.errors).toEqual([]);
       expect(existsSync(nodePath.join(cwd, '.cursor'))).toBe(removed === 'cursor');
       const profile = project();
-      if (remaining === 'opencode') {
-        vi.stubEnv('OPENCODE_CONFIG_DIR', profile);
-        const candidate = project();
-        mkdirSync(nodePath.join(candidate, 'runtime'));
-        writeFileSync(nodePath.join(candidate, 'index.js'), 'fixture entry');
-        writeFileSync(nodePath.join(candidate, 'runtime/cli.js'), 'fixture runtime');
-        expect(
-          installOpenCodeProfile(profile, {
-            nativeV2: {
-              projectDirectory: cwd,
-              packageDirectory: candidate,
-              epoch: 'fixture',
-            },
-          }).state,
-        ).toBe('changed');
+      switch (remaining) {
+        case 'opencode': {
+          vi.stubEnv('OPENCODE_CONFIG_DIR', profile);
+          const candidate = project();
+          mkdirSync(nodePath.join(candidate, 'runtime'));
+          writeFileSync(nodePath.join(candidate, 'index.js'), 'fixture entry');
+          writeFileSync(nodePath.join(candidate, 'runtime/cli.js'), 'fixture runtime');
+          expect(
+            installOpenCodeProfile(profile, {
+              nativeV2: {
+                projectDirectory: cwd,
+                packageDirectory: candidate,
+                epoch: 'fixture',
+              },
+            }).state,
+          ).toBe('changed');
+
+          break;
+        }
+        case 'claude': {
+          vi.stubEnv('CLAUDE_CONFIG_DIR', profile);
+          const plugins = nodePath.join(profile, 'plugins');
+          mkdirSync(plugins);
+          writeFileSync(
+            nodePath.join(plugins, 'installed_plugins.json'),
+            JSON.stringify({
+              version: 2,
+              plugins: { 'safeword@safeword': [{ scope: 'project', projectPath: cwd }] },
+            }),
+          );
+
+          break;
+        }
+        case 'codex': {
+          vi.stubEnv('CODEX_HOME', profile);
+          writeFileSync(
+            nodePath.join(profile, 'config.toml'),
+            '[plugins."safeword@safeword"]\nenabled = true\n',
+          );
+
+          break;
+        }
+        // No default
       }
+      vi.clearAllMocks();
       const preserved = ['.safeword/enrolled', '.safeword/config.json'];
       const before = new Map(preserved.map(path => [path, projectBytes(cwd, path)]));
 
@@ -191,6 +230,8 @@ describe('selected authority lifecycle reconciliation', () => {
       const result = await uninstallLifecycle(invocation(cwd, removed, { yes: true, plan }));
 
       expect(result.errors).toEqual([]);
+      if (removed !== 'claude') expect(probes.claude).not.toHaveBeenCalled();
+      if (removed !== 'codex') expect(probes.codex).not.toHaveBeenCalled();
       if (removed !== 'cursor') expect(profileState[removed]).toBe(false);
       if (remaining === 'opencode')
         expect(selectedOpenCodeV2Enrollment(profile, cwd)).toBeDefined();
@@ -200,6 +241,43 @@ describe('selected authority lifecycle reconciliation', () => {
       expect(existsSync(nodePath.join(cwd, '.cursor/commands/audit.md'))).toBe(false);
     },
   );
+
+  it('invalidates a preview when Claude starts sharing the Codex project before removal', async () => {
+    const cwd = project();
+    await installLifecycle(invocation(cwd, 'codex'), adapters);
+    const plugins = nodePath.join(project(), 'plugins');
+    vi.stubEnv('CLAUDE_CONFIG_DIR', nodePath.dirname(plugins));
+    mkdirSync(plugins);
+    const registry = nodePath.join(plugins, 'installed_plugins.json');
+    const register = (projectPath: string) => {
+      writeFileSync(
+        registry,
+        JSON.stringify({
+          version: 2,
+          plugins: { 'safeword@safeword': [{ scope: 'project', projectPath }] },
+        }),
+      );
+    };
+    register(project());
+    const preview = await uninstallLifecycle(invocation(cwd, 'codex'));
+    const plan = (preview.data as { readonly plan: { readonly id: string } }).plan.id;
+    register(cwd);
+    const result = await uninstallLifecycle(invocation(cwd, 'codex', { yes: true, plan }));
+    expect(result.findings.map(finding => finding.code)).toContain('PLAN_STALE');
+    expect(existsSync(nodePath.join(cwd, '.safeword/enrolled'))).toBe(true);
+  });
+
+  it('removes shared enrollment when no sibling owns the project', async () => {
+    const cwd = project();
+    await installLifecycle(invocation(cwd, 'codex'), adapters);
+    const marker = nodePath.join(cwd, '.safeword/enrolled');
+    expect(existsSync(marker)).toBe(true);
+    const preview = await uninstallLifecycle(invocation(cwd, 'codex'));
+    const plan = (preview.data as { readonly plan: { readonly id: string } }).plan.id;
+    const result = await uninstallLifecycle(invocation(cwd, 'codex', { yes: true, plan }));
+    expect(result.errors).toEqual([]);
+    expect(existsSync(marker)).toBe(false);
+  });
 
   it('uninstalls the Codex profile without changing Cursor or project content', async () => {
     const cwd = project();
