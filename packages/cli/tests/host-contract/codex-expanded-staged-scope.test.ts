@@ -4,6 +4,7 @@ import {
   cpSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -148,14 +149,40 @@ it('refuses an old nine-target review after valid authenticated capture', async 
 
 it('accepts both fully captured current expanded roles', async () => {
   const [code, raw] = workflowReviewGroups(state.pair);
-  expect(code.targets).toHaveLength(44);
   expect(code.context).toHaveLength(6);
-  expect(raw.targets).toHaveLength(21);
   expect(raw.context).toHaveLength(9);
   const first = state.pair.stages[0];
   expect(first).toBeDefined();
   if (!first) throw new Error('missing staged fixture');
   const staged = (file: string) => path.join(first.source, 'packages/cli', file);
+  const helperDirectory = staged('tests/helpers');
+  const expectedCode = [
+    ...readdirSync(helperDirectory)
+      .filter(name => /^codex-.*\.(?:ts|py)$/u.test(name))
+      .map(name => path.join(helperDirectory, name)),
+    ...[
+      'scripts/generate-codex-plugin.ts',
+      'scripts/check-codex-internal-workflows.ts',
+      'tests/fixtures/host-contract/codex-workflow-runtime.steps.ts',
+      'tests/fixtures/host-contract/codex-workflow-closure.mjs',
+      'tests/fixtures/host-contract/native-contract-cases.ts',
+      'tests/helpers/contract-repo-fixture.ts',
+      'src/cli.ts',
+      'src/review/command.ts',
+      'src/review/coordinator.ts',
+      'src/review/packet.ts',
+      'src/review/job.ts',
+      'src/review/planning-context-identity.ts',
+      'templates/hooks/lib/read-receipt.ts',
+      'templates/hooks/lib/safeword-cli.ts',
+      'templates/hooks/run-review.ts',
+    ].map(staged),
+    path.join(first.source, 'steps/consistent-host-contract.steps.ts'),
+    path.join(first.source, 'steps/world.ts'),
+  ];
+  expect(code.targets.toSorted((left, right) => left.localeCompare(right))).toEqual(
+    expectedCode.toSorted((left, right) => left.localeCompare(right)),
+  );
   const files = [
     'tests/fixtures/host-contract/codex-node-control.mjs',
     'tests/fixtures/host-contract/build-isolated-grader.mjs',
@@ -172,7 +199,14 @@ it('accepts both fully captured current expanded roles', async () => {
     'tests/helpers/propagation-policy-case.ts',
     'tests/fixtures/host-contract/codex-stop-observer.mjs',
   ];
-  for (const file of files) expect(raw.targets).toContain(staged(file));
+  const index = JSON.parse(
+    readFileSync(path.join(state.pair.project, 'canonical-input-delta.json'), 'utf8'),
+  ) as { inputs: Record<string, string> };
+  expect(raw.targets.toSorted((left, right) => left.localeCompare(right))).toEqual(
+    [...Object.values(index.inputs), ...files.map(staged)].toSorted((left, right) =>
+      left.localeCompare(right),
+    ),
+  );
   for (const file of [
     'src/review/coordinator.ts',
     'tests/helpers/codex-wiring-grade.ts',

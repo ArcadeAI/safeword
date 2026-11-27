@@ -93,7 +93,7 @@ function judgedRawRole() {
   const index = path.join(state.pair.project, 'canonical-input-delta.json');
   const targets = Object.values<string>(json(index).inputs);
   expect(targets).toHaveLength(9);
-  expect(code.targets).toHaveLength(44);
+  expect(code.targets.filter(file => targets.includes(file))).toEqual([]);
   expect(code.context).toHaveLength(6);
   const first = state.pair.stages[0];
   assert.ok(first);

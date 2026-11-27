@@ -58,6 +58,7 @@ it('accounts actual Codex outer calls while retaining incomplete semantic and na
     ['legacyCodexEventIsViable', 'host_policy'],
     ['normalizeEvent', 'transport'],
     ['packagedAdditionalContext', 'transport'],
+    ['packagedSafewordHandbookPath', 'host_policy'],
     ['packagedWorkflowContext', 'host_policy'],
     ['parseCodexHookInput', 'transport'],
     ['postToolLintInputs', 'transport'],
@@ -68,6 +69,7 @@ it('accounts actual Codex outer calls while retaining incomplete semantic and na
     ['requireNativeProject', 'host_policy'],
     ['resolveCodexProjectDirectory', 'host_policy'],
     ['runPackagedHook', 'shared_delegate'],
+    ['usablePackagedHandbookPath', 'host_policy'],
   ]);
   expect(stop.calls).toContainEqual(
     expect.objectContaining({
