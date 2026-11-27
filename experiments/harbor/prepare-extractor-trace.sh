@@ -18,18 +18,10 @@ source = fixture.read_bytes()
 if sha256(source).hexdigest() != "504620f40b27f9708ea51a315a5e3034c02d60d655d6dcf08fe8262d9c2c1d3b":
     raise SystemExit("Trace verifier upstream source changed")
 lines = source.decode().splitlines()
-lines[323:324] = [
-    '      nothingCompared,',
-]
-lines[317:318] = [
-    '      zeroMatches,',
-]
 lines[231:234] = [
     '  return readReport();',
 ]
-lines[229:230] = [
-    '    if (!zeroMatches.test(message) && !nothingCompared.test(message)) throw error;',
-    '',
+lines[228:230] = [
     '    const report = readReport();',
     '    if (report.matched.length > 0 || report.errors.length > 0) throw error;',
     '    return report;',
@@ -41,13 +33,18 @@ lines[225:225] = [
     '    ) as TraceReport;',
     '',
 ]
-lines[216:216] = [
-    '// The CLI contract specifies the reason, without requiring the historical wording.',
-    'const zeroMatches = /nothing matched|no matches|zero matches|0 matched/i;',
-    'const nothingCompared = /nothing (?:was compared|to compare)|no (?:areas? (?:has|have|had|with) both|overlapping areas)|no areas were compared/i;',
-    '',
-]
+# The public CLI probe owns these two cases. Keep all other regression checks.
+lines.remove("  .then(testZeroMatchesIsLoud)")
 fixture.write_text("\n".join(lines) + "\n")
+
+# Reuse the frozen input formats without publishing any private fixture data.
+helpers = source.decode().split("function makeTraceConfig(", 1)[1].split("/**", 1)[0]
+fixture.with_name("inputs.ts").write_text(
+    "function makeTraceConfig(" + helpers
+    + "console.log(JSON.stringify({config: makeTraceConfig('.').config, intent: baseIntent, signature: baseSignature}));\n"
+)
 PYTHON
+"$PWD/../../scripts/dev" bun "$scratch/inputs.ts" > "$scratch/trace-inputs.json"
 ./prepare-extractor-snapshot.sh "$repo" 893a2376ece7114d86a994665157bc8096acf92a extractor-trace-empty
-mv "$scratch/fixture-trace.ts" extractor-trace-empty/tests/fixture-trace.ts
+mv "$scratch/fixture-trace.ts" extractor-trace-empty/tests/trace-regressions.ts
+mv "$scratch/trace-inputs.json" extractor-trace-empty/tests/trace-inputs.json

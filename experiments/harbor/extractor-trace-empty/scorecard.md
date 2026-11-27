@@ -33,3 +33,18 @@ All six candidates made the compared-but-no-matches case fail and kept the regre
 - [Corrected verifier replay logs](../jobs/extractor-trace-regrade-20261122)
 - [Typo checkout](../jobs/obvious-label-checkout-ready-deps-72165cde6-20261122T004722Z/result.json)
 - [Typo variant](../jobs/obvious-label-checkout-ready-deps-routing-72165cde6-20261122T004722Z/result.json)
+
+## Public CLI verifier replay, November 27, 2026
+
+We replayed the six saved extractor checkouts from the [matched feature and bug comparison](https://github.com/ArcadeAI/safeword/pull/8538) with the v3 Harbor verifier. The author model was Claude Haiku 5.5. Each checkout ran offline against the actual CLI and the remaining historical regression tests.
+
+| Arm      | Trial     | v2 reward | v3 checkout reward | CLI cases passed |
+| -------- | --------- | --------: | -----------------: | ---------------: |
+| Baseline | `R7vooTP` |         1 |                  1 |              4/4 |
+| Baseline | `RGzSPho` |         1 |                  1 |              4/4 |
+| Baseline | `zQv9sKk` |         1 |                  1 |              4/4 |
+| Safeword | `bzayuYD` |         1 |                  1 |              4/4 |
+| Safeword | `Nj7dj9n` |         0 |                  1 |              4/4 |
+| Safeword | `Mq9y9S7` |         0 |                  0 |              2/4 |
+
+All six passed the remaining historical regression checks. `Nj7dj9n` handled the failure at the command boundary. `Mq9y9S7` left the starter checked out. Its reconstructed commit `0d1088ba3e12b7a14ceded11ea38043f2ef38a54` passed 4/4 in a separate worktree. Other historical commit objects were unavailable in the saved patches. No new author runs were needed.

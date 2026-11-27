@@ -175,8 +175,10 @@ def report(trial, relay):
             if not history or history[-1] != phase.strip():
                 history.append(phase.strip())
     outcome = json_file(trial / "result.json")
+    delivery = json_file(trial / "verifier" / "trace-delivery.json")
     return {
         "trial": trial.name,
+        **({"trace_delivery": delivery} if delivery else {}),
         "model_spend": model_spend(outcome, trial / "agent" / METER_LOG),
         "verdict": outcome.get("verifier_result"),
         "runner_error": outcome.get("exception_info"),

@@ -1,7 +1,8 @@
 version = "1.0"
 
 [verifier]
-timeout_sec = 120
+# Preserve the primary verifier allowance plus the supplemental commit replay.
+timeout_sec = 150
 
 [environment]
 build_timeout_sec = 600
