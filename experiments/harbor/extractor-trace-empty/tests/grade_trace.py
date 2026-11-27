@@ -12,8 +12,8 @@ APP = Path("/app")
 TESTS = Path(__file__).resolve().parent
 LOG = Path("/logs/verifier")
 EMPTY = {
-    "compared-empty": r"nothing matched|no match(?:es)?\b|zero matches|0 match(?:es|ed)",
-    "no-overlap": r"nothing (?:was compared|to compare)|no (?:overlapping areas|areas? (?:overlap|with|has|have|had|were compared))",
+    "compared-empty": r"nothing matched|no match(?:es)?\b|zero matches|\b0 match(?:es|ed)",
+    "no-overlap": r"nothing (?:was compared|to compare)|no (?:overlapping areas|areas? (?:overlap|(?:with|has|have|had) both|to compare|were compared))",
 }
 
 
@@ -80,6 +80,11 @@ def run_case(repo, directory, mode, template):
             and not matched
             and not errors
             and bool(reason)
+            # Both cases can say "no matches". Only one can say no comparison happened.
+            and (
+                mode != "compared-empty"
+                or not re.search(EMPTY["no-overlap"], diagnostic, re.IGNORECASE)
+            )
         )
     else:
         passed = (
@@ -131,7 +136,7 @@ def mentioned_commits():
                     final = event.get("result")
                 if name == "codex.txt" and event.get("type") == "item.completed":
                     item = event.get("item") or {}
-                    if item.get("type") == "agent_message":
+                    if isinstance(item, dict) and item.get("type") == "agent_message":
                         final = item.get("text")
         break
     return dict.fromkeys(
@@ -207,15 +212,17 @@ def grade_checkout(regressions):
                 "regressions_passed": regressions,
                 "reward": reward,
             },
-            "mentioned_commits": {
-                sha: {"status": "pending"} for sha in mentioned_commits()
-            },
+            "mentioned_commits": {},
         }
     )
 
 
 def grade_mentions():
     delivery = json.loads((LOG / "trace-delivery.json").read_text())
+    delivery["mentioned_commits"] = {
+        sha: {"status": "pending"} for sha in mentioned_commits()
+    }
+    write_delivery(delivery)
     for short in delivery["mentioned_commits"]:
         try:
             delivery["mentioned_commits"][short] = replay_commit(short)

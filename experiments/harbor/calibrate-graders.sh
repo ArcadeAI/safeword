@@ -18,6 +18,13 @@ assert "const errorEntries:" in good
 compared = "nothing matched in ${bothSided.length} compared area(s)"
 assert good.count(compared) == 1
 (scratch / "trace-wrong-reason.ts").write_text(good.replace(compared, "nothing was compared"))
+(scratch / "trace-combined-reason.ts").write_text(
+    good.replace("throw new Error(nothingMatched(corpus, bothSided, errorEntries, paths.json));",
+                 "throw new Error('nothing matched; no areas were compared');")
+)
+(scratch / "trace-skips-no-overlap.ts").write_text(
+    good.replace(anchor, "  if (report.matched.length === 0 && bothSided.length > 0) {")
+)
 for label, message in [
     ("trace-partial-outage", "every area failed"),
     ("trace-partial-no-matches", "no matches"),
@@ -77,7 +84,8 @@ check() {
   case "$label" in
     reservation-starter) diagnostic='Reservation handling is not implemented' ;;
     reservation-wrong-retry | reservation-last-unit) diagnostic='AssertionError' ;;
-    trace-starter | trace-wrong-reason) diagnostic='FAIL compared-empty' ;;
+    trace-starter | trace-wrong-reason | trace-combined-reason) diagnostic='FAIL compared-empty' ;;
+    trace-skips-no-overlap) diagnostic='FAIL no-overlap' ;;
     trace-partial-*) diagnostic='FAIL partial-match' ;;
     *) diagnostic= ;;
   esac
@@ -98,7 +106,7 @@ for label in reservation-good reservation-wrong-retry reservation-last-unit; do
 done
 
 check extractor-trace-empty safeword-harbor-calibration-trace 0 trace-starter
-for label in trace-good trace-wrong-reason trace-partial-outage trace-partial-no-matches; do
+for label in trace-good trace-wrong-reason trace-combined-reason trace-skips-no-overlap trace-partial-outage trace-partial-no-matches; do
   expected=0
   if [ "$label" = trace-good ]; then expected=1; fi
   check extractor-trace-empty safeword-harbor-calibration-trace "$expected" "$label" \
