@@ -8,7 +8,7 @@ From `experiments/harbor`, run the two installed plugins on an existing one-file
 
 ```sh
 SAFEWORD_EVAL_DECISIONS=1 SAFEWORD_EVAL_DECISION_MODEL=claude-sonnet-5-5 \
-uv run --locked python -m handbook.intake --base "$BASE_REV" --candidate "$CANDIDATE_REV" \
+  uv run --locked python -m handbook.intake --base "$BASE_REV" --candidate "$CANDIDATE_REV" \
   --comparison "$COMPARISON" --out jobs/handbook-intake
 ```
 
