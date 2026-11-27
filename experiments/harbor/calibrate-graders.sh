@@ -134,5 +134,8 @@ data = json.loads(Path("/logs/verifier/trace-delivery.json").read_text())
 commit = data["mentioned_commits"][sys.argv[1]]
 assert commit["status"] == "graded" and all(case["passed"] for case in commit["cases"].values())
 PY
-  ' > "$scratch/handoff.log" 2>&1 || { cat "$scratch/handoff.log" >&2; exit 1; }
+  ' > "$scratch/handoff.log" 2>&1 || {
+  cat "$scratch/handoff.log" >&2
+  exit 1
+}
 printf 'trace-handoff: checkout 0, named commit passes\n'
