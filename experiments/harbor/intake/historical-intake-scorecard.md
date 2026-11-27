@@ -8,7 +8,7 @@ Both authors passed the library feature, the overlap bug and the banner patch. O
 
 On the two-hold queue, both hosts used the supplied overflow rule without asking. When the rule was withheld, each asked once and both implemented the operator’s decision to evict the oldest hold. Claude first wrote a provisional rejection rule, then replaced it. Codex’s first production edit followed the reply. A final score of 1 in all four trials conceals that difference.
 
-On the temperature CSV CLI, both passed all three hidden checks: conversion, skipping invalid rows, and stopping on invalid input. The first-scenario records show how they got there.
+On the temperature CSV CLI, both passed all three hidden checks: conversion, skipping invalid rows, and stopping on invalid input. The [first-scenario records and control receipts](historical-control-receipts.json) show how they got there.
 
 | Author | Observed ticket phase | Seconds to first scenario | Reviewer starts by then | Estimated author + reviewer spend by then |
 | ------ | --------------------- | ------------------------: | ----------------------: | ----------------------------------------: |
@@ -38,11 +38,11 @@ On a later frozen handbook candidate, both hosts ran three attempts on each of f
 | Claude |         12/12 |                                     6/6 |                         37 |                        $11.21 |
 | Codex  |         12/12 |                                     1/6 |                         10 |                         $3.49 |
 
-Seven trials resumed after clarification. Five plans finished before the operator supplied those decisions. Their approvals establish that the reviewer accepted the plan. The later answer cannot be used as evidence that the author asked. Reviewer usage was incomplete in one Claude reading trial, so its cost subtotal is an estimate. This candidate-only comparison gives no improvement estimate against main.
+Seven of the twelve feature trials asked for clarification. The overnight-shift bug also prompted a question in Claude attempt 2. It is outside the feature denominator. Reviewer usage was incomplete in Claude reading-handout attempt 3, so its cost subtotal is an estimate. This candidate-only comparison gives no improvement estimate against main.
 
 ## Did a regression test survive delivery?
 
-The parking-charge trial checked the delivered test against the finished code and then against the original implementation. A retained test had to pass the first run and fail on a parking assertion in the second. Each cell below represents three scored runs on the same task. The revised handbook explicitly asked for a regression test in the project suite.
+The parking-charge trial checked the delivered test against the finished code and then against the original implementation. A retained test had to pass the first run and fail on a parking assertion in the second. Each cell below represents three scored runs on the same task. The CSV labels the frozen parking candidate `control` and the revised one `repaired`. The revised handbook explicitly asked for a regression test in the project suite.
 
 | Handbook          | Author | Correct patch | Red before edit, green after | Retained regression test |
 | ----------------- | ------ | ------------: | ---------------------------: | -----------------------: |

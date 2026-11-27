@@ -1,0 +1,139 @@
+{
+  "first_scenario": {
+    "claude": {
+      "elapsed_seconds": 368.454150579,
+      "author_estimate_usd": 1.1738554,
+      "reviewer_estimate_usd": 0.33050999999999997,
+      "started_reviewer_processes": 7,
+      "reviewer_usage_complete": true
+    },
+    "codex": {
+      "elapsed_seconds": 115.641681497,
+      "author_estimate_usd": 0.1442676,
+      "reviewer_estimate_usd": 0,
+      "started_reviewer_processes": 0,
+      "reviewer_usage_complete": true
+    }
+  },
+  "draft_verdicts": [
+    {
+      "draft": "complete",
+      "author": "claude",
+      "reviewer": "codex",
+      "model": "gpt-6.2-sol",
+      "verdict": "approved"
+    },
+    {
+      "draft": "complete",
+      "author": "codex",
+      "reviewer": "claude",
+      "model": "claude-opus-5-5",
+      "verdict": "approved"
+    },
+    {
+      "draft": "early",
+      "author": "claude",
+      "reviewer": "codex",
+      "model": "gpt-6.2-sol",
+      "verdict": "changes_requested"
+    },
+    {
+      "draft": "early",
+      "author": "codex",
+      "reviewer": "claude",
+      "model": "claude-opus-5-5",
+      "verdict": "changes_requested"
+    },
+    {
+      "draft": "silent-drop",
+      "author": "claude",
+      "reviewer": "codex",
+      "model": "gpt-6.2-sol",
+      "verdict": "changes_requested"
+    },
+    {
+      "draft": "silent-drop",
+      "author": "codex",
+      "reviewer": "claude",
+      "model": "claude-opus-5-5",
+      "verdict": "changes_requested"
+    }
+  ],
+  "stale_approval": {
+    "claude": {
+      "trial_id": "stale-review__xgzpmEA",
+      "codes": ["REVIEW_STALE"]
+    },
+    "codex": {
+      "trial_id": "stale-review__aTKQ4TX",
+      "codes": ["REVIEW_STALE"]
+    }
+  },
+  "description_only_search": {
+    "training_case": "CSV",
+    "training_outcome": "passed",
+    "training_review_calls": 12,
+    "held_out": [
+      {
+        "trial_id": "workshop-checkin__4ZWFX53",
+        "case": "intake-workshop-checkin",
+        "host": "claude",
+        "grades": {
+          "reward": 0,
+          "intake_gate": 0,
+          "intake_conclusive": 1
+        }
+      },
+      {
+        "trial_id": "library-hold-cli__gBgbLxg",
+        "case": "intake-library-hold-cli",
+        "host": "claude",
+        "grades": {
+          "reward": 0,
+          "intake_gate": 0,
+          "intake_conclusive": 1
+        }
+      },
+      {
+        "trial_id": "workshop-checkin__9E2HWLF",
+        "case": "intake-workshop-checkin",
+        "host": "codex",
+        "grades": {
+          "reward": 0,
+          "intake_gate": 0,
+          "intake_conclusive": 1
+        }
+      },
+      {
+        "trial_id": "library-hold-cli__GPWVqLu",
+        "case": "intake-library-hold-cli",
+        "host": "codex",
+        "grades": {
+          "reward": 0,
+          "intake_gate": 0,
+          "intake_conclusive": 1
+        }
+      },
+      {
+        "trial_id": "default-banner__WY6zfze",
+        "case": "patch-negative",
+        "host": "claude",
+        "grades": {
+          "reward": 1,
+          "functional": 1,
+          "preservation": 1
+        }
+      },
+      {
+        "trial_id": "default-banner__uuPpRTx",
+        "case": "patch-negative",
+        "host": "codex",
+        "grades": {
+          "reward": 1,
+          "functional": 1,
+          "preservation": 1
+        }
+      }
+    ]
+  }
+}
