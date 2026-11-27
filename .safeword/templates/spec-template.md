@@ -38,7 +38,7 @@
 
 ## Surfaces
 
-<!-- List affected project surfaces or give an inline skip reason.
+<!-- List the interfaces the request creates or changes under Affected. If the project list is empty, register the first interface and use its name here. Skip only when the work affects no interface.
 
 Affected:
 - Claude Code
