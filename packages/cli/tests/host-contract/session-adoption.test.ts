@@ -40,7 +40,6 @@ const intended = [
     'bun',
     '',
   ],
-  ['session.author-model', 'session-author-model.ts', 'synchronous', undefined, 'bun', ''],
   ['session.reentry-context', 'session-start-reentry.ts', 'synchronous', undefined, 'bun', ''],
   ['session.compact-context', 'session-compact-context.ts', 'synchronous', 'compact', 'bun', ''],
 ] as const;
@@ -67,7 +66,7 @@ it('adopts actual SessionStart owners with exact delivery, transport, arguments 
   const root = createContractRepoFixture();
   roots.push(root);
   const current = report(root);
-  expect(rows(current), 'SESSION_START_SHARED_FAMILY_ADOPTION_MISSING').toHaveLength(21);
+  expect(rows(current), 'SESSION_START_SHARED_FAMILY_ADOPTION_MISSING').toHaveLength(19);
   for (const [id, owner, execution, matcher, interpreter, suffix] of intended) {
     const adopted = rows(current, id);
     const families =
@@ -110,7 +109,7 @@ it.each([
     "hook.command = hook.command.replace(' --agent=claude', '');",
   ],
   ['condition', 'session.reply-format', "hook.if = 'Bash(never *)';"],
-  ['execution', 'session.author-model', 'hook.async = true;'],
+  ['execution', 'session.lint-advice', 'hook.async = true;'],
   ['rewake', 'session.auto-upgrade', 'delete hook.asyncRewake;'],
   ['bypass', 'session.version-advice', "hook.command = 'true';"],
 ])('rejects actual session %s drift and restores exact adoption', (_name, id, edit) => {

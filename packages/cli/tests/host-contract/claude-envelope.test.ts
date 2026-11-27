@@ -47,7 +47,7 @@ it('accounts exact Claude envelopes without inheriting their child guarantees', 
     ['claude.prompt-envelope', 'UserPromptSubmit'],
     ['claude.setup-envelope', 'Setup'],
   ]);
-  expect(current.data.handler_envelopes?.map(row => row.child_indices.length)).toEqual([10, 3, 0]);
+  expect(current.data.handler_envelopes?.map(row => row.child_indices.length)).toEqual([9, 3, 0]);
   expect(
     current.data.handler_envelopes?.[1]?.child_indices.map(
       index => current.data.handler_inventory[index]?.command,

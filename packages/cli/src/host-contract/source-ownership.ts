@@ -1041,11 +1041,18 @@ function cursorProtocolConditions(file: ts.SourceFile): boolean {
     ts.forEachChild(node, visit);
   };
   visit(file);
-  return [
-    "!existsSync('.safeword')",
-    "input.status !== 'completed'",
-    '(input.loop_count ?? 0) === 0',
-  ].every(value => expressions.has(value));
+  return (
+    expressions.has("!existsSync('.safeword')") &&
+    expressions.has("input.status !== 'completed'") &&
+    file.statements.some(
+      node =>
+        ts.isIfStatement(node) &&
+        node.expression.getText(file) === '(input.loop_count ?? 0) === 0' &&
+        callSignatures(node.thenStatement, file).has(
+          JSON.stringify(['readLastAssistantMessage', 'input.transcript_path']),
+        ),
+    )
+  );
 }
 function cursorEnvelopeTransport(root: string, family: string | undefined): boolean {
   if (family === undefined) return true;

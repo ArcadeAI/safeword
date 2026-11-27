@@ -78,8 +78,8 @@ it.each([
   [
     'loop condition',
     'packages/cli/templates/hooks/cursor/stop.ts',
-    '(input.loop_count ?? 0) === 0',
-    '(input.loop_count ?? 0) === 1',
+    'if ((input.loop_count ?? 0) === 0) {',
+    'if ((input.loop_count ?? 0) === 1) {',
   ],
   [
     'workspace argument',
