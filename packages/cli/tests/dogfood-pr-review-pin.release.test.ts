@@ -12,12 +12,11 @@ const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
 const reviewWorkflows = ['publisher', 'worker'] as const;
 
 describe('PR review template version pins', () => {
-  it('resolves each source template to the installed project version', () => {
-    const installedVersion = readFileSync(
-      nodePath.join(repoRoot, '.safeword/version'),
-      'utf8',
-    ).trim();
-    expect(isSafePackageVersion(installedVersion)).toBe(true);
+  it('resolves each source template to the CLI package version', () => {
+    const { version: packageVersion } = JSON.parse(
+      readFileSync(nodePath.join(repoRoot, 'packages/cli/package.json'), 'utf8'),
+    ) as { version: string };
+    expect(isSafePackageVersion(packageVersion)).toBe(true);
 
     for (const name of reviewWorkflows) {
       const template = readFileSync(
@@ -43,7 +42,7 @@ describe('PR review template version pins', () => {
         ),
       );
       expect(invocations.length).toBeGreaterThan(0);
-      expect(invocations.every(version => version === installedVersion)).toBe(true);
+      expect(invocations.every(version => version === packageVersion)).toBe(true);
       expect(installed).not.toContain('__SAFEWORD_VERSION__');
     }
   });
