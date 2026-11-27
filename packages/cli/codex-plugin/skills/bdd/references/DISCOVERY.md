@@ -90,7 +90,7 @@ Rule, design choice, or proof.
 
 ## Full Product Plan
 
-For a new feature, run `bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.0/runtime/cli.js" ticket new <slug> --type feature` and fill in its generated `spec.md`.
+For a new feature, run `bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/2.0.0/runtime/cli.js" ticket new <slug> --type feature` and fill in its generated `spec.md`.
 When repairing a hand-written plan, read `spec-template.md` in the active
 Safeword plugin's templates directory or the project's Safeword templates
 directory. Keep the five template sections and no others. Preserve the Product Bet field labels and fill
