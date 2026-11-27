@@ -18,11 +18,12 @@ import packageMetadata from '../../package.json';
 import hostReleases from '../../src/lifecycle/host-releases.json';
 import {
   CodexInternalWorkflowActor,
+  codexWorkflowTemporaryBase,
   requireCodexNativeTrust,
 } from '../helpers/codex-internal-workflows.js';
 import type { CodexGuardFixture } from '../helpers/codex-native-continuation.js';
 
-const temporary = mkdtempSync('/private/tmp/codex-guard-');
+const temporary = mkdtempSync(path.join(codexWorkflowTemporaryBase(), 'codex-guard-'));
 const root = realpathSync(temporary);
 const repo = path.resolve(process.cwd(), '../..');
 const source = path.join(root, 'generated');

@@ -13,6 +13,7 @@ import path from 'node:path';
 
 import { afterEach, expect, it, vi } from 'vitest';
 
+import { codexWorkflowTemporaryBase } from '../helpers/codex-internal-workflows.js';
 import { initializeWorkflowGit } from '../helpers/codex-workflow-git.js';
 import { CodexWorkflowRuntimeActor } from '../helpers/codex-workflow-runtime.js';
 
@@ -23,7 +24,8 @@ vi.mock('node:child_process', async importOriginal => {
 const actual = await vi.importActual<typeof childProcess>('node:child_process');
 const roots: string[] = [];
 const temporary = () => {
-  const root = realpathSync(mkdtempSync('/private/tmp/codex-guard-git-control-'));
+  const prefix = path.join(codexWorkflowTemporaryBase(), 'codex-guard-git-control-');
+  const root = realpathSync(mkdtempSync(prefix));
   roots.push(root);
   return root;
 };
