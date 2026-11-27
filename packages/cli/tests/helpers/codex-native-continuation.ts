@@ -746,7 +746,7 @@ export class CodexNativeContinuationActor {
         this.thread,
         [
           'This isolated test observes the installed completion guard. It does not ask you to perform verification.',
-          `Before your first reply, if startup asks you to read the handbook, run exactly cat ${handbook} once. Then reply only ${this.marker}.`,
+          `Before your first reply, if startup asks you to read the handbook, run exactly cat ${handbook} once before replying. Reply only ${this.marker}.`,
           'If the host supplies an automatic follow-up, report the actual unmet requirement directly from its feedback in one reply. Do not post a progress message, reread the handbook, open a skill, run verification, or use any tool after the first reply. Change no files.',
         ].join('\n'),
       ],

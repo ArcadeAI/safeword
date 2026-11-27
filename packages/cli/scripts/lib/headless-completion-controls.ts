@@ -78,7 +78,7 @@ function assertTerminal(
 export function runArchitectureReceiptControls(repoRoot: string, report: string): void {
   const controls = [
     'accepts an authenticated reduced receipt at the opt-in architecture gate',
-    'blocks when the stamp is stale (plan edited after review)',
+    'rejects a previously approved receipt after the reviewed plan changes',
     'rejects a hand-written coordinator claim when the receipt did not approve',
   ];
   const result = spawnSync(

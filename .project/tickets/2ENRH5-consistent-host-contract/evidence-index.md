@@ -24,6 +24,15 @@ These results apply to the source and package revisions in their records.
 Main removed the cross-model review requirement in `da2778353`. The shared
 architecture gate follows main’s current rule and still checks the plan and its
 receipt. The archival original-author control exercised the old requirement.
-Current qualification checks an authenticated reduced receipt and refuses stale
-and unapproved receipts. Native qualification still requires a current run. The wiring grader remains an isolated
+The integration tests run the installed project Stop hook with fixture review
+responses. They check current approval, a subsequent plan edit, and a review
+that requested changes. Native qualification still requires a current run. The wiring grader remains an isolated
 test and retains the existing model-pair check.
+
+The headless Codex handoff fixture drives the native app server and installed
+Stop hook with scripted model replies. It checks how the hook handles the
+handoff settings. Spontaneous model behavior requires separate evidence.
+
+The [archived historical RED disposition](https://github.com/ArcadeAI/safeword/blob/44cf8f2fae94ef6f25151255cad05ed28ac4006a/.project/tickets/2ENRH5-consistent-host-contract/evidence/ordinary-request-historical-red-disposition.md)
+records the approved exception for the ordinary-request scenario alone. Its
+historical RED receipt is missing. Current native verification remains required.
