@@ -189,6 +189,12 @@ jobs:
           # cannot prove that immutable snapshot.
           fetch-depth: 0
 
+      # Fixture subprocesses use scripts/dev to resolve the repository pins.
+      # Setup Node below still selects the matrix version for the suite itself.
+      - uses: jdx/mise-action@v5
+        with:
+          install_args: 'bun node'
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
