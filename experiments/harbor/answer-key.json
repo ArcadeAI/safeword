@@ -112,5 +112,12 @@
   },
   "intake-shift-specified": {
     "For the same employee, should a shift that starts exactly when another ends (09:00–17:00, then 17:00–21:00) be allowed?": "Allow back-to-back shifts for the same employee. A shift ending at 17:00 and another starting at 17:00 share no working time. Reject assignments that overlap for a positive duration."
+  },
+  "intake-seed-claim": {
+    "What happens if another member tries to claim a packet someone already holds?": "Refuse the new claim and keep the original holder until the claim is released.",
+    "**BLOCKED** — When packet X is held by member A and a volunteer claims it for member B, should A keep it, or should B take it over?": "Refuse the new claim and keep the original holder until the claim is released.",
+    "**BLOCKED** — When member B claims a packet already held by member A, which member should the CLI show as the holder?": "Refuse the new claim and keep the original holder until the claim is released.",
+    "**BLOCKED** — If a branch's saved claims file is missing, should the CLI stop with an error, or quietly start again with no claims?": "Stop and report the expected claims-file path. A volunteer must explicitly run `seeds init` to start with an empty file at a new branch or after a deliberate reset.",
+    "If a branch's saved claims file is missing, should the CLI stop with an error, or quietly start again with no claims?": "Stop and report the expected claims-file path. A volunteer must explicitly run `seeds init` to start with an empty file at a new branch or after a deliberate reset."
   }
 }
