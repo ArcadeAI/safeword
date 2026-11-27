@@ -25,7 +25,7 @@ function priceUsage(prices, provider, model, usage, { aggregate = false } = {}) 
   const longWrites =
     usage.cache_creation?.ephemeral_1h_input_tokens ??
     usage.cacheCreationEphemeral1hInputTokens ??
-    writes;
+    (provider === 'claude' ? 0 : writes);
   if (!Number.isSafeInteger(longWrites) || longWrites < 0 || longWrites > writes) return null;
   // A session aggregate cannot reveal which individual requests crossed a tier.
   const over = !aggregate && uncached + cached + writes > (rate.above ?? Infinity);

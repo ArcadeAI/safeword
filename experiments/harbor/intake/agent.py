@@ -229,6 +229,7 @@ class IntakeAgent(BaseAgent):
             f"git status --porcelain --untracked-files=all > {LOG}/initial-worktree-status.txt",
         )
         step = 1
+        primary_error = None
         try:
             while True:
                 output = f"{LOG}/{step:02}-{self.host}.jsonl"
@@ -270,14 +271,27 @@ class IntakeAgent(BaseAgent):
                     return
                 instruction = reply or CONTINUE_PROMPT
                 step += 1
+        except BaseException as error:
+            primary_error = error
+            raise
         finally:
-            await self.checked(env, f"rm -f {CODEX_HOME}/auth.json")
-            await self.checked(
-                env,
-                f"git status --porcelain --untracked-files=all > {LOG}/worktree-status.txt && git diff HEAD > {LOG}/workspace.diff",
-            )
-            await self.checked(
-                env,
-                "find .project/tickets .safeword/state features src test tests README.md task.mjs "
-                f"-type f 2>/dev/null | tar -czf {LOG}/workflow-artifacts.tar.gz -T -",
-            )
+            try:
+                await self.checked(env, f"rm -f {CODEX_HOME}/auth.json")
+                try:
+                    await self.checked(
+                        env,
+                        f"git status --porcelain --untracked-files=all > {LOG}/worktree-status.txt && git diff HEAD > {LOG}/workspace.diff",
+                    )
+                except Exception as error:
+                    self.logger.warning(
+                        "Could not capture the optional worktree diff: %s", error
+                    )
+                await self.checked(
+                    env,
+                    "find .project/tickets .safeword/state features src test tests README.md task.mjs "
+                    f"-type f 2>/dev/null | tar -czf {LOG}/workflow-artifacts.tar.gz -T -",
+                )
+            except Exception as error:
+                if primary_error is None:
+                    raise
+                primary_error.add_note(f"Intake cleanup also failed: {error}")

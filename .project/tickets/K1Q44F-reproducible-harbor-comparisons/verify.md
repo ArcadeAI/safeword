@@ -12,3 +12,9 @@
 | Repository checks | The PR checks page records the full Node matrix, lint, type checking, CLI contract, parity, and Harbor smoke for each pushed commit. |
 
 The reviewer and author check the same saved trial evidence. A missing protocol, an unknown budget stop, or a changed answer key cannot justify promoting a candidate. Human judgment remains necessary for new product choices and inconclusive grades.
+
+## Review follow-up
+
+- In the pinned Bookworm intake image, the pre-reply command produced a readable empty tar archive with exit status 0 before a ticket existed. Failure-injection tests showed a separate cleanup error could hide the original failure. The runner now records a failed optional Git snapshot and continues collecting required evidence. When two operations fail, it preserves the original exception with a cleanup note. Required archive failure after an otherwise successful run still fails the trial.
+- Archived Claude traces showed 4 then 2 reported turns in the same resumed session. A combined log showed separate result intervals of 29, 5, 12, 6 and 1, matching the assistant-message counts between results. The regression replays a result across a checkpoint and the final log and checks it counts only once.
+- The frozen Opus rates priced one million unclassified cache-write tokens at $8. With the default five-minute duration the estimate is $5. The mixed-duration regression prices 750,000 short and 250,000 long writes at $5.75. All 102 distinct Claude result events inspected in the local intake archive had an explicit one-hour token count, including zero. The fallback change applies when that count is absent.

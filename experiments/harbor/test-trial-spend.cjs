@@ -30,6 +30,26 @@ test('Claude settles cumulative usage, including the cache write TTL', () => {
   );
 });
 
+test('Claude uses the default five-minute price for unclassified cache writes', () => {
+  const usage = { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 1000000 };
+  assert.equal(priceUsage(pricing, 'claude', model, usage), 5);
+  assert.equal(
+    settleClaude(pricing, model, {
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheCreationInputTokens: 1000000,
+    }),
+    5,
+  );
+  assert.equal(
+    priceUsage(pricing, 'claude', model, {
+      ...usage,
+      cache_creation: { ephemeral_5m_input_tokens: 750000, ephemeral_1h_input_tokens: 250000 },
+    }),
+    5.75,
+  );
+});
+
 test('the combined cap includes each review attempt and survives an author resume', t => {
   const logs = mkdtempSync(join(tmpdir(), 'harbor-spend-'));
   t.after(() => rmSync(logs, { recursive: true, force: true }));

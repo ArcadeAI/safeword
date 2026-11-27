@@ -24,3 +24,25 @@ class RelayTests(unittest.IsolatedAsyncioTestCase):
                 self.assertFalse((path / "02-response.json").exists())
                 (path / "02-response.json").write_text(json.dumps({"reply": "Ask before overwrite."}))
                 self.assertEqual(await pending, ("reply", "Ask before overwrite."))
+
+
+class ClaudeTurnCountTest(unittest.TestCase):
+    def test_resumes_add_turns_and_replayed_results_count_once(self):
+        from types import SimpleNamespace
+        from comparison_agent import ClaudeCode, ComparisonAgent
+
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            agent = ComparisonAgent.__new__(ComparisonAgent)
+            agent.logs_dir = root
+            agent.relay_logs = [root / "01-claude.jsonl"]
+            events = [
+                json.dumps({"type": "result", "session_id": "same", "uuid": uid, "num_turns": n})
+                for uid, n in (("first", 4), ("second", 2))
+            ]
+            agent.relay_logs[0].write_text(events[0] + "\n")
+            (root / "claude-code.txt").write_text("\n".join(events) + "\n")
+            context = SimpleNamespace(metadata={})
+            with patch.object(ClaudeCode, "populate_context_post_run"):
+                agent.populate_context_post_run(context)
+            self.assertEqual(context.metadata["reported_agent_turns"], 6)

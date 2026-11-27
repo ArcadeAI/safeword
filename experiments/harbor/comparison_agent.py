@@ -352,6 +352,8 @@ class ComparisonAgent(ClaudeCode):
             context.n_cache_tokens = sum(item.n_cache_tokens for item in models.values())
             context.n_output_tokens = sum(item.n_output_tokens for item in models.values())
 
+        # num_turns is per result, including after --continue. A relay log and
+        # the final log can contain the same result UUID.
         checkpoints = [*getattr(self, "relay_logs", []), final_log]
         turns = {}
         for path in checkpoints:
