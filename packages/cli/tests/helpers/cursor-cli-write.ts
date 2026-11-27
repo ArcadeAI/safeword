@@ -149,7 +149,7 @@ export class CursorCliWriteActor {
       args.push('--model', process.env.SAFEWORD_CURSOR_CLI_MODEL);
     args.push(
       `Run exactly one Shell attempt with this command: ${this.shellCommand}\n` +
-        'Do not read files, use other tools, or retry after denial. Existing hooks govern the attempt. Then finish with one sentence.',
+        'If startup requires reading .safeword/SAFEWORD.md, read it once before the Shell attempt. Do not use other tools or retry after denial. Existing hooks govern the attempt. Then finish with one sentence.',
     );
     const environment = Object.fromEntries(
       Object.entries(process.env).filter(
@@ -183,14 +183,24 @@ export class CursorCliWriteActor {
           JSON.parse(line) as {
             type: string;
             subtype?: string;
-            tool_call?: { shellToolCall?: ShellResult };
+            tool_call?: {
+              shellToolCall?: ShellResult;
+              readToolCall?: { args: { path: string }; result: { success?: { path: string } } };
+            };
           },
       );
     const calls = events.filter(row => row.type === 'tool_call' && row.subtype === 'completed');
+    const startupRead = calls[0]?.tool_call?.readToolCall;
+    if (startupRead) {
+      const handbook = nodePath.join(this.workspace, '.safeword/SAFEWORD.md');
+      assert.equal(startupRead.args.path, handbook);
+      assert.equal(startupRead.result.success?.path, handbook);
+      calls.shift();
+    }
     assert.equal(
       calls.length,
       1,
-      'CURSOR_CLI_UNAVAILABLE: expected exactly one actual tool attempt',
+      'CURSOR_CLI_UNAVAILABLE: expected exactly one Shell attempt after startup',
     );
     this.shell = calls[0]?.tool_call?.shellToolCall;
     assert.ok(this.shell, 'CURSOR_CLI_UNAVAILABLE: expected actual Shell tool');
