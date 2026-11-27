@@ -107,7 +107,8 @@ test('Claude intake uses its selected host model for messages and terminal usage
   const logs = mkdtempSync(join(tmpdir(), 'harbor-intake-model-'));
   t.after(() => rmSync(logs, { recursive: true, force: true }));
   const comparison = join(logs, 'comparison.json');
-  saveJson(comparison, { pricing, models: { author: 'another-model', claude: model } });
+  const otherPricedModel = 'claude-haiku-5-5';
+  saveJson(comparison, { pricing, models: { author: otherPricedModel, claude: model } });
   const script = join(logs, 'trace.jsonl');
   const run = actual => {
     const events = [
@@ -139,7 +140,7 @@ test('Claude intake uses its selected host model for messages and terminal usage
   };
   assert.equal(run(model), null);
   assert.ok(trialSpend(logs) > 0);
-  assert.equal(run('another-model').reason, 'author_model_mismatch');
+  assert.equal(run(otherPricedModel).reason, 'author_model_mismatch');
 });
 
 test('Codex reviewer prices each request across the long-context threshold once', t => {
