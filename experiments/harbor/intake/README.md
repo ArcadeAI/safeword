@@ -25,6 +25,8 @@ uv run --locked python -m intake.score jobs/csv-intake --expect-case intake-csv-
 
 Replay reads saved evidence and costs no model calls. Open `intake-results.md` for the handoff result, estimated spend, and review count. Each lane has an evidence index with observed errors, tool usage, trace-visible URLs, relay exchanges and phase history. Codex shell inputs show referenced files and URLs. For passed lanes, the indexed plan belongs to the same ticket as the approval. Missing evidence or a stale plugin identity produces an incomplete row and a nonzero scoring exit. A well-recorded failed trial still counts as a completed measurement.
 
+The scorecard lists completed reviews targeting the observed ticket’s spec. Product Plan reviews carry planning identity. A general review can fingerprint the spec and approve it while still earning no Product Plan handoff credit. Open the evidence index for the verdict and receipt ID of each review. The edits column reports paths changed before handoff; when edit order cannot be established it reads `unknown`.
+
 Judge the product outcome separately. Read the first question before its answer to establish whether the author elicited the decision. Read `final-plan.md` for the independently approved plan. A failed handoff can still yield an `observed-draft-plan.md` for product grading when the trace identifies the ticket. A correct guess, a direct clarification, and an independently approved plan are three distinct observations.
 
 ## Pilot automatic product decisions

@@ -27,6 +27,25 @@ def meter_counts(path):
     }
 
 
+def archived_reviews(archive):
+    seen = set()
+    for member in archive:
+        path = PurePosixPath(member.name)
+        if (
+            not member.isfile()
+            or path.parent != PurePosixPath(".safeword/state/reviews")
+            or path.suffix != ".json"
+        ):
+            continue
+        receipt = json.load(archive.extractfile(member))
+        if receipt["id"] != path.stem:
+            raise ValueError(f"Review ID differs from receipt name: {member.name}")
+        if path.stem in seen:
+            raise ValueError("Duplicate review ID in archive")
+        seen.add(path.stem)
+        yield receipt
+
+
 def rounds(lane):
     results = list(lane.glob("harbor/*/result.json"))
     if len(results) != 1:
@@ -34,17 +53,7 @@ def rounds(lane):
     agent = results[0].parent / "agent"
     jobs = []
     with tarfile.open(agent / "workflow-artifacts.tar.gz") as archive:
-        for member in archive:
-            path = PurePosixPath(member.name)
-            if (
-                not member.isfile()
-                or path.parent != PurePosixPath(".safeword/state/reviews")
-                or path.suffix != ".json"
-            ):
-                continue
-            receipt = json.load(archive.extractfile(member))
-            if receipt["id"] != path.stem:
-                raise ValueError(f"Review ID differs from receipt name: {member.name}")
+        for receipt in archived_reviews(archive):
             data = (receipt.get("result") or {}).get("data") or {}
             reviewer = data.get("actual_reviewer")
             status = data.get("status")
@@ -77,8 +86,6 @@ def rounds(lane):
                     ],
                 }
             )
-    if len({job["id"] for job in jobs}) != len(jobs):
-        raise ValueError("Duplicate review ID in archive")
     verdicts = Counter(
         job["independent_verdict"] for job in jobs if job["independent_verdict"]
     )

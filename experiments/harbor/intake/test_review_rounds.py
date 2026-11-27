@@ -6,9 +6,58 @@ import unittest
 from pathlib import Path
 
 from intake.review_rounds import rounds
+from intake.score import plan_review_routes
 
 
 class ReviewRoundsTest(unittest.TestCase):
+    def test_report_names_the_route_for_each_completed_review_of_the_selected_spec(
+        self,
+    ):
+        spec = ".project/tickets/ABC/spec.md"
+        target = {"path": spec, "digest": "digest"}
+        identity = {
+            "review_kind": "quality-review",
+            "ticket_path": ".project/tickets/ABC/ticket.md",
+            "targets": [target],
+        }
+        stream = io.BytesIO()
+        with tarfile.open(fileobj=stream, mode="w") as archive:
+            for name, extra, path, verdict in [
+                ("old", {}, spec, "approved"),
+                ("new", {"review_identity": identity}, spec, "changes_requested"),
+                ("partial", {"review_identity": {}}, spec, "approved"),
+                ("other", {}, "README.md", "approved"),
+                ("pending", {}, spec, "pending"),
+            ]:
+                receipt = {
+                    "id": name,
+                    "schema_version": 1,
+                    "source_fingerprint": "fingerprint",
+                    "state": "completed" if verdict != "pending" else "running",
+                    "result": {
+                        "data": {
+                            "review_kind": "quality-review",
+                            "review_targets": [path],
+                            "status": verdict,
+                        }
+                    },
+                    **extra,
+                }
+                blob = json.dumps(receipt).encode()
+                member = tarfile.TarInfo(f".safeword/state/reviews/{name}.json")
+                member.size = len(blob)
+                archive.addfile(member, io.BytesIO(blob))
+        stream.seek(0)
+        with tarfile.open(fileobj=stream) as archive:
+            self.assertEqual(
+                plan_review_routes(archive, spec),
+                {
+                    "old": {"route": "general", "verdict": "approved"},
+                    "new": {"route": "Product Plan", "verdict": "changes_requested"},
+                    "partial": {"route": "unknown", "verdict": "approved"},
+                },
+            )
+
     def test_starts_jobs_and_independent_verdicts_have_separate_denominators(self):
         with tempfile.TemporaryDirectory() as folder:
             lane = Path(folder) / "claude"

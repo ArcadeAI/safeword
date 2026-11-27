@@ -11,6 +11,7 @@ from human_relay import trace_events
 from intake_cutoff import verified_plan
 from report_trials import json_file, report, urls
 
+from .review_rounds import archived_reviews
 from .run import document, write_json
 
 
@@ -72,6 +73,36 @@ def codex_activity(relay):
     }
 
 
+def plan_review_routes(archive, spec):
+    """Describe completed reviews of this spec. The handoff grade checks currency separately."""
+    routes = {}
+    for record in archived_reviews(archive):
+        data = (record.get("result") or {}).get("data") or {}
+        if (
+            record.get("state") != "completed"
+            or data.get("review_targets") != [spec]
+            or data.get("review_kind") != "quality-review"
+            or data.get("status") not in {"approved", "changes_requested"}
+        ):
+            continue
+        identity = record.get("review_identity") or {}
+        route = "unknown"
+        if (
+            identity.get("review_kind") == "quality-review"
+            and identity.get("ticket_path") == str(Path(spec).with_name("ticket.md"))
+            and [target.get("path") for target in identity.get("targets", [])] == [spec]
+        ):
+            route = "Product Plan"
+        elif (
+            "review_identity" not in record
+            and record.get("schema_version") == 1
+            and record.get("source_fingerprint")
+        ):
+            route = "general"
+        routes[record["id"]] = {"route": route, "verdict": data["status"]}
+    return routes
+
+
 def trial_result(lane, build, models):
     host = lane.name
     results = list(lane.glob("harbor/*/result.json"))
@@ -110,16 +141,17 @@ def trial_result(lane, build, models):
     if host == "codex":
         evidence["codex_activity"] = codex_activity(lane / "relay")
     evidence["boundary"] = boundary
-    write_json(lane / "evidence-index.json", evidence)
     ticket = boundary.get("ticket")
     observed = boundary.get("observed_intake_tickets", [])
     if outcome == "downstream_edit" and not ticket and len(observed) == 1:
         ticket = observed[0]
     plan = None
+    review_routes = None
     archive_path = agent / "workflow-artifacts.tar.gz"
     if ticket and archive_path.exists():
         spec = str(Path(ticket).with_name("spec.md"))
         with tarfile.open(archive_path) as archive:
+            review_routes = plan_review_routes(archive, spec)
             member = next(
                 (item for item in archive if item.name == spec and item.isfile()), None
             )
@@ -151,7 +183,16 @@ def trial_result(lane, build, models):
                 (lane / plan).write_bytes(contents)
     if passed and not plan:
         raise ValueError("Passing grade lacks its approved plan")
+    edits = (
+        boundary.get("changed")
+        if outcome == "downstream_edit"
+        else ([] if boundary.get("boundary") == "phase_advance" else None)
+    )
+    evidence["plan_review_routes"] = review_routes
+    write_json(lane / "evidence-index.json", evidence)
     return {
+        "plan_review_routes": review_routes,
+        "edits_before_handoff": edits,
         "outcome": outcome,
         "cost_usd": evidence["model_spend"]["total_cost_usd"],
         "review_calls": len(
@@ -178,8 +219,8 @@ def score(directory, expected_cases, product=False):
     rows = [
         "# Intake results",
         "",
-        "| Trial | Observed outcome | Estimated spend | Review calls |",
-        "| --- | --- | ---: | ---: |",
+        "| Trial | Observed outcome | Completed plan reviews | Edits before handoff | Estimated spend | Review calls |",
+        "| --- | --- | --- | --- | ---: | ---: |",
     ]
     if product:
         rows[2] += (
@@ -197,8 +238,25 @@ def score(directory, expected_cases, product=False):
         label = (
             f"[{name}]({name}/evidence-index.json)" if result.get("evidence") else name
         )
+        reviews = result.get("plan_review_routes")
+        review_text = "unknown"
+        if reviews is not None:
+            counts = Counter(job["route"] for job in reviews.values())
+            review_text = (
+                ", ".join(f"{route} ({n})" for route, n in sorted(counts.items()))
+                or "none recorded"
+            )
+        edits = result.get("edits_before_handoff")
+        edit_text = (
+            "unknown"
+            if edits is None
+            else ", ".join(
+                path.replace("|", r"\|").replace("\n", " ") for path in edits
+            )
+            or "none observed"
+        )
         rows.append(
-            f"| {label} | {result['outcome']} | {f'${cost:.2f}' if cost is not None else 'unknown'} | {result.get('review_calls', 'unknown')} |"
+            f"| {label} | {result['outcome']} | {review_text} | {edit_text} | {f'${cost:.2f}' if cost is not None else 'unknown'} | {result.get('review_calls', 'unknown')} |"
         )
         if product:
             from .decisions import grade, policy
