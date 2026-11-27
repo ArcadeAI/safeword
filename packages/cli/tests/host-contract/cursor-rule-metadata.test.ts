@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { cpSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -70,9 +70,11 @@ describe('canonical workflow purpose reaches installed Cursor rules', () => {
       original.frontmatter.description = marker;
       writeFileSync(source, `---\n${stringify(original.frontmatter)}---\n${original.body}`);
       run(directory, ['packages/cli/scripts/generate-cursor-wrappers.ts']);
-      rmSync(nodePath.join(directory, '.cursor/rules'), { recursive: true });
-      run(directory, [
-        'packages/cli/src/cli.ts',
+      const customer = nodePath.join(nodePath.dirname(directory), 'customer');
+      mkdirSync(customer);
+      writeFileSync(nodePath.join(customer, 'package.json'), '{"private":true}');
+      run(customer, [
+        nodePath.join(directory, 'packages/cli/src/cli.ts'),
         'install',
         '--agents',
         'cursor',
@@ -82,9 +84,9 @@ describe('canonical workflow purpose reaches installed Cursor rules', () => {
         '--json',
       ]);
       expect(
-        readFileSync(nodePath.join(directory, `.safeword/skills/${skill}/${filename}`), 'utf8'),
+        readFileSync(nodePath.join(customer, `.safeword/skills/${skill}/${filename}`), 'utf8'),
       ).toContain(marker);
-      const installed = metadata(nodePath.join(directory, `.cursor/rules/${rule}.mdc`));
+      const installed = metadata(nodePath.join(customer, `.cursor/rules/${rule}.mdc`));
       expect(
         installed.frontmatter.description,
         'RULE_METADATA_OWNER_DRIFT: Cursor rule still authors a separate workflow purpose',
