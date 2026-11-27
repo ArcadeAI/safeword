@@ -205,6 +205,9 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
+      - name: Install zsh for Codex shell checks
+        run: test -x /bin/zsh || (sudo apt-get update -qq && sudo apt-get install -y zsh)
+
       - name: Setup Go
         uses: actions/setup-go@v7
         with:
