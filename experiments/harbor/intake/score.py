@@ -1,0 +1,350 @@
+"""Replay an intake comparison from saved Harbor evidence, optionally grading product decisions."""
+
+import argparse
+import json
+import re
+import tarfile
+from collections import Counter
+from pathlib import Path
+
+from human_relay import trace_events
+from intake_cutoff import verified_plan
+from report_trials import json_file, report, urls
+
+from .review_rounds import archived_reviews
+from .run import document, write_json
+
+
+def codex_activity(relay):
+    """Codex reports completed items, including shell reads, instead of Claude tool blocks."""
+    counts = Counter()
+    errors, references, mentions = [], set(), set()
+    turns = 0
+    for trace in sorted(relay.glob("*-codex.jsonl")):
+        for line, event in trace_events(trace):
+            location = f"{trace.name}:{line}"
+            if event.get("type") == "turn.completed":
+                turns += 1
+            if event.get("type") in {"turn.failed", "error"}:
+                errors.append(
+                    {
+                        "evidence": location,
+                        "error": event.get("error") or event.get("message"),
+                    }
+                )
+            item = event.get("item", {})
+            if event.get("type") != "item.completed":
+                continue
+            kind = item.get("type")
+            if kind == "error":
+                errors.append({"evidence": location, "error": item.get("message")})
+            if kind not in {
+                "command_execution",
+                "file_change",
+                "mcp_tool_call",
+                "web_search",
+            }:
+                continue
+            counts[kind] += 1
+            if item.get("status") == "failed" or item.get("exit_code") not in (None, 0):
+                errors.append(
+                    {
+                        "evidence": location,
+                        "tool": kind,
+                        "exit_code": item.get("exit_code"),
+                        "status": item.get("status"),
+                    }
+                )
+            arguments = json.dumps(
+                [item.get(key) for key in ("command", "changes", "arguments", "query")]
+            )
+            mentions.update(urls(arguments))
+            references.update(
+                path
+                for path in re.findall(r"(?:[\w.-]+/)*[\w.-]+\.md\b", arguments)
+                if "skills/" in path or path.endswith("SAFEWORD.md")
+            )
+    return {
+        "tools": dict(counts),
+        "errors": errors,
+        "references_mentioned_in_inputs": sorted(references),
+        "urls_mentioned_in_inputs": sorted(mentions),
+        "completed_turns": turns,
+    }
+
+
+def plan_review_routes(archive, spec):
+    """Describe completed reviews of this spec. The handoff grade checks currency separately."""
+    routes = {}
+    for record in archived_reviews(archive):
+        data = (record.get("result") or {}).get("data") or {}
+        if (
+            record.get("state") != "completed"
+            or data.get("review_targets") != [spec]
+            or data.get("review_kind") != "quality-review"
+            or data.get("status") not in {"approved", "changes_requested"}
+        ):
+            continue
+        identity = record.get("review_identity") or {}
+        route = "unknown"
+        if (
+            identity.get("review_kind") == "quality-review"
+            and identity.get("ticket_path") == str(Path(spec).with_name("ticket.md"))
+            and [target.get("path") for target in identity.get("targets", [])] == [spec]
+        ):
+            route = "Product Plan"
+        elif (
+            "review_identity" not in record
+            and record.get("schema_version") == 1
+            and record.get("source_fingerprint")
+        ):
+            route = "general"
+        routes[record["id"]] = {"route": route, "verdict": data["status"]}
+    return routes
+
+
+def trial_result(lane, build, models):
+    host = lane.name
+    results = list(lane.glob("harbor/*/result.json"))
+    if len(results) != 1:
+        raise ValueError("Expected exactly one finished Harbor trial")
+    trial = results[0].parent
+    agent = trial / "agent"
+    setup = document(agent / "setup-evidence.json")
+    if (
+        setup.get("status") != "ready"
+        or setup.get("bundle_sha256") != build["archive_sha256"]
+        or setup.get("host") != host
+        or setup.get("expected_model") != models[host]
+    ):
+        raise ValueError("Setup evidence differs from the frozen comparison")
+    if document(results[0]).get("exception_info"):
+        raise ValueError(f"Harbor recorded a runner error; see {results[0]}")
+    outcome = document(trial / "verifier/intake-outcome.json")["outcome"]
+    reward = document(trial / "verifier/reward.json")["reward"]
+    boundary = json_file(agent / "intake-stop.json")
+    passed = outcome == "passed"
+    budget_stop = agent / "budget-stop.json"
+    interrupted = (
+        budget_stop.is_file() and document(budget_stop).get("reason") != "combined_cap"
+    )
+    expected = "budget_before_gate" if interrupted else boundary.get("outcome")
+    if reward != int(passed) or ((interrupted or boundary) and outcome != expected):
+        raise ValueError("Verifier and observed intake boundary disagree")
+    reviewer = "codex" if host == "claude" else "claude"
+    approval = boundary.get("approval") or {}
+    if passed and not (
+        boundary.get("boundary") == "phase_advance"
+        and not boundary.get("additional_edits_at_stop")
+        and approval.get("review_id")
+        and approval.get("author") == host
+        and approval.get("reviewer") == reviewer
+        and approval.get("model") == models[reviewer]
+    ):
+        raise ValueError("Passing grade lacks an independent, pre-code approval")
+    evidence = report(trial, lane / "relay")
+    if host == "codex":
+        evidence["codex_activity"] = codex_activity(lane / "relay")
+    evidence["boundary"] = boundary
+    ticket = boundary.get("ticket")
+    observed = boundary.get("observed_intake_tickets", [])
+    if outcome == "downstream_edit" and not ticket and len(observed) == 1:
+        ticket = observed[0]
+    plan = None
+    review_routes = None
+    archive_path = agent / "workflow-artifacts.tar.gz"
+    if ticket and archive_path.exists():
+        spec = str(Path(ticket).with_name("spec.md"))
+        with tarfile.open(archive_path) as archive:
+            review_routes = plan_review_routes(archive, spec)
+            member = next(
+                (item for item in archive if item.name == spec and item.isfile()), None
+            )
+            if member:
+                contents = archive.extractfile(member).read()
+                if passed:
+                    review_id = approval["review_id"]
+                    record = archive.getmember(
+                        f".safeword/state/reviews/{review_id}.json"
+                    )
+                    deadline = min(
+                        boundary["at_epoch_ns"],
+                        boundary.get("phase_file_mtime_ns", boundary["at_epoch_ns"]),
+                    )
+                    if not record.isfile() or not verified_plan(
+                        json.load(archive.extractfile(record)),
+                        review_id,
+                        deadline,
+                        spec,
+                        contents,
+                        host,
+                        reviewer,
+                        models[reviewer],
+                    ):
+                        raise ValueError(
+                            "Archived approval does not match the plan, reviewer, or intake boundary"
+                        )
+                plan = "final-plan.md" if passed else "observed-draft-plan.md"
+                (lane / plan).write_bytes(contents)
+    if passed and not plan:
+        raise ValueError("Passing grade lacks its approved plan")
+    edits = (
+        boundary.get("changed")
+        if outcome == "downstream_edit"
+        else ([] if boundary.get("boundary") == "phase_advance" else None)
+    )
+    evidence["plan_review_routes"] = review_routes
+    write_json(lane / "evidence-index.json", evidence)
+    return {
+        "plan_review_routes": review_routes,
+        "edits_before_handoff": edits,
+        "outcome": outcome,
+        "cost_usd": evidence["model_spend"]["total_cost_usd"],
+        "review_calls": len(
+            {call["id"] for call in evidence["model_spend"]["reviewer"]["calls"]}
+        ),
+        "evidence": "evidence-index.json",
+        "plan": plan,
+    }
+
+
+def score(directory, expected_cases, product=False):
+    build, models = (
+        document(directory / "build.json"),
+        document(directory / "comparison.json")["models"],
+    )
+    lanes = {path for path in directory.glob("trials/*/*") if path.is_dir()}
+    for case in expected_cases:
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", case):
+            raise ValueError("Invalid answer-key case name")
+        lanes.update(directory / "trials" / case / host for host in ("claude", "codex"))
+    if not lanes:
+        raise ValueError("No intake trials found")
+    scores = {}
+    rows = [
+        "# Intake results",
+        "",
+        "| Trial | Observed outcome | Completed plan reviews | Edits before handoff | Estimated spend | Review calls |",
+        "| --- | --- | --- | --- | ---: | ---: |",
+    ]
+    if product:
+        rows[2] += (
+            " Needed to ask | Asked | Useful asks | Repeat asks | Plan matches | Question turns | Operator interruptions | Evaluation spend |"
+        )
+        rows[3] += " --- | --- | ---: | ---: | --- | ---: | ---: | ---: |"
+    for lane in sorted(lanes):
+        name = lane.relative_to(directory).as_posix()
+        try:
+            result = trial_result(lane, build, models)
+        except (OSError, ValueError, KeyError, tarfile.TarError) as error:
+            result = {"outcome": "incomplete_evidence", "error": str(error)}
+        scores[name] = result
+        cost = result.get("cost_usd")
+        label = (
+            f"[{name}]({name}/evidence-index.json)" if result.get("evidence") else name
+        )
+        reviews = result.get("plan_review_routes")
+        review_text = "unknown"
+        if reviews is not None:
+            counts = Counter(job["route"] for job in reviews.values())
+            review_text = (
+                ", ".join(f"{route} ({n})" for route, n in sorted(counts.items()))
+                or "none recorded"
+            )
+        edits = result.get("edits_before_handoff")
+        edit_text = (
+            "unknown"
+            if edits is None
+            else ", ".join(
+                path.replace("|", r"\|").replace("\n", " ") for path in edits
+            )
+            or "none observed"
+        )
+        rows.append(
+            f"| {label} | {result['outcome']} | {review_text} | {edit_text} | {f'${cost:.2f}' if cost is not None else 'unknown'} | {result.get('review_calls', 'unknown')} |"
+        )
+        if product:
+            from .decisions import grade, policy
+
+            spec = policy(lane.parent.name)
+            judgment = {"asked": "unclear", "plan_matches": "unclear"}
+            if spec and result.get("evidence"):
+                try:
+                    plan = (
+                        (lane / result["plan"]).read_text()
+                        if result.get("plan")
+                        else ""
+                    )
+                    judgment = grade(lane, plan, spec)
+                except (OSError, ValueError, TypeError, KeyError) as exc:
+                    judgment["error"] = str(exc)
+            requests = list((lane / "relay").glob("*-request.md"))
+            audits = list((lane / "relay").glob("*-routing.json"))
+            expected_audits = {
+                f.name.replace("-request.md", "-routing.json") for f in requests
+            }
+            audits_complete = (
+                bool(result.get("evidence"))
+                and {f.name for f in audits} == expected_audits
+            )
+            receipts = [document(f) for f in audits]
+            count = (
+                sum(r["operator_needed"] for r in receipts)
+                if audits_complete
+                else "unknown"
+            )
+            evaluation_cost = None
+            if audits_complete and judgment.get("evidence"):
+                meters = document(lane / judgment["evidence"])["meters"] + [
+                    r["interpreter"] for r in receipts if "interpreter" in r
+                ]
+                if all(isinstance(m.get("cost_usd"), (int, float)) for m in meters):
+                    evaluation_cost = sum(m["cost_usd"] for m in meters)
+            cost_text = (
+                "unknown" if evaluation_cost is None else f"${evaluation_cost:.2f}"
+            )
+            result["product"] = {
+                **judgment,
+                "relay_checkpoints": len(requests),
+                "operator_interruptions": count,
+                "evaluation_cost_usd": evaluation_cost,
+            }
+            needed = (
+                "unknown" if spec is None else ("no" if spec["supplied"] else "yes")
+            )
+            rows[-1] += (
+                f" {needed} | {judgment['asked']} | {judgment.get('useful_asks', 'unknown')} | {judgment.get('repeat_asks', 'unknown')} | {judgment['plan_matches']} | {judgment.get('question_turns', 'unknown')} | {count} | {cost_text} |"
+            )
+    rows.extend(
+        [
+            "",
+            "An unclear product grade needs a transcript check. Estimated spend covers author and reviewer. Product grading and routing have separate cost receipts."
+            if product
+            else "Score elicitation and plan correctness separately by comparing each relay transcript and final plan with the hidden product decision. The verifier scores the independent handoff.",
+        ]
+    )
+    write_json(directory / "intake-results.json", scores)
+    (directory / "intake-results.md").write_text("\n".join(rows) + "\n")
+    return all(result["outcome"] != "incomplete_evidence" for result in scores.values())
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("directory", type=Path)
+    parser.add_argument(
+        "--expect-case",
+        action="append",
+        default=[],
+        help="Require a lane from both author hosts for this case",
+    )
+    parser.add_argument(
+        "--product",
+        action="store_true",
+        help="Grade decision evidence with a host-side model; reuse cached extractions",
+    )
+    options = parser.parse_args()
+    raise SystemExit(
+        0
+        if score(options.directory.resolve(), options.expect_case, options.product)
+        else 1
+    )

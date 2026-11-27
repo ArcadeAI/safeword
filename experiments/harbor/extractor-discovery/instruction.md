@@ -1,0 +1,1 @@
+Improve BDD Extractor's init discovery when a help site has no usable sitemap. Right now it lists what the homepage links to, but misses articles listed on the topic pages. Find those articles too without turning init into a full recursive crawl. Keep the existing scope rules and behavior when a sitemap already works.

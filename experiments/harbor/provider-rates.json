@@ -1,0 +1,44 @@
+{
+  "verified_on": "2026-11-24",
+  "unit": "USD per million tokens, standard processing",
+  "sources": {
+    "claude": "https://platform.claude.com/docs/en/about-claude/pricing",
+    "codex": "https://developers.openai.com/api/docs/models/gpt-6.2-sol"
+  },
+  "models": {
+    "claude-opus-5-5": {
+      "input": 4,
+      "output": 20,
+      "cached": 0.2,
+      "write_short": 5,
+      "write_long": 8
+    },
+    "claude-sonnet-5-5": {
+      "input": 2,
+      "output": 10,
+      "cached": 0.1,
+      "write_short": 2.5,
+      "write_long": 4
+    },
+    "claude-haiku-5-5": {
+      "input": 0.1,
+      "output": 0.5,
+      "cached": 0.01,
+      "write_short": 0.125,
+      "write_long": 0.2,
+      "above": 100000,
+      "input_multiplier": 5,
+      "output_multiplier": 5
+    },
+    "gpt-6.2-sol": {
+      "input": 2,
+      "output": 10,
+      "cached": 0.1,
+      "write_short": 2.5,
+      "write_long": 5,
+      "above": 272000,
+      "input_multiplier": 2,
+      "output_multiplier": 1.5
+    }
+  }
+}

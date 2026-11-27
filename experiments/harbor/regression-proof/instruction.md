@@ -1,0 +1,1 @@
+Fix discount(price, percent) so the final price rounds to the nearest cent. It currently truncates, which undercharges for prices such as 19.95 at a 10% discount. First add a regression test and run it to show the bug, then fix it and rerun the test.

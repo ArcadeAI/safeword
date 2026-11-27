@@ -1,0 +1,22 @@
+name: Harbor harness
+on:
+  pull_request:
+    paths:
+      - 'experiments/harbor/**'
+      - '.github/workflows/harbor.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  harness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          version-file: pyproject.toml
+          cache-dependency-glob: experiments/harbor/uv.lock
+      - run: experiments/harbor/check.sh

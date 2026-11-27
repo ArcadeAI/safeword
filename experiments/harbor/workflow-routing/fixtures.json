@@ -1,0 +1,64 @@
+[
+  {
+    "id": "parking-grace",
+    "split": "held-out",
+    "route": "task",
+    "prompt": "Change parking charges so the first 15 minutes of each stay are free. After that, charge $2 per started half-hour. Keep the maximum charge at $12 per stay.",
+    "starter": "/** Return the charge in dollars for a stay of whole, nonnegative minutes. */\nexport function parkingFee(minutes) {\n  return Math.min(12, 2 * Math.ceil(minutes / 30));\n}",
+    "reference": "/** Return the charge in dollars for a stay of whole, nonnegative minutes. */\nexport function parkingFee(minutes) {\n  return Math.min(12, 2 * Math.ceil(Math.max(0, minutes - 15) / 30));\n}",
+    "functional": "for (const [minutes, dollars] of [[1, 0], [14, 0], [15, 0], [16, 2], [31, 2], [45, 2], [46, 4], [75, 4], [76, 6], [165, 10]]) { assert.equal(api.parkingFee(minutes), dollars, minutes + \" minutes\"); }",
+    "preservation": "for (const [minutes, dollars] of [[0, 0], [30, 2], [60, 4], [180, 12], [300, 12]]) { assert.equal(api.parkingFee(minutes), dollars); }"
+  },
+  {
+    "id": "shift-rounding",
+    "split": "held-out",
+    "route": "task",
+    "prompt": "Change shift totals to round the elapsed time to the nearest five minutes. Apply the same rounding to shifts that cross midnight.",
+    "starter": "function minuteOfDay(time) {\n  const [hours, minutes] = time.split(':').map(Number);\n  return hours * 60 + minutes;\n}\n\nexport function shiftMinutes(start, end) {\n  const elapsed = minuteOfDay(end) - minuteOfDay(start);\n  return elapsed < 0 ? elapsed + 1440 : elapsed;\n}",
+    "reference": "function minuteOfDay(time) {\n  const [hours, minutes] = time.split(':').map(Number);\n  return hours * 60 + minutes;\n}\n\nexport function shiftMinutes(start, end) {\n  const elapsed = minuteOfDay(end) - minuteOfDay(start);\n  const duration = elapsed < 0 ? elapsed + 1440 : elapsed;\n  return Math.round(duration / 5) * 5;\n}",
+    "functional": "for (const [start, end, expected] of [[\"08:00\", \"08:02\", 0], [\"08:00\", \"08:03\", 5], [\"10:02\", \"10:03\", 0], [\"11:04\", \"11:12\", 10], [\"23:58\", \"00:01\", 5], [\"23:51\", \"00:02\", 10]]) { assert.equal(api.shiftMinutes(start, end), expected, start + \" to \" + end); }",
+    "preservation": "assert.equal(api.shiftMinutes(\"08:15\", \"09:45\"), 90); assert.equal(api.shiftMinutes(\"23:30\", \"01:00\"), 90); assert.equal(api.shiftMinutes(\"16:00\", \"16:00\"), 0);"
+  },
+  {
+    "id": "seat-booking",
+    "split": "train",
+    "route": "feature",
+    "prompt": "Add seat booking to the existing seating module in task.mjs. A customer can book a free seat, look up who holds a seat, and release their own booking so another customer can book it. Reject booking an occupied seat and releasing someone else's seat. Keep the existing seat-label behavior.",
+    "api": "Export createBooking() from task.mjs. Its returned object has book(seat, customer), holder(seat), and release(seat, customer). Book and release return booleans; holder returns the customer or null.",
+    "starter": "export function seatLabel(number) { return 'Seat ' + number; }",
+    "reference": "export function createBooking() { const seats = new Map(); return { book(seat, customer) { if (seats.has(seat)) return false; seats.set(seat, customer); return true; }, holder(seat) { return seats.get(seat) ?? null; }, release(seat, customer) { if (!seats.has(seat) || seats.get(seat) !== customer) return false; return seats.delete(seat); } }; }",
+    "functional": "const a = api.createBooking(), b = api.createBooking(); assert.equal(a.holder(1), null); assert.equal(a.book(1, 'Ana'), true); assert.equal(a.book(1, 'Bo'), false); assert.equal(a.holder(1), 'Ana'); assert.equal(b.holder(1), null); assert.equal(a.release(1, 'Bo'), false); assert.equal(a.release(1, 'Ana'), true); assert.equal(a.holder(1), null); assert.equal(a.book(1, 'Bo'), true);",
+    "preservation": "assert.equal(api.seatLabel(4), 'Seat 4');"
+  },
+  {
+    "id": "default-banner",
+    "split": "held-out",
+    "route": "patch",
+    "prompt": "Change the default banner text in task.mjs from 'Welcome aboard' to 'Welcome to the workspace'. Keep custom banner text unchanged.",
+    "starter": "export function banner(text) { return text ?? 'Welcome aboard'; }",
+    "reference": "export function banner(text) { return text ?? 'Welcome to the workspace'; }",
+    "functional": "assert.equal(api.banner(), 'Welcome to the workspace');",
+    "preservation": "assert.equal(api.banner('Hello'), 'Hello'); assert.equal(api.banner(''), '');"
+  },
+  {
+    "id": "overlap-minutes",
+    "split": "held-out",
+    "route": "task",
+    "prompt": "Fix overlapMinutes in task.mjs. Disjoint appointments currently produce a negative overlap. Return zero for disjoint or touching appointments and keep the overlap duration for intersecting appointments. Each appointment is a pair of minute offsets with start at or before end.",
+    "starter": "export function overlapMinutes(a, b) { return Math.min(a[1], b[1]) - Math.max(a[0], b[0]); }",
+    "reference": "export function overlapMinutes(a, b) { return Math.max(0, Math.min(a[1], b[1]) - Math.max(a[0], b[0])); }",
+    "functional": "assert.equal(api.overlapMinutes([5, 10], [15, 20]), 0); assert.equal(api.overlapMinutes([15, 20], [5, 10]), 0);",
+    "preservation": "assert.equal(api.overlapMinutes([5, 12], [8, 14]), 4); assert.equal(api.overlapMinutes([5, 10], [10, 14]), 0); assert.equal(api.overlapMinutes([1, 20], [6, 9]), 3);"
+  },
+  {
+    "id": "library-holds",
+    "split": "held-out",
+    "route": "feature",
+    "prompt": "Add a library hold queue in task.mjs. Patrons can join a title's queue, cancel their hold, and collect the next hold. Joining twice keeps the original place. Collection is first-come first-served, and holds on one title never affect another title. Match title strings exactly, including surrounding spaces. Keep the existing title-label behavior.",
+    "api": "Export createHolds() from task.mjs. Its returned object has join(title, patron) and cancel(title, patron), both returning whether the queue changed, and collect(title), returning the next patron or null.",
+    "starter": "export function titleLabel(title) { return title.trim(); }",
+    "reference": "export function createHolds() { const queues = new Map(); return { join(title, patron) { const queue = queues.get(title) ?? []; if (queue.includes(patron)) return false; queue.push(patron); queues.set(title, queue); return true; }, cancel(title, patron) { const queue = queues.get(title) ?? []; const index = queue.indexOf(patron); if (index < 0) return false; queue.splice(index, 1); return true; }, collect(title) { return queues.get(title)?.shift() ?? null; } }; }",
+    "functional": "const q = api.createHolds(); assert.equal(q.collect('A'), null); assert.equal(q.join('A','Lee'), true); assert.equal(q.join('A','Pat'), true); assert.equal(q.join('B','Sam'), true); assert.equal(q.join('A','Lee'), false); assert.equal(q.cancel('B','Pat'), false); assert.equal(q.collect('A'), 'Lee'); assert.equal(q.cancel('A','Pat'), true); assert.equal(q.collect('A'), null); assert.equal(q.collect('B'), 'Sam'); assert.equal(q.join('A', 'Ana'), true); assert.equal(q.join(' A ', 'Bo'), true); assert.equal(q.collect(' A '), 'Bo'); assert.equal(q.collect('A'), 'Ana');",
+    "preservation": "assert.equal(api.titleLabel('  Dune  '), 'Dune');"
+  }
+]

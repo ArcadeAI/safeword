@@ -1,0 +1,1 @@
+Fix the Arcade homepage after it renders through the localized Astro page. The apps carousel next arrow should advance to the next app. Scrolling through the feature cards should reveal the corresponding code panel on desktop, including after resizing to mobile and back. Preserve the existing team biography dialog and each feature card's own CTA label.

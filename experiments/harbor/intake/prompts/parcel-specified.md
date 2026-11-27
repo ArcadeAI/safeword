@@ -1,0 +1,1 @@
+Build a local CLI for a parcel pickup shelf. Staff can put a parcel on the shelf, see which parcels are waiting, and mark one as collected. The list must survive restarting the CLI. Staff enter the recipient’s name and the tracking number printed on each parcel. The waiting list shows both fields. Staff collect a parcel by tracking number. All labels are readable.

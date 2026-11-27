@@ -1,0 +1,26 @@
+[
+  {
+    "id": "stale-dashboard",
+    "request": "Two consecutive dashboard requests can show the first request\u2019s count on the second. For example, records A and B have statuses open and closed. With the same cache, requesting open and then closed after changing B to open still reports one closed record. Restore correct counts without losing caching for identical requests.",
+    "before": "function countMatching(records, status) {\n  return records.filter(record => record.status === status).length;\n}\nfunction cacheKey(records, status) {\n  return JSON.stringify([status, records.map(record => record.id)]);\n}\nexport function dashboardCount(records, status, cache) {\n  const key = cacheKey(records, status);\n  if (!cache.has(key)) cache.set(key, countMatching(records, status));\n  return cache.get(key);\n}",
+    "fixed": "function countMatching(records, status) {\n  return records.filter(record => record.status === status).length;\n}\nfunction cacheKey(records, status) {\n  return JSON.stringify([status, records.map(record => [record.id, record.status])]);\n}\nexport function dashboardCount(records, status, cache) {\n  const key = cacheKey(records, status);\n  if (!cache.has(key)) cache.set(key, countMatching(records, status));\n  return cache.get(key);\n}",
+    "fix": "const cache = new Map(); assert.equal(api.dashboardCount([{id:'a',status:'open'},{id:'b',status:'closed'}],'open',cache),1); assert.equal(api.dashboardCount([{id:'a',status:'open'},{id:'b',status:'closed'}],'closed',cache),1); assert.equal(api.dashboardCount([{id:'a',status:'open'},{id:'b',status:'open'}],'closed',cache),0);",
+    "preserve": "let writes=0; const cache=new Map(); const set=cache.set.bind(cache); cache.set=(...args)=>{writes++;return set(...args);}; const rows=[{id:'a',status:'open'}]; assert.equal(api.dashboardCount(rows,'open',cache),1); assert.equal(api.dashboardCount(rows,'open',cache),1); assert.equal(api.dashboardCount(rows,'closed',cache),0); assert.equal(writes,2);"
+  },
+  {
+    "id": "lost-import-rows",
+    "request": "An import report sometimes drops one customer\u2019s row when two customers use identifiers with similar punctuation, such as 'acme/east' with '01' and 'acme' with 'east/01'. Fix the report. Repeated rows with the same customer and order should still keep the last value, in first-seen order.",
+    "before": "function rowKey(row) {\n  return [row.customer, row.order].join('/');\n}\nfunction mergeRows(rows) {\n  const entries = new Map();\n  for (const row of rows) entries.set(rowKey(row), row);\n  return [...entries.values()];\n}\nexport function importReport(rows) {\n  return mergeRows(rows).map(row => ({...row}));\n}",
+    "fixed": "function rowKey(row) {\n  return JSON.stringify([row.customer, row.order]);\n}\nfunction mergeRows(rows) {\n  const entries = new Map();\n  for (const row of rows) entries.set(rowKey(row), row);\n  return [...entries.values()];\n}\nexport function importReport(rows) {\n  return mergeRows(rows).map(row => ({...row}));\n}",
+    "fix": "const rows=[{customer:'acme/east',order:'01',total:10},{customer:'acme',order:'east/01',total:20}]; assert.deepEqual(api.importReport(rows),rows);",
+    "preserve": "const first={customer:'a',order:'1',total:10}; const second={customer:'b',order:'2',total:20}; const replacement={...first,total:30}; assert.deepEqual(api.importReport([first,second,replacement]),[replacement,second]); assert.deepEqual(api.importReport([]),[]);"
+  },
+  {
+    "id": "obvious-label",
+    "request": "Correct the typo in the displayed default label from 'Subscrption' to 'Subscription'. Custom labels should still be returned as supplied.",
+    "before": "export function label(custom) {\n  return custom ?? 'Subscrption';\n}",
+    "fixed": "export function label(custom) {\n  return custom ?? 'Subscription';\n}",
+    "fix": "assert.equal(api.label(), 'Subscription');",
+    "preserve": "assert.equal(api.label('Custom'), 'Custom'); assert.equal(api.label(''), '');"
+  }
+]
