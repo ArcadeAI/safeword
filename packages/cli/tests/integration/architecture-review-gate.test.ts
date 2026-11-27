@@ -357,7 +357,7 @@ describe('architecture review gate (MR5M3A)', () => {
     writeTestFile(
       shared.projectDirectory,
       '.project/tickets/ARG022/impl-plan.md',
-      `${CITED  }\nChanged after approval.\n`,
+      `${CITED}\nChanged after approval.\n`,
     );
     expect(runStopHook('ARG022')).toContain(REVIEW_MSG);
   });
