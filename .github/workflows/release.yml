@@ -230,9 +230,10 @@ jobs:
   promote-stable:
     name: Promote stable plugin channel
     needs: publish
-    if: ${{ !contains(github.ref_name, '-') }}
+    # An optional upstream job can be skipped even when publish succeeds.
+    if: ${{ !cancelled() && needs.publish.result == 'success' && !contains(github.ref_name, '-') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     permissions:
       contents: write
 
@@ -251,11 +252,19 @@ jobs:
       - name: Verify the exact public package before promotion
         run: |
           TAG_VERSION="${GITHUB_REF_NAME#v}"
-          PUBLISHED_VERSION=$(npm view "safeword@$TAG_VERSION" version)
-          if [ "$PUBLISHED_VERSION" != "$TAG_VERSION" ]; then
-            echo "::error::npm returned $PUBLISHED_VERSION for safeword@$TAG_VERSION"
-            exit 1
-          fi
+          # npm may accept the upload minutes before public reads can see it.
+          for attempt in {1..20}; do
+            if PUBLISHED_VERSION=$(npm view "safeword@$TAG_VERSION" version \
+              --prefer-online --fetch-retries=0 --fetch-timeout=5000) && \
+              [ "$PUBLISHED_VERSION" = "$TAG_VERSION" ]; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 20 ]; then
+              sleep 15
+            fi
+          done
+          echo "::error::safeword@$TAG_VERSION is not visible on npm after 20 attempts"
+          exit 1
 
       - name: Advance stable without force or rollback
         run: |
