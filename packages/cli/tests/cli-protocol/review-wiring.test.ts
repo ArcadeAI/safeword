@@ -2473,6 +2473,14 @@ describe('cross-agent review public-command wiring', () => {
       );
       expect(JSON.stringify(output.findings)).toContain(loginCommand);
       expect(JSON.stringify(output.findings)).toContain(reviewerName);
+      expect(output.findings).toContainEqual(
+        expect.objectContaining({
+          code: 'REVIEW_INDEPENDENCE_DEGRADED',
+          message: expect.stringContaining(
+            `same agent (${author === 'claude' ? 'Claude' : 'Codex'})`,
+          ),
+        }),
+      );
       const launches = readFileSync(log, 'utf8').trim().split('\n');
       expect(launches[0]).toBe(reviewer);
       expect(launches.at(-1)).toBe(author);

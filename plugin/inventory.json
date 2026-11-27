@@ -23,7 +23,7 @@
     },
     {
       "path": "resources/guides/architecture-guide.md",
-      "sha256": "db4378d366ee1c92d0f9910645dc93f30dc8848e622c442141a30d026e9aa98b"
+      "sha256": "a19e1d8687b17d681d5fae6b25efe19dca16e9de2f5a0bb180caa23b75aa9f25"
     },
     {
       "path": "resources/guides/cold-start-check.md",
@@ -63,7 +63,7 @@
     },
     {
       "path": "resources/guides/planning-guide.md",
-      "sha256": "c2123444dbad01dba709c5c8c5c28032e21318eee8dc147e27e907798c569b19"
+      "sha256": "1265e28a4be510ec4d94378dea8f5a8bd977aa7ccadeaa6731cdc048a43c9364"
     },
     {
       "path": "resources/guides/release-recovery-guide.md",
@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "07eeabc1929e6b7821a34a379a53607d76ea758aafe243cf1aacdde1784506d5"
+      "sha256": "ca9621315903bd355f3767bd4d675a81b64d87428cf22252846548831ce7272e"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "9efccbf4bb026b008a85333cf296f3f8000912b45da5385e1b1b909f4d195f22"
+      "sha256": "53753ca37652e5c577e5ed412e375e079d110a32b9832e69664b9d9ac5c2b52a"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "9234f5632d80f84c2aacb2eeb827fbf99b68b2d0e7e4c2f946b5ea6a514edcc0"
+      "sha256": "2546e1b72bbf8510f2c4b55a2a57295a12158aacf8b68ce440dc70a9a0183295"
     },
     {
       "path": "runtime/event-groups.json",
@@ -275,7 +275,7 @@
     },
     {
       "path": "runtime/hooks/lib/jtbd.ts",
-      "sha256": "5ff4694b832f97fec075e23de26cecf25e9c0de4a3a1b0ff6ae05d50f4d90a4a"
+      "sha256": "6e8141d15f9d98fbe8316e92791f05c8d69f86e2f1f0ab97359e1a7756979705"
     },
     {
       "path": "runtime/hooks/lib/learning-verification-stamps.ts",
@@ -411,7 +411,7 @@
     },
     {
       "path": "runtime/hooks/lib/review-ledger.ts",
-      "sha256": "ab63eefed68979c44918184edebf23d1f43cb39dd52d093f4f724acd63c5eecf"
+      "sha256": "cf3dad9fe02dda34d8bfe150a20d5ecd89023338bc8c9619557ece0d35b6b650"
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
@@ -471,7 +471,7 @@
     },
     {
       "path": "runtime/hooks/lib/verify-stamp-claims.ts",
-      "sha256": "da118d2db9fa938c16629c2c72451d48b0d6be22144e04ac7d78d4d718ffefa9"
+      "sha256": "6cb849058e0ccafba59919bbe9d2d4a6d72c4cbba2b0b44aeca1923252cf2e39"
     },
     {
       "path": "runtime/hooks/lib/version.ts",
@@ -599,7 +599,7 @@
     },
     {
       "path": "runtime/hooks/session-lint-check.ts",
-      "sha256": "fd8520c78e491419251654cf7124213c77fd3a2291cb25c5b0f0592c43eaa772"
+      "sha256": "7278a5b62db029b9eb7f4438a7a58d60fe9790c57b6e2fa8a8be645ae8bda88b"
     },
     {
       "path": "runtime/hooks/session-reply-format.ts",
@@ -648,7 +648,7 @@
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
-      "sha256": "571d445190f5c5791ebed2454a841ea70d63cbb2a1f4d2a65e32ffebf5b607b3"
+      "sha256": "724d802b53772ace5d814cbca0833969edeae476c452b74e1de78b3d471cca96"
     },
     {
       "path": "skills/bdd/DONE.md",
@@ -668,8 +668,8 @@
     },
     {
       "path": "skills/bdd/SKILL.md",
-      "sha256": "898e21405b0735f13087e3c986df79b2a6428309536cb43d77f5c57777f1bd90",
-      "skill_sha256": "614489996730df034b363d0321bcc5d024998e0bef68d09796a1c0ccabf1ec38"
+      "sha256": "bb7d3fd97a247fd83874f2caf0fcd10d27d72229829e9a194b0bad4005065097",
+      "skill_sha256": "cc7c9bf57d1c4f28b8b8cb799a61828f41140a052e299591e127281a93018491"
     },
     {
       "path": "skills/bdd/SPLITTING.md",
@@ -815,7 +815,7 @@
     },
     {
       "path": "templates/child-spec-template.md",
-      "sha256": "0605e3eeb6cf5d9d300930c892b73dbeef3228f9b3524f8d5e64f3469d125cf4"
+      "sha256": "532ba94c394a977c8a59be0525a56db485088ce41e677ccb3977ed41a0c0c115"
     },
     {
       "path": "templates/commands/audit.md",
@@ -1043,11 +1043,11 @@
     },
     {
       "path": "templates/glossary-template.md",
-      "sha256": "390a24f904065806f444c63393c892c62cc04cda546995808e302730b52f74e1"
+      "sha256": "b58ac0b7a4c927fbf536716fa48a31da3a7c14b22b0051ceac4a67d93e71c24f"
     },
     {
       "path": "templates/guides/architecture-guide.md",
-      "sha256": "db4378d366ee1c92d0f9910645dc93f30dc8848e622c442141a30d026e9aa98b"
+      "sha256": "a19e1d8687b17d681d5fae6b25efe19dca16e9de2f5a0bb180caa23b75aa9f25"
     },
     {
       "path": "templates/guides/cold-start-check.md",
@@ -1087,7 +1087,7 @@
     },
     {
       "path": "templates/guides/planning-guide.md",
-      "sha256": "45eb5ac575724ee340537aee9d9cc7c2481f4829664bee031d9631f572eab7a8"
+      "sha256": "27ee51ee2f2512bd322c4da9316bbe1d3cd5ff301fb6993ef67c0f68833cb0d1"
     },
     {
       "path": "templates/guides/release-recovery-guide.md",
@@ -1275,7 +1275,7 @@
     },
     {
       "path": "templates/hooks/lib/jtbd.ts",
-      "sha256": "70c370e51f155ba7c5e7bd4e508e63b5570fc7e4e94576923a144386a70e4fd6"
+      "sha256": "3c4c5e07a7d140735cdc948215088daed7b45b811b0a1f8c7bb9056c350f5891"
     },
     {
       "path": "templates/hooks/lib/learning-verification-stamps.ts",
@@ -1407,7 +1407,7 @@
     },
     {
       "path": "templates/hooks/lib/review-ledger.ts",
-      "sha256": "ab63eefed68979c44918184edebf23d1f43cb39dd52d093f4f724acd63c5eecf"
+      "sha256": "cf3dad9fe02dda34d8bfe150a20d5ecd89023338bc8c9619557ece0d35b6b650"
     },
     {
       "path": "templates/hooks/lib/review-receipt.ts",
@@ -1467,7 +1467,7 @@
     },
     {
       "path": "templates/hooks/lib/verify-stamp-claims.ts",
-      "sha256": "da118d2db9fa938c16629c2c72451d48b0d6be22144e04ac7d78d4d718ffefa9"
+      "sha256": "6cb849058e0ccafba59919bbe9d2d4a6d72c4cbba2b0b44aeca1923252cf2e39"
     },
     {
       "path": "templates/hooks/lib/version.ts",
@@ -1595,7 +1595,7 @@
     },
     {
       "path": "templates/hooks/session-lint-check.ts",
-      "sha256": "fd8520c78e491419251654cf7124213c77fd3a2291cb25c5b0f0592c43eaa772"
+      "sha256": "7278a5b62db029b9eb7f4438a7a58d60fe9790c57b6e2fa8a8be645ae8bda88b"
     },
     {
       "path": "templates/hooks/session-reply-format.ts",
@@ -1639,11 +1639,11 @@
     },
     {
       "path": "templates/personas-template.md",
-      "sha256": "5eaf273617cac3866a8b97f8b9a7f1d2511d6be7f4809066273d588aac3d4404"
+      "sha256": "6842e7eac19ced0742282ec165bae9dcd6ba0f34992d3fb0bb2ee94e0e1f5881"
     },
     {
       "path": "templates/principles-template.md",
-      "sha256": "b341d84d1572fb863fdfa78bc8340f5b87cc109631c20616a1c8875a580dddc8"
+      "sha256": "9dc0b63ece65e97dbb893f60203fcf925cd7eb2983b25a9fd0d3609c2f97d9af"
     },
     {
       "path": "templates/prompts/architecture.md",
@@ -1651,7 +1651,7 @@
     },
     {
       "path": "templates/SAFEWORD.md",
-      "sha256": "5dae1e973d253518209009015044ba4774d4a591dfa7eb1476754cea9e106753"
+      "sha256": "259cea6f56b9004cbfd8394fdf26c67e378376ba8412420bf122a271d167ba18"
     },
     {
       "path": "templates/scripts/bisect-test-pollution.sh",
@@ -1675,7 +1675,7 @@
     },
     {
       "path": "templates/skills/bdd/DISCOVERY.md",
-      "sha256": "9d8f44d62752433582ce76ea019716a09fabcfb3af65c9fc644dd60972372557"
+      "sha256": "27681dc600d4eec5f08f1b747edb6348709a0e661eb74f0ff8c6d01ce86395e5"
     },
     {
       "path": "templates/skills/bdd/DONE.md",
@@ -1695,7 +1695,7 @@
     },
     {
       "path": "templates/skills/bdd/SKILL.md",
-      "sha256": "898e21405b0735f13087e3c986df79b2a6428309536cb43d77f5c57777f1bd90"
+      "sha256": "bb7d3fd97a247fd83874f2caf0fcd10d27d72229829e9a194b0bad4005065097"
     },
     {
       "path": "templates/skills/bdd/SPLITTING.md",
@@ -1803,7 +1803,7 @@
     },
     {
       "path": "templates/spec-template.md",
-      "sha256": "d4aca0aa62f282d5f9b9aaf47b68fad8f63493588a42604f6359163959e72bca"
+      "sha256": "f3c446fb221598ad9b5eec0b63458af78af76a9e0cbbeed72088ca72bbf0be60"
     },
     {
       "path": "templates/statusline/reentry.ts",
@@ -1811,7 +1811,7 @@
     },
     {
       "path": "templates/surfaces-template.md",
-      "sha256": "33492f679edf26ab99708fce319697cc0544855d54d1f607d1ed2579ce05addf"
+      "sha256": "40232706ecefb5301e6e37c5141f2135d15398093fefd47535a25d6fcfe2e2fe"
     },
     {
       "path": "templates/workflows/pr-review-publisher.yml",

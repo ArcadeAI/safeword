@@ -7,6 +7,15 @@ behavior-shaping choice and consequence there. Give a significant choice a
 resolvable link to the configured durable architecture record; a routine,
 reversible feature-local choice stays in the plan.
 
+## Make a significant implementation decision
+
+Use the following sequence for a significant implementation decision.
+
+1. **Frame** the problem and its hard constraints: prior tickets, the data model, non-negotiable framework idioms. Don't read the soft conventions yet.
+2. **Design the ideal.** Run `/figure-it-out` to weigh 2-3 options on correctness, simplicity, and no-bloat, and pick the best architecture _as if the codebase didn't exist_. Computing this first gives the next step a yardstick.
+3. **Survey the existing patterns** in the area you're about to touch — now, not before. Surveying earlier anchors the design to the status quo and quietly shrinks it to match.
+4. **Reconcile.** Conform to the existing pattern by default — deviate only when the ideal is a real improvement, not taste. When your ideal diverges from what exists, record the call: to deviate, name a concrete defect of the existing pattern the ideal fixes, the call-site count you're splitting, a one-line pre-mortem ("assume this was wrong — what broke?"), and the follow-up ticket to uplevel the rest. Reversible and local → a few lines in the ticket; irreversible or cross-cutting (data model, public API) → promote to an ADR.
+
 ## Read state and decisions separately
 
 `<namespace-root>/architecture.generated.md` describes what the codebase is

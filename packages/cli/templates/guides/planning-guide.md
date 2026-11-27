@@ -4,6 +4,10 @@ How to write specs, user stories, and test definitions before implementation.
 
 ---
 
+## Recheck a stale plan on resume
+
+The plan may be stale: a `Resume check: N commit(s)…` line means someone else's commits touched files this ticket references since you last worked on it. This is opt-in: if the user declines or just proceeds, investigate nothing. If the user accepts ("check the plan"), spawn a fresh sub-agent (`isolation: worktree`) to judge whether scope still holds and report back **in chat only** — proposing one of still-good / change-scope / cancel / split / merge, with rationale. If the verdict is change-scope or split, run `/figure-it-out` before proposing a new approach — scope changed because the world changed, which is exactly when re-deciding from memory is most dangerous. Never edit the ticket without explicit approval. If the sub-agent errors or times out, note it in one line and proceed with the work — don't retry in a loop (the heads-up won't re-fire until new commits land).
+
 ## Artifact Levels
 
 **Triage first — the first matching row sets the level:**
