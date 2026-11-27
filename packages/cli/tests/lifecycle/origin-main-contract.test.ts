@@ -306,6 +306,11 @@ beforeAll(async () => {
   if (process.env.CI && process.env.SAFEWORD_UPDATE_ORIGIN_MAIN_FIXTURES === '1') {
     throw new Error('Regenerate lifecycle fixtures locally, then verify without update mode.');
   }
+  const profiles = createTemporaryDirectory();
+  temporaryDirectories.push(profiles);
+  vi.stubEnv('CLAUDE_CONFIG_DIR', nodePath.join(profiles, 'claude'));
+  vi.stubEnv('CODEX_HOME', nodePath.join(profiles, 'codex'));
+  vi.stubEnv('OPENCODE_CONFIG_DIR', nodePath.join(profiles, 'opencode'));
   for (const agent of ['claude', 'codex', 'cursor'] as const) await captureIntegration(agent);
   if (process.env.SAFEWORD_UPDATE_ORIGIN_MAIN_FIXTURES !== '1') return;
   mkdirSync(FIXTURE_ROOT, { recursive: true });
@@ -329,6 +334,7 @@ beforeAll(async () => {
 });
 
 afterAll(() => {
+  vi.unstubAllEnvs();
   for (const directory of temporaryDirectories) removeTemporaryDirectory(directory);
 });
 

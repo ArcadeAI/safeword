@@ -327,9 +327,9 @@ async function prepareLifecycle(
   const observationByAgent = new Map(
     observations.map(observation => [observation.agent, observation.observation]),
   );
-  const observedSurfaces = await coordinateSelectedIntegrations(
+  const integrationSurfaces = await coordinateSelectedIntegrations(
     PRODUCTION_INTEGRATIONS,
-    observedAgents,
+    agents,
     async adapter => ({
       name: adapter.id,
       effects: await adapter.effects({
@@ -341,8 +341,8 @@ async function prepareLifecycle(
       }),
     }),
   );
-  const remainingNativeProfile = observedSurfaces.some(
-    surface => !selected.has(surface.name) && surface.effects.destructive.length > 0,
+  const remainingNativeProfile = observations.some(
+    row => !selected.has(row.agent) && row.observation === true,
   );
   const projectSchema = projectLifecycleSchema(cwd, agents, operation, remainingNativeProfile);
   const uninstallOperation = full ? 'uninstall-full' : 'uninstall';
@@ -352,7 +352,6 @@ async function prepareLifecycle(
         plan: await createSetupPlan(cwd, projectSchema, installOptions),
         dryRun: undefined,
       };
-  const integrationSurfaces = observedSurfaces.filter(surface => selected.has(surface.name));
   const surfaces = [{ name: 'project', effects: project.plan.effects }, ...integrationSurfaces];
   const preconditionDigest = createHash('sha256')
     .update(
