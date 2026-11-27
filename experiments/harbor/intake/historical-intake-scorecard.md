@@ -31,14 +31,14 @@ A GEPA candidate that changed only the BDD description cleared its training CSV 
 
 ## What a perfect intake score left open
 
-On a later frozen handbook candidate, both hosts ran three attempts on each of four held-out tasks. Overnight shifts and packing-slip footers used hidden behavior and preservation checks. Parcel pickup and reading handouts stopped at independently approved intake. All 24 trials passed their respective gate. The [candidate trial records](historical-candidate-trials.csv) include the grade type, reviewer calls, spend and parking-test replay outcomes. Empty CSV cells indicate measures outside that experiment.
+On a later frozen handbook candidate, both hosts ran three attempts on each of four held-out tasks. Overnight shifts and packing-slip footers used hidden behavior and preservation checks. The `parcel-shelf` and `reading-bookmarks` features stopped at independently approved intake. All 24 trials passed their respective gate. The [candidate trial records](historical-candidate-trials.csv) include the grade type, reviewer calls, spend and parking-test replay outcomes. Empty CSV cells indicate measures outside that experiment.
 
 | Author | Trials passed | Feature trials asking for clarification | Independent reviewer calls | Recorded API-equivalent spend |
 | ------ | ------------: | --------------------------------------: | -------------------------: | ----------------------------: |
 | Claude |         12/12 |                                     6/6 |                         37 |                        $11.21 |
 | Codex  |         12/12 |                                     1/6 |                         10 |                         $3.49 |
 
-Seven of the twelve feature trials asked for clarification. The overnight-shift bug also prompted a question in Claude attempt 2. It is outside the feature denominator. Reviewer usage was incomplete in Claude reading-handout attempt 3, so its cost subtotal is an estimate. This candidate-only comparison gives no improvement estimate against main.
+Seven of the twelve feature trials asked for clarification. The overnight-shift bug also prompted a question in Claude attempt 2. It is outside the feature denominator. Reviewer usage was incomplete in Claude `reading-bookmarks` attempt 3, so its cost subtotal is an estimate. This candidate-only comparison gives no improvement estimate against main.
 
 ## Did a regression test survive delivery?
 

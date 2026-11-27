@@ -5,7 +5,16 @@
       "author_estimate_usd": 1.1738554,
       "reviewer_estimate_usd": 0.33050999999999997,
       "started_reviewer_processes": 7,
-      "reviewer_usage_complete": true
+      "reviewer_usage_complete": true,
+      "plan_review": {
+        "id": "a3b8ed16-751f-463d-812f-1f00120ffa19",
+        "target": ".project/tickets/TW46FZ-temperature-csv-converter/spec.md",
+        "status": "approved",
+        "author_agent": "claude",
+        "actual_reviewer": "codex",
+        "independence": "cross-agent",
+        "updated_at": "2026-11-24T21:54:39.712Z"
+      }
     },
     "codex": {
       "elapsed_seconds": 115.641681497,
@@ -135,5 +144,45 @@
         }
       }
     ]
+  },
+  "observed_tool_sequence": {
+    "routing-feature/claude": [
+      ["01-claude.jsonl:25", "Write", "write implementation"],
+      ["01-claude.jsonl:50", "Bash", "check behavior"]
+    ],
+    "routing-feature/codex": [
+      ["01-codex.jsonl:16", "command_execution", "read BDD skill"],
+      ["01-codex.jsonl:18", "command_execution", "observe missing export"],
+      ["01-codex.jsonl:20", "file_change", "edit implementation"],
+      ["01-codex.jsonl:24", "command_execution", "rerun check"]
+    ],
+    "routing-bug/codex": [
+      ["01-codex.jsonl:13", "command_execution", "read debug skill"],
+      ["01-codex.jsonl:19", "command_execution", "reproduce overlap failure"],
+      ["01-codex.jsonl:21", "file_change", "edit implementation"],
+      ["01-codex.jsonl:23", "command_execution", "verify fix"]
+    ],
+    "intake-open/claude": [
+      ["01-claude.jsonl:30", "Write", "write provisional implementation"],
+      ["02-claude.jsonl:6", "Edit", "replace provisional rule after reply"]
+    ],
+    "intake-open/codex": [
+      ["02-codex.jsonl:12", "file_change", "first production edit after reply"]
+    ],
+    "handoff-live/claude": [
+      ["02-claude.jsonl:728", "Edit", "phase advance succeeded"],
+      ["02-claude.jsonl:752", "Write", "scenario write succeeded"],
+      ["02-claude.jsonl:836", "Write", "production edit succeeded"]
+    ]
+  },
+  "parking_exclusions": {
+    "runs": 4,
+    "estimated_usd": 0.662856
+  },
+  "incomplete_spend": {
+    "case": "reading-bookmarks",
+    "host": "claude",
+    "attempt": 3,
+    "review_has_missing_usage": true
   }
 }
