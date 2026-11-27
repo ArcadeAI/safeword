@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -47,6 +48,13 @@ class ResourceFixture {
     vi.spyOn(edge, 'launchWindow').mockImplementation(function (this: CursorNativeCatalogueActor) {
       return recordLaunch(this);
     });
+  }
+  stagedRuntime(): string {
+    const sources = readdirSync(this.root).filter(name => name.startsWith('cursor-source-'));
+    const [source] = sources;
+    if (!source || sources.length !== 1)
+      throw new Error('Expected exactly one staged Cursor source');
+    return nodePath.join(this.root, source, 'source/packages/cli/src/cli.ts');
   }
   revision(name: string) {
     const inputs = createCanonicalCatalogueInputs(mkdtempSync(nodePath.join(this.root, name)));
@@ -165,9 +173,7 @@ it.each(['project-hooks', 'native'])(
             root,
             native ? 'templates/hooks/audit-principle-trace.ts' : 'hooks/audit-principle-trace.ts',
           );
-          const runtime = native
-            ? nodePath.join(root, 'runtime/cli.js')
-            : nodePath.join(sourcePackage, 'src/cli.ts');
+          const runtime = native ? nodePath.join(root, 'runtime/cli.js') : fixture.stagedRuntime();
           const artifact = nodePath.join(actor.workspace, '.host-contract/native-helper.json');
           rmSync(artifact, { force: true });
           const output = spawnSync(

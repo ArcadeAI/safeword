@@ -25,10 +25,15 @@ it.each([
   ],
   [
     'missing native delivery',
-    'HOST_CONTRACT_GRAPH_LANE_MISSING',
+    'HOST_CONTRACT_TARGET_MISSING',
     (matrix: Matrix) => {
-      for (const target of matrix.targets)
-        if (target.agent === 'cursor') target.delivery_variants = ['project-hooks'];
+      const target = matrix.targets.find(
+        row => row.agent === 'cursor' && row.runtimes.includes('IDE'),
+      );
+      if (!target?.delivery_variants?.includes('native'))
+        throw new Error('Missing Cursor IDE fixture');
+      target.delivery_variants = target.delivery_variants.filter(delivery => delivery !== 'native');
+      return `cursor:${target.version}:IDE:native`;
     },
   ],
   [
@@ -48,12 +53,15 @@ it.each([
     const path = nodePath.join(directory, 'packages/cli/tests/fixtures/host-contract/targets.json');
     const original = readFileSync(path, 'utf8');
     const matrix = JSON.parse(original) as Matrix;
-    mutate(matrix);
+    const missingTarget = mutate(matrix);
     writeFileSync(path, JSON.stringify(matrix));
     const result = runContractRepoCheck(directory);
     expect(result.status, `MISSING_GRAPH_RELATION_REJECTION: ${finding}`).toBe(2);
     expect(JSON.parse(result.output).findings).toContainEqual(
-      expect.objectContaining({ code: finding }),
+      expect.objectContaining({
+        code: finding,
+        ...(missingTarget && { metadata: { id: missingTarget } }),
+      }),
     );
     writeFileSync(path, original);
     expect(runContractRepoCheck(directory).status).toBe(0);
