@@ -26,6 +26,16 @@ function generatedSkill(source: string): string {
 }
 
 describe('Codex plugin catalogue runtime authority', () => {
+  it('gives feature intake the ticket command from the selected Codex plugin version', () => {
+    const skills = nodePath.resolve(import.meta.dirname, '../../templates/skills');
+    const guide = generateCodexPluginAssets(skills, '1.2.3').find(
+      asset => asset.relativePath === 'skills/bdd/references/DISCOVERY.md',
+    );
+    expect(guide?.content).toContain(
+      'bun "$SAFEWORD_PLUGIN_RUNTIME" ticket new <slug> --type feature',
+    );
+  });
+
   it('keeps the containing plugin authoritative beside legacy project runtime', () => {
     const content = generatedSkill(
       [

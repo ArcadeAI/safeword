@@ -725,6 +725,18 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       environment: MACHINE_ENVIRONMENT,
     },
   }),
+  command(
+    'review advance-intake',
+    'Record the approved Product Plan and enter scenario definition',
+    'mutate',
+    {
+      syntax: 'advance-intake <review-id>',
+      fixture: {
+        argv: ['review', 'advance-intake', '00000000-0000-0000-0000-000000000001'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
   command('review continue', 'Complete a sealed planning review continuation', 'mutate', {
     syntax: 'continue <review-id>',
     commandOptions: [

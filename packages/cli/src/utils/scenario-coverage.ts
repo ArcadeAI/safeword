@@ -364,6 +364,16 @@ function stripFormatting(value: string): string {
 }
 
 export function surfaceSlug(name: string): string {
+  const label = name.trim();
+  const suffix = label.lastIndexOf(' (');
+  if (suffix > 0 && label.endsWith(')')) {
+    const canonical = slugifySurfaceName(label.slice(0, suffix));
+    if (label.slice(suffix + 2, -1) === canonical) return canonical;
+  }
+  return slugifySurfaceName(label);
+}
+
+function slugifySurfaceName(name: string): string {
   let slug = '';
   let previousWasDash = false;
   for (const character of name.trim().toLowerCase()) {

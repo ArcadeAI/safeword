@@ -8,10 +8,10 @@ export const PLANNING_CONTRACTS = {
     "entryCriteria": "Feature intake with the user's goal and current project context; a child also names its declared parent job and milestone.",
     "requiredContent": "The owning Product Plan or child Contribution, accepted Rules, scope and exclusions, observable done state, personas and affected surfaces. Keep supported facts, assumptions, and unresolved decisions distinct.",
     "prohibitedContent": "Implementation design, delivery task sequencing, or claims that scenarios, either downstream plan, or implementation are approved.",
-    "reviewQuestion": "Does this Product Plan completely and honestly define the accepted behavior within user-owned scope, including its consequential outcomes?",
+    "reviewQuestion": "Are the accepted behavior and its material boundaries clear enough to write scenarios?",
     "approvalMeaning": "The behavior is ready for scenario definition. This is not scenario acceptance, design approval, startable delivery, or completion.",
     "invalidation": "Changed Product Plan bytes or changed decision-bearing product boundaries require a current review of the changed decision.",
-    "returnPath": "Repair incomplete behavior or unresolved product choices in intake, then review the corrected Product Plan before scenario definition."
+    "returnPath": "Repair each blocking cause across all affected Rules and outcomes, then review the corrected Product Plan before scenario definition."
   },
   "plan-implementation": {
     "phase": "plan-implementation",
@@ -41,7 +41,7 @@ export const PLANNING_CONTRACTS = {
 export const PLANNING_AUTHOR_COPIES = {
   "product-plan": {
     "relativePath": "templates/skills/bdd/DISCOVERY.md",
-    "sha256": "95faf0432496e4fe491ede80fdc102129f98a510c6cbdb125ccffcbbb4cf86cd"
+    "sha256": "a5c0eb1d8a2e532f6767fa13a60cc9fc90d2c948a9124cf585c3f1a7cf4d1051"
   },
   "plan-implementation": {
     "relativePath": "templates/skills/bdd/PLAN_IMPLEMENTATION.md",
