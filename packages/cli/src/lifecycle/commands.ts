@@ -155,6 +155,7 @@ async function installProjectSurface(
 ): Promise<CliResult> {
   const projectSchema = projectLifecycleSchema(invocation.cwd, agents);
   return convergeSetup(invocation.cwd, {
+    codexSelected: agents.includes('codex'),
     offline: invocation.offline,
     noModify: invocation.options.modify === false,
     repairVersionMarker: invocation.options.repairVersionMarker === true,
@@ -349,7 +350,10 @@ async function prepareLifecycle(
   const project = uninstalling
     ? await createReconciliationPlan(cwd, uninstallOperation, projectSchema)
     : {
-        plan: await createSetupPlan(cwd, projectSchema, installOptions),
+        plan: await createSetupPlan(cwd, projectSchema, {
+          ...installOptions,
+          codexSelected: selected.has('codex'),
+        }),
         dryRun: undefined,
       };
   const surfaces = [{ name: 'project', effects: project.plan.effects }, ...integrationSurfaces];

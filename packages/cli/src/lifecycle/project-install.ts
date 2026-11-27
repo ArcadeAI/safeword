@@ -330,6 +330,12 @@ function plannedLegacyCodexMigrationEffects(cwd: string): Effects {
   return effects;
 }
 
+function plannedProjectCodexEffects(cwd: string, options: SetupPlanOptions): Effects {
+  if (options.codexSelected === false) return emptyEffects();
+  const migration = plannedLegacyCodexMigrationEffects(cwd);
+  return { ...migration, files: [...plannedCodexBootstrapEffect(cwd), ...migration.files] };
+}
+
 function plannedArchitectureEffects(cwd: string): Effect[] {
   const architecture = buildArchitecture(cwd);
   if (!hasArchitectureDetected(architecture)) return [];
@@ -431,6 +437,7 @@ function pythonObservationTargets(cwd: string): string[] {
 }
 
 export interface SetupPlanOptions {
+  readonly codexSelected?: boolean;
   readonly migrateNamespace?: boolean;
   readonly noModify?: boolean;
   readonly repairVersionMarker?: boolean;
@@ -524,12 +531,13 @@ function setupPreconditionDigest(
     '.safeword',
     '.safeword-project',
     '.project',
-    '.codex/config.toml',
+    ...(options.codexSelected === false
+      ? []
+      : [CODEX_MIGRATION_SCHEMA.paths.config, ...CODEX_MIGRATION_SCHEMA.cleanupFiles]),
     '.dependency-cruiser.cjs',
     'Cargo.toml',
     ...JAVASCRIPT_PACKAGE_FILES,
     ...PYTHON_PACKAGE_FILES,
-    ...CODEX_MIGRATION_SCHEMA.cleanupFiles,
     ...effects.files.map(effect => effect.target),
     ...effects.destructive.map(effect => effect.target),
   ].filter(target => !target.includes(' → '));
@@ -604,7 +612,6 @@ export async function createSetupPlan(
         ...plannedNamespaceEffects(cwd, migrateNamespace),
         ...compatibilityFiles,
         ...plannedPackEffects(cwd),
-        ...plannedCodexBootstrapEffect(cwd),
         ...plannedArchitectureEffects(cwd),
         ...plannedWorkspaceEffects(cwd, context),
         ...plannedOptionalEslintEffects(cwd, context, options.noModify),
@@ -617,7 +624,7 @@ export async function createSetupPlan(
         : [],
     },
     python,
-    plannedLegacyCodexMigrationEffects(cwd),
+    plannedProjectCodexEffects(cwd, options),
   ]);
   const effects = mergeEffects(combined);
   return createPlan({
@@ -728,11 +735,8 @@ function publicRetroConfigRefusal(cwd: string): CliResult | undefined {
   return undefined;
 }
 
-interface ConvergeSetupOptions {
+interface ConvergeSetupOptions extends SetupPlanOptions {
   offline?: boolean;
-  noModify?: boolean;
-  migrateNamespace?: boolean;
-  repairVersionMarker?: boolean;
   progress?: {
     readonly start: (message: string) => void;
     readonly stop: () => void;
@@ -802,6 +806,7 @@ async function convergeSetupValidated(
       configured ? 'Reconciling the Safeword upgrade…' : 'Setting up Safeword…',
     );
     return await applySetup(cwd, {
+      codexSelected: options.codexSelected !== false,
       configured,
       offline: options.offline === true,
       packageJsonCreated,
@@ -1205,6 +1210,7 @@ function setupGuidanceFindings(
 }
 
 interface SetupResultInput {
+  readonly codexSelected: boolean;
   readonly packageJsonCreated: boolean;
   readonly installation: DependencyInstallResult;
   readonly eslintPolicy: VendoredIgnoresPolicyResult;
@@ -1329,7 +1335,7 @@ function setupResult(input: SetupResultInput): CliResult {
     ...findings,
     // Suppressed while a handoff is deferred: claiming enrollment succeeded
     // would contradict the warning this run just emitted.
-    ...(actionRequired || handoffDeferred
+    ...(!input.codexSelected || actionRequired || handoffDeferred
       ? []
       : [
           {
@@ -1468,6 +1474,7 @@ function applyPackageCompatibility(
 }
 
 interface ApplySetupInput {
+  readonly codexSelected: boolean;
   readonly configured: boolean;
   readonly offline: boolean;
   readonly packageJsonCreated: boolean;
@@ -1577,6 +1584,18 @@ function setupPackageChecksAreSkipped(offline: boolean): boolean {
   return offline || Boolean(process.env.SAFEWORD_SKIP_INSTALL);
 }
 
+function applyProjectCodexSetup(
+  cwd: string,
+  completedEffects: CompletedSetupEffects,
+  input: ApplySetupInput,
+): Finding[] {
+  if (!input.codexSelected) return [];
+  observeFileStage(cwd, [CODEX_MIGRATION_SCHEMA.paths.config], completedEffects, () =>
+    installCodexProjectBootstrap(cwd),
+  );
+  return migrateLegacyCodexDuringSetup(cwd, completedEffects, input.offline);
+}
+
 async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResult> {
   const {
     adapters,
@@ -1601,14 +1620,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
 
   try {
     applyCompatibilityMigrations(cwd, completedEffects);
-    observeFileStage(cwd, ['.codex/config.toml'], completedEffects, () =>
-      installCodexProjectBootstrap(cwd),
-    );
-    const codexHandoffFindings = migrateLegacyCodexDuringSetup(
-      cwd,
-      completedEffects,
-      input.offline,
-    );
+    const codexHandoffFindings = applyProjectCodexSetup(cwd, completedEffects, input);
     const architectureEffects = observeFileStage(
       cwd,
       ['.safeword/depcruise-config.cjs', '.dependency-cruiser.cjs'],
@@ -1672,6 +1684,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
       applyPackageCompatibility(cwd, completedEffects, input.offline);
     });
     const applied = setupResult({
+      codexSelected: input.codexSelected,
       packageJsonCreated,
       installation,
       eslintPolicy,

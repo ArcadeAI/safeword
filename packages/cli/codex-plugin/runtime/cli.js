@@ -85676,6 +85676,12 @@ function plannedLegacyCodexMigrationEffects(cwd) {
   }
   return effects;
 }
+function plannedProjectCodexEffects(cwd, options) {
+  if (options.codexSelected === false)
+    return emptyEffects();
+  const migration = plannedLegacyCodexMigrationEffects(cwd);
+  return { ...migration, files: [...plannedCodexBootstrapEffect(cwd), ...migration.files] };
+}
 function plannedArchitectureEffects(cwd) {
   const architecture = buildArchitecture(cwd);
   if (!hasArchitectureDetected(architecture))
@@ -85816,12 +85822,11 @@ function setupPreconditionDigest(cwd, reconciliationDigest, effects, context, op
     ".safeword",
     ".safeword-project",
     ".project",
-    ".codex/config.toml",
+    ...options.codexSelected === false ? [] : [CODEX_MIGRATION_SCHEMA.paths.config, ...CODEX_MIGRATION_SCHEMA.cleanupFiles],
     ".dependency-cruiser.cjs",
     "Cargo.toml",
     ...JAVASCRIPT_PACKAGE_FILES,
     ...PYTHON_PACKAGE_FILES,
-    ...CODEX_MIGRATION_SCHEMA.cleanupFiles,
     ...effects.files.map((effect) => effect.target),
     ...effects.destructive.map((effect) => effect.target)
   ].filter((target) => !target.includes(" \u2192 "));
@@ -85870,7 +85875,6 @@ async function createSetupPlan(cwd, schema, options = {}) {
         ...plannedNamespaceEffects(cwd, migrateNamespace),
         ...compatibilityFiles,
         ...plannedPackEffects(cwd),
-        ...plannedCodexBootstrapEffect(cwd),
         ...plannedArchitectureEffects(cwd),
         ...plannedWorkspaceEffects(cwd, context),
         ...plannedOptionalEslintEffects(cwd, context, options.noModify),
@@ -85881,7 +85885,7 @@ async function createSetupPlan(cwd, schema, options = {}) {
       network: staleSafeword ? [{ kind: "package-registry", target: compatibilityPackage, operation: "update" }] : []
     },
     python,
-    plannedLegacyCodexMigrationEffects(cwd)
+    plannedProjectCodexEffects(cwd, options)
   ]);
   const effects = mergeEffects(combined);
   return createPlan({
@@ -85995,6 +85999,7 @@ async function convergeSetupValidated(cwd, options) {
     packageJsonCreated = configured ? false : ensurePackageJson(cwd);
     options.progress?.start(configured ? "Reconciling the Safeword upgrade\u2026" : "Setting up Safeword\u2026");
     return await applySetup(cwd, {
+      codexSelected: options.codexSelected !== false,
       configured,
       offline: options.offline === true,
       packageJsonCreated,
@@ -86382,7 +86387,7 @@ function setupResult(input) {
   const claudePluginReloadEligible = claudeProjectPluginEnrolled && !changed;
   const resultFindings = [
     ...findings,
-    ...actionRequired || handoffDeferred ? [] : [
+    ...!input.codexSelected || actionRequired || handoffDeferred ? [] : [
       {
         code: "SETUP_CODEX_PLUGIN_HANDOFF",
         message: "Codex bootstrap is enrolled for this project; each developer profile is checked automatically at task start.",
@@ -86560,6 +86565,12 @@ function migrateLegacyCodexDuringSetup(cwd, completedEffects, offline) {
 function setupPackageChecksAreSkipped(offline) {
   return offline || Boolean(process.env.SAFEWORD_SKIP_INSTALL);
 }
+function applyProjectCodexSetup(cwd, completedEffects, input) {
+  if (!input.codexSelected)
+    return [];
+  observeFileStage(cwd, [CODEX_MIGRATION_SCHEMA.paths.config], completedEffects, () => installCodexProjectBootstrap(cwd));
+  return migrateLegacyCodexDuringSetup(cwd, completedEffects, input.offline);
+}
 async function applySetup(cwd, input) {
   const {
     adapters,
@@ -86583,8 +86594,7 @@ async function applySetup(cwd, input) {
   };
   try {
     applyCompatibilityMigrations(cwd, completedEffects);
-    observeFileStage(cwd, [".codex/config.toml"], completedEffects, () => installCodexProjectBootstrap(cwd));
-    const codexHandoffFindings = migrateLegacyCodexDuringSetup(cwd, completedEffects, input.offline);
+    const codexHandoffFindings = applyProjectCodexSetup(cwd, completedEffects, input);
     const architectureEffects = observeFileStage(cwd, [".safeword/depcruise-config.cjs", ".dependency-cruiser.cjs"], completedEffects, () => adapters.configureArchitecture(cwd));
     observeFileStage(cwd, workspacePackageJsonTargets(cwd, context), completedEffects, () => adapters.configureWorkspaces(cwd, context));
     const eslintConfig = context.projectType.existingEslintConfig;
@@ -86625,6 +86635,7 @@ async function applySetup(cwd, input) {
       applyPackageCompatibility(cwd, completedEffects, input.offline);
     });
     const applied = setupResult({
+      codexSelected: input.codexSelected,
       packageJsonCreated,
       installation,
       eslintPolicy,
@@ -86957,6 +86968,7 @@ function combineInstallResults(agents, surfaces) {
 async function installProjectSurface(invocation, agents) {
   const projectSchema = projectLifecycleSchema(invocation.cwd, agents);
   return convergeSetup(invocation.cwd, {
+    codexSelected: agents.includes("codex"),
     offline: invocation.offline,
     noModify: invocation.options.modify === false,
     repairVersionMarker: invocation.options.repairVersionMarker === true,
@@ -87064,7 +87076,10 @@ async function prepareLifecycle(cwd, operation, agents, options = {}) {
   const projectSchema = projectLifecycleSchema(cwd, agents, operation, remainingNativeProfile);
   const uninstallOperation = full ? "uninstall-full" : "uninstall";
   const project = uninstalling ? await createReconciliationPlan(cwd, uninstallOperation, projectSchema) : {
-    plan: await createSetupPlan(cwd, projectSchema, installOptions),
+    plan: await createSetupPlan(cwd, projectSchema, {
+      ...installOptions,
+      codexSelected: selected.has("codex")
+    }),
     dryRun: undefined
   };
   const surfaces = [{ name: "project", effects: project.plan.effects }, ...integrationSurfaces];
