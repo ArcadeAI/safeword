@@ -1,0 +1,1 @@
+Build a local equipment loan desk CLI for a community workshop. Staff can lend a named tool to a member, see current loans, and record a return. Keep loans across restarts. A return for a tool with no active loan must report that and change nothing. Choose simple command names and storage.

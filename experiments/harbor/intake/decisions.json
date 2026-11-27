@@ -1,0 +1,51 @@
+{
+  "topics": {
+    "active_tool_loan": {
+      "question": "What happens if staff try to lend a tool that is already on loan?",
+      "options": {
+        "refuse": "Refuse the second loan and keep the original borrower. Staff must record the tool’s return before lending it again.",
+        "transfer": "Replace the original borrower with the new borrower.",
+        "multiple": "Allow several active loans for the same tool name."
+      }
+    },
+    "partial_csv": {
+      "question": "When conversion stops at the first invalid row, what happens to output from earlier valid rows?",
+      "options": {
+        "keep": "Write valid rows preceding the first invalid row and no later rows.",
+        "discard": "Leave the destination untouched and publish no partial output."
+      }
+    },
+    "duplicate_label": {
+      "question": "When a user saves a new bookmark using a label that already exists, what happens to the original bookmark?",
+      "options": {
+        "replace": "Replace the saved URL for that label with the new URL.",
+        "reject": "Reject the duplicate label and preserve the original URL."
+      }
+    },
+    "waitlist_call_crash": {
+      "question": "If calling the next party is interrupted between announcing their name and removing them, which operation comes first?",
+      "options": {
+        "announce_first": "Announce the party first, then remove them. Keep it a single command. A repeat call is preferable to silently losing a party.",
+        "remove_first": "Remove the party before announcing them.",
+        "confirm": "Require a separate staff confirmation before removal."
+      }
+    },
+    "shift_overlap": {
+      "question": "When a proposed shift overlaps an existing assignment for the same employee, should the new assignment be accepted or refused?",
+      "options": {
+        "allow": "Allow the overlapping assignment and retain both shifts.",
+        "reject": "Reject overlapping assignments for the same employee."
+      }
+    }
+  },
+  "cases": {
+    "intake-equipment-loans": ["active_tool_loan", "refuse"],
+    "intake-cafe-waitlist": ["waitlist_call_crash", "announce_first"],
+    "intake-csv-keep": ["partial_csv", "keep"],
+    "intake-csv-discard": ["partial_csv", "discard"],
+    "intake-bookmark-specified": ["duplicate_label", "reject", "supplied"],
+    "intake-bookmark-duplicate": ["duplicate_label", "reject"],
+    "intake-shift-overlap": ["shift_overlap", "reject"],
+    "intake-shift-specified": ["shift_overlap", "reject", "supplied"]
+  }
+}

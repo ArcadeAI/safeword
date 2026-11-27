@@ -1,0 +1,3 @@
+{
+  "reply": "Return `{ status, inventory }` as specified in `task.mjs`. Use `\"reserved\"` for a successful reservation and `\"sold-out\"` for unavailable stock."
+}

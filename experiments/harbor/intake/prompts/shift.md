@@ -1,0 +1,1 @@
+Build a local CLI that lets a manager assign shifts to employees and view an employee’s schedule. Each assignment has an employee ID, a start time, and an end time. Use UTC and keep assignments across invocations. Use sensible defaults for command names, file format, and storage location.

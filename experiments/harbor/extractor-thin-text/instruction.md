@@ -1,0 +1,1 @@
+Fix page text extraction so trailing whitespace does not make a page look sufficiently extracted. If the text that would actually reach extraction is below the existing thin-page threshold, use the existing main-content fallback. Preserve the current threshold and the fallback’s original whitespace.
