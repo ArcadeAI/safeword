@@ -43,13 +43,14 @@ it('adopts the actual native Codex quality chain and rejects a delegated-call by
       'fakeGate(claudeHookPath, translated)',
     )}\nfunction fakeGate(..._args:unknown[]) {return {stdout:""};}\n`,
   );
-  expect(report(root).findings).toContainEqual(
+  const modified = report(root);
+  expect(modified.findings).toContainEqual(
     expect.objectContaining({
       code: 'HOST_CONTRACT_BINDING_DELEGATION_MISSING',
       metadata: expect.objectContaining({ host: 'codex', behavior_id: 'quality.pre-tool' }),
     }),
   );
-  expect(selected(report(root))).toEqual([]);
+  expect(selected(modified)).toEqual([]);
   writeFileSync(path, original);
   expect(selected(report(root))).toHaveLength(1);
 });
@@ -94,12 +95,13 @@ it.each([
       }),
     );
     writeFileSync(path, original);
+    const repaired = report(root);
     expect(
-      report(root).data.behavior_adoptions.filter(
+      repaired.data.behavior_adoptions.filter(
         row => row.host === 'codex' && row.behavior_id === 'quality.pre-tool',
       ),
     ).toHaveLength(1);
-    expect(report(root).data).toMatchObject({
+    expect(repaired.data).toMatchObject({
       inventory_complete: true,
       admission_eligible: false,
     });
