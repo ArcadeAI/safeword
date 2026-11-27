@@ -23,13 +23,15 @@ describe('planning scope review contract', () => {
   });
 
   it('makes persona outcomes and epistemic status Product approval questions', () => {
-    const product = prompts[0] ?? '';
+    const product = (prompts[0] ?? '').replaceAll(/\s+/gu, ' ');
     for (const outcome of ['success', 'refusal', 'failure', 'approval', 'trust', 'recovery'])
       expect(product).toContain(outcome);
     expect(product).toContain('known facts');
     expect(product).toContain('assumptions');
     expect(product).toContain('unresolved product decisions');
     expect(product).toMatch(/scenario\s+coverage\s+belongs\s+to\s+scenario\s+review/iu);
+    expect(product).toMatch(/materially change what the user can do or rely on/u);
+    expect(product).toMatch(/exact formatting, and diagnostic wording forward as suggestions/u);
   });
 
   it('treats external guidance as candidate decisions within the accepted boundary', () => {

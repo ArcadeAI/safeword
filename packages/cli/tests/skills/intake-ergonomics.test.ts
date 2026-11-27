@@ -46,6 +46,23 @@ const scenarioSurfaces = [
 const orchestratorSurfaces = ['packages/cli/templates/SAFEWORD.md', '.safeword/SAFEWORD.md'];
 
 describe('intake ergonomics', () => {
+  it.each([
+    ...orchestratorSurfaces,
+    'plugin/resources/SAFEWORD.md',
+    'packages/cli/codex-plugin/resources/SAFEWORD.md',
+  ])('%s routes features through intake before suggesting scenarios', relative => {
+    const content = flow(relative);
+    const opening = content.slice(0, content.indexOf('### 1. Clarify'));
+    expect(opening).toContain('When a request adds a capability or multiple user flows');
+    expect(opening).toContain('load the BDD skill (`safeword:bdd` on namespaced hosts)');
+    expect(opening).toContain('Reuse decisions the user already made');
+    expect(opening).toContain('Bring clarification answers back into the plan');
+    expect(opening).toMatch(/review evidence.*phase: define-behavior.*before writing scenarios/u);
+    expect(opening).toContain('invoke the native `safeword:bdd` skill');
+    expect(opening).toContain('the feature ticket and Product Plan');
+    expect(content).toContain('when the user explicitly requests that path');
+  });
+
   it.each(discoverySurfaces)('%s confirms per artifact, not per item', relative => {
     const content = flow(relative);
 

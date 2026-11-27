@@ -106,7 +106,14 @@ export function isSatisfyingSkipStamp(id: string, stamp: ReviewStamp): boolean {
 /** Phase exits require a cited coordinator review; only an explicit skip may bypass it. */
 function hasSatisfyingPhaseStamp(id: string, stamps: readonly ReviewStamp[]): boolean {
   return stamps.some(
-    stamp => isSatisfyingSkipStamp(id, stamp) || isSatisfyingCoordinatorReviewStamp(id, stamp),
+    stamp =>
+      isSatisfyingSkipStamp(id, stamp) ||
+      (isSatisfyingCoordinatorReviewStamp(id, stamp) &&
+        (!id.endsWith(':phase@intake') ||
+          (stamp.independence === 'cross-agent' &&
+            stamp.author !== undefined &&
+            stamp.reviewer !== undefined &&
+            stamp.author !== stamp.reviewer))),
   );
 }
 

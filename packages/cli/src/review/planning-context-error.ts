@@ -23,7 +23,7 @@ export class PlanningContextError extends ReviewPacketError {
   constructor(
     readonly contextRole: PlanningContextRole,
     readonly contextPath: string,
-    declaration?: string,
+    declaration?: string | { message: string },
   ) {
     const settings: Partial<Record<PlanningContextRole, string>> = {
       parent: 'the ticket parent reference',
@@ -35,10 +35,12 @@ export class PlanningContextError extends ReviewPacketError {
       data: 'the active data architecture guide',
     };
     const setting = settings[contextRole] ?? `paths.${contextRole}`;
-    super(
-      declaration === undefined
-        ? `Required planning ${contextRole} at ${contextPath} are unavailable. Restore that source or correct ${setting}, then rerun the planning review.`
-        : `The reviewed plan at ${contextPath} needs one parseable ${declaration} declaration. Add the plan decision or a justified skip, then rerun the planning review.`,
-    );
+    let message = `Required planning ${contextRole} at ${contextPath} are unavailable. Restore that source or correct ${setting}, then rerun the planning review.`;
+    if (typeof declaration === 'string') {
+      message = `The reviewed plan at ${contextPath} needs one parseable ${declaration} declaration. Add the plan decision or a justified skip, then rerun the planning review.`;
+    } else if (declaration) {
+      message = declaration.message;
+    }
+    super(message);
   }
 }

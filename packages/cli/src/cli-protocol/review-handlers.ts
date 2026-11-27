@@ -797,6 +797,16 @@ export async function reviewStatusHandler(invocation: CommandInvocation): Promis
   return reviewJobStatus(invocation.cwd, id);
 }
 
+export async function reviewAdvanceIntakeHandler(
+  invocation: CommandInvocation,
+): Promise<CliResult> {
+  const id = invocation.operands[0];
+  if (typeof id !== 'string')
+    return invalidOperand('review advance-intake', 'Provide the approved review ID.');
+  const { advanceIntake } = await import('../commands/advance-intake.js');
+  return advanceIntake(invocation.cwd, id);
+}
+
 // eslint-disable-next-line complexity -- All local origin, argument, and file checks guard a receipt mutation.
 export async function reviewContinueHandler(invocation: CommandInvocation): Promise<CliResult> {
   const origin = reviewRoutePlan(resolveRunIdentity({}, { env: process.env }).runtime)?.author;
