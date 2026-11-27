@@ -202,11 +202,11 @@ Feature: Every agent delivery is self-contained
   Rule: self-contained-plugins.NTB1.R1 — Project reconciliation is bounded to selected delivery authorities
 
     @surface.safeword-cli @surface.opencode
-    Scenario: OpenCode installation delivers no project runtime
-      Given an OpenCode profile has no Safeword catalogue
-      When the Non-Technical Builder installs Safeword with OpenCode selected
-      Then the selected OpenCode profile delivery is present
-      And no OpenCode executable runtime is delivered into the project
+    Scenario: Public installation reports when OpenCode V2 activation is unavailable
+      Given the project has no admitted OpenCode V2 delivery
+      When the builder selects OpenCode in a public install
+      Then installation reports that V2 admission is required
+      And preserves the existing OpenCode profile settings without installing a project runtime
 
     @surface.safeword-cli @surface.openai-codex @surface.claude-code @surface.opencode
     Scenario Outline: A native single-agent project schema excludes project delivery
@@ -290,51 +290,27 @@ Feature: Every agent delivery is self-contained
   @self-contained-plugins.NTB1.R2
   Rule: self-contained-plugins.NTB1.R2 — Profile lifecycle preserves customer content by identity
 
-    @surface.safeword-cli @surface.opencode
-    Scenario: OpenCode profile identity records the complete owned catalogue
-      Given a generated OpenCode catalogue of plugin, command, agent, skill, and reference assets
-      When the Non-Technical Builder installs the profile delivery
-      Then the complete plugin, command, agent, skill, and reference catalogue is installed
-      And the profile identity records every owned catalogue asset and digest
-
     @rejection @surface.safeword-cli @surface.opencode
-    Scenario: OpenCode install preserves an unrecognized catalogue collision
-      Given an OpenCode profile has unrelated content at a catalogue path with no recorded Safeword identity
-      When the Non-Technical Builder installs the profile delivery
-      Then installation reports the catalogue collision
-      And the unrelated profile content remains byte-for-byte unchanged
-      And no catalogue asset is installed
+    Scenario: OpenCode enrollment preserves a conflicting plugin declaration
+      Given the user configured the selected package with different options
+      When Safeword attempts to enroll the project
+      Then enrollment fails
+      And preserves the profile configuration without creating an enrollment
 
     @surface.safeword-cli @surface.opencode
-    Scenario: OpenCode upgrade removes only prior identity-owned catalogue bytes
-      Given an OpenCode profile's recorded prior catalogue includes an asset absent from the current catalogue
-      When the Non-Technical Builder upgrades the profile delivery
-      Then current identity-owned assets are replaced by the current catalogue
-      And the retired identity-owned asset is removed
-      And unrelated profile content remains unchanged
-
-    @rejection @surface.safeword-cli @surface.opencode
-    Scenario: OpenCode upgrade preserves a drifted catalogue asset
-      Given an identity-owned OpenCode catalogue asset differs from its recorded digest
-      When the Non-Technical Builder upgrades the profile delivery
-      Then upgrade reports managed-asset drift
-      And the edited asset and unrelated profile content remain unchanged
-      And no other identity-owned catalogue asset is changed
+    Scenario: An enrolled project can refresh its selected OpenCode package
+      Given the selected package runtime has changed
+      When the controller refreshes it with the matching prior enrollment
+      Then the refreshed enrollment identifies the new runtime for the same project
+      But repeating the refresh with a stale enrollment preserves the current enrollment and user settings
 
     @surface.safeword-cli @surface.opencode
-    Scenario: OpenCode uninstall removes its recognized catalogue
-      Given an OpenCode profile contains an unchanged identity-owned catalogue
-      When the Non-Technical Builder uninstalls the OpenCode profile delivery
-      Then every identity-owned catalogue asset is removed
-      And unrelated profile content remains unchanged
-
-    @rejection @surface.safeword-cli @surface.opencode
-    Scenario: OpenCode uninstall preserves drifted catalogue content
-      Given an identity-owned OpenCode catalogue asset differs from its recorded digest
-      When the Non-Technical Builder uninstalls the OpenCode profile delivery
-      Then uninstall reports managed-asset drift
-      And the edited asset and unrelated profile content remain unchanged
-      And no other managed profile content is removed
+    Scenario: OpenCode removal preserves other projects sharing the plugin
+      Given two projects use the same OpenCode plugin
+      When the builder removes one project enrollment
+      Then the other enrollment and the shared plugin declaration remain
+      And removal of the last enrollment preserves settings and enrollment if the declaration changes after preview
+      And removing the last enrollment with the recognized declaration removes only Safeword’s entry
 
   @self-contained-plugins.SWM1.R1
   Rule: self-contained-plugins.SWM1.R1 — Package authority is enforced at release boundaries
@@ -356,10 +332,10 @@ Feature: Every agent delivery is self-contained
       And a repair action remains available without executing the damaged cache
 
     @surface.safeword-cli
-    Scenario: Complete agent catalogues pass executable-reference validation
-      Given the generated Codex, Claude Code, OpenCode, and Cursor workflow catalogues
+    Scenario: Generated workflow skills pass executable-reference validation
+      Given the Codex, Claude Code, OpenCode, and Cursor workflow skill sources
       When the Safeword Maintainer runs release validation
-      Then all four catalogues pass runtime-authority validation
+      Then all four deliveries accept their workflow skills with their intended runtime references
 
     @rejection @surface.safeword-cli @surface.openai-codex
     Scenario: An unpinned Codex helper blocks release

@@ -7,6 +7,8 @@ import type { CommandInvocation } from '../../src/cli-protocol/handler.js';
 import { createResult } from '../../src/cli-protocol/result.js';
 import { installLifecycle, uninstallLifecycle } from '../../src/lifecycle/commands.js';
 import type * as OpenCodeProfile from '../../src/opencode/profile.js';
+import { installOpenCodeProfile } from '../../src/opencode/profile.js';
+import { selectedOpenCodeV2Enrollment } from '../../src/opencode/v2-profile.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
 
 const profileState = vi.hoisted(() => ({ codex: false, claude: false, opencode: false }));
@@ -153,6 +155,7 @@ describe('selected authority lifecycle reconciliation', () => {
   it.each([
     ['codex', 'claude'],
     ['claude', 'codex'],
+    ['codex', 'opencode'],
     ['cursor', 'claude'],
   ] as const)(
     'removes %s without unenrolling the remaining %s host',
@@ -163,6 +166,23 @@ describe('selected authority lifecycle reconciliation', () => {
       const installed = await installLifecycle(invocation(cwd, removed), adapters);
       expect(installed.errors).toEqual([]);
       expect(existsSync(nodePath.join(cwd, '.cursor'))).toBe(removed === 'cursor');
+      const profile = project();
+      if (remaining === 'opencode') {
+        vi.stubEnv('OPENCODE_CONFIG_DIR', profile);
+        const candidate = project();
+        mkdirSync(nodePath.join(candidate, 'runtime'));
+        writeFileSync(nodePath.join(candidate, 'index.js'), 'fixture entry');
+        writeFileSync(nodePath.join(candidate, 'runtime/cli.js'), 'fixture runtime');
+        expect(
+          installOpenCodeProfile(profile, {
+            nativeV2: {
+              projectDirectory: cwd,
+              packageDirectory: candidate,
+              epoch: 'fixture',
+            },
+          }).state,
+        ).toBe('changed');
+      }
       const preserved = ['.safeword/enrolled', '.safeword/config.json'];
       const before = new Map(preserved.map(path => [path, projectBytes(cwd, path)]));
 
@@ -172,7 +192,9 @@ describe('selected authority lifecycle reconciliation', () => {
 
       expect(result.errors).toEqual([]);
       if (removed !== 'cursor') expect(profileState[removed]).toBe(false);
-      expect(profileState[remaining]).toBe(true);
+      if (remaining === 'opencode')
+        expect(selectedOpenCodeV2Enrollment(profile, cwd)).toBeDefined();
+      else expect(profileState[remaining]).toBe(true);
       for (const [path, content] of before) expect(projectBytes(cwd, path)).toBe(content);
       expect(existsSync(nodePath.join(cwd, '.safeword/hooks'))).toBe(false);
       expect(existsSync(nodePath.join(cwd, '.cursor/commands/audit.md'))).toBe(false);
