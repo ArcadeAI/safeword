@@ -135,7 +135,7 @@ def verify_group(directory, manifest, name):
         raise ValueError(f"Prepared trial inputs changed: {name}")
 
 
-def frozen_environment(directory, manifest):
+def verify_protocol_inputs(directory, manifest):
     if (
         manifest["protocol"] != "intake-handoff-v1"
         or manifest["harness"] != harness_inputs()
@@ -143,6 +143,13 @@ def frozen_environment(directory, manifest):
         raise ValueError(
             f"Use the harness recorded in protocol.json ({manifest['harness_revision']})."
         )
+    for name, digest in manifest["inputs"].items():
+        if sha(directory / name) != digest:
+            raise ValueError(f"Frozen input changed: {name}")
+
+
+def frozen_environment(directory, manifest):
+    verify_protocol_inputs(directory, manifest)
     groups = manifest["groups"]
     expected = {f"{a}-{k}-{n}": (a, CASES[k]) for a, k, n, _ in cells()}
     if set(groups) != set(expected) or manifest["budget_usd"] != BUDGET:
@@ -158,9 +165,6 @@ def frozen_environment(directory, manifest):
             or group["build"]["fixture"] != PAIRED_TASKS[case]
         ):
             raise ValueError(f"Frozen case, hosts or revision changed: {name}")
-    for name, digest in manifest["inputs"].items():
-        if sha(directory / name) != digest:
-            raise ValueError(f"Frozen input changed: {name}")
     env = dict(
         os.environ,
         SAFEWORD_EVAL_DECISIONS="1",

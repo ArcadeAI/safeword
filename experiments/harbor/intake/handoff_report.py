@@ -5,7 +5,15 @@ from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
-from .handoff import CASES, HOSTS, cells, fixture_hashes, sha, verify_group
+from .handoff import (
+    CASES,
+    HOSTS,
+    cells,
+    fixture_hashes,
+    sha,
+    verify_group,
+    verify_protocol_inputs,
+)
 from .run import document
 
 
@@ -39,7 +47,16 @@ def read_attempt(folder, lane):
     elif not row.get("evidence") or not evidence.is_file():
         status = "missing evidence"
     elif outcome == "budget_before_gate" and stop != "combined_cap":
-        status = "meter interrupted" if stop else "missing evidence"
+        status = (
+            "meter interrupted"
+            if stop
+            in {
+                "author_usage_unpriced",
+                "unpriced_reviewer_usage",
+                "author_model_mismatch",
+            }
+            else "missing evidence"
+        )
     elif outcome in {
         "downstream_edit",
         "phase_without_current_approval",
@@ -166,8 +183,7 @@ def report(root):
     lock = root / "protocol.json"
     if lock.is_file():
         manifest = document(lock)
-        if manifest.get("protocol") != "intake-handoff-v1":
-            raise ValueError("Unrecognized intake handoff protocol")
+        verify_protocol_inputs(root, manifest)
         groups = {f"{arm}-{case}-{rep}" for arm, case, rep, _ in cells()}
         if set(manifest["groups"]) != groups:
             raise ValueError(
@@ -214,7 +230,13 @@ def report(root):
             complete = False
         groups[arm, fixture, host].append(selected)
 
-    complete, verdict = decision(groups, complete)
+    if lock.is_file():
+        complete, verdict = decision(groups, complete)
+    else:
+        complete, verdict = (
+            False,
+            "Withhold the decision. The frozen protocol is missing.",
+        )
     lines[2:2] = [f"**{verdict}**", ""]
     for (arm, fixture, host), planned in sorted(groups.items()):
         valid = [a for a in planned if a and a.status in {"passed", "failed"}]

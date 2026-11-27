@@ -62,6 +62,7 @@ class HandoffReportTest(unittest.TestCase):
         text, complete = report(self.root)
         self.assertFalse(complete)
         self.assertIn("missing |", text)
+        self.assertIn("The frozen protocol is missing.", text)
         self.record("baseline-hidden-1", grade="unclear")
         text, complete = report(self.root)
         self.assertFalse(complete)
@@ -85,6 +86,13 @@ class HandoffReportTest(unittest.TestCase):
         self.assertFalse(complete)
         self.assertIn("unexpected retry; excluded", text)
 
+    def test_unknown_budget_stop_cannot_be_replaced_by_a_successful_retry(self):
+        self.record("baseline-hidden-1", "budget_before_gate", reason="author_cap")
+        self.record("retries/baseline-hidden-1")
+        text, complete = report(self.root)
+        self.assertFalse(complete)
+        self.assertIn("unexpected retry; excluded", text)
+
     def test_workflow_failure_is_conclusive_and_cannot_be_replaced(self):
         self.record("baseline-hidden-1", "downstream_edit", "unclear")
         text, complete = report(self.root)
@@ -95,16 +103,20 @@ class HandoffReportTest(unittest.TestCase):
         self.assertIn("| baseline | 0/1 | 2", text)
 
     def test_locked_archive_detects_prompt_drift_without_running_a_model(self):
-        from intake.handoff import fixture_hashes, sha
+        from intake.handoff import fixture_hashes, harness_inputs, sha
 
         name = "baseline-hidden-1"
         folder = self.record(name)
         build = {"archive_sha256": sha(folder / "bundle.tar")}
         write_json(folder / "build.json", build)
+        (self.root / "comparison.json").write_bytes(
+            (folder / "comparison.json").read_bytes()
+        )
         write_json(
             self.root / "protocol.json",
             {
                 "protocol": "intake-handoff-v1",
+                "harness": harness_inputs(),
                 "inputs": {"comparison.json": sha(folder / "comparison.json")},
                 "groups": {
                     name: {

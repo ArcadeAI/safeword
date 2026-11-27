@@ -12,7 +12,7 @@ uv run --locked python -m handbook.intake --base "$BASE_REV" --candidate "$CANDI
   --comparison "$COMPARISON" --out jobs/handbook-intake
 ```
 
-Inspect the first clarification before its response, the final plan, the independent approval and the first downstream edit. A question about a new choice goes to the operator. A zero reward can be a genuine workflow failure. Keep it in the results.
+This exploratory comparison records fixture hashes for inspection and uses the current answer key. Use the frozen handoff protocol for adoption decisions. This comparison grades the intake gate automatically. Check whether the plan honored the preference during the manual review. Inspect the first clarification before its response, the final plan, the independent approval and the first downstream edit. A question about a new choice goes to the operator. A zero reward can be a genuine workflow failure. Keep it in the results.
 
 ## Focused handbook checks
 

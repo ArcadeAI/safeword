@@ -22,7 +22,13 @@ PAIRED_TASKS = {
     "intake-shift-overlap": "shift",
     "intake-shift-specified": "shift-specified",
 }
-BUILTIN = ("csv", "parcel", "parcel-specified", "equipment-loans", *PAIRED_TASKS.values())
+BUILTIN = (
+    "csv",
+    "parcel",
+    "parcel-specified",
+    "equipment-loans",
+    *PAIRED_TASKS.values(),
+)
 BUNDLE_PATHS = (
     "plugin",
     "packages/cli/codex-plugin",
@@ -54,6 +60,10 @@ def materialize_fixture(snapshot, destination, task):
             )
             if task in PAIRED_TASKS.values() and task.endswith("-specified"):
                 spec = decision_policy(f"intake-{task}")
+                if spec is None:
+                    raise ValueError(
+                        f"Missing decision policy for the supplied {task} fixture"
+                    )
                 with (destination / "instruction.md").open("a") as prompt:
                     prompt.write("\n" + spec["options"][spec["expected"]] + "\n")
             write_json(
@@ -97,15 +107,19 @@ def materialize_fixture(snapshot, destination, task):
     dockerfile.write_text(text)
 
 
-def prepare(directory, comparison, revision, task):
-    directory.parent.mkdir(parents=True, exist_ok=True)
-    if directory.exists():
-        raise FileExistsError(f"Choose a new comparison directory: {directory}")
-    sha = subprocess.check_output(
+def resolve_revision(revision):
+    return subprocess.check_output(
         ["git", "rev-parse", "--verify", "--end-of-options", f"{revision}^{{commit}}"],
         cwd=HARBOR,
         text=True,
     ).strip()
+
+
+def prepare(directory, comparison, revision, task):
+    directory.parent.mkdir(parents=True, exist_ok=True)
+    if directory.exists():
+        raise FileExistsError(f"Choose a new comparison directory: {directory}")
+    sha = resolve_revision(revision)
     repo = subprocess.check_output(
         ["git", "rev-parse", "--show-toplevel"], cwd=HARBOR, text=True
     ).strip()

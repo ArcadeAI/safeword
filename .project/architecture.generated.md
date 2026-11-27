@@ -49,7 +49,7 @@ CLI for setting up and managing safeword development environments
 
 <!-- reconciled: 1e4f5f64ef3b4a2d9b9d7fca6f5cf8ca448dbf2c43ba3eed0485a09234dad750 -->
 
-No description yet — awaiting prose.
+Runs isolated coding and intake comparisons with Harbor and reports task outcomes, cost, and human decisions for each agent.
 
 ## Dependencies
 
