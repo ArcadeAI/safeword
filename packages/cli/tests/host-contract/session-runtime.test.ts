@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -13,7 +13,7 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 it.each(['legacy', 'native'] as const)(
-  'characterizes installed %s session context and author-model forwarding',
+  'characterizes installed %s session context and handbook selection',
   async delivery => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-session-'));
     roots.push(root);
@@ -30,7 +30,6 @@ it.each(['legacy', 'native'] as const)(
       CLAUDE_PLUGIN_DATA: nodePath.join(root, 'data'),
       SAFEWORD_SKIP_INSTALL: '1',
       SAFEWORD_NO_AUTO_UPGRADE: '1',
-      CLAUDE_ENV_FILE: nodePath.join(root, 'session.env'),
     };
     let manifestPath: string;
     if (delivery === 'legacy') {
@@ -44,9 +43,8 @@ it.each(['legacy', 'native'] as const)(
       });
       manifestPath = nodePath.join(plugin, 'hooks/hooks.json');
     }
-    writeFileSync(env.CLAUDE_ENV_FILE, '# synthetic session\n');
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-    const invoke = (owner: string, model: string) => {
+    const invoke = (owner: string) => {
       const hook = manifest.hooks.SessionStart.flatMap(
         (row: { hooks: { command: string }[] }) => row.hooks,
       ).find((row: { command: string }) =>
@@ -65,7 +63,6 @@ it.each(['legacy', 'native'] as const)(
           session_id: 'synthetic-session',
           source: 'startup',
           hook_event_name: 'SessionStart',
-          model,
         }),
       });
       assert.equal(result.error, undefined);
@@ -74,17 +71,19 @@ it.each(['legacy', 'native'] as const)(
       return result.stdout;
     };
     // Native goes through the unchanged verified event-group dispatcher, not a fabricated direct route.
-    const output = invoke('session-reply-format.ts', 'synthetic-model');
+    const output = invoke('session-reply-format.ts');
     const context = JSON.parse(output).hookSpecificOutput;
     expect(context.hookEventName).toBe('SessionStart');
     expect(context.additionalContext).toContain('Choice:');
     expect(context.additionalContext).toContain('Recommendation:');
-    if (delivery === 'legacy') invoke('session-author-model.ts', 'synthetic-model');
-    expect(readFileSync(env.CLAUDE_ENV_FILE, 'utf8')).toBe(
-      '# synthetic session\nSAFEWORD_AUTHOR_MODEL=synthetic-model\n',
-    );
-    const before = readFileSync(env.CLAUDE_ENV_FILE, 'utf8');
-    invoke('session-author-model.ts', 'bad-model\nINJECTED=value');
-    expect(readFileSync(env.CLAUDE_ENV_FILE, 'utf8')).toBe(before);
+    const handbookContext =
+      delivery === 'native'
+        ? context
+        : JSON.parse(invoke('session-safeword-context.ts')).hookSpecificOutput;
+    const handbook =
+      delivery === 'native'
+        ? nodePath.join(plugin, 'resources/SAFEWORD.md')
+        : nodePath.join(project, '.safeword/SAFEWORD.md');
+    expect(handbookContext.additionalContext).toContain(`Read \`${handbook}\` in full`);
   },
 );

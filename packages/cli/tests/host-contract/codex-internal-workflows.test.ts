@@ -149,6 +149,11 @@ function requireProjection(): void {
   ).toBe(true);
 }
 
+function expectInstalledHandbook(context: string): void {
+  const handbook = realpathSync(nodePath.join(fixture.bundle, 'resources/SAFEWORD.md'));
+  expect(context).toContain(`Read \`${handbook}\` in full`);
+}
+
 function startup(source: 'startup' | 'resume') {
   const result = command(
     [
@@ -174,7 +179,7 @@ function startup(source: 'startup' | 'resume') {
     hookSpecificOutput: { hookEventName: string; additionalContext: string };
   };
   expect(output.hookSpecificOutput.hookEventName).toBe('SessionStart');
-  expect(output.hookSpecificOutput.additionalContext).toContain('Safeword session bootstrap:');
+  expectInstalledHandbook(output.hookSpecificOutput.additionalContext);
   return { result, output, context: output.hookSpecificOutput.additionalContext };
 }
 
@@ -591,9 +596,7 @@ describe('Codex internal workflow source wiring', { concurrent: false, shuffle: 
     const original = JSON.parse(baseline.stdout) as {
       hookSpecificOutput: { additionalContext: string };
     };
-    expect(original.hookSpecificOutput.additionalContext).toContain(
-      'the packaged Safeword handbook',
-    );
+    expectInstalledHandbook(original.hookSpecificOutput.additionalContext);
     const actual = startup('startup');
     expect(actual.context).toContain(original.hookSpecificOutput.additionalContext);
     expect(actual.result.stderr).toBe(baseline.stderr);
