@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "a222fc8a6ff0e6077182ec74ac3c1a131de9dd6b9a0a1c2c0a170e612cb5f33a"
+      "sha256": "73e3ea8016469dacc64a8599dbe209bd6e8105dd728de86b0eed616a5c80d893"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -271,7 +271,7 @@
     },
     {
       "path": "runtime/hooks/lib/intake-write-targets.ts",
-      "sha256": "2ca2cc4d3839b3b5d0586373703e2a4fd28925574348ff498bc19a3be91e4c05"
+      "sha256": "10b4f7591690e0f13799d42a326709aacfe7dfa14eff8824ebaff62fde20896e"
     },
     {
       "path": "runtime/hooks/lib/jsonl-spool.ts",
@@ -1275,7 +1275,7 @@
     },
     {
       "path": "templates/hooks/lib/intake-write-targets.ts",
-      "sha256": "2ca2cc4d3839b3b5d0586373703e2a4fd28925574348ff498bc19a3be91e4c05"
+      "sha256": "10b4f7591690e0f13799d42a326709aacfe7dfa14eff8824ebaff62fde20896e"
     },
     {
       "path": "templates/hooks/lib/jsonl-spool.ts",
@@ -1659,7 +1659,7 @@
     },
     {
       "path": "templates/SAFEWORD.md",
-      "sha256": "664acb234894e37cb8b5de41331cfccd4b31fd505bfab2bce4c02ce548e66bf9"
+      "sha256": "f4ff43592e3b3a74c03ebcc684eaf99b9c04489c74610fa1bd5f1b5b107d9318"
     },
     {
       "path": "templates/scripts/bisect-test-pollution.sh",

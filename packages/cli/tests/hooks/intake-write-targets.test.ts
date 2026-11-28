@@ -22,6 +22,11 @@ it.each([
   ['cd other && cp source destination', []],
   ['cat <<END\ncp source destination\nEND', []],
   ['echo ok > "$DEST"', []],
+  ['cat < input > report 2>&1', ['report']],
+  ['cat 0<input 2>errors >|report', ['errors', 'report']],
+  ['cat 0<&3 > report 3>&-', ['report']],
+  ['cat 0<input 2>&1', []],
+  ["printf '%s' '2>&1 >|no-file' > report", ['report']],
   ['cat app/source 2>&1', []],
 ] as const)('recognizes literal destinations of %s', (command, expected) => {
   expect(intakeShellWriteTargets(command)).toEqual(expected);

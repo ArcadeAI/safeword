@@ -10,12 +10,12 @@ function simpleWriteTargets(
   // Keep quotes until operators have been distinguished from literal arguments
   // (e.g. rg '>' app.ts). Stop at unsupported shell syntax.
   const token =
-    /\s+|(?<redirect>\d*>>?|&>>?)|(?<heredoc><<-?)|(?<word>"(?:[^"\\$`]|\\.)*"|'[^']*'|[\w\p{L}\p{M}\p{N}./:@%+=,#-]+)/guy;
+    /\s+|(?<descriptor>\d*[<>]&(?:\d+|-)(?=$|[\s<>]))|(?<redirect>\d*>(?:>|\|)?|&>>?)|(?<input>\d*(?:<<-?|<))|(?<word>"(?:[^"\\$`]|\\.)*"|'[^']*'|[\w\p{L}\p{M}\p{N}./:@%+=,#-]+)/guy;
   const args: string[] = [];
   const targets: string[] = [];
   let position = 0;
   let commented = false;
-  let next: 'output' | 'delimiter' | undefined;
+  let next: 'output' | 'input' | undefined;
   while (position < segment.length) {
     if (segment[position] === '#') {
       commented = true;
@@ -24,10 +24,13 @@ function simpleWriteTargets(
     const match = token.exec(segment);
     if (!match) return;
     position = token.lastIndex;
-    const { redirect, heredoc, word } = match.groups ?? {};
-    if (redirect !== undefined || heredoc !== undefined) {
+    const { descriptor, redirect, input, word } = match.groups ?? {};
+    if (descriptor !== undefined) {
+      // Duplicating or closing a descriptor names no filesystem destination.
       if (next !== undefined) return;
-      next = redirect === undefined ? 'delimiter' : 'output';
+    } else if (redirect !== undefined || input !== undefined) {
+      if (next !== undefined) return;
+      next = redirect === undefined ? 'input' : 'output';
     } else if (word !== undefined) {
       // Adjacent quoted/unquoted fragments and shell expansions are ambiguous.
       if (position < segment.length && !/[\s<>]/u.test(segment[position] ?? '')) return;
