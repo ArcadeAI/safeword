@@ -16,7 +16,7 @@ import path from 'node:path';
 import { afterEach, expect, it } from 'vitest';
 
 import { isolatedBuildIdentity } from '../helpers/codex-isolated-build.js';
-import { REVIEWER_CAPABILITIES } from '../review-fixtures.js';
+import { createTrustedReviewerDirectory, REVIEWER_CAPABILITIES } from '../review-fixtures.js';
 
 const repo = path.resolve(import.meta.dirname, '../../../..');
 const roots: string[] = [];
@@ -29,7 +29,7 @@ function fixture(bound: boolean, fault = 'ok', wrong?: 'project' | 'profile' | '
   roots.push(root);
   // Outside the untrusted grading project; the normal runtime still checks
   // real ownership/modes of every executable ancestor. No trust-policy mocks.
-  const bin = mkdtempSync(path.join(repo, 'node_modules/.cache/grader-process-'));
+  const bin = createTrustedReviewerDirectory('grader-process-');
   roots.push(bin);
   const project = path.join(root, 'project'),
     profile = path.join(root, 'profile');
