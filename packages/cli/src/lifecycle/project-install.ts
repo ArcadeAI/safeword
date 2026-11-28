@@ -60,7 +60,9 @@ import { checkHealth, type HealthStatus } from '../health.js';
 import {
   applyFreshInstallDefaults,
   freshInstallDefaultsNeedUpdate,
+  installAgentsNeedUpdate,
   recordOwnedPackages,
+  rememberProjectInstallAgents,
 } from '../packs/config.js';
 import { installPack } from '../packs/install.js';
 import { hasImportLinterScaffoldTarget } from '../packs/python/files.js';
@@ -234,8 +236,9 @@ function plannedJavaScriptPackageFiles(cwd: string): Effect[] {
   ]);
 }
 
-function configNeedsCompatibilityUpdate(cwd: string): boolean {
+function configNeedsCompatibilityUpdate(cwd: string, installAgents?: string): boolean {
   try {
+    if (installAgentsNeedUpdate(cwd, installAgents)) return true;
     if (shouldApplyFreshInstallDefaults(cwd)) return true;
     if (publicRetroConfigNeedsUpdate(cwd)) return true;
     if (getMissingPacks(cwd).length > 0) return true;
@@ -437,6 +440,7 @@ function pythonObservationTargets(cwd: string): string[] {
 }
 
 export interface SetupPlanOptions {
+  readonly installAgents?: string;
   readonly codexSelected?: boolean;
   readonly migrateNamespace?: boolean;
   readonly noModify?: boolean;
@@ -590,7 +594,7 @@ export async function createSetupPlan(
   );
   const reconciliationPackages = reconciliationEffects.packages.length > 0;
   const compatibilityFiles = [
-    ...(!configured || configNeedsCompatibilityUpdate(cwd)
+    ...(!configured || configNeedsCompatibilityUpdate(cwd, options.installAgents)
       ? [plannedFileEffect(cwd, '.safeword/config.json')]
       : []),
     ...(publicRetroConfigNeedsUpdate(cwd)
@@ -806,6 +810,7 @@ async function convergeSetupValidated(
       configured ? 'Reconciling the Safeword upgrade…' : 'Setting up Safeword…',
     );
     return await applySetup(cwd, {
+      installAgents: options.installAgents,
       codexSelected: options.codexSelected !== false,
       configured,
       offline: options.offline === true,
@@ -1405,7 +1410,11 @@ function projectClaudePluginEnrolled(cwd: string): boolean {
   }
 }
 
-function applyCompatibilityMigrations(cwd: string, completedEffects: CompletedSetupEffects): void {
+function applyCompatibilityMigrations(
+  cwd: string,
+  completedEffects: CompletedSetupEffects,
+  installAgents?: string,
+): void {
   const missingPacks = getMissingPacks(cwd);
   for (const packId of missingPacks) {
     const targets = [
@@ -1417,9 +1426,10 @@ function applyCompatibilityMigrations(cwd: string, completedEffects: CompletedSe
   observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () =>
     stripDeadConfigVersion(nodePath.join(cwd, '.safeword')),
   );
-  observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () =>
-    ensurePublicRetroProjectConfig(cwd),
-  );
+  observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () => {
+    ensurePublicRetroProjectConfig(cwd);
+    rememberProjectInstallAgents(cwd, installAgents);
+  });
 }
 
 function recordInstalledPackages(
@@ -1474,6 +1484,7 @@ function applyPackageCompatibility(
 }
 
 interface ApplySetupInput {
+  readonly installAgents?: string;
   readonly codexSelected: boolean;
   readonly configured: boolean;
   readonly offline: boolean;
@@ -1619,7 +1630,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
   };
 
   try {
-    applyCompatibilityMigrations(cwd, completedEffects);
+    applyCompatibilityMigrations(cwd, completedEffects, input.installAgents);
     const codexHandoffFindings = applyProjectCodexSetup(cwd, completedEffects, input);
     const architectureEffects = observeFileStage(
       cwd,

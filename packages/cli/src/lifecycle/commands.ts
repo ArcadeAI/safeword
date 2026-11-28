@@ -15,6 +15,7 @@ import {
 } from '../cli-protocol/result.js';
 import { removeProject } from '../commands/remove.js';
 import type { observeOpenCodeV2Removal } from '../opencode/v2-profile.js';
+import { projectInstallAgents } from '../packs/config.js';
 import type { SafewordSchema } from '../schema.js';
 import { coordinateSelectedIntegrations, PRODUCTION_INTEGRATIONS } from './integrations.js';
 import { findEnclosingProject, nestedProjectRefused } from './nested-install.js';
@@ -78,7 +79,8 @@ function normalizedProjectInstallAction(
   const unifiedInstall = /^safeword install --agents=(claude|codex)$/u.exec(action.command);
   if (unifiedInstall === null || surface.name !== 'project') return undefined;
   const target = surfaceByName.get(unifiedInstall[1] ?? '');
-  return target !== undefined && target.result.state !== 'failed' ? [] : [action];
+  if (target === undefined) return surface.result.changed ? [action] : [];
+  return target.result.state === 'failed' ? [action] : [];
 }
 
 function normalizedProfileInstallAction(
@@ -155,6 +157,7 @@ async function installProjectSurface(
 ): Promise<CliResult> {
   const projectSchema = projectLifecycleSchema(invocation.cwd, agents);
   return convergeSetup(invocation.cwd, {
+    installAgents: explicitProjectAgents(invocation, agents),
     codexSelected: agents.includes('codex'),
     offline: invocation.offline,
     noModify: invocation.options.modify === false,
@@ -209,11 +212,24 @@ async function preflightAgentSurfaces(
   return results.flat();
 }
 
+function projectInstallSelection(invocation: CommandInvocation) {
+  const requested = invocation.options.agents;
+  if (requested !== undefined || invocation.options.scope === 'user')
+    return parseAgentSelection(requested);
+  return parseAgentSelection(projectInstallAgents(invocation.cwd));
+}
+
+function explicitProjectAgents(invocation: CommandInvocation, agents: readonly string[]) {
+  return invocation.options.agents !== undefined && invocation.options.scope !== 'user'
+    ? agents.join(',') || 'none'
+    : undefined;
+}
+
 export async function installLifecycle(
   invocation: CommandInvocation,
   adapters: LifecycleInstallAdapters,
 ): Promise<CliResult> {
-  const parsed = parseAgentSelection(invocation.options.agents);
+  const parsed = projectInstallSelection(invocation);
   if (!parsed.ok) {
     return createResult({
       state: 'failed',
@@ -475,7 +491,11 @@ function lifecycleScope(
 }
 
 export async function planLifecycle(invocation: CommandInvocation): Promise<CliResult> {
-  const parsed = parseAgentSelection(invocation.options.agents);
+  const operation = invocation.operands[0] ?? 'install';
+  const parsed =
+    operation === 'install'
+      ? projectInstallSelection(invocation)
+      : parseAgentSelection(invocation.options.agents);
   if (!parsed.ok) {
     return createResult({
       state: 'failed',
@@ -483,8 +503,6 @@ export async function planLifecycle(invocation: CommandInvocation): Promise<CliR
       data: { command: 'plan' },
     });
   }
-  const operand = invocation.operands[0];
-  const operation = operand === undefined ? 'install' : operand;
   if (operation !== 'install' && operation !== 'uninstall') {
     return createResult({
       state: 'failed',
@@ -505,6 +523,7 @@ export async function planLifecycle(invocation: CommandInvocation): Promise<CliR
   const scope = lifecycleScope(invocation.options.scope, 'plan', agents);
   if (!scope.ok) return scope.result;
   const installOptions: SetupPlanOptions = {
+    installAgents: explicitProjectAgents(invocation, agents),
     noModify: invocation.options.modify === false,
     repairVersionMarker: invocation.options.repairVersionMarker === true,
     ...(typeof invocation.options.migrateNamespace === 'boolean' && {

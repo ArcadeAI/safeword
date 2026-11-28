@@ -13,6 +13,7 @@ const CONFIG_PATH = '.safeword/config.json';
 
 interface SafewordConfig {
   installedPacks?: string[];
+  installAgents?: string;
   /**
    * Packages Safeword added whose install condition stops holding once they are
    * present (e.g. `typescript`), mapped to the version range package.json had
@@ -45,6 +46,22 @@ function readConfig(cwd: string): SafewordConfig | undefined {
 function writeConfig(cwd: string, config: SafewordConfig): void {
   const configPath = nodePath.join(cwd, CONFIG_PATH);
   writeFile(configPath, JSON.stringify(config, undefined, 2));
+}
+
+/** Same syntax as --agents, including the explicit project-only selection "none". */
+export function projectInstallAgents(cwd: string): string | undefined {
+  return readConfig(cwd)?.installAgents;
+}
+
+export function installAgentsNeedUpdate(cwd: string, agents?: string): boolean {
+  return agents !== undefined && projectInstallAgents(cwd) !== agents;
+}
+
+export function rememberProjectInstallAgents(cwd: string, agents?: string): void {
+  if (agents === undefined) return;
+  const config = readConfig(cwd) ?? {};
+  if (config.installAgents === agents) return;
+  writeConfig(cwd, { ...config, installAgents: agents });
 }
 
 /**

@@ -76658,6 +76658,20 @@ function writeConfig(cwd, config) {
   const configPath = nodePath91.join(cwd, CONFIG_PATH);
   writeFile(configPath, JSON.stringify(config, undefined, 2));
 }
+function projectInstallAgents(cwd) {
+  return readConfig2(cwd)?.installAgents;
+}
+function installAgentsNeedUpdate(cwd, agents) {
+  return agents !== undefined && projectInstallAgents(cwd) !== agents;
+}
+function rememberProjectInstallAgents(cwd, agents) {
+  if (agents === undefined)
+    return;
+  const config = readConfig2(cwd) ?? {};
+  if (config.installAgents === agents)
+    return;
+  writeConfig(cwd, { ...config, installAgents: agents });
+}
 function getInstalledPacks(cwd) {
   const config = readConfig2(cwd);
   return config?.installedPacks ?? [];
@@ -85588,8 +85602,10 @@ function plannedJavaScriptPackageFiles(cwd) {
     plannedFileEffect(cwd, selectedLockfile)
   ]);
 }
-function configNeedsCompatibilityUpdate(cwd) {
+function configNeedsCompatibilityUpdate(cwd, installAgents) {
   try {
+    if (installAgentsNeedUpdate(cwd, installAgents))
+      return true;
     if (shouldApplyFreshInstallDefaults(cwd))
       return true;
     if (publicRetroConfigNeedsUpdate(cwd))
@@ -85857,7 +85873,7 @@ async function createSetupPlan(cwd, schema, options = {}) {
   const reconciliationEffects = plannedReconciliationEffects(reconciliation.plan.effects, migrateNamespace);
   const reconciliationPackages = reconciliationEffects.packages.length > 0;
   const compatibilityFiles = [
-    ...!configured || configNeedsCompatibilityUpdate(cwd) ? [plannedFileEffect(cwd, ".safeword/config.json")] : [],
+    ...!configured || configNeedsCompatibilityUpdate(cwd, options.installAgents) ? [plannedFileEffect(cwd, ".safeword/config.json")] : [],
     ...publicRetroConfigNeedsUpdate(cwd) ? [{ kind: "update", target: ".safeword/config.json" }] : [],
     ...plannedOwnershipRecordEffects(cwd, schema, reconciliationEffects.packages)
   ];
@@ -85999,6 +86015,7 @@ async function convergeSetupValidated(cwd, options) {
     packageJsonCreated = configured ? false : ensurePackageJson(cwd);
     options.progress?.start(configured ? "Reconciling the Safeword upgrade\u2026" : "Setting up Safeword\u2026");
     return await applySetup(cwd, {
+      installAgents: options.installAgents,
       codexSelected: options.codexSelected !== false,
       configured,
       offline: options.offline === true,
@@ -86442,7 +86459,7 @@ function projectClaudePluginEnrolled(cwd) {
     return false;
   }
 }
-function applyCompatibilityMigrations(cwd, completedEffects) {
+function applyCompatibilityMigrations(cwd, completedEffects, installAgents) {
   const missingPacks = getMissingPacks(cwd);
   for (const packId of missingPacks) {
     const targets = [
@@ -86452,7 +86469,10 @@ function applyCompatibilityMigrations(cwd, completedEffects) {
     observeFileStage(cwd, targets, completedEffects, () => installPack(packId, cwd));
   }
   observeFileStage(cwd, [".safeword/config.json"], completedEffects, () => stripDeadConfigVersion(nodePath125.join(cwd, ".safeword")));
-  observeFileStage(cwd, [".safeword/config.json"], completedEffects, () => ensurePublicRetroProjectConfig(cwd));
+  observeFileStage(cwd, [".safeword/config.json"], completedEffects, () => {
+    ensurePublicRetroProjectConfig(cwd);
+    rememberProjectInstallAgents(cwd, installAgents);
+  });
 }
 function recordInstalledPackages(packagesToInstall, installation, completedEffects) {
   if (!installation.attempted)
@@ -86593,7 +86613,7 @@ async function applySetup(cwd, input) {
     recovery: []
   };
   try {
-    applyCompatibilityMigrations(cwd, completedEffects);
+    applyCompatibilityMigrations(cwd, completedEffects, input.installAgents);
     const codexHandoffFindings = applyProjectCodexSetup(cwd, completedEffects, input);
     const architectureEffects = observeFileStage(cwd, [".safeword/depcruise-config.cjs", ".dependency-cruiser.cjs"], completedEffects, () => adapters.configureArchitecture(cwd));
     observeFileStage(cwd, workspacePackageJsonTargets(cwd, context), completedEffects, () => adapters.configureWorkspaces(cwd, context));
@@ -86913,7 +86933,9 @@ function normalizedProjectInstallAction(action, surface, surfaceByName) {
   if (unifiedInstall === null || surface.name !== "project")
     return;
   const target = surfaceByName.get(unifiedInstall[1] ?? "");
-  return target !== undefined && target.result.state !== "failed" ? [] : [action];
+  if (target === undefined)
+    return surface.result.changed ? [action] : [];
+  return target.result.state === "failed" ? [action] : [];
 }
 function normalizedProfileInstallAction(action, surface) {
   const profileInstall = /^safeword (claude|codex) install$/u.exec(action.command);
@@ -86968,6 +86990,7 @@ function combineInstallResults(agents, surfaces) {
 async function installProjectSurface(invocation, agents) {
   const projectSchema = projectLifecycleSchema(invocation.cwd, agents);
   return convergeSetup(invocation.cwd, {
+    installAgents: explicitProjectAgents(invocation, agents),
     codexSelected: agents.includes("codex"),
     offline: invocation.offline,
     noModify: invocation.options.modify === false,
@@ -87003,8 +87026,17 @@ async function preflightAgentSurfaces(cwd, agents, scope) {
   });
   return results.flat();
 }
+function projectInstallSelection(invocation) {
+  const requested = invocation.options.agents;
+  if (requested !== undefined || invocation.options.scope === "user")
+    return parseAgentSelection(requested);
+  return parseAgentSelection(projectInstallAgents(invocation.cwd));
+}
+function explicitProjectAgents(invocation, agents) {
+  return invocation.options.agents !== undefined && invocation.options.scope !== "user" ? agents.join(",") || "none" : undefined;
+}
 async function installLifecycle(invocation, adapters) {
-  const parsed = parseAgentSelection(invocation.options.agents);
+  const parsed = projectInstallSelection(invocation);
   if (!parsed.ok) {
     return createResult({
       state: "failed",
@@ -87173,7 +87205,8 @@ function lifecycleScope(value, command, agents) {
   };
 }
 async function planLifecycle(invocation) {
-  const parsed = parseAgentSelection(invocation.options.agents);
+  const operation = invocation.operands[0] ?? "install";
+  const parsed = operation === "install" ? projectInstallSelection(invocation) : parseAgentSelection(invocation.options.agents);
   if (!parsed.ok) {
     return createResult({
       state: "failed",
@@ -87181,8 +87214,6 @@ async function planLifecycle(invocation) {
       data: { command: "plan" }
     });
   }
-  const operand = invocation.operands[0];
-  const operation = operand === undefined ? "install" : operand;
   if (operation !== "install" && operation !== "uninstall") {
     return createResult({
       state: "failed",
@@ -87201,6 +87232,7 @@ async function planLifecycle(invocation) {
   if (!scope.ok)
     return scope.result;
   const installOptions = {
+    installAgents: explicitProjectAgents(invocation, agents),
     noModify: invocation.options.modify === false,
     repairVersionMarker: invocation.options.repairVersionMarker === true,
     ...typeof invocation.options.migrateNamespace === "boolean" && {
@@ -87388,6 +87420,7 @@ var init_commands = __esm(() => {
   init_reconciliation();
   init_result();
   init_remove();
+  init_config3();
   init_integrations();
   init_nested_install();
   init_project_install();
