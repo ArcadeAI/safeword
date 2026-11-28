@@ -183,6 +183,7 @@ CURSOR_HOOKS.sessionStart.push({ command: 'bun ./.safeword/hooks/session-safewor
         'session.prompt',
         'session.context',
         'tool.execute.before',
+        'tool.execute.after',
       ],
     };
     for (const [family, events] of Object.entries(expected)) {
