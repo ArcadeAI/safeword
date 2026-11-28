@@ -998,6 +998,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/checkbox-transitions.ts': {
       template: 'hooks/lib/checkbox-transitions.ts',
     },
+    '.safeword/hooks/lib/intake-write-targets.ts': {
+      template: 'hooks/lib/intake-write-targets.ts',
+    },
     '.safeword/hooks/lib/shell-segments.ts': { template: 'hooks/lib/shell-segments.ts' },
     '.safeword/hooks/lib/bash-ledger-writes.ts': {
       template: 'hooks/lib/bash-ledger-writes.ts',

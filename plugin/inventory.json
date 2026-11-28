@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "ca9621315903bd355f3767bd4d675a81b64d87428cf22252846548831ce7272e"
+      "sha256": "73e3ea8016469dacc64a8599dbe209bd6e8105dd728de86b0eed616a5c80d893"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "2da17dbc34429bf637afa787af0e40828af28971406841f5dfe702875bc27d6c"
+      "sha256": "27941ca9a19c0163cd69621f4a95e7963e1f7e897b8aed0d10455af07fe2a4c3"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "b4b87f4c0bdc19bd08167b5a0c0d9598fbfa4b938f6a91dce7be80c734b9364b"
+      "sha256": "04f349cc134873fd322915b5460107aea85446129bede771e0cf51a6e7b6498c"
     },
     {
       "path": "runtime/event-groups.json",
@@ -278,6 +278,10 @@
       "sha256": "7f343390b08c4aa042ca8cbd5fc04eae087e41c41d193e3267974d2b2d26df24"
     },
     {
+      "path": "runtime/hooks/lib/intake-write-targets.ts",
+      "sha256": "10b4f7591690e0f13799d42a326709aacfe7dfa14eff8824ebaff62fde20896e"
+    },
+    {
       "path": "runtime/hooks/lib/jsonl-spool.ts",
       "sha256": "491b371386824c2c46ba992f35c5016406630db58ec8a5e58ba66201c26abafe"
     },
@@ -359,7 +363,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality-state.ts",
-      "sha256": "5a23012dbd1ff339e0f19d2edad4d50753b76cf2175a6ac64fd11a0ec93e9aa8"
+      "sha256": "164d4bb8eb5ebdc9af779ecb9ca6e21601c1ff0a13d693b3daa77a305accbbfb"
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
@@ -503,7 +507,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-quality.ts",
-      "sha256": "27162fc9d5b74d2f1964b83a50acd652f3a4689583ebaa514639a38d9ee46e40"
+      "sha256": "f0fae8c4943880015ff7458a4197520cd9fa08c7569094c9688e42fb458ebf1a"
     },
     {
       "path": "runtime/hooks/post-tool-skill-nudge.ts",
@@ -535,7 +539,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "2820a787fe4259540a0ef1f3ea26329cc6033d4e6d328cce3d30b4c88428decc"
+      "sha256": "938767ace27d2ec41e2296f0dc088b833b08c941e8981dbb5df6bd871c611080"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -1139,7 +1143,7 @@
     },
     {
       "path": "templates/hooks/codex/pre-tool-quality-helpers.ts",
-      "sha256": "e72c428d3e65058048ed78fabc6882c1c479873ea0d966678877fc2075b008a7"
+      "sha256": "f3552e7b11300b5054edc36bf834f45d259efcdc1d45e28ac219b927f24142f6"
     },
     {
       "path": "templates/hooks/codex/pre-tool-quality.ts",
@@ -1155,7 +1159,7 @@
     },
     {
       "path": "templates/hooks/cursor/before-shell-execution.ts",
-      "sha256": "90c954cdbb784cb3420eaa79934fd42b9af2c2f1f4465bc69ad2b09606883407"
+      "sha256": "18fc1565b53c6466beca5e318b8d558b67a2713fbf15be3dc95a31e45f27cfbe"
     },
     {
       "path": "templates/hooks/cursor/gate-adapter.ts",
@@ -1286,6 +1290,10 @@
       "sha256": "d727836bcaf58fe3652c1c399637376e6e9c5ff1af9862b0afd97cc8a03211ea"
     },
     {
+      "path": "templates/hooks/lib/intake-write-targets.ts",
+      "sha256": "10b4f7591690e0f13799d42a326709aacfe7dfa14eff8824ebaff62fde20896e"
+    },
+    {
       "path": "templates/hooks/lib/jsonl-spool.ts",
       "sha256": "491b371386824c2c46ba992f35c5016406630db58ec8a5e58ba66201c26abafe"
     },
@@ -1363,7 +1371,7 @@
     },
     {
       "path": "templates/hooks/lib/quality-state.ts",
-      "sha256": "5a23012dbd1ff339e0f19d2edad4d50753b76cf2175a6ac64fd11a0ec93e9aa8"
+      "sha256": "164d4bb8eb5ebdc9af779ecb9ca6e21601c1ff0a13d693b3daa77a305accbbfb"
     },
     {
       "path": "templates/hooks/lib/quality.ts",
@@ -1507,7 +1515,7 @@
     },
     {
       "path": "templates/hooks/post-tool-quality.ts",
-      "sha256": "27162fc9d5b74d2f1964b83a50acd652f3a4689583ebaa514639a38d9ee46e40"
+      "sha256": "f0fae8c4943880015ff7458a4197520cd9fa08c7569094c9688e42fb458ebf1a"
     },
     {
       "path": "templates/hooks/post-tool-skill-nudge.ts",
@@ -1539,7 +1547,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "b0c7a47d48803042bbe17d9b72b485b32400143fe12c69abb37183ac549a4bd4"
+      "sha256": "6e83d6702ff2610af91ec46904e5fd6d2dc44a582aed5cb1a4e636fabf01ce25"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",
@@ -1667,7 +1675,7 @@
     },
     {
       "path": "templates/SAFEWORD.md",
-      "sha256": "259cea6f56b9004cbfd8394fdf26c67e378376ba8412420bf122a271d167ba18"
+      "sha256": "f4ff43592e3b3a74c03ebcc684eaf99b9c04489c74610fa1bd5f1b5b107d9318"
     },
     {
       "path": "templates/scripts/bisect-test-pollution.sh",

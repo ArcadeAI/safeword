@@ -149,6 +149,8 @@ describe('CLI command catalog', () => {
       'claude recover',
       'codex clean-guidance',
       'codex recover',
+      'ticket pause',
+      'ticket resume',
       'ticket list',
       'ticket new',
       'ticket reconcile-parent',

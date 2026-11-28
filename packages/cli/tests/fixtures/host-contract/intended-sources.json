@@ -262,6 +262,7 @@
   ],
   "additions": [
     "packages/cli/templates/hooks/lib/architecture-review-gate.ts",
-    "packages/cli/templates/hooks/lib/behavior-contract.ts"
+    "packages/cli/templates/hooks/lib/behavior-contract.ts",
+    "packages/cli/templates/hooks/lib/intake-write-targets.ts"
   ]
 }
