@@ -302,7 +302,7 @@ describe('install plan completeness', () => {
       PATH: `${runtime.bin}:${process.env.PATH ?? ''}`,
     };
 
-    const { envelope: planEnvelope } = await planProject(directory, 'none', [], environment);
+    const { envelope: planEnvelope } = await planProject(directory, 'codex', [], environment);
     expectEffectsInclude(planEnvelope, 'configuration', [
       { kind: 'enable', target: 'Safeword Codex profile plugin' },
     ]);
@@ -334,10 +334,10 @@ describe('install plan completeness', () => {
     ]);
 
     const installed = await runCliWithoutInstall(
-      ['install', '--agents=none', '--no-input', '--no-modify', '--json', '--cwd', directory],
+      ['install', '--agents=codex', '--no-input', '--no-modify', '--json', '--cwd', directory],
       { cwd: directory, env: environment },
     );
-    expect(installed.exitCode, installed.stdout).toBe(0);
+    expect(installed.exitCode, installed.stdout).toBe(2);
     const installEnvelope = JSON.parse(installed.stdout) as LifecycleEnvelope & {
       findings: { code: string; message: string }[];
     };
@@ -369,10 +369,10 @@ describe('install plan completeness', () => {
 
     const firstLog = readFileSync(runtime.logPath, 'utf8');
     const repeated = await runCliWithoutInstall(
-      ['install', '--agents=none', '--no-input', '--no-modify', '--json', '--cwd', directory],
+      ['install', '--agents=codex', '--no-input', '--no-modify', '--json', '--cwd', directory],
       { cwd: directory, env: environment },
     );
-    expect(repeated.exitCode, repeated.stdout).toBe(0);
+    expect(repeated.exitCode, repeated.stdout).toBe(2);
     const repeatedEnvelope = JSON.parse(repeated.stdout) as LifecycleEnvelope & {
       changed: boolean;
     };
@@ -406,7 +406,7 @@ describe('install plan completeness', () => {
     const installed = await runCliWithoutInstall(
       [
         'install',
-        '--agents=none',
+        '--agents=codex',
         '--no-input',
         '--no-modify',
         '--json',
@@ -417,12 +417,15 @@ describe('install plan completeness', () => {
       { cwd: directory, env: environment },
     );
 
-    expect(installed.exitCode, installed.stdout).toBe(0);
+    expect(installed.exitCode, installed.stdout).toBe(2);
     expect(existsSync(runtime.logPath)).toBe(false);
     expect(JSON.parse(installed.stdout)).toMatchObject({
-      findings: expect.arrayContaining([
-        expect.objectContaining({ code: 'CODEX_PLUGIN_HANDOFF_DEFERRED' }),
+      state: 'action_required',
+      changed: false,
+      next_actions: expect.arrayContaining([
+        expect.objectContaining({ command: 'safeword install' }),
       ]),
+      findings: expect.arrayContaining([expect.objectContaining({ code: 'CLI_ONLINE_REQUIRED' })]),
     });
   });
 
@@ -482,10 +485,10 @@ describe('install plan completeness', () => {
       SAFEWORD_SKIP_INSTALL: '1',
       PATH: `${runtime.bin}:${process.env.PATH ?? ''}`,
     };
-    const { envelope: planEnvelope } = await planProject(directory, 'none', [], environment);
+    const { envelope: planEnvelope } = await planProject(directory, 'codex', [], environment);
 
     const installed = await runCliWithoutInstall(
-      ['install', '--agents=none', '--no-input', '--no-modify', '--json', '--cwd', directory],
+      ['install', '--agents=codex', '--no-input', '--no-modify', '--json', '--cwd', directory],
       { cwd: directory, env: environment },
     );
     expect(installed.exitCode, installed.stdout).toBe(0);
@@ -542,10 +545,10 @@ describe('install plan completeness', () => {
       SAFEWORD_SKIP_INSTALL: '1',
       PATH: `${runtime.bin}:${process.env.PATH ?? ''}`,
     };
-    const { envelope: planEnvelope } = await planProject(directory, 'none', [], environment);
+    const { envelope: planEnvelope } = await planProject(directory, 'codex', [], environment);
 
     const installed = await runCliWithoutInstall(
-      ['install', '--agents=none', '--no-input', '--no-modify', '--json', '--cwd', directory],
+      ['install', '--agents=codex', '--no-input', '--no-modify', '--json', '--cwd', directory],
       { cwd: directory, env: environment },
     );
     expect(installed.exitCode, installed.stdout).toBe(0);
@@ -600,7 +603,16 @@ describe('install plan completeness', () => {
     writeJson(directory, 'packages/app/package.json', { name: 'app', private: true });
     writeFileSync(nodePath.join(directory, 'pyproject.toml'), '[project]\nname = "polyglot"\n');
 
-    const { envelope: planEnvelope } = await planProject(directory);
+    const runtime = installFakeCodexRuntime(temporaryDirectory(), {
+      pluginEnabled: true,
+      pluginInitiallyInstalled: true,
+    });
+    const environment = {
+      CODEX_HOME: runtime.codexHome,
+      SAFEWORD_CODEX_LOG: runtime.logPath,
+      PATH: runtime.bin + nodePath.delimiter + (process.env.PATH ?? ''),
+    };
+    const { envelope: planEnvelope } = await planProject(directory, 'codex', [], environment);
     expectEffectsInclude(planEnvelope, 'files', [
       { kind: 'update', target: '.safeword/config.json' },
       { kind: 'create', target: '.codex/config.toml' },
@@ -612,7 +624,7 @@ describe('install plan completeness', () => {
     const installed = await runCliWithoutInstall(
       [
         'install',
-        '--agents=none',
+        '--agents=codex',
         '--scope=project',
         '--no-input',
         '--no-modify',
@@ -620,7 +632,7 @@ describe('install plan completeness', () => {
         '--cwd',
         directory,
       ],
-      { cwd: directory },
+      { cwd: directory, env: environment },
     );
     expect([0, 2], `${installed.stdout}\n${installed.stderr}`).toContain(installed.exitCode);
 
