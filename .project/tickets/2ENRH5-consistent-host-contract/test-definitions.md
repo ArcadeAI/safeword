@@ -419,6 +419,16 @@ declared contract.
 - [ ] GREEN
 - [ ] REFACTOR
 
+Characterization on 2026-11-27. OpenCode 2.4.1 passed the four public CLI examples with a disposable project and profile. The cases exercise install, same-version upgrade, repair of a removed declaration, and confirmed uninstall. The public conformance command reported the selected delivery healthy after install, upgrade, and repair. The private Codex, Claude, and Cursor profile and project paths retained their original contents. No unselected probe executable ran. Two negative controls failed the final assertion as intended. One invoked the Codex probe with an empty environment. The other created an extra Codex hook file. Formal RED and GREEN remain open.
+
+Run the examples with a prepared `SAFEWORD_OPENCODE_TEST_CONFIG` whose candidate is in the built CLI distribution:
+
+```sh
+scripts/dev node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js \
+  --config packages/cli/tests/fixtures/host-contract/cucumber.lifecycle.mjs \
+  --name '^Unselected hosts are not probed or enrolled$'
+```
+
 ## Rule: consistent-host-contract.TBU2.R3 — Native Codex delivery preserves canonical workflow invocation intent
 
 Historical native result against retired Codex 0.160.0: committed source4a3ec59bd, one complete group mFWUlE,

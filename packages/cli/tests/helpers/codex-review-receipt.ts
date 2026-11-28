@@ -12,7 +12,7 @@ import {
   parseShellWords,
 } from '../../templates/hooks/lib/shell-segments.js';
 import { readCommands } from './codex-literal-root-read.js';
-import { directExecRender, directExecWorkdir } from './codex-parallel-read.js';
+import { directExecRender, directExecWorkdir, pairedExecOutput } from './codex-parallel-read.js';
 import type { NativeTurn } from './codex-workflow-observation.js';
 
 const unavailable = 'HOST_CONTRACT_PROOF_UNAVAILABLE: authenticated current review evidence';
@@ -206,13 +206,27 @@ function correlatedOutput(
 ): boolean {
   const { output, completeBody, sdkExit } = expected;
   if (!completeBody) return outputText(raw, true).includes(output);
+  const input = toolInput(entry);
+  const paired = pairedMatch(input, expected, raw, completeBody);
+  if (paired !== undefined) return paired;
   if (completeExecOutputMatches(raw, output, completeBody)) return true;
   if (sdkExit !== 0 || !output.includes(completeBody)) return false;
-  const input = toolInput(entry);
   if (input === undefined) return false;
   if (!readCommands(input).includes(expected.shell)) return false;
   const rendered = directExecRender(input, expected.shell, output, sdkExit);
   return rendered !== undefined && completeExecOutputMatches(raw, rendered, completeBody);
+}
+
+function pairedMatch(
+  input: string | undefined,
+  expected: ExecObservation,
+  raw: unknown,
+  body: string,
+): boolean | undefined {
+  if (input === undefined) return;
+  const paired = pairedExecOutput(input, expected.shell, raw);
+  if (paired === undefined) return;
+  return expected.sdkExit === 0 && paired === expected.output && paired.includes(body);
 }
 
 function calledCommand(
@@ -267,10 +281,11 @@ function completedReview(
   const item = event.item;
   const shell = nativeShellCommand(item.command ?? '');
   if (item.exit_code !== reviewExit(shell, data.status)) return false;
-  const command =
-    shell === undefined
-      ? undefined
-      : reviewCommand(shell, runtime, data.review_id, project, item.exit_code === 0);
+  if (shell === undefined) return false;
+  const completedZero = item.exit_code === 0;
+  const command = isTestedReviewCommand(shell, runtime, project, completedZero)
+    ? { configInspection: false }
+    : reviewCommand(shell, runtime, data.review_id, project, completedZero);
   return (
     command !== undefined && sameReview(item.aggregated_output, data, command.configInspection)
   );
@@ -337,6 +352,20 @@ function reviewCommand(
   )
     return;
   return { configInspection };
+}
+
+function isTestedReviewCommand(
+  command: string,
+  runtime: string,
+  project: string | undefined,
+  completedZero: boolean,
+): boolean {
+  if (!completedZero) return false;
+  if (!project || [runtime, project].some(value => !/^\/[\w./-]+$/u.test(value))) return false;
+  return (
+    command ===
+    `SAFEWORD_PLUGIN_RUNTIME='${runtime}'; export SAFEWORD_PLUGIN_RUNTIME; cd ${project} && node --version && npm test && SAFEWORD_REVIEW_PROGRESS=1 bun "$SAFEWORD_PLUGIN_RUNTIME" review run quality-review --agent-handoff --json -- clamp.js clamp.test.js`
+  );
 }
 
 function configInspectionPrefix(command: string): boolean {

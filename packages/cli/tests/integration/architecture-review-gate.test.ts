@@ -347,6 +347,21 @@ describe('architecture review gate (MR5M3A)', () => {
     expect(runStopHook('ARG021')).not.toContain(REVIEW_MSG);
   });
 
+  it('rejects a previously approved receipt after the reviewed plan changes', () => {
+    setConfig({ architectureReviewGate: true, crossAgentReview: 'prefer' });
+    writeTicket('ARG022', 'feature', CITED);
+    writeReviewResponse('ARG022', 'approved', undefined, REVIEW_ID, 'reduced');
+    writeStamp('ARG022', CITED, { witnessed: true, independence: 'reduced' });
+    expect(runStopHook('ARG022')).not.toContain(REVIEW_MSG);
+
+    writeTestFile(
+      shared.projectDirectory,
+      '.project/tickets/ARG022/impl-plan.md',
+      `${CITED}\nChanged after approval.\n`,
+    );
+    expect(runStopHook('ARG022')).toContain(REVIEW_MSG);
+  });
+
   it('rejects a hand-written coordinator claim when the receipt did not approve', () => {
     setConfig({ architectureReviewGate: true });
     writeTicket('ARG020', 'feature', CITED);

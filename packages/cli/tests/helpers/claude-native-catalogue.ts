@@ -58,6 +58,10 @@ export class ClaudeNativeCatalogueActor {
     this.actor = new ClaudeNativeContractActor(fixture);
   }
 
+  private get handoffHandbook() {
+    return nodePath.join(this.fixture.runtimePath, 'resources/SAFEWORD.md');
+  }
+
   private handoffHelper() {
     const skill = readFileSync(
       nodePath.join(this.fixture.runtimePath, 'skills/explain/SKILL.md'),
@@ -115,12 +119,19 @@ export class ClaudeNativeCatalogueActor {
       1,
       'CLAUDE_HANDOFF_UNEXPECTED_TOOL',
     );
-    const preceding = calls.slice(0, calls.indexOf(call));
-    assert.ok(preceding.length <= 1, 'CLAUDE_HANDOFF_UNEXPECTED_TOOL');
-    assert.equal(preceding.length, calls.length - 1, 'CLAUDE_HANDOFF_UNEXPECTED_TOOL');
-    for (const inspection of preceding) {
+    const preceding = calls.slice(0, -1);
+    assert.equal(calls.at(-1), call, 'CLAUDE_HANDOFF_UNEXPECTED_TOOL');
+    const handbook = this.handoffHandbook;
+    const inspections =
+      preceding[0]?.input?.file_path === handbook ? [handbook, helper.runtime] : [helper.runtime];
+    assert.ok(preceding.length <= inspections.length, 'CLAUDE_HANDOFF_UNEXPECTED_TOOL');
+    for (const [index, inspection] of preceding.entries()) {
       assert.equal(inspection.name, 'Read', 'CLAUDE_HANDOFF_UNEXPECTED_TOOL');
-      assert.equal(inspection.input?.file_path, helper.runtime, 'CLAUDE_HANDOFF_UNEXPECTED_TOOL');
+      assert.equal(
+        inspection.input?.file_path,
+        inspections[index],
+        'CLAUDE_HANDOFF_UNEXPECTED_TOOL',
+      );
       assert.ok(inspection.id);
       this.handoffResult(capture, inspection.id);
     }
@@ -441,8 +452,11 @@ export class ClaudeNativeCatalogueActor {
     rmSync(nodePath.join(actor.project, '.host-contract/native-helper.json'), { force: true });
     const capture = `handoff-${++this.turn}`;
     const offset = actor.observations().length;
+    const toolInstructions = options.currentTool
+      ? `If startup requests the handbook, Read ${this.handoffHandbook} first. You may then inspect the declared helper with one Read of its exact file path. Execute the following packaged helper exactly once in one Bash call in this current turn. Use no other tools.`
+      : 'Use no tools in this turn.';
     await actor.turn(
-      `Authorized isolated terminal test. ${options.currentTool ? 'You may inspect the declared helper with one Read of its exact file path, then execute the following packaged helper exactly once in one Bash call in this current turn. Use no other Bash commands.' : 'Use no tools in this turn.'} Then reply only READY and stop. Do not edit other files/configuration, write helper results yourself or perform other work. If the host supplies a correction, report it honestly without further tools.\nHANDOFF_HELPER_COMMAND=${JSON.stringify(options.currentTool ? helper.command : '')}`,
+      `Authorized isolated terminal test. ${toolInstructions} Then reply only READY and stop. Do not edit other files/configuration, write helper results yourself or perform other work. If the host supplies a correction, report it honestly without further tools.\nHANDOFF_HELPER_COMMAND=${JSON.stringify(options.currentTool ? helper.command : '')}`,
       options.currentTool ? 'Read,Bash' : '',
       capture,
       {

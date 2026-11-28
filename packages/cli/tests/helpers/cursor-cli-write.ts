@@ -1,9 +1,18 @@
 import assert from 'node:assert/strict';
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
+
+import { configurePrivateImports } from './cursor-cli-private-imports.js';
 
 const cliRoot = nodePath.resolve(import.meta.dirname, '../..');
 const escapedQuote = String.raw`'\''`;
@@ -29,7 +38,10 @@ export class CursorCliWriteActor {
   private shellCommand = '';
   private shell?: ShellResult;
 
-  constructor(private readonly executable: string) {}
+  constructor(
+    private readonly executable: string,
+    private readonly disabledClaudePlugins?: readonly string[],
+  ) {}
 
   prepare(host: string, version: string, runtime: string): void {
     assert.equal(host, 'Cursor');
@@ -66,6 +78,7 @@ export class CursorCliWriteActor {
         permissions: { allow: ['Shell(printf)'], deny: [] },
       }),
     );
+    configurePrivateImports(this.workspace, this.disabledClaudePlugins);
     const generator = nodePath.join(cliRoot, 'scripts/generate-cursor-plugin.ts');
     if (existsSync(generator)) {
       const generated = spawnSync('bun', [generator, '--output', this.candidate], {
@@ -120,7 +133,16 @@ export class CursorCliWriteActor {
       }),
     );
     assert.equal(existsSync(nodePath.join(this.workspace, '.cursor/hooks.json')), false);
-    assert.equal(existsSync(nodePath.join(this.workspace, '.claude')), false);
+    const directory = nodePath.join(this.workspace, '.claude');
+    if (this.disabledClaudePlugins?.length) {
+      assert.deepEqual(readdirSync(directory), ['settings.local.json']);
+      const file = nodePath.join(directory, 'settings.local.json');
+      const settings = JSON.parse(readFileSync(file, 'utf8'));
+      const disabled = this.disabledClaudePlugins.map(name => [name, false]);
+      assert.deepEqual(settings, { enabledPlugins: Object.fromEntries(disabled) });
+    } else {
+      assert.equal(existsSync(directory), false);
+    }
   }
 
   setPolicy(disposition: 'allowed' | 'denied'): void {
@@ -149,7 +171,7 @@ export class CursorCliWriteActor {
       args.push('--model', process.env.SAFEWORD_CURSOR_CLI_MODEL);
     args.push(
       `Run exactly one Shell attempt with this command: ${this.shellCommand}\n` +
-        'Do not read files, use other tools, or retry after denial. Existing hooks govern the attempt. Then finish with one sentence.',
+        'If startup requires reading .safeword/SAFEWORD.md, read it once before the Shell attempt. Do not use other tools or retry after denial. Existing hooks govern the attempt. Then finish with one sentence.',
     );
     const environment = Object.fromEntries(
       Object.entries(process.env).filter(
@@ -183,14 +205,24 @@ export class CursorCliWriteActor {
           JSON.parse(line) as {
             type: string;
             subtype?: string;
-            tool_call?: { shellToolCall?: ShellResult };
+            tool_call?: {
+              shellToolCall?: ShellResult;
+              readToolCall?: { args: { path: string }; result: { success?: { path: string } } };
+            };
           },
       );
     const calls = events.filter(row => row.type === 'tool_call' && row.subtype === 'completed');
+    const startupRead = calls[0]?.tool_call?.readToolCall;
+    if (startupRead) {
+      const handbook = nodePath.join(this.workspace, '.safeword/SAFEWORD.md');
+      assert.equal(startupRead.args.path, handbook);
+      assert.equal(startupRead.result.success?.path, handbook);
+      calls.shift();
+    }
     assert.equal(
       calls.length,
       1,
-      'CURSOR_CLI_UNAVAILABLE: expected exactly one actual tool attempt',
+      'CURSOR_CLI_UNAVAILABLE: expected exactly one Shell attempt after startup',
     );
     this.shell = calls[0]?.tool_call?.shellToolCall;
     assert.ok(this.shell, 'CURSOR_CLI_UNAVAILABLE: expected actual Shell tool');

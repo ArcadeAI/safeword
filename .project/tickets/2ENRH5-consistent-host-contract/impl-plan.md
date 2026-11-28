@@ -11,6 +11,22 @@ results. Execution Planning owns the refreshed commands, timing and proof record
 after approach approval.
 The plan at commit `eaca26a3a` is subordinate historical evidence only.
 
+## Current-main architecture review qualification
+
+Main’s `da2778353` retired the cross-model requirement and the
+author-model capture hook. For current qualification, this supersedes every
+earlier `Q-author-origin`, `architecture-author-origin`, and
+`crossModelReview` requirement in this plan. Earlier observations retain
+their original scope.
+
+Prove through the installed Stop hook that an authenticated current reduced
+review satisfies the opt-in architecture gate. Prove that stale and
+unapproved receipts are refused. Keep the separate native Stop, configured
+settings, continuation-limit, and lifecycle requirements. Keep the isolated
+wiring grader’s own model-pair check. The headless runner retains the
+three named receipt cases in `architecture-receipt-controls.json`; this is
+source-level evidence for the receipt gate.
+
 ## Approach
 
 ### OpenCode 2.4.1 target amendment

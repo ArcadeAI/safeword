@@ -85,6 +85,7 @@ export class CodexNativeCatalogueActor {
   private installed = '';
   private events = '';
   private completion?: CodexNativeContinuationActor;
+  private handoffCompletion?: CodexNativeContinuationActor;
   private canonical?: CanonicalCatalogueInputs;
   private readonly staged?: ReviewedCodexPropagation;
   private readonly trustDeadline?: number;
@@ -184,6 +185,8 @@ export class CodexNativeCatalogueActor {
   }
 
   close(): void {
+    this.completion?.close();
+    this.handoffCompletion?.close();
     if (this.staged) rmSync(nodePath.join(this.profile, 'auth.json'), { force: true });
   }
 
@@ -405,7 +408,19 @@ export class CodexNativeCatalogueActor {
 
   /** Configured terminal correction is separate from the task/done transition. */
   async observeHandoff(options: Required<CodexHandoffCase>) {
-    const actual = await this.observeVerification('', options);
+    assert.ok(this.probe);
+    if (this.staged && !this.handoffCompletion) {
+      this.handoffCompletion = new CodexNativeContinuationActor(
+        this.preparedFixture(),
+        this.probe.packageRoot,
+        () => this.stagedModelArguments(),
+        'scripted-handoff',
+      );
+      await this.handoffCompletion.prepareContinuation('Codex', hostReleases.codex.version);
+    }
+    const actual = this.handoffCompletion
+      ? await this.handoffCompletion.observeVerification('', options, this.probe.helperMarker)
+      : await this.observeVerification('', options);
     assert.ok(actual.configuration);
     return {
       installation: actual.installation,

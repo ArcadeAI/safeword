@@ -27,7 +27,11 @@ import {
   bundleInventory,
   codexWorkflowTemporaryBase,
 } from '../helpers/codex-internal-workflows.js';
-import { reviewedWorkflowPair, type WorkflowReview } from '../helpers/codex-reviewed-workflow.js';
+import {
+  reviewedWorkflowPair,
+  type WorkflowReview,
+  workflowReviewGroups,
+} from '../helpers/codex-reviewed-workflow.js';
 import {
   ReviewedCodexPropagation,
   stageHeadlessCodexPropagation,
@@ -44,6 +48,30 @@ const revisionFiles = [
 const repo = path.resolve(import.meta.dirname, '../../../..');
 
 afterEach(() => vi.unstubAllEnvs());
+
+it('reviews propagation source with the raw deltas and retains both role contexts', () => {
+  const project = path.join(repo, 'staged');
+  const source = path.join(project, 'A');
+  const runner = path.join(source, 'packages/cli/scripts/run-host-contract-proof.ts');
+  const receiptControls = path.join(
+    source,
+    'packages/cli/scripts/lib/headless-completion-controls.ts',
+  );
+  const commonSource = path.join(source, 'packages/cli/src/review/packet.ts');
+  const rawDelta = path.join(project, 'raw-delta.json');
+  const inventory = path.join(project, 'inventory.json');
+  const inputs = path.join(project, 'inputs.json');
+  const [code, raw] = workflowReviewGroups({
+    project,
+    targets: [commonSource, runner, receiptControls],
+    context: [rawDelta],
+    stages: [{ source, inventory, inputs }],
+  });
+  expect(code.targets).toEqual([commonSource]);
+  expect(raw.targets).toEqual([rawDelta, runner, receiptControls]);
+  expect(raw.context).toEqual(expect.arrayContaining(code.context));
+  expect(code.context).toContain(path.join(project, 'staged-inputs.json'));
+});
 
 async function approveStagedPairs(
   staged: ReturnType<typeof stageHeadlessCodexPropagation>,

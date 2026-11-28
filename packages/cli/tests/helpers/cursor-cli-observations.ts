@@ -49,6 +49,84 @@ export function requireNativeHelperExecution(stdout: string): ObservedShell[] {
   return executed;
 }
 
+interface FileOperation {
+  args?: { path: string; fileText?: string; streamContent?: string };
+  result?: Record<string, unknown>;
+}
+interface FileToolEvent {
+  type: string;
+  subtype: string;
+  call_id?: string;
+  session_id?: string;
+  tool_call?: {
+    readToolCall?: FileOperation;
+    writeToolCall?: FileOperation;
+    editToolCall?: FileOperation;
+  };
+}
+
+const unexpectedRead =
+  'HOST_CONTRACT_PROOF_UNAVAILABLE: unexpected Cursor CLI call before the write';
+
+function requireHandbookReadEvent(row: FileToolEvent, workspace: string, session: string): string {
+  const forms = Object.keys(row.tool_call ?? {}).filter(key => key.endsWith('ToolCall'));
+  assert.deepEqual(forms, ['readToolCall'], unexpectedRead);
+  const path = row.tool_call?.readToolCall?.args?.path;
+  assert.ok(path, unexpectedRead);
+  assert.equal(
+    nodePath.resolve(workspace, path),
+    nodePath.join(workspace, '.safeword/SAFEWORD.md'),
+    unexpectedRead,
+  );
+  assert.equal(row.session_id, session, unexpectedRead);
+  assert.ok(typeof row.call_id === 'string' && row.call_id.length > 0, unexpectedRead);
+  return row.call_id;
+}
+
+function assertStartupReads(
+  reads: FileToolEvent[],
+  workspace: string,
+  session: string,
+  writeId: string | undefined,
+): void {
+  if (reads.length === 0) return;
+  const started = new Map<string, boolean>();
+  for (const row of reads) {
+    const id = requireHandbookReadEvent(row, workspace, session);
+    assert.notEqual(id, writeId, unexpectedRead);
+    if (row.subtype === 'started') {
+      assert.equal(started.has(id), false, unexpectedRead);
+      started.set(id, false);
+    } else {
+      assert.equal(row.subtype, 'completed', unexpectedRead);
+      assert.equal(started.get(id), false, unexpectedRead);
+      assert.ok(row.tool_call?.readToolCall?.result?.success, unexpectedRead);
+      started.set(id, true);
+    }
+  }
+  assert.ok(started.values().some(Boolean), unexpectedRead);
+}
+
+function splitWriteCalls(calls: FileToolEvent[]) {
+  const complete = calls.at(-1);
+  assert.ok(complete?.call_id, 'HOST_CONTRACT_PROOF_UNAVAILABLE: CLI Write completion absent');
+  const startIndex = calls.findIndex(row => row.call_id === complete.call_id);
+  const reads = calls.slice(0, startIndex);
+  const [start, ...replays] = calls.slice(startIndex, -1);
+  assert.ok(start, 'HOST_CONTRACT_PROOF_UNAVAILABLE: CLI Write start absent');
+  for (const replay of replays) {
+    const reason =
+      'HOST_CONTRACT_PROOF_UNAVAILABLE: different Cursor CLI call before write completion';
+    assert.equal(replay.subtype, 'started', reason);
+    assert.equal(replay.call_id, start.call_id, reason);
+    assert.equal(replay.session_id, start.session_id, reason);
+    assert.deepEqual(replay.tool_call?.writeToolCall, start.tool_call?.writeToolCall, reason);
+    assert.deepEqual(replay.tool_call?.editToolCall, start.tool_call?.editToolCall, reason);
+    assert.equal(replay.tool_call?.readToolCall, undefined, reason);
+  }
+  return { reads, start, complete };
+}
+
 /** Current create-file Write or existing-file Edit pair, not a Shell or Stop projection. */
 export function observedNativeWrite(
   raw: string,
@@ -57,34 +135,19 @@ export function observedNativeWrite(
   content: string,
   session: string,
 ) {
-  interface FileOperation {
-    args?: { path: string; fileText?: string; streamContent?: string };
-    result?: Record<string, unknown>;
-  }
-  interface WriteEvent {
-    type: string;
-    subtype: string;
-    call_id?: string;
-    session_id?: string;
-    tool_call?: {
-      writeToolCall?: FileOperation;
-      editToolCall?: FileOperation;
-    };
-  }
   const events = raw
     .trim()
     .split('\n')
-    .map(line => JSON.parse(line) as WriteEvent);
+    .map(line => JSON.parse(line) as FileToolEvent);
   const calls = events.filter(row => row.type === 'tool_call');
-  assert.equal(calls.length, 2, 'HOST_CONTRACT_PROOF_UNAVAILABLE: CLI Write pair cardinality');
-  const [start, complete] = calls;
-  assert.ok(start && complete);
+  const { reads, start, complete } = splitWriteCalls(calls);
+  assertStartupReads(reads, workspace, session, start.call_id);
   assert.equal(start.subtype, 'started');
   assert.equal(complete.subtype, 'completed');
   assert.ok(typeof start.call_id === 'string' && start.call_id.length > 0);
   assert.equal(complete.call_id, start.call_id);
-  for (const row of calls) assert.equal(row.session_id, session);
-  const operation = (row: WriteEvent) => {
+  for (const row of [start, complete]) assert.equal(row.session_id, session);
+  const operation = (row: FileToolEvent) => {
     const forms = (['writeToolCall', 'editToolCall'] as const).filter(
       kind => row.tool_call?.[kind] !== undefined,
     );

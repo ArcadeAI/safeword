@@ -71,6 +71,26 @@ function assertVerificationLogs(native: string, dispatch: string, configured: bo
     'HOST_CONTRACT_PROOF_UNAVAILABLE: native verification guard missing',
   );
 }
+function assertVerificationDispatches(
+  dispatches: { status: number; args: string[]; input: { hook_event_name: string } }[],
+  tool: string,
+  dispatcher: string,
+) {
+  const pre = dispatches[0];
+  const completedEdit = pre?.status === 0 && (tool === 'write' || tool === 'edit');
+  const events = completedEdit ? ['PreToolUse', 'PostToolUse'] : ['PreToolUse'];
+  assert.deepEqual(
+    dispatches.map(row => row.input.hook_event_name),
+    events,
+    'HOST_CONTRACT_PROOF_UNAVAILABLE: verification dispatch ambiguous',
+  );
+  for (const row of dispatches) {
+    const post = row.input.hook_event_name === 'PostToolUse';
+    assert.deepEqual(row.args, post ? [dispatcher, '--observe-ticket'] : [dispatcher]);
+    if (post) assert.equal(row.status, 0);
+  }
+}
+
 function readDesignConfig(snapshot?: { path: string }) {
   return snapshot && readFileSync(snapshot.path, 'utf8');
 }
@@ -545,11 +565,12 @@ export class OpenCodeNativeCatalogueActor {
       .split('\n')
       .map(line => JSON.parse(line))
       .filter(row => row.tool === tool);
-    const observations = dispatchRaw
+    const dispatches = dispatchRaw
       .trim()
       .split('\n')
       .filter(Boolean)
       .map(line => JSON.parse(line));
+    const observations = dispatches.filter(row => row.input.hook_event_name === 'PreToolUse');
     assert.equal(
       native.length,
       1,
@@ -589,16 +610,14 @@ export class OpenCodeNativeCatalogueActor {
       dispatchRaw.trim(),
       'HOST_CONTRACT_PROOF_UNAVAILABLE: native verification guard missing',
     );
-    assert.equal(
-      observations.length,
-      1,
-      'HOST_CONTRACT_PROOF_UNAVAILABLE: verification dispatch ambiguous',
+    assertVerificationDispatches(
+      dispatches,
+      tool,
+      nodePath.join(this.candidate, 'runtime/dispatch.js'),
     );
-    for (const row of observations) {
-      assert.equal(row.args[0], nodePath.join(this.candidate, 'runtime/dispatch.js'));
+    for (const row of dispatches) {
       assert.equal(row.input.cwd, this.project);
       assert.equal(row.input.session_id, native[0].session_id);
-      assert.equal(row.input.hook_event_name, 'PreToolUse');
       assert.equal(row.input.tool_name, canonicalTool);
       assert.deepEqual(row.input.tool_input, canonicalInput, 'OPENCODE_OPTION_CODEC_MISMATCH');
       assert.ok(

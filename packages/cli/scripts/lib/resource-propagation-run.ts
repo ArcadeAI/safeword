@@ -630,7 +630,10 @@ export async function runNativeResourcePropagation(
     );
   const result = {
     ...propagation,
-    ...(reviewed && { codex_execution: 'reviewed-isolated-behavior' }),
+    ...(reviewed && {
+      codex_execution: 'reviewed-isolated-behavior',
+      codex_handoff_model: 'scripted',
+    }),
   };
   writeFileSync(
     nodePath.join(directory, 'resource-results.json'),

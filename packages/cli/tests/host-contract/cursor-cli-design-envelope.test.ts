@@ -72,7 +72,7 @@ function pair(kind: Kind): Event[] {
     },
   ];
 }
-const decode = (events: ReturnType<typeof pair>) =>
+const decode = (events: unknown[]) =>
   observedNativeWrite(
     events.map(row => JSON.stringify(row)).join('\n'),
     workspace,
@@ -89,6 +89,63 @@ it.each(['editToolCall', 'writeToolCall'] as const)(
     expect(actual.complete).toEqual(events[1]);
   },
 );
+
+function handbookRead(path = `${workspace}/.safeword/SAFEWORD.md`, readSession = session) {
+  const args = { path };
+  return [
+    {
+      type: 'tool_call',
+      subtype: 'started',
+      call_id: 'handbook-read',
+      session_id: readSession,
+      tool_call: { readToolCall: { args } },
+    },
+    {
+      type: 'tool_call',
+      subtype: 'completed',
+      call_id: 'handbook-read',
+      session_id: readSession,
+      tool_call: { readToolCall: { args, result: { success: { path } } } },
+    },
+  ];
+}
+
+it('preserves the current edit after the exact required handbook read', () => {
+  const [start, complete] = pair('editToolCall');
+  expect(decode([...handbookRead(), start, complete])).toEqual({ start, complete });
+});
+
+it('preserves the edit after a retried read which the host did not complete', () => {
+  const [start, complete] = pair('editToolCall');
+  const [readStart] = handbookRead();
+  const abandoned = { ...readStart, call_id: 'abandoned-handbook-read' };
+  expect(decode([abandoned, ...handbookRead(), start, complete])).toEqual({ start, complete });
+});
+
+it('accepts a repeated start only for the same native edit request', () => {
+  const [start, complete] = pair('editToolCall');
+  assert.ok(start && complete);
+  const replay = { ...start, tool_call: { ...start.tool_call, startedAtMs: '3' } };
+  expect(decode([...handbookRead(), start, replay, complete])).toEqual({ start, complete });
+  expect(() => decode([start, { ...replay, call_id: 'foreign' }, complete])).toThrow();
+  const changed = structuredClone(replay);
+  const edit = changed.tool_call.editToolCall;
+  assert.ok(edit);
+  edit.args.streamContent = 'other edit';
+  expect(() => decode([start, changed, complete])).toThrow();
+});
+
+it('refuses extra, unrelated or unpaired handbook calls', () => {
+  const edit = pair('editToolCall');
+  for (const events of [
+    [...handbookRead(`${workspace}/other.md`), ...edit],
+    [...handbookRead(undefined, 'foreign-session'), ...edit],
+    [handbookRead()[0], ...edit],
+    [...edit, ...handbookRead()],
+    [...handbookRead(), ...edit, ...pair('editToolCall')],
+  ])
+    expect(() => decode(events)).toThrow();
+});
 
 const faults = [
   'missing-completion',

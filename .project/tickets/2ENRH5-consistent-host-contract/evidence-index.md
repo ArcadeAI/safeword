@@ -24,6 +24,27 @@ These results apply to the source and package revisions in their records.
 Main removed the cross-model review requirement in `da2778353`. The shared
 architecture gate follows main’s current rule and still checks the plan and its
 receipt. The archival original-author control exercised the old requirement.
-That control needs reconciliation with the accepted qualification scope before a
-new headless qualification can complete. The wiring grader remains an isolated
+The integration tests run the installed project Stop hook with fixture review
+responses. They check current approval, a subsequent plan edit, and a review
+that requested changes. Native qualification still requires a current run. The wiring grader remains an isolated
 test and retains the existing model-pair check.
+
+The headless Codex handoff fixture drives the native app server and installed
+Stop hook with scripted model replies. It checks how the hook handles the
+handoff settings. Spontaneous model behavior requires separate evidence.
+
+The [archived historical RED disposition](https://github.com/ArcadeAI/safeword/blob/44cf8f2fae94ef6f25151255cad05ed28ac4006a/.project/tickets/2ENRH5-consistent-host-contract/evidence/ordinary-request-historical-red-disposition.md)
+records the approved exception for the ordinary-request scenario alone. Its
+historical RED receipt is missing. Current native verification remains required.
+
+## Final delivery review
+
+Five independent reviews covered all 193 tracked files in the final delivery review scope. File membership and SHA-256 digests were checked against verification revision `a0091bbc4`. Each receipt approved its assigned files with no exclusions. The receipts include advisory findings on host selection, workflow binding, hook handling, recovery and reviewer limits. The cross-check evaluates these findings across the shared implementation. Native behavior and ticket acceptance have separate verification requirements.
+
+| Batch | Files | Review receipt |
+| --- | --- | --- |
+| 1 | 33 | `0532a6ef-bc88-4707-b0bc-fe32236158b2` |
+| 2 | 48 | `2c181cbb-3b21-47f0-987f-7dce934b1a69` |
+| 3 | 46 | `793ec3d9-7514-4947-bc07-39bc0a85f03b` |
+| 4 | 48 | `4254d88b-fe55-4e7b-8702-bffacfe6b9b6` |
+| 5 | 18 | `24d63231-436f-49cd-9940-5b9df228672f` |

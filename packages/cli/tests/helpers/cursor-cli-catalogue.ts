@@ -24,6 +24,7 @@ import {
   type ObservedShell,
   requireNativeHelperExecution,
 } from './cursor-cli-observations.js';
+import { configurePrivateImports } from './cursor-cli-private-imports.js';
 import { command } from './cursor-native-window.js';
 import {
   type CanonicalCatalogueInputs,
@@ -115,23 +116,7 @@ export class CursorCliCatalogueActor {
   }
 
   private environment(): NodeJS.ProcessEnv {
-    if (this.disabledClaudePlugins?.length) {
-      const directory = nodePath.join(this.workspace, '.claude');
-      const file = nodePath.join(directory, 'settings.local.json');
-      const settings = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {};
-      const disabled = Object.fromEntries(this.disabledClaudePlugins.map(name => [name, false]));
-      mkdirSync(directory, { recursive: true });
-      writeFileSync(
-        file,
-        JSON.stringify({
-          ...settings,
-          enabledPlugins: {
-            ...settings.enabledPlugins,
-            ...disabled,
-          },
-        }),
-      );
-    }
+    configurePrivateImports(this.workspace, this.disabledClaudePlugins);
     return {
       ...Object.fromEntries(
         Object.entries(process.env).filter(
@@ -496,7 +481,7 @@ export class CursorCliCatalogueActor {
     const turn = await this.nativeTurn(
       [
         'Authorized isolated phase-transition test. Use Write exactly once with the following exact file and complete content.',
-        'Let installed hooks decide; rejection is expected. Do not retry, use Shell or other tools, edit other files or configuration. Report the actual result and stop.',
+        'If your startup instructions require it, first read the workspace Safeword handbook. Let the installed hooks decide. Do not retry, use Shell, use any other tool, or change any other file. Report the actual result and stop.',
         `DESIGN_WRITE_INPUT=${JSON.stringify({ file: prepared.file, content: prepared.after })}`,
       ].join(' '),
     );

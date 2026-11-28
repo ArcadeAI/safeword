@@ -15,7 +15,7 @@ import {
 } from '../tests/fixtures/host-contract/native-contract-cases.js';
 import {
   assertHeadlessContinuation,
-  runOriginalAuthorControl,
+  runArchitectureReceiptControls,
 } from './lib/headless-completion-controls.js';
 import {
   gradeOpenCodePopulation,
@@ -481,6 +481,7 @@ function runPortableProof(codexOnly = false, completed?: CompletedNativeCases): 
 export function assertHeadlessPropagationReport(path: string): void {
   const result = JSON.parse(readFileSync(path, 'utf8')) as {
     exit: number;
+    scope: string;
     admission_eligible: boolean;
     required: { id: string }[];
     baseline: { lane: string; installation: string }[];
@@ -489,6 +490,7 @@ export function assertHeadlessPropagationReport(path: string): void {
     claudeContinuation: { installation: string; raw: string };
   };
   assert.equal(result.exit, 0);
+  assert.equal(result.scope, 'native-policy-resource-propagation-only');
   assert.equal(result.admission_eligible, false);
   const lanes = propagationLanes({ headless: true })
     .map(lane => lane.id)
@@ -530,7 +532,7 @@ function runHeadlessQualification(): number {
     execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' }).trim();
   const sourceHead = git(['rev-parse', 'HEAD']);
   const trackedChanges = () => git(['status', '--porcelain', '--untracked-files=no']);
-  const initialChanges = trackedChanges();
+  assert.equal(trackedChanges(), '', 'Qualification started with uncommitted tracked changes');
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-headless-qualification-'));
   const propagation = runPropagation('headless-qualification', false, directory);
   if (propagation !== 0) return propagation;
@@ -578,15 +580,14 @@ function runHeadlessQualification(): number {
   const inputs = JSON.parse(readFileSync(nodePath.join(directory, 'inputs.json'), 'utf8')) as {
     source_head: string;
   };
-  assert.equal(initialChanges, '', 'Qualification started with uncommitted tracked changes');
   assert.equal(git(['rev-parse', 'HEAD']), sourceHead, 'Qualification source revision changed');
   assert.equal(trackedChanges(), '', 'Qualification ended with uncommitted tracked changes');
   assert.equal(inputs.source_head, sourceHead, 'Propagation used a different source revision');
-  const authorReport = 'original-author-control.json';
-  runOriginalAuthorControl(repoRoot, nodePath.join(directory, authorReport));
+  const receiptReport = 'architecture-receipt-controls.json';
+  runArchitectureReceiptControls(repoRoot, nodePath.join(directory, receiptReport));
   assert.equal(git(['rev-parse', 'HEAD']), sourceHead, 'Qualification source revision changed');
-  assert.equal(trackedChanges(), '', 'Original-author control changed tracked source');
-  const reports = ['inputs.json', 'resource-results.json', 'opencode-cases.json', authorReport];
+  assert.equal(trackedChanges(), '', 'Architecture receipt controls changed tracked source');
+  const reports = ['inputs.json', 'resource-results.json', 'opencode-cases.json', receiptReport];
   const reportDigests = Object.fromEntries(
     reports.map(report => [report, reportDigest(nodePath.join(directory, report))]),
   );
@@ -601,7 +602,7 @@ function runHeadlessQualification(): number {
         case_ids: completed.ids.toSorted((left, right) => left.localeCompare(right)),
         controls: {
           continuation_limits: ['claude', 'codex'],
-          original_author: 'unknown-author-fails-closed',
+          architecture_receipts: 'reduced-current-approved-stale-and-unapproved-refused',
         },
         report_sha256: { ...reportDigests, ...completed.reports },
       },

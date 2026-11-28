@@ -64,13 +64,13 @@ process.on('SIGINT',()=>process.exit(0));
 const root=path.dirname(process.cwd());
 appendFileSync(path.join(root,'source-vendor-argv.jsonl'),JSON.stringify(process.argv.slice(2))+'\n');
 const declarations=JSON.parse(readFileSync(path.join(process.env.OPENCODE_CONFIG_DIR,'opencode.jsonc'),'utf8')).plugins;
-const before=[], prompt=[];
+const before=[], after=[], prompt=[];
 const inventory=[];
 for (const declaration of declarations) {
  const directory=typeof declaration==='string'?declaration:declaration.package;
  const plugin=(await import(pathToFileURL(path.join(directory,'index.'+(typeof declaration==='string'?'ts':'js'))).href)).default;
  const ctx={options:declaration.options??{},location:{directory:process.cwd()},app:{version:'2.4.1'},
-  tool:{hook:async(event,fn)=>{if(event==='execute.before')before.push({fn,candidate:typeof declaration!=='string'});}},
+  tool:{hook:async(event,fn)=>{if(event==='execute.before')before.push({fn,candidate:typeof declaration!=='string'});if(event==='execute.after')after.push(fn);}},
   session:{get:async()=>({id:'source-session'}),hook:async(event,fn)=>{if(event==='prompt')prompt.push(fn);}},
   skill:{transform:async()=>({dispose:async()=>{}})},command:{transform:async()=>{}},
   plugin:{list:async()=>({data:inventory})}};
@@ -105,6 +105,11 @@ try {
   const content=tool==='write'?input.content:readFileSync(input.path,'utf8').replace(input.oldString,input.newString);
   if(!existsSync(${JSON.stringify(nodePath.join(root, 'design-no-effect'))}))writeFileSync(input.path,content); result='Local phase write completed';
  }
+ if(!existsSync(${JSON.stringify(nodePath.join(root, 'omit'))}) && !existsSync(${JSON.stringify(nodePath.join(root, 'design-bypass'))})){
+  const event={tool,input,sessionID:'source-session',status:'completed',result:{content:result}};
+  for(const fn of after)await fn(event);
+  if(existsSync(${JSON.stringify(nodePath.join(root, 'duplicate-after'))}))for(const fn of after)await fn(event);
+ }
 } catch(error){result=error.message;}
 messages.push({role:'tool',content:result});
 await request();
@@ -123,6 +128,11 @@ console.log('SAFEWORD_NATIVE_TURN_COMPLETE');
     expect(baseline.observations[0].status).toBe(0);
     expect(baseline.effect).toBe(baseline.expectedEffect);
     const option = await actor.observeVerification(scope, scope, { enabled: false, tool: 'write' });
+    writeFileSync(nodePath.join(root, 'duplicate-after'), '');
+    await expect(
+      actor.observeVerification(scope, scope, { enabled: false, tool: 'write' }),
+    ).rejects.toThrow('verification dispatch ambiguous');
+    rmSync(nodePath.join(root, 'duplicate-after'));
     const optionProject = JSON.parse(option.installation)[1];
     const optionTicket = nodePath.join(
       optionProject,

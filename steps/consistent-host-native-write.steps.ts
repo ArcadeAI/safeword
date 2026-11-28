@@ -51,7 +51,13 @@ Given(
       );
     } else if (host === 'Cursor' && runtime === 'CLI') {
       assert.ok(parameters.cursorCli, 'CURSOR_CLI_UNAVAILABLE: set SAFEWORD_CURSOR_CLI');
-      this.nativeWrite = new CursorCliWriteActor(parameters.cursorCli);
+      const config: CursorNativeFixtureConfig | undefined = parameters.cursorFixtureFile
+        ? JSON.parse(readFileSync(parameters.cursorFixtureFile, 'utf8'))
+        : undefined;
+      this.nativeWrite = new CursorCliWriteActor(
+        parameters.cursorCli,
+        config?.disabledClaudePlugins,
+      );
     } else {
       assert.equal(
         host,
