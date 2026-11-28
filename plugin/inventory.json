@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "ca9621315903bd355f3767bd4d675a81b64d87428cf22252846548831ce7272e"
+      "sha256": "05248470296a89ffd3e0b0b4a5067df404e829c02d4bddff1b90f3d16cf186aa"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "53753ca37652e5c577e5ed412e375e079d110a32b9832e69664b9d9ac5c2b52a"
+      "sha256": "40855fdbd7ac3ca711dfa25ec1e0ac7422ed947bb7ef12ce313eda45db1dadca"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "2546e1b72bbf8510f2c4b55a2a57295a12158aacf8b68ce440dc70a9a0183295"
+      "sha256": "255ee3c90853eca66bb4edd397ae4d346cd6bcb58947544a5c763b6f75a7eb8a"
     },
     {
       "path": "runtime/event-groups.json",
@@ -351,7 +351,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality-state.ts",
-      "sha256": "5a23012dbd1ff339e0f19d2edad4d50753b76cf2175a6ac64fd11a0ec93e9aa8"
+      "sha256": "164d4bb8eb5ebdc9af779ecb9ca6e21601c1ff0a13d693b3daa77a305accbbfb"
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
@@ -495,7 +495,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-quality.ts",
-      "sha256": "27162fc9d5b74d2f1964b83a50acd652f3a4689583ebaa514639a38d9ee46e40"
+      "sha256": "f0fae8c4943880015ff7458a4197520cd9fa08c7569094c9688e42fb458ebf1a"
     },
     {
       "path": "runtime/hooks/post-tool-skill-nudge.ts",
@@ -527,7 +527,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "bd4f55da91700574d8f5c647fb6879a5cc60df32b70a2485165917e163ed979a"
+      "sha256": "d4215522b0d55810aad27951b817e2137d14db53a81f585b5826861159fde0fa"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -1131,7 +1131,7 @@
     },
     {
       "path": "templates/hooks/codex/pre-tool-quality-helpers.ts",
-      "sha256": "e72c428d3e65058048ed78fabc6882c1c479873ea0d966678877fc2075b008a7"
+      "sha256": "f3552e7b11300b5054edc36bf834f45d259efcdc1d45e28ac219b927f24142f6"
     },
     {
       "path": "templates/hooks/codex/pre-tool-quality.ts",
@@ -1347,7 +1347,7 @@
     },
     {
       "path": "templates/hooks/lib/quality-state.ts",
-      "sha256": "5a23012dbd1ff339e0f19d2edad4d50753b76cf2175a6ac64fd11a0ec93e9aa8"
+      "sha256": "164d4bb8eb5ebdc9af779ecb9ca6e21601c1ff0a13d693b3daa77a305accbbfb"
     },
     {
       "path": "templates/hooks/lib/quality.ts",
@@ -1491,7 +1491,7 @@
     },
     {
       "path": "templates/hooks/post-tool-quality.ts",
-      "sha256": "27162fc9d5b74d2f1964b83a50acd652f3a4689583ebaa514639a38d9ee46e40"
+      "sha256": "f0fae8c4943880015ff7458a4197520cd9fa08c7569094c9688e42fb458ebf1a"
     },
     {
       "path": "templates/hooks/post-tool-skill-nudge.ts",
@@ -1523,7 +1523,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "aa1c7f33bf24f75deaba6c8a60f6659a884ba18314c55da6d277fab9b063ec25"
+      "sha256": "b313865aaec589cb011abc00988c3143a369e09d5e499fa89f2c4cc51e722383"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",
@@ -1651,7 +1651,7 @@
     },
     {
       "path": "templates/SAFEWORD.md",
-      "sha256": "259cea6f56b9004cbfd8394fdf26c67e378376ba8412420bf122a271d167ba18"
+      "sha256": "16c2938ff55402105f3ee4f7ca68904e0253b91e1370e06c8f2c49e5f5cfcb5a"
     },
     {
       "path": "templates/scripts/bisect-test-pollution.sh",

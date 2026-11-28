@@ -87,6 +87,8 @@ canonical commands below.
 | `claude recover`                        | mutate      | Restore recognized Claude state from its cleanup backup without replacing unrelated content                                                      |
 | `codex clean-guidance`                  | destructive | Deactivate exact legacy Safeword profile guidance, preserve unrelated content, and retain a recovery backup                                      |
 | `codex recover`                         | destructive | Restore backed-up legacy Codex state without replacing unrelated current content                                                                 |
+| `ticket pause`                          | mutate      | Pause feature work in one conversation                                                                                                           |
+| `ticket resume`                         | mutate      | Resume feature work in one conversation                                                                                                          |
 | `ticket list`                           | observe     | List project tickets                                                                                                                             |
 | `ticket new`                            | mutate      | Create a project ticket                                                                                                                          |
 | `ticket reconcile-parent`               | mutate      | Record the current parent Product Plan contract                                                                                                  |

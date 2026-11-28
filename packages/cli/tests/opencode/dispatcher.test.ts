@@ -1,9 +1,11 @@
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, cpSync, mkdirSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { installOpenCodeProfile, openCodeProfilePaths } from '../../src/opencode/profile.js';
 import { getTemplatesDirectory } from '../../src/utils/fs.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
 
@@ -132,4 +134,50 @@ describe('packaged OpenCode dispatcher', () => {
     expect(result.stderr).toContain('features/test.feature');
     expect(result.stderr).toContain('@wip');
   });
+});
+
+it('binds a saved intake ticket through the installed OpenCode profile before enforcing direct edits', async () => {
+  const project = markedProject();
+  const profile = createTemporaryDirectory();
+  temporaryDirectories.push(profile);
+  expect(installOpenCodeProfile(profile).ok).toBe(true);
+  const installed = (await import(pathToFileURL(openCodeProfilePaths(profile).plugin).href)) as {
+    Safeword(input: { directory: string }): Promise<{
+      'tool.execute.before'(
+        input: { tool: string; sessionID: string; callID: string },
+        output: { args: Record<string, string> },
+      ): Promise<void>;
+      'tool.execute.after'(
+        input: { tool: string; sessionID: string; callID: string; args: Record<string, string> },
+        output: { output: string },
+      ): Promise<void>;
+    }>;
+  };
+  const hooks = await installed.Safeword({ directory: project });
+  function before(tool: string, args: Record<string, string>, sessionID = 'author') {
+    return hooks['tool.execute.before']({ tool, sessionID, callID: 'check' }, { args });
+  }
+  const dir = nodePath.join(project, '.project/tickets/OPEN12-dispatch');
+  mkdirSync(dir, { recursive: true });
+  const filePath = nodePath.join(dir, 'ticket.md');
+  const content = '---\nid: OPEN12\ntype: feature\nphase: intake\nstatus: in_progress\n---\n';
+  writeFileSync(filePath, content);
+  const output = { output: 'Saved' };
+  await hooks['tool.execute.after'](
+    { tool: 'write', sessionID: 'author', callID: 'save', args: { filePath, content } },
+    output,
+  );
+  expect(output.output).toContain('opencode-author');
+  await expect(before('edit', { filePath: 'delivery.py' })).rejects.toThrow('advance-intake');
+  await expect(before('write', { filePath: 'deployment.toml' })).rejects.toThrow('advance-intake');
+  await expect(
+    before('write', { filePath: 'deployment.toml' }, 'unbound'),
+  ).resolves.toBeUndefined();
+  await expect(before('bash', { command: 'cat delivery.py' })).resolves.toBeUndefined();
+  await expect(
+    before('apply_patch', {
+      patchText:
+        '*** Begin Patch\n*** Update File: .project/notes\n*** Move to: delivery.py\n@@\n-a\n+b\n*** End Patch',
+    }),
+  ).rejects.toThrow('advance-intake');
 });

@@ -90,6 +90,8 @@ Classify by the requested outcome before estimating implementation size. Use the
 2. **Task:** The request restores existing behavior or changes an isolated behavior with a testable outcome. Use TDD.
 3. **Patch:** A small mechanical or cosmetic correction with no behavior to discover can be fixed directly.
 
+When the user pauses a feature for an unrelated ticketless patch in the same conversation, run the `safeword ticket pause <ticket-id> <session>` command from the ticket binding or edit gate before starting the detour. When the user returns to the feature, run its matching `safeword ticket resume <ticket-id> <session>` command first. Both commands act in the current checkout and preserve the ticket's phase and approvals. During intake, the guard checks direct project edits and writes. Shell destinations and files changed indirectly by scripts fall outside that check.
+
 Users can explicitly override the workflow with `/bdd`. Use TDD-only for a feature when the user explicitly requests that path.
 
 Sizing reads the jobs; it never edits them. A job that implies new state or a new flow makes the work **bigger** — that is a signal to split into an epic, never to drop the job so the work fits a smaller box. If you find yourself pruning jobs and the size falls, you sized the proposal instead of the work.
