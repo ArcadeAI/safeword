@@ -23,6 +23,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { ESLINT_PACKAGE } from '../../src/packs/typescript/files.js';
 import { removeTemporaryDirectory, runCli, runCliWithoutInstall } from '../helpers';
+import { installFakeCodexRuntime } from '../helpers/fake-codex-runtime.js';
 
 describe('Upgrade Command - Reconcile Integration', () => {
   let temporaryDirectory: string;
@@ -506,12 +507,22 @@ statusMessage = "Checking safeword PreToolUse gates"
     it('enrolls Codex automatically and teaches only the canonical route', async () => {
       createConfiguredProject('0.5.0');
 
-      const result = await runCli(['upgrade', '--no-migrate-namespace'], {
+      const runtime = installFakeCodexRuntime(temporaryDirectory, {
+        pluginEnabled: true,
+        pluginInitiallyInstalled: true,
+      });
+      const result = await runCli(['upgrade', '--agents=codex', '--no-migrate-namespace'], {
         cwd: temporaryDirectory,
-        env: { SAFEWORD_SKIP_INSTALL: '1' },
+        env: {
+          SAFEWORD_SKIP_INSTALL: '1',
+          CODEX_HOME: runtime.codexHome,
+          SAFEWORD_CODEX_LOG: runtime.logPath,
+          PATH: runtime.bin + nodePath.delimiter + (process.env.PATH ?? ''),
+        },
       });
 
-      expect(result.exitCode).toBe(0);
+      expect(result.exitCode, result.stdout).toBe(2);
+      expect(result.stdout).toContain('/hooks');
       expect(`${result.stdout}\n${result.stderr}`).toContain(
         'each developer profile is checked automatically at task start',
       );
