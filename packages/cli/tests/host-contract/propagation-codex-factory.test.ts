@@ -67,11 +67,14 @@ if (process.argv.includes('app-server')) {
  for await (const line of createInterface({ input:process.stdin })) {
   const message=JSON.parse(line);
   if(message.id===1) console.log(JSON.stringify({id:1,result:{}}));
-  if(message.id===2) console.log(JSON.stringify({id:2,result:{data:[{errors:[],warnings:[],hooks:
-   ['sessionStart','userPromptSubmit','preToolUse','postToolUse','stop'].map(eventName=>({eventName,sourcePath:path.join(plugin,'hooks.json'),enabled:true,trustStatus:existsSync(path.join(root,'untrusted'))?'untrusted':'trusted'}))
-  }]}}));
-  if(message.id===2 && existsSync(path.join(root,'release-trust'))) {
-   rmSync(path.join(root,'untrusted')); rmSync(path.join(root,'release-trust'));
+  if(message.id===2) {
+   const trustStatus=existsSync(path.join(root,'untrusted'))?'untrusted':'trusted';
+   if(existsSync(path.join(root,'release-trust'))) {
+    rmSync(path.join(root,'untrusted')); rmSync(path.join(root,'release-trust'));
+   }
+   console.log(JSON.stringify({id:2,result:{data:[{errors:[],warnings:[],hooks:
+    ['sessionStart','userPromptSubmit','preToolUse','postToolUse','stop'].map(eventName=>({eventName,sourcePath:path.join(plugin,'hooks.json'),enabled:true,trustStatus}))
+   }]}}));
   }
  }
  process.exit(0);
