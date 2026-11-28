@@ -1,4 +1,6 @@
+import { FEATURE_EDIT_DENIED_EXIT_CODE } from '../../templates/hooks/lib/quality-state.js';
 import { COMPLETION_HOOK_TIMEOUT_SECONDS } from '../templates/config.js';
+import { OBSERVED_FEATURE_BINDING } from './observe-ticket.js';
 
 export interface OpenCodeProfilePluginOptions {
   readonly markerTimeoutMilliseconds?: number;
@@ -23,6 +25,11 @@ const INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE = 3;
 const DENIAL = 'Safeword denied this OpenCode tool call.';
 const INCOMPLETE_FEATURE_EVIDENCE = 'Safeword blocked this ticket close because its feature evidence is incomplete. Check test-definitions.md and its referenced feature source: complete every scenario, fix missing or malformed evidence, remove @wip, and retry.';
 const REPAIR = 'Safeword cannot run its OpenCode guard. Run safeword install --agents=opencode.';
+
+function featureSessionHint(id) {
+  const session = 'opencode-' + (String(id).trim().replace(/[^A-Za-z0-9._-]+/g,'-').replace(/^-+|-+$/g,'') || 'id');
+  return 'If the user switches to unrelated work, run safeword ticket pause <ticket-id> ' + session + ' in this checkout. Run safeword ticket resume <ticket-id> ' + session + ' before returning.';
+}
 
 class UnavailableDispatcher extends Error {}
 
@@ -163,13 +170,13 @@ async function readBoundIdentity() {
   return identity;
 }
 
-function dispatch(identity, envelope, directory) {
+function dispatch(identity, envelope, directory, args = []) {
   const inputText = Object.values(envelope.tool_input).filter(value => typeof value === 'string').join('\n');
   const timeoutMilliseconds = /ticket\.md/u.test(inputText) && /status:\s*['"]?done\b/u.test(inputText)
     ? ${COMPLETION_HOOK_TIMEOUT_SECONDS * 1000}
     : /\bVERIFIED\b/iu.test(inputText) ? 30_000 : 2_000;
   return new Promise((resolve, reject) => {
-    const child = spawn(identity.runtime_path, [identity.dispatcher_path], {
+    const child = spawn(identity.runtime_path, [identity.dispatcher_path, ...args], {
       cwd: directory,
       shell: false,
       env: {
@@ -213,6 +220,7 @@ export const Safeword = async input => {
     if (classification.kind === 'unmarked') return;
     await clearProfileError();
     await recordActivation(classification.directory, event, sessionID, callID);
+    return classification.directory;
   }
 
   if (input?.directory) {
@@ -247,18 +255,36 @@ export const Safeword = async input => {
       }
       let result;
       try {
-        result = await dispatch(await readBoundIdentity(), envelope, classification.directory);
+        const scoped = input.directory === classification.directory ? envelope : { ...envelope, cwd: input.directory };
+        result = await dispatch(await readBoundIdentity(), scoped, classification.directory);
       } catch (error) {
         if (error instanceof UnavailableDispatcher) throw new Error(REPAIR);
         throw new Error(DENIAL);
       }
       await recordActivation(classification.directory, 'pre_tool', hookInput.sessionID, hookInput.callID);
       if (result.exitCode === 0) return;
+      if (result.exitCode === ${FEATURE_EDIT_DENIED_EXIT_CODE}) {
+        throw new Error('Finish the Product Plan, obtain independent intake approval and run the returned review advance-intake command. ' + featureSessionHint(hookInput.sessionID));
+      }
       if (result.exitCode === INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE) throw new Error(INCOMPLETE_FEATURE_EVIDENCE);
       throw new Error(DENIAL);
     },
-    'tool.execute.after': async hookInput => {
-      await recordLifecycle('post_tool', hookInput?.sessionID, hookInput?.callID);
+    'tool.execute.after': async (hookInput, output) => {
+      const directory = await recordLifecycle('post_tool', hookInput?.sessionID, hookInput?.callID);
+      if (!directory || !hookInput.args ||
+          !['edit','write','patch','apply_patch'].includes(hookInput.tool)) return;
+      const file = hookInput.args.filePath;
+      if (typeof file === 'string' && !file.endsWith('.md')) return;
+      try {
+        const envelope = canonicalEnvelope(hookInput, {args:hookInput.args});
+        if (!envelope) return;
+        const result = await dispatch(await readBoundIdentity(), {...envelope, cwd:input.directory, hook_event_name:'PostToolUse'}, directory, ['--observe-ticket']);
+        if (result.exitCode === ${OBSERVED_FEATURE_BINDING} && typeof output?.output === 'string') {
+          output.output += '\n\n' + featureSessionHint(hookInput.sessionID);
+        }
+      } catch {
+        // Observation cannot reject an operation that already completed.
+      }
     },
   };
 };

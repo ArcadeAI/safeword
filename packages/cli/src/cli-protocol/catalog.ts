@@ -539,6 +539,12 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       ],
     },
   ),
+  command('ticket pause', 'Pause feature work in one conversation', 'mutate', {
+    syntax: 'pause <ticketId> <session>',
+  }),
+  command('ticket resume', 'Resume feature work in one conversation', 'mutate', {
+    syntax: 'resume <ticketId> <session>',
+  }),
   command('ticket list', 'List project tickets', 'observe'),
   command('ticket new', 'Create a project ticket', 'mutate', {
     networkPolicy: 'declared',

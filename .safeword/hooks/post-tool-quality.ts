@@ -12,12 +12,16 @@ import { ensureTransientStateIgnore } from './lib/project-state.ts';
 import { finalizeReadinessReceipt } from './lib/pr-readiness-guard.ts';
 import { getQualityMessage } from './lib/quality.ts';
 import {
+  awaitsIntakeApproval,
   getStateFilePath,
+  featureSwitchHint,
+  stateStorageKey,
   LOC_THRESHOLD,
   projectMetaPaths,
   type QualityState,
   resolveQualityStateIdentity,
 } from './lib/quality-state.ts';
+import { getTicketInfo } from './lib/active-ticket.ts';
 import { shouldReviewPhase } from './lib/review-trigger.ts';
 import { isTicketCloseEdit } from './lib/ticket-close.ts';
 import {
@@ -159,6 +163,7 @@ function countLoc(): number {
 // --- Main ---
 
 const state = loadState();
+const previousTicket = state.activeTicket;
 const currentHead = getHeadHash();
 
 // If no commits yet, skip enforcement
@@ -400,6 +405,16 @@ if (
 }
 
 saveState(state);
+
+if (
+  state.activeTicket &&
+  previousTicket !== state.activeTicket &&
+  awaitsIntakeApproval(projectDirectory, getTicketInfo(projectDirectory, state.activeTicket))
+) {
+  const key = stateStorageKey(resolveQualityStateIdentity(input));
+  const context = featureSwitchHint(state.activeTicket, key);
+  reviewMessage = [reviewMessage, context].filter(Boolean).join('\n\n');
+}
 
 if (reviewMessage) {
   console.log(
