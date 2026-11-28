@@ -5,9 +5,18 @@ import nodePath from 'node:path';
 import rootPackageJson from '../../../package.json' with { type: 'json' };
 import {
   adaptCodexWorkflowInvocations,
+  assertCodexSkillMetadataBudget,
+  type GeneratedPluginAsset,
   writeCodexPluginCatalogue,
 } from '../src/codex-plugin/catalogue.js';
 import { codexPluginHookCommand, type CodexPluginHookEntry } from '../src/codex-plugin/hooks.js';
+import {
+  finalizeWorkflowRevision,
+  resourceRevisionContext,
+} from '../src/codex-plugin/resource-revision.js';
+import { type PortablePackageMetadata } from '../src/host-contract/delivery.js';
+import { writePortableCoreCatalogue } from '../src/host-contract/portable-core.js';
+import { CODEX_WORKFLOW_LAYOUT } from '../src/schema-layouts.js';
 import { COMPLETION_HOOK_TIMEOUT_SECONDS } from '../src/templates/config.js';
 import { VERSION } from '../src/version.js';
 import { generateDeliveryCompatibilityRubric } from './generate-delivery-compatibility-rubric.js';
@@ -16,13 +25,17 @@ import { generatePlanRubric } from './generate-plan-rubric.js';
 import { generateQualityRubric } from './generate-quality-rubric.js';
 import { generateRedRubric } from './generate-red-rubric.js';
 import { generateScenarioRubric } from './generate-scenario-rubric.js';
+import { generateTestingCore } from './generate-testing-core.js';
 import { generatedTreeDifferences, reconcileGeneratedTree } from './generated-tree-differences.js';
 import { buildPluginCliBundle } from './lib/build-plugin-cli-bundle.js';
-import {
-  parseCodexPluginGenerationOptions,
-  publishFreshDirectory,
-} from './lib/codex-plugin-generation.js';
+import { parseCodexPluginGenerationOptions } from './lib/codex-plugin-generation.js';
 import { planningAuthorCopies } from './lib/planning-author-copies.js';
+import { publishFreshDirectory } from './lib/publish-fresh-directory.js';
+
+type NativePluginManifest = Omit<PortablePackageMetadata, 'version'> & {
+  version: string;
+  interface: Record<string, unknown>;
+};
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '..');
 const shippedRoot = nodePath.join(packageRoot, 'codex-plugin');
@@ -41,6 +54,7 @@ if (
   throw new Error('Custom output must be outside the checked-in Codex plugin directory');
 }
 
+generateTestingCore(options.checkOnly);
 const rubricResults = [
   generateScenarioRubric(options.checkOnly),
   generatePlanRubric(options.checkOnly),
@@ -75,12 +89,30 @@ function writeHookManifest(generatedRoot: string): void {
   );
 }
 
+function workflowNames(assets: GeneratedPluginAsset[]) {
+  const knownSkillNames = new Set<string>();
+  const internalNames = new Set<string>();
+  for (const asset of assets) {
+    const [directory, skill, filename] = asset.relativePath.split('/', 3);
+    if (
+      (directory === CODEX_WORKFLOW_LAYOUT.skills ||
+        directory === CODEX_WORKFLOW_LAYOUT.internal) &&
+      skill !== undefined &&
+      filename === 'SKILL.md'
+    ) {
+      knownSkillNames.add(skill);
+      if (directory === CODEX_WORKFLOW_LAYOUT.internal) internalNames.add(skill);
+    }
+  }
+  return { knownSkillNames, internalNames };
+}
+
 async function generatePlugin(
   generatedRoot: string,
   includeAuthoredFiles: boolean,
 ): Promise<number> {
   const manifestPath = nodePath.join(shippedRoot, '.codex-plugin/plugin.json');
-  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<string, unknown>;
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as NativePluginManifest;
   if (manifest.version !== VERSION) {
     throw new Error(`Codex plugin manifest does not declare package version ${VERSION}`);
   }
@@ -90,6 +122,8 @@ async function generatePlugin(
     generatedRoot,
     options.effectiveVersion,
   );
+  for (const directory of [CODEX_WORKFLOW_LAYOUT.skills, CODEX_WORKFLOW_LAYOUT.internal])
+    mkdirSync(nodePath.join(generatedRoot, directory), { recursive: true });
   // Keep Codex hooks and skill commands independent from bunx's shared mutable
   // package installation. This is the same standalone build shape as the Claude
   // plugin runtime, emitted into the Codex plugin payload.
@@ -98,7 +132,7 @@ async function generatePlugin(
     rootPackageJson.packageManager,
     'Codex',
     builtVersion,
-    planningAuthorCopies(generatedRoot, 'codex'),
+    { planningCopies: planningAuthorCopies(generatedRoot, 'codex') },
   );
   const runtimeDirectory = nodePath.join(generatedRoot, 'runtime');
   mkdirSync(runtimeDirectory, { recursive: true });
@@ -112,19 +146,14 @@ async function generatePlugin(
     )}\n`,
   );
 
-  const knownSkillNames = new Set<string>();
-  for (const asset of assets) {
-    const [directory, skill, filename] = asset.relativePath.split(nodePath.sep);
-    if (directory === 'skills' && skill !== undefined && filename === 'SKILL.md') {
-      knownSkillNames.add(skill);
-    }
-  }
+  const { knownSkillNames, internalNames } = workflowNames(assets);
 
-  const templatesDirectory = nodePath.join(generatedRoot, 'templates');
+  const templatesDirectory = nodePath.join(generatedRoot, CODEX_WORKFLOW_LAYOUT.templates);
   const handbookSource = nodePath.join(packageRoot, 'templates/SAFEWORD.md');
   const handbook = adaptCodexWorkflowInvocations(
     readFileSync(handbookSource, 'utf8'),
     knownSkillNames,
+    internalNames,
   );
   // runtime/cli.js is the same standalone bundle shipped by npm and expects
   // the canonical flat templates/ tree. Native skills remain separately
@@ -132,7 +161,7 @@ async function generatePlugin(
   cpSync(nodePath.join(packageRoot, 'templates'), templatesDirectory, { recursive: true });
   const resourcesDirectory = nodePath.join(generatedRoot, 'resources');
   mkdirSync(resourcesDirectory, { recursive: true });
-  writeFileSync(nodePath.join(resourcesDirectory, 'SAFEWORD.md'), handbook);
+  writeFileSync(nodePath.join(generatedRoot, CODEX_WORKFLOW_LAYOUT.handbook), handbook);
 
   if (includeAuthoredFiles) {
     manifest.version = options.effectiveVersion;
@@ -146,6 +175,17 @@ async function generatePlugin(
 
   writeHookManifest(generatedRoot);
 
+  if (options.portableCore) {
+    writePortableCoreCatalogue(
+      nodePath.join(packageRoot, 'templates'),
+      generatedRoot,
+      options.effectiveVersion,
+      { 'com.openai': { hooks: './hooks.json', interface: manifest.interface } },
+    );
+  }
+
+  const revision = finalizeWorkflowRevision(generatedRoot);
+  assertCodexSkillMetadataBudget(assets, resourceRevisionContext(revision).length);
   return assets.length;
 }
 

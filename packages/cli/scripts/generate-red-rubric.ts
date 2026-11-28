@@ -1,8 +1,8 @@
-import { extractExecutableRedRubric } from '../src/review/red-rubric.js';
 import {
   defineGeneratedRubric,
   isDirectGeneratorInvocation,
 } from './lib/reconcile-generated-file.js';
+import { extractExecutableRedRubric } from './lib/red-rubric.js';
 
 export const generateRedRubric = defineGeneratedRubric({
   exportName: 'EXECUTABLE_RED_REVIEW_RUBRIC',

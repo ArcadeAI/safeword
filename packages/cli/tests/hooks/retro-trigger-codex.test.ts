@@ -23,6 +23,114 @@ function codexRollout(types: string[]): string {
   return types.map(type => JSON.stringify({ type, payload: {} })).join('\n');
 }
 
+// Deidentified pinned 0.160 response_item shape: ids differ, call_id joins
+// the pair, and the turn tag is nested metadata, with no user_message.
+function customEvent(type: string, call = 'current-call', turn = 'current'): string {
+  return JSON.stringify({
+    type: 'response_item',
+    payload: {
+      type,
+      call_id: call,
+      id: `${type}-${call}`,
+      internal_chat_message_metadata_passthrough: { turn_id: turn },
+    },
+  });
+}
+
+describe('native Codex custom tool pairs', () => {
+  it('recognizes completed current work without a user-message boundary', () => {
+    const rollout = [customEvent('custom_tool_call'), customEvent('custom_tool_call_output')].join(
+      '\n',
+    );
+    expect(countToolUsesCodex(rollout)).toBe(1);
+    expect(countCompletedToolUsesCodex(rollout)).toBe(1);
+    expect(hasCompletedToolUseInCurrentCodexTurn(rollout, 'current')).toBe(true);
+    expect(hasCompletedToolUseInCurrentCodexTurn(rollout)).toBe(false);
+  });
+
+  it.each([
+    ['incomplete', [customEvent('custom_tool_call')]],
+    ['orphan result', [customEvent('custom_tool_call_output')]],
+    [
+      'mismatched call',
+      [customEvent('custom_tool_call'), customEvent('custom_tool_call_output', 'other')],
+    ],
+    ['cross-kind', [customEvent('custom_tool_call'), customEvent('function_call_output')]],
+    [
+      'cross-turn',
+      [
+        customEvent('custom_tool_call', 'current-call', 'old'),
+        customEvent('custom_tool_call_output'),
+      ],
+    ],
+    [
+      'stale completed pair',
+      [
+        customEvent('custom_tool_call', 'old-call', 'old'),
+        customEvent('custom_tool_call_output', 'old-call', 'old'),
+      ],
+    ],
+    [
+      'old pair plus incomplete current',
+      [
+        customEvent('custom_tool_call', 'old-call', 'old'),
+        customEvent('custom_tool_call_output', 'old-call', 'old'),
+        customEvent('custom_tool_call'),
+      ],
+    ],
+  ])('does not borrow %s as current completed work', (_name, events) => {
+    expect(hasCompletedToolUseInCurrentCodexTurn(events.join('\n'), 'current')).toBe(false);
+  });
+
+  it('preserves the latest user boundary over the tag fallback', () => {
+    const rollout = [
+      customEvent('custom_tool_call'),
+      customEvent('custom_tool_call_output'),
+      JSON.stringify({ payload: { type: 'user_message' } }),
+    ].join('\n');
+    expect(hasCompletedToolUseInCurrentCodexTurn(rollout, 'current')).toBe(false);
+  });
+
+  it('recognizes native metadata tags on existing function pairs too', () => {
+    const rollout = [customEvent('function_call'), customEvent('function_call_output')].join('\n');
+    expect(countCompletedToolUsesCodex(rollout)).toBe(1);
+    expect(hasCompletedToolUseInCurrentCodexTurn(rollout, 'current')).toBe(true);
+  });
+
+  it('preserves an explicit turn tag over conflicting fallback metadata', () => {
+    const rollout = ['function_call', 'function_call_output']
+      .map(type => {
+        const entry = JSON.parse(customEvent(type));
+        entry.payload.turn_id = 'explicit';
+        return JSON.stringify(entry);
+      })
+      .join('\n');
+    expect(hasCompletedToolUseInCurrentCodexTurn(rollout, 'explicit')).toBe(true);
+    expect(hasCompletedToolUseInCurrentCodexTurn(rollout, 'current')).toBe(false);
+  });
+
+  it('requires matching tool kinds even when identities match', () => {
+    expect(
+      countCompletedToolUsesCodex(
+        [customEvent('function_call'), customEvent('custom_tool_call_output')].join('\n'),
+      ),
+    ).toBe(0);
+    expect(
+      countCompletedToolUsesCodex(
+        [customEvent('custom_tool_call'), customEvent('function_call_output')].join('\n'),
+      ),
+    ).toBe(0);
+  });
+
+  it('uses custom work in the existing substance threshold without changing it', () => {
+    const rollout = Array.from({ length: SUBSTANCE_THRESHOLD }, (_, index) =>
+      customEvent('custom_tool_call', String(index)),
+    ).join('\n');
+    expect(isSubstantial(rollout, SUBSTANCE_THRESHOLD, countToolUsesCodex)).toBe(true);
+    expect(isSubstantial(rollout, SUBSTANCE_THRESHOLD + 1, countToolUsesCodex)).toBe(false);
+  });
+});
+
 describe('countToolUsesCodex', () => {
   it('counts function_call, exec_command_begin, and mcp_tool_call_begin as tool events', () => {
     expect(countToolUsesCodex(codexRollout(['function_call']))).toBe(1);

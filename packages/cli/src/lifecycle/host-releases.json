@@ -1,0 +1,32 @@
+{
+  "cursorCli": {
+    "agent": "cursor",
+    "version": "2026.11.05-86047df",
+    "runtimes": ["CLI"],
+    "delivery_variants": ["native"]
+  },
+  "claude": {
+    "agent": "claude",
+    "version": "2.1.319",
+    "runtimes": ["CLI"],
+    "delivery_variants": ["native"]
+  },
+  "codex": {
+    "agent": "codex",
+    "version": "0.167.0",
+    "runtimes": ["CLI"],
+    "delivery_variants": ["native"]
+  },
+  "cursorIde": {
+    "agent": "cursor",
+    "version": "3.29.9",
+    "runtimes": ["IDE"],
+    "delivery_variants": ["native", "project-hooks"]
+  },
+  "opencode": {
+    "agent": "opencode",
+    "version": "2.4.1",
+    "runtimes": ["CLI", "TUI"],
+    "delivery_variants": ["native"]
+  }
+}

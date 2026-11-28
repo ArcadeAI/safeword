@@ -1,5 +1,26 @@
 # Testing Guide
 
+<!-- SAFEWORD:TESTING_CORE_START -->
+<!-- source: src/testing/shared-core.ts; sha256: 3ef67a9e573e0f3a94f1348ef859a3a658b567c29785d90efdc436c392deef33 -->
+
+## Essential testing rules
+
+State the test-scope choice and why in one line, unless it's obvious from context.
+
+A suite that fakes _internal_ seams can be fully green while the real wiring is
+broken. Name the **process boundary** you mock — the network, filesystem, clock,
+or subprocess at the edge of your code — and mock _only_ that. Every entry point
+or command that wires modules together gets **≥1 test built from real
+collaborators**, faking nothing but that boundary.
+
+If the only way to exercise a code path is through an injected internal value
+(`provider: 'none'`, a hand-passed `repoVisibility`) and never through the real
+command, that path has **no wiring test** — add one.
+
+Before writing or reviewing tests, identify the distinct behavior partitions and choose a representative for each, including validation failures for individual inputs or input combinations. For bounded inputs, include a value strictly inside the valid range when one exists, boundary values, and out-of-range values, whether accepted or rejected. Check that the resulting tests cover those choices before reporting completion.
+
+<!-- SAFEWORD:TESTING_CORE_END -->
+
 Test methodology, TDD workflow, and test type selection.
 
 ---
@@ -622,3 +643,157 @@ eligibility before using it in a cost estimate.
 - Coverage requirements and PR requirements
 
 **If not found:** Ask user "Where are the testing docs?"
+
+## Optional worked examples
+
+Optional illustrations for the testing skill; the required rules remain in its main body.
+
+### 1. Test Behavior, Not Implementation
+
+```typescript
+// WRONG — tests internal state
+expect(component.state.count).toBe(1);
+expect(mockFn).toHaveBeenCalledWith('internal-detail');
+
+// RIGHT — tests observable behavior
+expect(screen.getByText('Count: 1')).toBeVisible();
+expect(result).toEqual({ total: 42 });
+```
+
+### 2. Every Test Needs a Meaningful Assertion
+
+```typescript
+// WRONG — asserts nothing useful
+expect(() => processData(input)).not.toThrow();
+expect(result).toBeTruthy();
+expect(result).toBeDefined();
+
+// RIGHT — asserts specific behavior
+expect(processData(input)).toEqual({ status: 'ok', count: 3 });
+expect(result.errors).toHaveLength(0);
+```
+
+### 4. One Test, One Behavior
+
+```typescript
+// WRONG
+it('validates input and saves to database', ...);
+
+// RIGHT
+it('rejects input missing required field', ...);
+it('saves valid input to database', ...);
+```
+
+### Unit Tests — Behavioral
+
+```typescript
+// Behavioral: asserts on output
+it('applies 20% discount for VIP users', () => {
+  expect(calculateDiscount(100, { tier: 'VIP' })).toBe(80);
+});
+
+// Non-behavioral: asserts on internal call
+it('calls applyRate with 0.2', () => {
+  calculateDiscount(100, { tier: 'VIP' });
+  expect(applyRate).toHaveBeenCalledWith(0.2);
+});
+```
+
+### Integration Tests — Behavioral
+
+```typescript
+// Behavioral: asserts on combined outcome
+it('returns user profile with computed permissions', async () => {
+  const response = await api.get('/users/1/profile');
+  expect(response.data.permissions).toContain('edit_posts');
+});
+
+// Non-behavioral: asserts on which services were called
+it('calls UserService then PermissionService', async () => { ... });
+```
+
+### E2E Tests — Behavioral
+
+```typescript
+// Behavioral: user-visible outcome
+test('user creates account and sees dashboard', async ({ page }) => {
+  await page.goto('/signup');
+  await page.fill('[name="email"]', 'test@example.com');
+  await page.fill('[name="password"]', 'secure123');
+  await page.click('button:has-text("Sign Up")');
+  await expect(page).toHaveURL('/dashboard');
+  await expect(page.getByText('Welcome')).toBeVisible();
+});
+```
+
+### LLM Evals — Behavioral
+
+```yaml
+# Deterministic assertion (cheap, run every commit)
+- type: javascript
+  value: JSON.parse(output).intent === 'order_pizza'
+
+# LLM-as-judge (for subjective quality, run on PR/schedule)
+- type: llm-rubric
+  value: |
+    PASS: Correctly identifies pizza order, confirms size and type
+    FAIL: Wrong intent, ignores key details, or generic response
+```
+
+### Wiring Tests — Mock Only the Process Boundary
+
+```typescript
+// ✅ Wiring test: real config → real corpus walk → real orchestrator,
+//    mocking only the network boundary (the one external service).
+it('files an issue from a real ticket corpus', async () => {
+  writeTicket(tmp, 'T1', { status: 'done' });
+  const sent = [];
+  const result = await syncTracker(tmp, { http: stubHttp(sent) }); // boundary only
+  expect(sent).toHaveLength(1);
+  expect(result.projected).toBe(1);
+});
+
+// ❌ Internal-seam mock: hand-builds the corpus the orchestrator should compute,
+//    so a broken config→corpus wiring (e.g. passing cwd where a dir is expected)
+//    passes every assertion. This is how a real bug survived 21 scenarios + 61 tests.
+it('projects tickets', () => {
+  expect(orchestrate({ tickets: [fakeTicket], config: fakeConfig })).toEqual(...);
+});
+```
+
+### Test Data Builders
+
+```typescript
+function buildUser(overrides = {}) {
+  return { id: 'test-1', name: 'Test User', role: 'member', ...overrides };
+}
+
+it('applies VIP discount', () => {
+  const user = buildUser({ role: 'vip' });
+  expect(calculateDiscount(user)).toBe(0.2);
+});
+```
+
+### Async Testing — Never Use Arbitrary Timeouts
+
+```typescript
+// WRONG
+await sleep(3000);
+await page.waitForTimeout(500);
+
+// RIGHT — wait for condition
+await expect.poll(() => getStatus()).toBe('ready');
+await waitFor(() => expect(element).toBeVisible());
+```
+
+### Descriptive Test Names
+
+```typescript
+// WRONG
+it('works correctly');
+it('should handle edge case');
+
+// RIGHT — describes the behavior
+it('returns 401 when API key is missing');
+it('preserves user input after validation error');
+```

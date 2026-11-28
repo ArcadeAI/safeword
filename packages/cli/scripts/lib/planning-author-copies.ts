@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import type {
@@ -20,11 +20,13 @@ export function planningAuthorCopies(
   } as const;
   return Object.fromEntries(
     Object.entries(paths).map(([phase, template]) => {
-      const relativePath = {
+      let relativePath = {
         templates: nodePath.join('templates', template),
         claude: template,
         codex: nodePath.join(nodePath.dirname(template), 'references', nodePath.basename(template)),
       }[layout];
+      if (layout === 'codex' && !existsSync(nodePath.join(root, relativePath)))
+        relativePath = relativePath.replace(/^skills\//u, 'internal/');
       return [
         phase,
         {

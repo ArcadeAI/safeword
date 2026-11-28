@@ -17,6 +17,7 @@ import type {
   SupportedReviewAuthor,
   UnverifiedReviewerOutput,
 } from './contract.js';
+import { isolatedGraderScope } from './isolated-grader.js';
 import { prepareReviewPacket } from './packet.js';
 import type { ReviewRoute } from './policy.js';
 import {
@@ -112,6 +113,10 @@ function planExecutionRecovery(input: {
       requiresHuman: false,
     },
   ];
+}
+
+function isolatedGradeModel(kind: ReviewKind, model: ConfirmedReviewerModel | undefined) {
+  return kind === 'quality-review' && isolatedGraderScope() === 'valid' ? model : undefined;
 }
 
 function confirmedReviewerData(model: ConfirmedReviewerModel | undefined): {
@@ -479,6 +484,8 @@ function primaryFailureRoutes(input: {
 
 /** The single next step, chosen from the assigned reviewer's own failure. */
 function nextStepFor(reviewer: ReviewAgent, failure: ReviewFailure): string {
+  if (failure === 'process_failed' && isolatedGraderScope() === 'invalid')
+    return 'Run the isolated grader from its bound project, profile, and runtime; rebuild its binding if needed.';
   const name = agentName(reviewer);
   if (failure === 'not_installed') return `Install or update ${name}, then run the review again.`;
   if (failure === 'untrusted_install')
@@ -652,7 +659,11 @@ function rankedExhaustedResult(input: {
   readonly targets: readonly string[];
   readonly context?: readonly string[];
   readonly evidence: readonly RankedRouteEvidence[];
-  readonly degraded?: { readonly output: ReviewerOutput; readonly route: ReviewRoute };
+  readonly degraded?: {
+    readonly output: ReviewerOutput;
+    readonly route: ReviewRoute;
+    readonly confirmedModel?: ConfirmedReviewerModel;
+  };
 }): CliResult {
   if (input.degraded !== undefined) {
     return createResult({
@@ -673,6 +684,7 @@ function rankedExhaustedResult(input: {
         author_agent: input.author,
         assigned_reviewer: input.degraded.route.reviewer,
         actual_reviewer: input.degraded.output.reviewer_agent,
+        ...confirmedReviewerData(input.degraded.confirmedModel),
         ...(input.degraded.route.model !== undefined && {
           reviewer_model: input.degraded.route.model,
         }),
@@ -875,7 +887,13 @@ async function runConfiguredRankedRoutes({
 }: RankedRun): Promise<CliResult> {
   const evidence: RankedRouteEvidence[] = [];
   const unavailable = new Set<ReviewAgent>();
-  let degraded: { readonly output: ReviewerOutput; readonly route: ReviewRoute } | undefined;
+  let degraded:
+    | {
+        readonly output: ReviewerOutput;
+        readonly route: ReviewRoute;
+        readonly confirmedModel?: ConfirmedReviewerModel;
+      }
+    | undefined;
   const runDeadline = Date.now() + runBoundMs();
   const orderedRoutes = [...orderedReviewRoutes(routes)];
   const prepared = preparedRankedPacket(input, existingPrepared);
@@ -954,7 +972,12 @@ async function runConfiguredRankedRoutes({
           data: { ...(result.data as Record<string, unknown>), review_routes: evidence },
         };
       }
-      degraded = { output: assessment.output, route };
+      // Preserve observed identity only in the bound evaluation; independence stays degraded.
+      degraded = {
+        output: assessment.output,
+        route,
+        confirmedModel: isolatedGradeModel(input.kind, assessment.confirmedModel),
+      };
     }
 
     return rankedTerminalResult({

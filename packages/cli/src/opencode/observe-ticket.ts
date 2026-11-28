@@ -17,10 +17,10 @@ import {
 } from '../../templates/hooks/lib/project-directory.js';
 import {
   awaitsIntakeApproval,
+  featureSwitchHint,
+  stateStorageKey,
   updateSessionState,
 } from '../../templates/hooks/lib/quality-state.js';
-
-export const OBSERVED_FEATURE_BINDING = 5;
 
 function savedTicket(
   root: string,
@@ -38,9 +38,9 @@ function savedTicket(
 }
 
 /** Observe only the saved artifact. An unsuccessful edit cannot create a ticket binding from its proposed bytes. */
-export function observeOpenCodeTicket(input: CodexHookInput, launch: string): boolean {
-  if (!input.session_id) return false;
-  let boundFeature = false;
+export function observeOpenCodeTicket(input: CodexHookInput, launch: string): string {
+  if (!input.session_id) return '';
+  let hint = '';
   for (const edit of translateCodexInputToClaudeInputs(input)) {
     const file = edit.tool_input.file_path;
     if (!file?.endsWith('.md')) continue;
@@ -54,12 +54,13 @@ export function observeOpenCodeTicket(input: CodexHookInput, launch: string): bo
     if (!saved) continue;
     updateSessionState(root, input.session_id, state => {
       if (saved.info.status === 'in_progress' && saved.info.type !== 'epic') {
-        boundFeature = state.activeTicket !== saved.id && awaitsIntakeApproval(root, saved.info);
+        if (state.activeTicket !== saved.id && awaitsIntakeApproval(root, saved.info))
+          hint = featureSwitchHint(saved.id, stateStorageKey(input.session_id));
         state.activeTicket = saved.id;
       } else if (state.activeTicket === saved.id) {
         delete state.activeTicket;
       }
     });
   }
-  return boundFeature;
+  return hint;
 }

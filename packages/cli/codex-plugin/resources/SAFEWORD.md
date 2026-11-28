@@ -186,7 +186,7 @@ Read the matching guide when its trigger fires:
 
 Safeword runs hooks each turn to track your phase and TDD step. A feature ticket moves one step at a time through `intake → define-behavior → scenario-gate → plan-implementation → plan-execution → implement → verify → done` (deviations need a recorded `phase_skips` reason). The main hard blocks:
 
-- **Scenario prerequisites** — `test-definitions.md` needs `scope` / `out_of_scope` / `done_when` in ticket frontmatter and a phase past intake; features also need `dimensions.md`, a `spec.md` with valid jobs and Rules, and a `$safeword:self-review` stamp on its current content. Leaving intake also waits on unfinished `blocked_on` tickets.
+- **Scenario prerequisites** — `test-definitions.md` needs `scope` / `out_of_scope` / `done_when` in ticket frontmatter and a phase past intake; features also need `dimensions.md`, a `spec.md` with valid jobs and Rules, and a `../internal/self-review/SKILL.md` stamp on its current content. Leaving intake also waits on unfinished `blocked_on` tickets.
 - **Phase review** — leaving a phase needs an independent review stamp, unless `reviewGate` in `.safeword/config.json` excludes that exit.
 - **Planning gates** — a new-flow feature can't enter `plan-execution` without a current reviewed Implementation Plan, or enter `implement` without a current reviewed Execution Plan. It can't reach `verify`/`done` until the Implementation Plan is reconciled to `implemented`.
 - **Ledger** — each RED/GREEN/REFACTOR checkbox needs a commit SHA or `skip: <reason>`; a REFACTOR commit can't touch tests.

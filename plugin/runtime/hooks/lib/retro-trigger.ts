@@ -88,16 +88,20 @@ export function countCompletedToolUses(transcriptText: string): number {
 /** A per-agent tool-use counter over a transcript's raw text. */
 export type ToolUseCounter = (transcriptText: string) => number;
 
-const CODEX_TOOL_EVENTS = new Set(['function_call', 'exec_command_begin', 'mcp_tool_call_begin']);
+const CODEX_TOOL_EVENTS = new Set([
+  'function_call',
+  'custom_tool_call',
+  'exec_command_begin',
+  'mcp_tool_call_begin',
+]);
 
 /**
  * Count tool events in a Codex rollout JSONL (`{type, payload}` per line). Codex's
- * tool signal is `function_call` / `exec_command_begin` / `mcp_tool_call_begin` —
+ * tool signal includes native `custom_tool_call` and the legacy function/exec/MCP forms —
  * NOT Claude's `message.content[].tool_use`, so Claude's countToolUses would
  * return 0 here. Nesting-tolerant: matches the tool type on either the top-level
- * `type` or `payload.type`, because the exact rollout nesting is NOT yet confirmed
- * by a live Codex spike (deferred — see the 53DQJZ ticket); matching both shapes
- * hedges that uncertainty.
+ * `type` or `payload.type`, preserving legacy nesting alongside the observed
+ * native response_item payload.
  */
 export function countToolUsesCodex(rolloutText: string): number {
   return sumOverJsonlEntries(rolloutText, raw => {
@@ -111,6 +115,7 @@ export function countToolUsesCodex(rolloutText: string): number {
 
 const CODEX_RESULT_EVENTS = new Map([
   ['function_call_output', 'function_call'],
+  ['custom_tool_call_output', 'custom_tool_call'],
   ['exec_command_end', 'exec_command_begin'],
   ['mcp_tool_call_end', 'mcp_tool_call_begin'],
 ]);
@@ -170,9 +175,16 @@ export function hasCompletedToolUseInCurrentCodexTurn(
         .filter(raw => {
           const entry = raw as {
             turn_id?: string;
-            payload?: { turn_id?: string };
+            payload?: {
+              turn_id?: string;
+              internal_chat_message_metadata_passthrough?: { turn_id?: string };
+            };
           };
-          return (entry.payload?.turn_id ?? entry.turn_id) === turnId;
+          return (
+            (entry.payload?.turn_id ??
+              entry.turn_id ??
+              entry.payload?.internal_chat_message_metadata_passthrough?.turn_id) === turnId
+          );
         })
         .map(entry => JSON.stringify(entry))
         .join('\n'),

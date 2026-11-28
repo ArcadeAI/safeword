@@ -463,7 +463,7 @@ function matchedHookWithIf(matcher: string, ifRule: string, command: string) {
   };
 }
 
-const EDIT_TOOLS = 'Edit|Write|MultiEdit|NotebookEdit';
+export const EDIT_TOOLS = 'Edit|Write|MultiEdit|NotebookEdit';
 
 export const SETTINGS_HOOKS = {
   SessionStart: [

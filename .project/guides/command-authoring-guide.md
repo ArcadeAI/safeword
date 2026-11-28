@@ -1,5 +1,7 @@
 # Command Authoring Guide
 
+For this repository, follow [Safeword's canonical command workflow](#schema-registration-safeword-specific). The host examples below are reference material; generated descriptions and procedures are not independent authoring surfaces.
+
 How to write slash commands for Claude Code and Cursor that are discoverable, focused, and effective.
 
 **Sources:**
@@ -357,10 +359,12 @@ Before publishing a command:
 
 ## Schema Registration (SAFEWORD-specific)
 
-Safeword commands are **Cursor-only thin wrappers** that point at a skill (`Read and follow the instructions in .safeword/skills/{name}/SKILL.md`). Most are **generated**:
+Canonical command identities live at `packages/cli/templates/commands/{name}.md`.
+The same-named canonical skill owns the procedure and discovery description.
+Cursor thin wrappers and OpenCode native commands derive from these identities.
 
-1. Add a `CURSOR_COMMAND_WRAPPERS` entry (name, description, `skillPath`) in `packages/cli/src/cursor-wrappers.ts`. `CURSOR_COMMAND_WRAPPER_OWNED_FILES` in schema.ts registers `.cursor/commands/{name}.md` → `commands/{name}.md` automatically.
-2. Run `bun run generate:cursor-wrappers` from `packages/cli` to write `templates/commands/{name}.md` and the dogfood `.cursor/commands/{name}.md`. Never hand-edit a generated wrapper.
-3. Run `bun packages/cli/scripts/check-generated-surfaces.ts --fix` so the plugins stay current, then `bun run test tests/schema.test.ts` from `packages/cli`.
+1. Declare a new command identity with a reference to its canonical skill; add its name to `CURSOR_COMMAND_WRAPPER_OWNED_FILES`'s name list in `packages/cli/src/schema.ts`. Do not add a separate description or procedure table.
+2. From the repository root, run `scripts/dev bun packages/cli/scripts/generate-cursor-wrappers.ts`. It writes canonical thin command content and the dogfood `.cursor/commands/{name}.md`; subsequent edits belong in the skill.
+3. Run `scripts/dev bun packages/cli/scripts/check-generated-surfaces.ts --fix` and the targeted schema/command metadata tests. No command keeps a second hand-authored procedure.
 
-A few hand-authored commands (`explain`, `verify`, `self-review`, `review-spec`, `cleanup-zombies`, `lint`) keep explicit `'.cursor/commands/{name}.md': { template: 'commands/{name}.md' }` entries in `ownedFiles`. See the [Schema Registration Guide](./schema-registration-guide.md).
+See the [Schema Registration Guide](./schema-registration-guide.md). An unregistered template does not reach the installer.

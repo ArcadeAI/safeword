@@ -1893,6 +1893,72 @@ describe('Claude plugin dispatcher', () => {
     expect(result.stderr).toContain('sibling hooks returned conflicting scalar values');
   });
 
+  it.each(['same entry', 'separate entries'])(
+    'preserves startup sibling effects and context around a failed observer in %s',
+    layout => {
+      const projectDirectory = temporary('safeword-plugin-startup-siblings-project-');
+      const pluginData = temporary('safeword-plugin-startup-siblings-data-');
+      const pluginRoot = nodePath.join(
+        temporary('safeword-plugin-startup-siblings-root-'),
+        'plugin',
+      );
+      cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+      const commands = [
+        String.raw`printf before > "$CLAUDE_PROJECT_DIR/before.txt"; printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"before context"}}\n'`,
+        String.raw`printf 'observer-broken\n' >&2; printf '{"continue":false}\n'; exit 7`,
+        String.raw`printf after > "$CLAUDE_PROJECT_DIR/after.txt"; printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"after context"}}\n'`,
+      ];
+      const env = isolatedClaudeEnvironment(projectDirectory, pluginData, pluginRoot);
+      // Characterize independent legacy child delivery with the same real commands.
+      const legacy = commands.map(command =>
+        spawnSync('bash', ['-c', command], {
+          cwd: projectDirectory,
+          env,
+          encoding: 'utf8',
+        }),
+      );
+      expect(legacy.map(result => result.status)).toEqual([0, 7, 0]);
+      expect(legacy[0]?.stdout).toContain('before context');
+      expect(legacy[2]?.stdout).toContain('after context');
+      for (const name of ['before', 'after']) {
+        expect(readFileSync(nodePath.join(projectDirectory, `${name}.txt`), 'utf8')).toBe(name);
+        rmSync(nodePath.join(projectDirectory, `${name}.txt`));
+      }
+      const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+      const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8'));
+      const hooks = commands.map(command => ({ type: 'command', command }));
+      eventGroups.groups.SessionStart =
+        layout === 'same entry' ? [{ hooks }] : hooks.map(hook => ({ hooks: [hook] }));
+      writeFileSync(eventGroupsPath, JSON.stringify(eventGroups));
+      refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
+
+      const result = dispatchEvent(
+        projectDirectory,
+        pluginData,
+        temporary('safeword-plugin-startup-siblings-config-'),
+        'startup-siblings',
+        { event: 'SessionStart', pluginRoot, hookInput: { source: 'startup' } },
+      );
+      expect(result.signal).toBeNull();
+      expect(readFileSync(nodePath.join(projectDirectory, 'before.txt'), 'utf8')).toBe('before');
+      expect(
+        existsSync(nodePath.join(projectDirectory, 'after.txt')),
+        'SESSION_START_LATER_OBSERVER_SUPPRESSED',
+      ).toBe(true);
+      expect(readFileSync(nodePath.join(projectDirectory, 'after.txt'), 'utf8')).toBe('after');
+      expect(result.status, result.stderr).toBe(0);
+      const response = JSON.parse(result.stdout);
+      expect(response.hookSpecificOutput).toMatchObject({
+        hookEventName: 'SessionStart',
+        additionalContext: 'before context\nafter context',
+      });
+      expect(response).not.toHaveProperty('continue'); // Failed child output is not authority.
+      expect(result.stderr).toContain('observer-broken');
+      expect(result.stderr).toContain('SessionStart observer exited with status 7');
+      expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);
+    },
+  );
+
   it('fails closed when a sibling errors after an authorization denial', () => {
     const projectDirectory = temporary('safeword-plugin-sibling-error-project-');
     const pluginData = temporary('safeword-plugin-sibling-error-data-');

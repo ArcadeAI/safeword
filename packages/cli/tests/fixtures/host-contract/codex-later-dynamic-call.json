@@ -1,0 +1,7 @@
+{
+  "kind": "captured-input-unit-control-not-native-receipt",
+  "origin": "/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-aZMB0Z",
+  "call_id": "call_b30d28dc41bc44c786742d8d50573e05",
+  "input": "const r = await tools.exec_command({\"cmd\":\"pwd && git rev-parse --show-toplevel && git branch --show-current && git rev-parse --short HEAD\\nrg --files -g 'AGENTS.md' -g 'CLAUDE.md' -g '.safeword/config.json' -g '.project/**' | sed -n '1,160p'\\nsed -n '1,400p' /private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-aZMB0Z/profile/plugins/cache/safeword-contract-test/safeword/1.2.0/internal/testing/SKILL.md\\nSAFEWORD_PLUGIN_RUNTIME=/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-aZMB0Z/profile/plugins/cache/safeword-contract-test/safeword/1.2.0/runtime/cli.js;\\nPROJECT_DIR=\\\"$(git rev-parse --show-toplevel)\\\"; bun \\\"$SAFEWORD_PLUGIN_RUNTIME\\\" project record-skill-invocation --cwd \\\"$PROJECT_DIR\\\" quality-review \\\"${CLAUDE_SESSION_ID:-}\\\"\",\"workdir\":\"/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-aZMB0Z/project\",\"yield_time_ms\":30000,\"max_output_tokens\":40000});\ntext(r.output);",
+  "target": "/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-aZMB0Z/profile/plugins/cache/safeword-contract-test/safeword/1.2.0/internal/testing/SKILL.md"
+}

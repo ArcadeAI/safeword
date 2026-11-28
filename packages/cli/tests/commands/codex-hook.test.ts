@@ -94,6 +94,12 @@ describe('packagedNamespaceRootLabel', () => {
       nodePath.resolve(import.meta.dirname, '../../package.json'),
       nodePath.join(packageDirectory, 'package.json'),
     );
+    // dist retains external imports; use the already installed closure, never Bun auto-install.
+    symlinkSync(
+      nodePath.resolve(import.meta.dirname, '../../node_modules'),
+      nodePath.join(packageDirectory, 'node_modules'),
+      'dir',
+    );
     return { packageDirectory, projectDirectory };
   }
 
@@ -197,11 +203,6 @@ describe('packagedNamespaceRootLabel', () => {
 
   it('routes native hooks from the plugin directory to the host payload project', () => {
     const { packageDirectory, projectDirectory } = createPackagedCliFixture();
-    symlinkSync(
-      nodePath.resolve(import.meta.dirname, '../../node_modules'),
-      nodePath.join(packageDirectory, 'node_modules'),
-      'dir',
-    );
     const codexHome = mkdtempSync(nodePath.join(tmpdir(), 'safeword-native-profile-'));
     directories.push(codexHome);
     const env: NodeJS.ProcessEnv = { ...process.env, CODEX_HOME: codexHome };
@@ -758,8 +759,6 @@ describe('packagedNamespaceRootLabel', () => {
     expect(result.stderr).toContain('scope, out_of_scope, done_when');
   });
 
-  // A configured namespace root: the shared quality gate blocks Write here too;
-  // Codex's own intake check still covers apply_patch targets the gate can't see.
   const CUSTOM_NAMESPACE = { paths: { projectRoot: 'knowledge' } };
 
   it.each([
@@ -818,8 +817,6 @@ describe('packagedNamespaceRootLabel', () => {
     );
 
     expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(2);
-    // The shared PreToolUse gate honours the configured root, so it blocks
-    // before Codex's own apply_patch-oriented intake check runs.
     expect(result.stderr).toContain(`Ticket frontmatter is missing: ${expected}`);
   });
 
@@ -897,6 +894,93 @@ describe('packagedNamespaceRootLabel', () => {
     expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(0);
     expect(result.stderr).not.toContain('until ticket.md declares');
   });
+
+  it.each([
+    ['.project', undefined],
+    ['knowledge', { paths: { projectRoot: 'knowledge' } }],
+  ])(
+    'checks relative apply_patch intake targets under %s through the shared gate',
+    (namespaceRoot, config) => {
+      const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-patch-intake-'));
+      directories.push(projectDirectory);
+      markSafewordProject(projectDirectory, config);
+      const ticketDirectory = nodePath.join(projectDirectory, namespaceRoot, 'tickets/incomplete');
+      mkdirSync(ticketDirectory, { recursive: true });
+      writeFileSync(
+        nodePath.join(ticketDirectory, 'ticket.md'),
+        '---\nid: incomplete\ntype: task\n---\n',
+      );
+      const patch = `*** Begin Patch\n*** Add File: ${namespaceRoot}/tickets/incomplete/test-definitions.md\n+# Unscoped definitions\n*** End Patch`;
+      const result = runCodexHook(
+        projectDirectory,
+        'pre-tool-use',
+        {
+          cwd: projectDirectory,
+          session_id: 'patch-intake-session',
+          tool_name: 'apply_patch',
+          tool_input: { command: patch },
+        },
+        { CLAUDE_PROJECT_DIR: projectDirectory, SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
+      );
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(2);
+      expect(result.stderr).toContain('scope, out_of_scope, done_when');
+      expect(existsSync(nodePath.join(ticketDirectory, 'test-definitions.md'))).toBe(false);
+    },
+  );
+
+  it.each(['relative', 'absolute'])(
+    'checks intake through a %s configured namespace symlink',
+    form => {
+      const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-symlink-intake-'));
+      directories.push(projectDirectory);
+      const physicalRoot = nodePath.join(projectDirectory, 'knowledge-real');
+      const alias = nodePath.join(projectDirectory, 'knowledge-link');
+      const ticketDirectory = nodePath.join(physicalRoot, 'tickets/incomplete');
+      mkdirSync(ticketDirectory, { recursive: true });
+      symlinkSync(physicalRoot, alias, 'dir');
+      markSafewordProject(projectDirectory, {
+        paths: { projectRoot: form === 'relative' ? 'knowledge-link' : alias },
+      });
+      writeFileSync(
+        nodePath.join(ticketDirectory, 'ticket.md'),
+        '---\nid: incomplete\ntype: task\n---\n',
+      );
+      const definitions = nodePath.join(ticketDirectory, 'test-definitions.md');
+      const result = runCodexHook(
+        projectDirectory,
+        'pre-tool-use',
+        {
+          cwd: projectDirectory,
+          session_id: 'symlink-intake-session',
+          tool_name: 'Write',
+          tool_input: { file_path: definitions, content: '# Unscoped definitions\n' },
+        },
+        { CLAUDE_PROJECT_DIR: projectDirectory, SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
+      );
+      expect(
+        result.status,
+        `SHARED_INTAKE_NAMESPACE_ALIAS_BYPASS\n${result.stderr}\n${result.stdout}`,
+      ).toBe(2);
+      expect(result.stderr).toContain('scope, out_of_scope, done_when');
+      expect(existsSync(definitions)).toBe(false);
+      writeFileSync(
+        nodePath.join(ticketDirectory, 'ticket.md'),
+        '---\nid: incomplete\ntype: task\nscope: Verify aliases\nout_of_scope: Other behavior\ndone_when: The shared gate decides\n---\n',
+      );
+      const allowed = runCodexHook(
+        projectDirectory,
+        'pre-tool-use',
+        {
+          cwd: projectDirectory,
+          session_id: 'symlink-intake-session',
+          tool_name: 'Write',
+          tool_input: { file_path: definitions, content: '# Scoped definitions\n' },
+        },
+        { CLAUDE_PROJECT_DIR: projectDirectory, SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
+      );
+      expect(allowed.status, `${allowed.stderr}\n${allowed.stdout}`).toBe(0);
+    },
+  );
 
   it('defers a plugin event to an exact runnable legacy handler', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
@@ -1294,11 +1378,6 @@ esac
 
   it('fails closed on structured hook output in OpenCode exit-code mode', () => {
     const { packageDirectory, projectDirectory } = createPackagedCliFixture();
-    symlinkSync(
-      nodePath.resolve(import.meta.dirname, '../../node_modules'),
-      nodePath.join(packageDirectory, 'node_modules'),
-      'dir',
-    );
     writeFileSync(
       nodePath.join(packageDirectory, 'templates/hooks/codex/pre-tool-quality.ts'),
       `process.stdout.write(JSON.stringify({ hookSpecificOutput: { permissionDecision: 'deny', permissionDecisionReason: 'Exact packaged denial' } }));\n`,
@@ -1329,11 +1408,6 @@ esac
 
   it('keeps packaged OpenCode hooks authoritative when legacy project hooks exist', () => {
     const { packageDirectory, projectDirectory } = createPackagedCliFixture();
-    symlinkSync(
-      nodePath.resolve(import.meta.dirname, '../../node_modules'),
-      nodePath.join(packageDirectory, 'node_modules'),
-      'dir',
-    );
     cpSync(
       nodePath.join(packageDirectory, 'templates/hooks'),
       nodePath.join(projectDirectory, '.safeword/hooks'),

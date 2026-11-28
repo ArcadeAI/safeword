@@ -38,6 +38,17 @@ export function adaptHookValue(value: unknown): unknown {
   );
 }
 
+/** Existing command projection also identifies the canonical target during repository checks. */
+export function projectHookCommand(owner: string, interpreter: 'bun' | 'bash' = 'bun'): string {
+  return `${interpreter} ${PROJECT_HOOK_ROOT}/${owner.slice('hooks/'.length)}`;
+}
+export function pluginHookCommand(event: string, command: string): string {
+  return `${PLUGIN_DISPATCH} ${event} -- ${adaptHookValue(command)}`;
+}
+export function pluginEventGroupCommand(event: string): string {
+  return `${PLUGIN_DISPATCH} ${event} --event-group`;
+}
+
 function wrapHookCommands(value: unknown, event: string): unknown {
   if (Array.isArray(value)) return value.map(child => wrapHookCommands(child, event));
   if (typeof value !== 'object' || value === null) return value;
@@ -45,7 +56,7 @@ function wrapHookCommands(value: unknown, event: string): unknown {
     Object.entries(value).map(([key, child]) => [
       key,
       key === 'command' && typeof child === 'string'
-        ? `${PLUGIN_DISPATCH} ${event} -- ${child}`
+        ? pluginHookCommand(event, child)
         : wrapHookCommands(child, event),
     ]),
   );
@@ -59,6 +70,17 @@ export function pluginSessionStartEntries(adapted: Record<string, unknown>): unk
     : [];
 }
 
+export function pluginEventGroups(): string {
+  const adapted = adaptHookValue(SETTINGS_HOOKS) as Record<string, unknown>;
+  const groups = Object.fromEntries(
+    pluginEventGroupEvents().map(event => [
+      event,
+      event === 'SessionStart' ? pluginSessionStartEntries(adapted) : (adapted[event] ?? []),
+    ]),
+  );
+  return `${JSON.stringify({ schema_version: 1, groups }, undefined, 2)}\n`;
+}
+
 function pluginHookEntries(event: string, entries: unknown): unknown {
   if (EVENT_GROUP_EVENTS.has(event)) {
     return [
@@ -66,7 +88,7 @@ function pluginHookEntries(event: string, entries: unknown): unknown {
         hooks: [
           {
             type: 'command',
-            command: `${PLUGIN_DISPATCH} ${event} --event-group`,
+            command: pluginEventGroupCommand(event),
           },
         ],
       },

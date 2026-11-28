@@ -1,0 +1,433 @@
+/* eslint-disable unicorn/name-replacements -- Accepted execution-plan proof filename. */
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
+import { afterEach, describe, expect, it } from 'vitest';
+
+import {
+  createContractRepoFixture as createContractRepoFixture,
+  fixtureSource,
+  runContractRepoCheck as runContractRepoCheck,
+} from '../helpers/contract-repo-fixture.js';
+
+const fixtures: string[] = [];
+const intendedSources = JSON.parse(
+  readFileSync(
+    nodePath.resolve(import.meta.dirname, '../fixtures/host-contract/intended-sources.json'),
+    'utf8',
+  ),
+) as { baseline: string; paths: string[]; additions: string[] };
+afterEach(() => {
+  for (const directory of fixtures.splice(0))
+    rmSync(nodePath.dirname(directory), { recursive: true, force: true });
+});
+
+describe('required repository boundary for shared policy ownership', () => {
+  it('rejects an independently authored Cursor phase-guide purpose and clears after restoration', () => {
+    const directory = createContractRepoFixture();
+    fixtures.push(directory);
+    const path = 'packages/cli/src/cursor-wrappers.ts';
+    const original = fixtureSource(directory, path);
+    writeFileSync(
+      nodePath.join(directory, path),
+      `${original}
+const retiredCursorPhasePurpose = {
+  name: 'bdd-discovery',
+  description: 'USE WHEN in BDD intake phase OR ticket has phase:intake. Guides discovery and context gathering for features.',
+  referencePath: '.safeword/skills/bdd/DISCOVERY.md',
+  skill: 'bdd',
+};
+`,
+    );
+    const findings = (
+      JSON.parse(runContractRepoCheck(directory).output.trim()) as {
+        findings: { code: string; metadata?: { owner_id?: string; path?: string } }[];
+      }
+    ).findings;
+    expect(
+      findings.some(
+        finding =>
+          finding.code === 'COMPETING_HOST_CONTRACT_OWNER' &&
+          finding.metadata?.owner_id === 'cursor.rule.bdd.DISCOVERY.purpose' &&
+          finding.metadata.path === path,
+      ),
+      'CURSOR_PHASE_PURPOSE_OWNER_UNDETECTED',
+    ).toBe(true);
+    writeFileSync(nodePath.join(directory, path), original);
+    const repaired = JSON.parse(runContractRepoCheck(directory).output.trim()) as {
+      findings: { metadata?: { owner_id?: string } }[];
+    };
+    expect(
+      repaired.findings.filter(finding => finding.metadata?.owner_id?.startsWith('cursor.rule.')),
+    ).toEqual([]);
+  });
+
+  it('rejects an independently authored Cursor workflow purpose and clears after restoration', () => {
+    const directory = createContractRepoFixture();
+    fixtures.push(directory);
+    const path = 'packages/cli/src/cursor-wrappers.ts';
+    const original = fixtureSource(directory, path);
+    writeFileSync(
+      nodePath.join(directory, path),
+      `${original}
+const retiredCursorWorkflowPurpose = {
+  name: 'safeword-debugging',
+  description: 'Finds the real cause of a bug, in four steps, before you touch a fix.',
+  referencePath: '.safeword/skills/debug/SKILL.md',
+  skill: 'debug',
+};
+`,
+    );
+    const result = runContractRepoCheck(directory);
+    const findings = (
+      JSON.parse(result.output.trim()) as {
+        findings: { code: string; metadata?: { owner_id?: string; path?: string } }[];
+      }
+    ).findings;
+    expect(
+      findings.some(
+        finding =>
+          finding.code === 'COMPETING_HOST_CONTRACT_OWNER' &&
+          finding.metadata?.owner_id === 'cursor.rule.debug.purpose' &&
+          finding.metadata.path === path,
+      ),
+      `CURSOR_RULE_PURPOSE_OWNER_UNDETECTED: ${result.output}`,
+    ).toBe(true);
+    writeFileSync(nodePath.join(directory, path), original);
+    const repaired = JSON.parse(runContractRepoCheck(directory).output.trim()) as {
+      findings: { metadata?: { owner_id?: string } }[];
+    };
+    expect(
+      repaired.findings.filter(finding => finding.metadata?.owner_id?.startsWith('cursor.rule.')),
+    ).toEqual([]);
+  });
+
+  it('discovers native Claude dispatch groups and native Cursor package hooks', () => {
+    const directory = createContractRepoFixture();
+    fixtures.push(directory);
+    const result = runContractRepoCheck(directory);
+    type Report = { data: { handler_inventory: { source_family?: string; event: string }[] } };
+    const report = JSON.parse(result.output.trim()) as Report;
+    const counts = (value: Report, family: string) => {
+      const total: Record<string, number> = {};
+      for (const entry of value.data.handler_inventory) {
+        if (entry.source_family === family) total[entry.event] = (total[entry.event] ?? 0) + 1;
+      }
+      return total;
+    };
+    const expected: Record<string, Record<string, number>> = {
+      'claude-native': {
+        SessionStart: 1,
+        UserPromptSubmit: 1,
+        Stop: 5,
+        PreToolUse: 8,
+        PostToolUse: 7,
+        SessionEnd: 1,
+        Setup: 1,
+      },
+      'claude-native-event-groups': { SessionStart: 9, UserPromptSubmit: 3 },
+      'cursor-native': {
+        sessionStart: 2,
+        preToolUse: 1,
+        beforeShellExecution: 1,
+        afterFileEdit: 1,
+        postToolUse: 2,
+        stop: 1,
+      },
+    };
+    for (const [family, events] of Object.entries(expected))
+      expect(counts(report, family), `NATIVE_PACKAGE_HANDLER_INVENTORY_MISSING: ${family}`).toEqual(
+        events,
+      );
+    const configPath = 'packages/cli/src/templates/config.ts';
+    const original = fixtureSource(directory, configPath);
+    writeFileSync(
+      nodePath.join(directory, configPath),
+      `${original}
+SETTINGS_HOOKS.SessionStart.push({ hooks: [{ type: 'command', command: 'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/session-version.ts' }] });
+CURSOR_HOOKS.sessionStart.push({ command: 'bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor' });
+`,
+    );
+    const changed = JSON.parse(runContractRepoCheck(directory).output.trim()) as Report;
+    expect(counts(changed, 'claude-native').SessionStart).toBe(1);
+    expect(counts(changed, 'claude-native-event-groups').SessionStart).toBe(10);
+    expect(counts(changed, 'cursor-native').sessionStart).toBe(3);
+    writeFileSync(nodePath.join(directory, configPath), original);
+    const repaired = JSON.parse(runContractRepoCheck(directory).output.trim()) as Report;
+    for (const [family, events] of Object.entries(expected))
+      expect(counts(repaired, family)).toEqual(events);
+  }, 60_000);
+
+  it('discovers Codex and the sole OpenCode V2 native registration family', () => {
+    const directory = createContractRepoFixture();
+    fixtures.push(directory);
+    const result = runContractRepoCheck(directory);
+    const report = JSON.parse(result.output.trim()) as {
+      data: {
+        missing_handler_inventory: string[];
+        handler_inventory: { source_family?: string; event: string; configuration: object }[];
+      };
+    };
+    expect(
+      report.data.missing_handler_inventory,
+      'NATIVE_HANDLER_INVENTORY_MISSING: every production adapter must expose its actual registration sources',
+    ).toEqual([]);
+    const expected: Record<string, string[]> = {
+      'codex-native': ['SessionStart', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'Stop'],
+      'opencode-v2': [
+        'plugin.setup',
+        'skill.transform',
+        'skill.transform',
+        'session.prompt',
+        'command.transform',
+        'session.prompt',
+        'session.context',
+        'tool.execute.before',
+        'tool.execute.after',
+      ],
+    };
+    for (const [family, events] of Object.entries(expected)) {
+      const actual = report.data.handler_inventory.filter(entry => entry.source_family === family);
+      expect(
+        actual.map(entry => entry.event).toSorted((left, right) => left.localeCompare(right)),
+        `NATIVE_HANDLER_INVENTORY_MISSING: ${family} must reflect every real registration, including repeated SDK hooks`,
+      ).toEqual(events.toSorted((left, right) => left.localeCompare(right)));
+    }
+    const manifestPath = 'packages/cli/codex-plugin/hooks.json';
+    const sdkPath = 'packages/opencode-v2-plugin/src/index.ts';
+    const manifestSource = fixtureSource(directory, manifestPath);
+    const sdkSource = fixtureSource(directory, sdkPath);
+    const manifest = JSON.parse(manifestSource) as { hooks: { Stop: unknown[] } };
+    manifest.hooks.Stop.push(structuredClone(manifest.hooks.Stop[0]));
+    writeFileSync(nodePath.join(directory, manifestPath), JSON.stringify(manifest));
+    const anchor = "    await context.tool.hook('execute.before', async event => {";
+    expect(sdkSource.split(anchor)).toHaveLength(2);
+    writeFileSync(
+      nodePath.join(directory, sdkPath),
+      sdkSource.replace(
+        anchor,
+        () => `    await context.tool.hook('execute.before', async () => {});\n${anchor}`,
+      ),
+    );
+    const changed = JSON.parse(runContractRepoCheck(directory).output.trim()) as typeof report;
+    for (const [family, event, count] of [
+      ['codex-native', 'Stop', 2],
+      ['opencode-v2', 'tool.execute.before', 2],
+    ] as const) {
+      expect(
+        changed.data.handler_inventory.filter(
+          entry => entry.source_family === family && entry.event === event,
+        ),
+      ).toHaveLength(count);
+    }
+    writeFileSync(nodePath.join(directory, manifestPath), manifestSource);
+    writeFileSync(nodePath.join(directory, sdkPath), sdkSource);
+    const repaired = JSON.parse(runContractRepoCheck(directory).output.trim()) as typeof report;
+    for (const [family, events] of Object.entries(expected)) {
+      expect(
+        repaired.data.handler_inventory
+          .filter(entry => entry.source_family === family)
+          .map(entry => entry.event)
+          .toSorted((left, right) => left.localeCompare(right)),
+      ).toEqual(events.toSorted((left, right) => left.localeCompare(right)));
+    }
+  }, 60_000);
+
+  it('names unclassified session-end, asynchronous and shell handlers from actual configuration', () => {
+    const directory = createContractRepoFixture();
+    fixtures.push(directory);
+    const handlers = [
+      'hooks/session-cleanup-quality.ts',
+      'hooks/session-auto-upgrade.ts',
+      'hooks/stop-retro.ts',
+      'hooks/pre-tool-git-bare-fix.sh',
+    ];
+    const bindingsPath = 'packages/cli/templates/hooks/lib/behavior-contract.ts';
+    const originalBindings = existsSync(nodePath.join(directory, bindingsPath))
+      ? fixtureSource(directory, bindingsPath)
+      : undefined;
+    const baseline = JSON.parse(runContractRepoCheck(directory).output.trim()) as {
+      findings: { code: string; metadata?: { handler_path?: string } }[];
+    };
+    expect(
+      baseline.findings.filter(
+        finding =>
+          finding.code === 'UNCLASSIFIED_HOST_CONTRACT_HANDLER' &&
+          handlers.includes(finding.metadata?.handler_path ?? ''),
+      ),
+    ).toEqual([]);
+    if (originalBindings !== undefined) {
+      writeFileSync(
+        nodePath.join(directory, bindingsPath),
+        `${originalBindings}\nfor (let index = SHARED_BEHAVIOR_BINDINGS.length - 1; index >= 0; index -= 1) {\n  if (${JSON.stringify(handlers)}.includes(SHARED_BEHAVIOR_BINDINGS[index].owner) || SHARED_BEHAVIOR_BINDINGS[index].id === 'session.auto-upgrade') SHARED_BEHAVIOR_BINDINGS.splice(index, 1);\n}\n`,
+      );
+    }
+    const configured = fixtureSource(directory, 'packages/cli/src/templates/config.ts');
+    expect(configured).toContain('SessionEnd:');
+    expect(configured).toContain('asyncRewakeHook(');
+    expect(configured).toContain('asyncHook(');
+    for (const handler of handlers) expect(configured).toContain(handler.slice('hooks/'.length));
+    const result = runContractRepoCheck(directory);
+    expect(result.status).toBe(2);
+    const report = JSON.parse(result.output.trim()) as {
+      findings: { code: string; severity: string; metadata?: { handler_path?: string } }[];
+      data: { handler_inventory: Record<string, unknown>[] };
+    };
+    for (const handler of handlers) {
+      expect(
+        report.findings,
+        `UNCLASSIFIED_HOST_CONTRACT_HANDLER: ${handler} was configured but not classified`,
+      ).toContainEqual(
+        expect.objectContaining({
+          code: 'UNCLASSIFIED_HOST_CONTRACT_HANDLER',
+          severity: 'error',
+          metadata: expect.objectContaining({ handler_path: handler }),
+        }),
+      );
+    }
+    for (const [handler, event, execution, interpreter] of [
+      [handlers[0], 'SessionEnd', 'synchronous', 'bun'],
+      [handlers[1], 'SessionStart', 'async-rewake', 'bun'],
+      [handlers[2], 'Stop', 'background', 'bun'],
+      [handlers[3], 'PreToolUse', 'synchronous', 'bash'],
+    ]) {
+      expect(report.data.handler_inventory).toContainEqual(
+        expect.objectContaining({
+          host: 'claude',
+          handler_path: handler,
+          event,
+          execution,
+          interpreter,
+        }),
+      );
+    }
+    if (originalBindings === undefined) throw new Error('Canonical handler bindings are missing');
+    writeFileSync(nodePath.join(directory, bindingsPath), originalBindings);
+    const repaired = JSON.parse(runContractRepoCheck(directory).output.trim()) as typeof baseline;
+    expect(
+      repaired.findings.filter(
+        finding =>
+          finding.code === 'UNCLASSIFIED_HOST_CONTRACT_HANDLER' &&
+          handlers.includes(finding.metadata?.handler_path ?? ''),
+      ),
+    ).toEqual([]);
+  }, 60_000);
+
+  it('reports every intended shipped source from the independently frozen baseline', () => {
+    const directory = createContractRepoFixture();
+    fixtures.push(directory);
+    const result = runContractRepoCheck(directory);
+    const report = JSON.parse(result.output.trim()) as {
+      data: { source_inventory?: { path: string }[] };
+      findings: { code: string }[];
+    };
+    expect(report.findings.map(finding => finding.code)).not.toContain(
+      'UNACCOUNTED_HOST_CONTRACT_SOURCE',
+    );
+    expect(
+      report.data.source_inventory,
+      'HOST_CONTRACT_SOURCE_INVENTORY_MISSING: the real check must expose every shipped source',
+    ).toBeDefined();
+    expect(
+      report.data.source_inventory
+        ?.map(entry => entry.path)
+        .toSorted((left, right) => left.localeCompare(right)),
+    ).toEqual(
+      [...intendedSources.paths, ...intendedSources.additions].toSorted((left, right) =>
+        left.localeCompare(right),
+      ),
+    );
+  }, 60_000);
+
+  it.each([
+    ['skill', 'skills/unaccounted-contract/SKILL.md'],
+    ['guide', 'guides/unaccounted-contract.md'],
+    ['native command wrapper', 'commands/unaccounted-contract.md'],
+    ['helper-agent entrypoint', 'agents/unaccounted-contract.md'],
+  ])(
+    'names an unaccounted %s through the real check',
+    (_kind, sourcePath) => {
+      const directory = createContractRepoFixture();
+      fixtures.push(directory);
+      const relativePath = `packages/cli/templates/${sourcePath}`;
+      const target = nodePath.join(directory, relativePath);
+      mkdirSync(nodePath.dirname(target), { recursive: true });
+      writeFileSync(
+        target,
+        '---\nname: unaccounted-contract\ndescription: An unaccounted canonical component.\n---\n\nFollow this canonical workflow.\n',
+      );
+      const result = runContractRepoCheck(directory);
+      expect(result.status).toBe(2);
+      const report = JSON.parse(result.output.trim()) as {
+        findings: { code: string; severity: string; metadata?: { path?: string } }[];
+      };
+      expect(
+        report.findings,
+        `UNACCOUNTED_HOST_CONTRACT_SOURCE: ${relativePath} must be named independently of other failures`,
+      ).toContainEqual(
+        expect.objectContaining({
+          code: 'UNACCOUNTED_HOST_CONTRACT_SOURCE',
+          severity: 'error',
+          metadata: expect.objectContaining({ path: relativePath }),
+        }),
+      );
+      // Register through the actual authority, then require the same check to clear it.
+      const schemaPath = 'packages/cli/src/schema.ts';
+      writeFileSync(
+        nodePath.join(directory, schemaPath),
+        `${fixtureSource(directory, schemaPath)}\nSAFEWORD_SCHEMA.ownedFiles['.safeword/contract-test/${sourcePath}'] = { template: ${JSON.stringify(sourcePath)} };\n`,
+      );
+      const repaired = runContractRepoCheck(directory);
+      const repairedReport = JSON.parse(repaired.output.trim()) as {
+        data: { source_inventory: { path: string }[] };
+        findings: { code: string }[];
+      };
+      expect(repairedReport.findings.map(finding => finding.code)).not.toContain(
+        'UNACCOUNTED_HOST_CONTRACT_SOURCE',
+      );
+      expect(repairedReport.data.source_inventory).toContainEqual(
+        expect.objectContaining({ path: relativePath }),
+      );
+    },
+    60_000,
+  );
+
+  it('rejects an interface that leaves the independent Codex intake predicate in place', () => {
+    const directory = createContractRepoFixture();
+    fixtures.push(directory);
+    const adapterPath = nodePath.join(directory, 'packages/cli/src/commands/codex-hook.ts');
+    let adapter = fixtureSource(directory, 'packages/cli/src/commands/codex-hook.ts');
+    if (!adapter.includes('function missingIntakeFields(')) {
+      const retired = readFileSync(
+        nodePath.resolve(
+          import.meta.dirname,
+          '../fixtures/host-contract/owners/codex-intake-predicate.txt',
+        ),
+        'utf8',
+      );
+      adapter += `\n${retired}`;
+      const start = adapter.indexOf('function runEnrolledPreToolUse(');
+      const anchor = '  if (!input) return;';
+      const insertion = adapter.indexOf(anchor, start) + anchor.length;
+      expect(start).toBeGreaterThan(-1);
+      expect(insertion).toBeGreaterThan(start);
+      adapter = `${adapter.slice(0, insertion)}\n  for (const targetPath of extractTargetPaths(input)) {\n    if (maybeDenyTestDefinitionsWrite(projectDirectory, targetPath)) return;\n  }${adapter.slice(insertion)}`;
+      writeFileSync(adapterPath, adapter);
+    }
+    const shared = fixtureSource(directory, 'packages/cli/templates/hooks/pre-tool-quality.ts');
+    // Both real implementations exist before the check. This is not a missing-import RED.
+    expect(adapter).toContain('function missingIntakeFields(');
+    expect(adapter).toContain('runEnrolledPreToolUse(');
+    expect(adapter).toContain(
+      'if (maybeDenyTestDefinitionsWrite(projectDirectory, targetPath)) return;',
+    );
+    expect(shared).toContain('test-definitions.md');
+    const result = runContractRepoCheck(directory);
+    expect(
+      result.status,
+      `COMPETING_HOST_CONTRACT_OWNER: ${result.entrypoint} accepted parallel codex.intake.required-fields\n${result.output}`,
+    ).toBe(2);
+    expect(result.output).toContain('codex.intake.required-fields');
+    expect(result.output).toContain('packages/cli/src/commands/codex-hook.ts');
+  }, 60_000);
+});

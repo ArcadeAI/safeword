@@ -15,6 +15,8 @@ import nodePath from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 
 import { installOpenCodeProfile } from '../../src/opencode/profile.js';
+import { readOpenCodeV2Enrollment } from '../../src/opencode/v2-enrollment.js';
+import { OPENCODE_V2_PLUGIN_LAYOUT } from '../../src/schema.js';
 import { VERSION } from '../../src/version.js';
 import {
   createTemporaryDirectory,
@@ -22,6 +24,7 @@ import {
   removeTemporaryDirectory,
   SKIP_INSTALL_ENV,
 } from '../helpers.js';
+import { codexRuntimeBinding } from '../helpers/codex-runtime-binding.js';
 import {
   cleanupTrustedReviewerDirectories,
   createTrustedReviewerDirectory,
@@ -80,14 +83,20 @@ function installCodexRuntime(): string {
   return codexHome;
 }
 
-function codexAuditCommand(): string {
-  const skill = readFileSync(nodePath.join(CODEX_PLUGIN, 'skills/audit/SKILL.md'), 'utf8');
+function installedCodexRoot(codexHome: string): string {
+  return nodePath.join(codexHome, 'plugins/cache/safeword/safeword', VERSION);
+}
+
+function codexAuditCommand(codexHome: string): string {
+  const root = installedCodexRoot(codexHome);
+  const asset = nodePath.join(root, 'skills/audit/SKILL.md');
+  const skill = readFileSync(asset, 'utf8');
   const line = skill
     .split('\n')
     .find(candidate => candidate.includes('project audit-scope)'))
     ?.trim();
   if (line === undefined) throw new Error('Generated Codex audit command is missing');
-  return line;
+  return `${codexRuntimeBinding(asset, nodePath.join(root, 'runtime/cli.js'))}${line}`;
 }
 
 function installLegacyAuditRuntime(project: string, fixture: 'complete' | 'partially missing') {
@@ -105,13 +114,13 @@ function installLegacyAuditRuntime(project: string, fixture: 'complete' | 'parti
   return marker;
 }
 
-function runCodexAudit(project: string, codexHome: string) {
+function runCodexAudit(project: string, codexHome: string, command = codexAuditCommand(codexHome)) {
   return spawnSync(
     'bash',
     [
       '-c',
       [
-        codexAuditCommand(),
+        command,
         'source_status=$?',
         '[ "$source_status" -eq 0 ] || exit "$source_status"',
         'audit_scope_initialize "$PROJECT_DIR"',
@@ -146,6 +155,7 @@ set -eu
 if [ "\${1-}" = "--version" ]; then printf 'codex 1.0.0\\n'; exit 0; fi
 if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then printf '%s\\n' '${REVIEWER_CAPABILITIES.codex}'; exit 0; fi
 payload=$(cat)
+printf '%s' "$payload" > "$SAFEWORD_REVIEW_LOG.packet"
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\\([^"]*\\)".*/\\1/p')
 printf 'codex\\n' >> "$SAFEWORD_REVIEW_LOG"
 printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"codex","verdict":"approve","summary":"reviewed","findings":[]}\\n' "$dispatch_id"
@@ -202,6 +212,41 @@ function runReviewWorkflow(
   });
 }
 
+function openCodeWorkflow(project: string, skill: string) {
+  const profile = realpathSync(temporaryDirectory());
+  const bundle = nodePath.join(temporaryDirectory(), 'package');
+  const build = spawnSync('bun', ['scripts/generate-opencode-v2-plugin.ts', '--output', bundle], {
+    cwd: nodePath.join(REPO_ROOT, 'packages/cli'),
+    encoding: 'utf8',
+    timeout: 120_000,
+  });
+  expect(build.status, build.stderr).toBe(0);
+  const installed = installOpenCodeProfile(profile, {
+    nativeV2: { projectDirectory: project, packageDirectory: bundle, epoch: 'component-only' },
+  });
+  expect(installed.state).toBe('changed');
+  const record = readOpenCodeV2Enrollment(
+    profile,
+    realpathSync(project),
+    bundle,
+    OPENCODE_V2_PLUGIN_LAYOUT,
+  );
+  if (!record) throw new Error('Installed V2 enrollment is missing');
+  const asset = nodePath.join(
+    record.package_directory,
+    OPENCODE_V2_PLUGIN_LAYOUT.skills,
+    skill,
+    'SKILL.md',
+  );
+  return {
+    asset,
+    binding: codexRuntimeBinding(
+      asset,
+      nodePath.join(record.package_directory, OPENCODE_V2_PLUGIN_LAYOUT.runtime),
+    ),
+  };
+}
+
 type Host = 'Codex' | 'Claude Code' | 'OpenCode' | 'Cursor';
 
 type StateWorkflow = { command: string; env: NodeJS.ProcessEnv };
@@ -216,13 +261,14 @@ function commandFromSkill(skillPath: string, marker: string, host: Host): string
 }
 
 function codexStateWorkflow(): StateWorkflow {
+  const codexHome = installCodexRuntime();
+  const root = installedCodexRoot(codexHome);
+  const asset = nodePath.join(root, 'skills/verify/SKILL.md');
   return {
-    command: commandFromSkill(
-      nodePath.join(CODEX_PLUGIN, 'skills/verify/SKILL.md'),
-      'project record-skill-invocation',
-      'Codex',
-    ),
-    env: { CODEX_HOME: installCodexRuntime() },
+    command:
+      codexRuntimeBinding(asset, nodePath.join(root, 'runtime/cli.js')) +
+      commandFromSkill(asset, 'project record-skill-invocation', 'Codex'),
+    env: { CODEX_HOME: codexHome },
   };
 }
 
@@ -234,20 +280,6 @@ function claudeStateWorkflow(): StateWorkflow {
       'Claude Code',
     ),
     env: { CLAUDE_PLUGIN_ROOT: CLAUDE_PLUGIN },
-  };
-}
-
-function openCodeStateWorkflow(): StateWorkflow {
-  const profile = temporaryDirectory();
-  expect(installOpenCodeProfile(profile).state).toBe('changed');
-  const { bin } = installReviewerAndPackageShim();
-  return {
-    command: commandFromSkill(
-      nodePath.join(profile, 'skills/safeword-verify/SKILL.md'),
-      'project record-skill-invocation',
-      'OpenCode',
-    ),
-    env: { PATH: `${bin}:${process.env.PATH ?? ''}`, SAFEWORD_TEST_CLI: CLI },
   };
 }
 
@@ -282,7 +314,13 @@ function stateWorkflow(host: Host, project: string): StateWorkflow {
   const factories: Record<Host, () => StateWorkflow> = {
     Codex: codexStateWorkflow,
     'Claude Code': claudeStateWorkflow,
-    OpenCode: openCodeStateWorkflow,
+    OpenCode: () => {
+      const { asset, binding } = openCodeWorkflow(project, 'verify');
+      return {
+        command: binding + commandFromSkill(asset, 'project record-skill-invocation', 'OpenCode'),
+        env: {},
+      };
+    },
     Cursor: () => cursorStateWorkflow(project),
   };
   return factories[host]();
@@ -301,16 +339,17 @@ describe('self-contained generated workflows', () => {
     const ticket = nodePath.join(project, '.project/tickets/ABC-proof/ticket.md');
     mkdirSync(nodePath.dirname(ticket), { recursive: true });
     writeFileSync(ticket, '---\nid: ABC\nstatus: in_progress\n---\n');
-    const command = commandFromSkill(
-      nodePath.join(CODEX_PLUGIN, 'skills/audit/SKILL.md'),
-      'project runtime resolve-verify-ticket',
-      'Codex',
-    );
+    const codexHome = installCodexRuntime();
+    const root = installedCodexRoot(codexHome);
+    const asset = nodePath.join(root, 'skills/audit/SKILL.md');
+    const command =
+      codexRuntimeBinding(asset, nodePath.join(root, 'runtime/cli.js')) +
+      commandFromSkill(asset, 'project runtime resolve-verify-ticket', 'Codex');
 
     const result = spawnSync('bash', ['-c', String.raw`${command}; printf '%s\n' "$TICKET_PATH"`], {
       cwd: project,
       encoding: 'utf8',
-      env: { ...process.env, CODEX_HOME: installCodexRuntime(), PROJECT_DIR: project },
+      env: { ...process.env, CODEX_HOME: codexHome, PROJECT_DIR: project },
     });
 
     expect(result.status, result.stderr || result.stdout).toBe(0);
@@ -344,7 +383,7 @@ describe('self-contained generated workflows', () => {
       expect(result.status, result.stderr).toBe(0);
       expect(result.stdout).toContain(`sha=${mergeBase}`);
       expect(result.stdout).toContain('files=first.txt\nsecond.txt');
-      expect(codexAuditCommand()).toContain(
+      expect(codexAuditCommand(codexHome)).toContain(
         `/plugins/cache/safeword/safeword/${VERSION}/runtime/cli.js`,
       );
       expect(existsSync(legacyMarker)).toBe(false);
@@ -359,10 +398,12 @@ describe('self-contained generated workflows', () => {
     writeFileSync(knowledge, 'authored knowledge\n');
     const legacyMarker = installLegacyAuditRuntime(project, 'complete');
     commitProject(project);
-    const emptyCodexHome = temporaryDirectory();
+    const emptyCodexHome = installCodexRuntime();
+    const command = codexAuditCommand(emptyCodexHome);
+    rmSync(installedCodexRoot(emptyCodexHome), { recursive: true });
     const knowledgeDigest = sha256(knowledge);
 
-    const result = runCodexAudit(project, emptyCodexHome);
+    const result = runCodexAudit(project, emptyCodexHome, command);
     const output = `${result.stdout}${result.stderr}`;
 
     expect(result.status).not.toBe(0);
@@ -370,6 +411,33 @@ describe('self-contained generated workflows', () => {
     expect(existsSync(legacyMarker)).toBe(false);
     expect(sha256(knowledge)).toBe(knowledgeDigest);
     expect(output).not.toMatch(/safeword install|bun install|dependency change/iu);
+  });
+
+  it('executes the installed OpenCode quality-review workflow through its pinned profile runtime', () => {
+    const project = enrolledProject();
+    writeFileSync(nodePath.join(project, 'review-input.md'), 'bounded review input\n');
+    commitProject(project);
+    const workflow = openCodeWorkflow(project, 'quality-review');
+    const command = workflow.binding + runnableReviewCommand(workflow.asset);
+    const reviewer = installReviewerAndPackageShim();
+    expectNoProjectRuntime(project);
+    const result = runReviewWorkflow(project, command, {
+      ...reviewer,
+      extraEnvironment: { SAFEWORD_AGENT_RUNTIME: 'opencode' },
+    });
+    expect(result.status, result.stderr || result.stdout).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'healthy',
+      data: { actual_reviewer: 'codex', reviewer_output: { verdict: 'approve' } },
+    });
+    expect(readFileSync(`${reviewer.log}.packet`, 'utf8')).toContain(
+      'claims stronger than their proof',
+    );
+    expect(readFileSync(reviewer.log, 'utf8')).toBe('codex\n');
+    expect(`${result.stdout}${result.stderr}`).not.toMatch(
+      /safeword install|CLAUDE_PLUGIN_ROOT|CODEX_HOME/iu,
+    );
+    expectNoProjectRuntime(project);
   });
 
   it('executes the generated Claude quality-review workflow through the bundled plugin', () => {
@@ -395,32 +463,6 @@ describe('self-contained generated workflows', () => {
     expect(command).toContain('${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/run-review.ts');
     expect(`${result.stdout}${result.stderr}`).not.toMatch(
       /install|CODEX_HOME|OPENCODE_CONFIG_DIR/iu,
-    );
-    expectNoProjectRuntime(project);
-  });
-
-  it('executes the installed OpenCode quality-review workflow through its pinned profile runtime', () => {
-    const project = enrolledProject();
-    writeFileSync(nodePath.join(project, 'review-input.md'), 'bounded review input\n');
-    commitProject(project);
-    const profile = temporaryDirectory();
-    expect(installOpenCodeProfile(profile).state).toBe('changed');
-    const reviewer = installReviewerAndPackageShim();
-    const command = runnableReviewCommand(
-      nodePath.join(profile, 'skills/safeword-quality-review/SKILL.md'),
-    );
-
-    const result = runReviewWorkflow(project, command, reviewer);
-
-    expect(result.status, result.stderr || result.stdout).toBe(0);
-    expect(JSON.parse(result.stdout)).toMatchObject({
-      state: 'healthy',
-      data: { actual_reviewer: 'codex', reviewer_output: { verdict: 'approve' } },
-    });
-    expect(readFileSync(reviewer.log, 'utf8')).toBe('codex\n');
-    expect(command).toContain(`bunx --bun safeword@${VERSION}`);
-    expect(`${result.stdout}${result.stderr}`).not.toMatch(
-      /install|CLAUDE_PLUGIN_ROOT|CODEX_HOME/iu,
     );
     expectNoProjectRuntime(project);
   });

@@ -1,0 +1,7 @@
+{
+  "kind": "captured-input-unit-control-not-native-receipt",
+  "origin": "/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-2GlhTF",
+  "call_id": "call_5a36b7ebfe4e404b8b8668363112a9e3",
+  "input": "const r = await tools.exec_command({\"cmd\":\"SKILL_ROOT=/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-2GlhTF/profile/plugins/cache/safeword-contract-test/safeword/1.2.0; find \\\"$SKILL_ROOT\\\" -maxdepth 2 -type f -print | sort | sed -n '1,160p'; printf '\\\\n--- testing instructions ---\\\\n'; sed -n '1,260p' \\\"$SKILL_ROOT/internal/testing/SKILL.md\\\"; printf '\\\\n--- project metadata ---\\\\n'; find .project -maxdepth 3 -type f -print 2>/dev/null | sort | sed -n '1,160p'\",\"workdir\":\"/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-2GlhTF/project\",\"yield_time_ms\":10000,\"max_output_tokens\":30000});\ntext(r.output);",
+  "target": "/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-2GlhTF/profile/plugins/cache/safeword-contract-test/safeword/1.2.0/internal/testing/SKILL.md"
+}

@@ -1,0 +1,17 @@
+{
+  "kind": "captured-truncation-notice-envelope-shape-control-not-native-receipt",
+  "origin": "/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-HdZsDy/profile/sessions/2026/10/25/rollout-2026-10-25T08-11-56-01a1739e-48fb-7b80-84ed-230d00a42347.jsonl",
+  "call_id": "call_650f831901604794bf7a998ecc1d05cf",
+  "original_output_text_sha256": "48099b4f6ea33cec72308895b3000669bb234e5f79c8d7e4f3f31c2b6d020ac6",
+  "sanitization": "Actual transport parts and envelope fields; decoded body replaced by UNIT_BODY_PLACEHOLDER. Counts describe original capture, not unit text.",
+  "output": [
+    {
+      "type": "input_text",
+      "text": "Script completed\nWall time 1.2 seconds\nOutput:\n"
+    },
+    {
+      "type": "input_text",
+      "text": "Warning: truncated output (original token count: 10189)\nTotal output lines: 1\n\n{\"chunk_id\":\"4b25e8\",\"wall_time_seconds\":2.167e-06,\"exit_code\":0,\"original_token_count\":9897,\"output\":\"UNIT_BODY_PLACEHOLDER\"}"
+    }
+  ]
+}

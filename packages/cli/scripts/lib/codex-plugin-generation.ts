@@ -1,15 +1,16 @@
-import { lstatSync, mkdirSync, mkdtempSync, renameSync, rmSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { isSafePackageVersion } from '../../src/utils/version.js';
 
 export interface CodexPluginGenerationOptions {
+  readonly portableCore?: boolean;
   readonly checkOnly: boolean;
   readonly effectiveVersion: string;
   readonly output?: string;
 }
 
 interface RawGenerationOptions {
+  readonly portableCore?: boolean;
   readonly checkOnly: boolean;
   readonly requestedVersion?: string;
   readonly output?: string;
@@ -22,11 +23,17 @@ function releaseIdentity(version: string): string {
 // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Keep duplicate, missing-value, and unknown-option failures adjacent at this small CLI trust boundary.
 function readGenerationArguments(arguments_: readonly string[]): RawGenerationOptions {
   let checkOnly = false;
+  let portableCore = false;
   let requestedVersion: string | undefined;
   let output: string | undefined;
 
   for (let index = 0; index < arguments_.length; index += 1) {
     const argument = arguments_[index];
+    if (argument === '--portable-core') {
+      if (portableCore) throw new Error('Duplicate option: --portable-core');
+      portableCore = true;
+      continue;
+    }
     if (argument === '--check') {
       if (checkOnly) throw new Error('Duplicate option: --check');
       checkOnly = true;
@@ -49,10 +56,19 @@ function readGenerationArguments(arguments_: readonly string[]): RawGenerationOp
     }
   }
 
-  return { checkOnly, requestedVersion, output };
+  return { checkOnly, requestedVersion, output, portableCore };
+}
+
+function validatePortableGeneration(raw: RawGenerationOptions): void {
+  if (
+    raw.portableCore &&
+    (raw.checkOnly || raw.output === undefined || raw.requestedVersion === undefined)
+  )
+    throw new Error('--portable-core requires --version and --output');
 }
 
 function validateGenerationOptions(raw: RawGenerationOptions, packageVersion: string): void {
+  validatePortableGeneration(raw);
   if (!isSafePackageVersion(packageVersion))
     throw new Error(`Package version is not valid SemVer: ${packageVersion}`);
   if (raw.checkOnly && (raw.requestedVersion !== undefined || raw.output !== undefined))
@@ -76,31 +92,9 @@ export function parseCodexPluginGenerationOptions(
   validateGenerationOptions(raw, packageVersion);
 
   return {
+    ...(raw.portableCore && { portableCore: true }),
     checkOnly: raw.checkOnly,
     effectiveVersion: raw.requestedVersion ?? packageVersion,
     ...(raw.output !== undefined && { output: nodePath.resolve(raw.output) }),
   };
-}
-
-export async function publishFreshDirectory(
-  output: string,
-  generate: (stagingDirectory: string) => Promise<void>,
-): Promise<void> {
-  try {
-    lstatSync(output);
-    throw new Error(`Output already exists: ${output}`);
-  } catch (error) {
-    if (!(error instanceof Error) || !('code' in error) || error.code !== 'ENOENT') throw error;
-  }
-  const parent = nodePath.dirname(output);
-  mkdirSync(parent, { recursive: true });
-  const staging = mkdtempSync(nodePath.join(parent, `.${nodePath.basename(output)}.tmp-`));
-  let published = false;
-  try {
-    await generate(staging);
-    renameSync(staging, output);
-    published = true;
-  } finally {
-    if (!published) rmSync(staging, { recursive: true, force: true });
-  }
 }

@@ -10,7 +10,9 @@ import ts from 'typescript';
 
 import { normalizeSafewordHookCommands } from '../src/utils/hooks.js';
 import { generatePlanningContracts } from './generate-planning-contracts.js';
+import { generateTestingCore } from './generate-testing-core.js';
 
+generateTestingCore(process.argv.includes('--check'));
 generatePlanningContracts(process.argv.includes('--check'));
 
 interface ReleaseRecord {

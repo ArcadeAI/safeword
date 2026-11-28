@@ -1,0 +1,8 @@
+{
+  "kind": "captured-parallel-call-shape-control-not-native-receipt",
+  "origin": "/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-aaaaHt/profile/sessions/2026/10/25/rollout-2026-10-25T09-33-15-01a173e8-bc79-7091-9bee-09f095bb6384.jsonl",
+  "original_input_sha256": "d030071b8fadea6d74e0ff3c6e430f60b0124672f47258aff64d0f71d7b8ad0c",
+  "call_id": "call_85b710a4fa1049aa9e6e49c0830c115e",
+  "sanitization": "Installed/project root placeholders only. No output/body receipt is fabricated.",
+  "input": "const r = await Promise.all([\n  tools.exec_command({\"cmd\":\"pwd && rg --files -g 'SKILL.md' -g 'package.json' -g '*clamp*' -g 'README*' -g 'AGENTS.md' -g '.project/**' | sed -n '1,200p'\",\"workdir\":\"/UNIT_PROJECT\",\"yield_time_ms\":10000,\"max_output_tokens\":20000}),\n  tools.exec_command({\"cmd\":\"find /UNIT_INSTALLED_ROOT -maxdepth 3 -name 'HANDBOOK.md' -o -name 'handbook.md' | sort\",\"workdir\":\"/UNIT_PROJECT\",\"yield_time_ms\":10000,\"max_output_tokens\":2000}),\n  tools.exec_command({\"cmd\":\"sed -n '1,240p' /UNIT_INSTALLED_ROOT/internal/testing/SKILL.md && printf '\\\\n-- BDD --\\\\n' && sed -n '1,200p' /UNIT_INSTALLED_ROOT/skills/bdd/SKILL.md\",\"workdir\":\"/UNIT_PROJECT\",\"yield_time_ms\":10000,\"max_output_tokens\":30000})\n]);\ntext(r.map(x=>x.output).join(\"\\n\\n---\\n\\n\"));"
+}

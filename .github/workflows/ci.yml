@@ -71,8 +71,11 @@ jobs:
       - name: Check public CLI contract
         run: bun run check:cli-contract
 
+      - name: Check shared host contract
+        run: bun packages/cli/scripts/check-host-contract.ts
+
   opencode-conformance:
-    name: OpenCode conformance
+    name: OpenCode V2 boundary checks
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -91,8 +94,8 @@ jobs:
       - name: Build
         run: bun run --cwd packages/cli build
 
-      - name: Run pinned OpenCode conformance
-        run: SAFEWORD_RUN_OPENCODE_CONFORMANCE=1 bun run --cwd packages/cli test tests/opencode/conformance-command.test.ts
+      - name: Check V2 controller and retired V1 delivery
+        run: bun run --cwd packages/cli test tests/opencode/retirement.test.ts tests/opencode/conformance.test.ts
 
   dependency-audit:
     name: Dependency audit
@@ -166,19 +169,18 @@ jobs:
         if: matrix.linter == '2.13.2'
         run: PATH="$RUNNER_TEMP/go-lint-bin:$PATH" scripts/dev bun run --cwd packages/cli test tests/integration/golang-golden-path.test.ts --sequence.shuffle --sequence.seed 4733
 
-  test:
-    name: test (node ${{ matrix.node-version }})
+  host-contract-tests:
+    name: Host contract (node ${{ matrix.node-version }}, shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
-    # Package tests can take 26 minutes before the acceptance and release lanes.
-    # Keep those lanes within one bounded job without truncating their assertions.
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        node-version: ['22.23.2', '24.18.1']
-
+        node-version: &test-node-versions ['22.23.2', '24.18.1']
+        shard: ['1/6', '2/6', '3/6', '4/6', '5/6', '6/6']
     steps:
-      - name: Checkout
+      - &host-checkout
+        name: Checkout
         uses: actions/checkout@v7
         with:
           # Historical manual-review seals hash the reviewed ancestor blobs.
@@ -186,15 +188,53 @@ jobs:
           # cannot prove that immutable snapshot.
           fetch-depth: 0
 
-      - name: Setup Bun
+      # Fixture subprocesses use scripts/dev to resolve the repository pins.
+      # Setup Node below still selects the matrix version for the suite itself.
+      - &host-mise
+        uses: jdx/mise-action@v5
+        with:
+          install_args: 'bun node'
+
+      - &host-bun
+        name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: package.json
 
-      - name: Setup Node.js
+      - &host-node
+        name: Setup Node.js
         uses: actions/setup-node@v7.1.0
         with:
           node-version: ${{ matrix.node-version }}
+
+      - name: Install zsh for Codex shell checks
+        run: test -x /bin/zsh || (sudo apt-get update -qq && sudo apt-get install -y zsh)
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun run build
+
+      # Repository fixtures launch parallel generators inside each test.
+      - name: Run host contract tests
+        run: bun run --cwd packages/cli test tests/host-contract --shard="${{ matrix.shard }}" --maxWorkers=1
+
+  test:
+    name: test (node ${{ matrix.node-version }})
+    needs: host-contract-tests
+    runs-on: ubuntu-latest
+    # Package tests can take 26 minutes before the acceptance and release lanes.
+    # Keep those lanes within one bounded job without truncating their assertions.
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: *test-node-versions
+
+    steps:
+      - *host-checkout
+      - *host-mise
+      - *host-bun
+      - *host-node
 
       - name: Setup Go
         uses: actions/setup-go@v7
@@ -238,7 +278,7 @@ jobs:
         run: bun run build
 
       - name: Test all packages
-        run: bun run test
+        run: bun run test --exclude 'tests/host-contract/**'
         env:
           TEST_POETRY: '1'
 
@@ -379,6 +419,8 @@ jobs:
           retention-days: 7
 
       - name: Lint
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
         run: bun run lint
 
       - name: Shellcheck

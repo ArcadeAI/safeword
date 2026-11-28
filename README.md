@@ -16,7 +16,7 @@
 
 - Node `^22.22.3`, `^24.16.0`, or `>=26.3.0`
 - [Bun](https://bun.sh) — Safeword's hooks run with Bun
-- Claude Code 2.1.170 or newer, if you use the Claude Code plugin
+- The supported Claude Code release in [current host releases](packages/cli/src/lifecycle/host-releases.json), if you use the Claude Code plugin
 
 **1.0 prereleases:** `safeword@latest` still resolves to the 0.x line. Release
 candidates publish to the npm `next` tag; replace `@latest` with `@next` in the
@@ -39,25 +39,18 @@ bunx safeword@latest install --agents=cursor
 bunx safeword@latest install --agents=claude,codex,opencode,cursor
 ```
 
-OpenCode is intentionally opt-in because its guard is installed in the current
-user's OpenCode profile. That profile delivery contains Safeword's plugin,
-commands, agents, and skills; the project receives no OpenCode executable
-catalogue and `opencode.json` stays untouched:
+OpenCode is opt-in. Safeword bundles its OpenCode 2.4.1 plugin and enrolls the selected project in the OpenCode profile. The plugin provides the commands, agents, and skills.
 
 ```bash
 bunx safeword@latest install --agents=opencode
-bunx safeword@latest conformance --agents=opencode
+bunx safeword@latest conformance --agents=opencode --runtime=cli
+bunx safeword@latest conformance --agents=opencode --runtime=tui
 bunx safeword@latest status --agents=opencode
 ```
 
-`uninstall --agents=opencode` removes the shared Safeword guard from this
-OpenCode profile, so other enrolled projects under the same OpenCode config
-root become unprotected until you reinstall it from one of them.
+Conformance checks the CLI and TUI separately in disposable sessions. Run a tool in the enrolled project from each standalone runtime, then check status to confirm activation. OpenCode Desktop remains advisory.
 
-Conformance runs a credential-free real OpenCode process. Safeword reports the
-exact stable 1.x CLI/TUI version as protected only after that process discovers the
-native catalogue and proves a forbidden tool call produces no side effect.
-OpenCode Desktop remains advisory until it reliably dispatches the same hooks.
+Uninstall removes the selected project's enrollment. The profile keeps the shared plugin entry while another project uses it.
 
 **2. Activate the installed profile plugins:**
 

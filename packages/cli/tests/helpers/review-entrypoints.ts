@@ -100,7 +100,9 @@ export const GENERATED_CODEX_PLUGIN_ASSETS = generateCodexPluginAssets(
 const CODEX_REVIEW_ENTRYPOINTS: ReviewEntrypoint[] = GENERATED_CODEX_PLUGIN_ASSETS.filter(asset =>
   asset.content.includes(CODEX_REVIEW_KNOWLEDGE_RESOLVER),
 ).map(asset => {
-  const canonicalSuffix = asset.relativePath.replace('/references/', '/');
+  const canonicalSuffix = asset.relativePath
+    .replace(/^internal\//u, 'skills/')
+    .replace('/references/', '/');
   const canonical = required(
     CLAUDE_REVIEW_ENTRYPOINTS.find(row => row.stage === canonicalSuffix),
     `missing canonical source for ${asset.relativePath}`,

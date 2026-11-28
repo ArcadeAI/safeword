@@ -205,7 +205,7 @@ describe('Execution Plan output schema', () => {
     expect(reviewOutputSchema('plan-execution')).not.toBe(reviewOutputSchema('quality-review'));
   });
 
-  it('changes only the schema and stream format for Claude planning review', () => {
+  it('changes only the schema while sharing Claude confirming transport', () => {
     const legacy = reviewerArguments('claude', undefined, undefined, {}, 'quality-review');
     const execution = reviewerArguments('claude', undefined, undefined, {}, 'plan-execution');
     const schemaIndex = execution.indexOf('--json-schema') + 1;
@@ -214,8 +214,8 @@ describe('Execution Plan output schema', () => {
     expect(legacy[schemaIndex]).toBe(reviewOutputSchema('quality-review'));
     const expected = [...legacy];
     expected[schemaIndex] = reviewOutputSchema('plan-execution');
-    expected[expected.indexOf('--output-format') + 1] = 'stream-json';
-    expected.push('--verbose');
+    expect(legacy[legacy.indexOf('--output-format') + 1]).toBe('stream-json');
+    expect(legacy.filter(argument => argument === '--verbose')).toHaveLength(1);
     expect(execution).toEqual(expected);
   });
 

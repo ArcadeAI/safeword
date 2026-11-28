@@ -1,3 +1,15 @@
+---
+description: |-
+  USE WHEN in BDD plan-execution phase. Turn the accepted Implementation Plan into startable work and review before coding.
+---
+
+## Packaged runtime
+
+Resolve [the bundled Safeword runtime](../../../runtime/cli.js) relative to this containing asset, not the project working directory.
+Before each shell block, assign SAFEWORD_PLUGIN_RUNTIME to that resolved absolute file path in a separate shell statement ending with a semicolon, then invoke the helper in that same shell call.
+Do not use `SAFEWORD_PLUGIN_RUNTIME=... bun "$SAFEWORD_PLUGIN_RUNTIME" ...`: the shell expands the argument before applying that environment assignment.
+Keep PROJECT_DIR bound to the actual project. Never substitute a project helper or another agent cache.
+
 # Execution Planning
 
 **Entry:** the Implementation Plan is approved and the ticket is at
@@ -6,7 +18,7 @@ turns them into startable work; it does not redesign them or edit application
 code.
 
 Scaffold `execution-plan.md` next to `ticket.md` from
-`references/execution-plan-template.md`.
+`execution-plan-template.md`.
 
 ## Author the plan
 
@@ -245,14 +257,14 @@ receipt may advance the ticket to implementation.
 ## Exit: review before implementation
 
 Resolve the current scenarios, approved `impl-plan.md`, ticket scope, and
-`execution-plan.md`. Run `bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/2.0.1/runtime/cli.js" project review-knowledge --json`
+`execution-plan.md`. Run `bun "$SAFEWORD_PLUGIN_RUNTIME" project review-knowledge --json`
 and use its configured paths for principles, personas, and surfaces. Include
 `ticket-path/dimensions.md` only when that ticket artifact exists; do not guess
 missing configured paths. Dispatch the shared coordinator with the Execution Plan as
 the sole work target and the accepted plans and scenarios as bounded context:
 
 ```bash
-SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/2.0.1/runtime/cli.js" review run plan-execution --agent-handoff --json --context ticket-path/spec.md ticket-path/ticket.md feature-file ticket-path/impl-plan.md principles-file personas-file surfaces-file dimensions-file-if-present testing-guide-file applicable-guide-files execution-plan-template-file -- ticket-path/execution-plan.md
+SAFEWORD_REVIEW_PROGRESS=1 bun "$SAFEWORD_PLUGIN_RUNTIME" review run plan-execution --agent-handoff --json --context ticket-path/spec.md ticket-path/ticket.md feature-file ticket-path/impl-plan.md principles-file personas-file surfaces-file dimensions-file-if-present testing-guide-file applicable-guide-files execution-plan-template-file -- ticket-path/execution-plan.md
 ```
 
 **The dispatch is authorized; skipping it is not your call.** The configured
@@ -268,7 +280,7 @@ redispatch unchanged sources. Repair agent-owned findings at the destination
 named by `planning_destination`, then review the corrected exact bytes. Apply
 the shared review-route recovery rule in `PLAN_IMPLEMENTATION.md` for
 authentication. When the current job returns `REVIEW_CONTINUATION_REQUIRED`
-with `status: continuation_required`, invoke `$safeword:finish-review` with its
+with `status: continuation_required`, invoke `../../../internal/finish-review/SKILL.md` with its
 `review_id` and sealed packet; collect that same job's terminal result. A
 `REVIEW_ROUTES_EXHAUSTED` result without a continuation remains blocked.
 `architectureReviewGate` applies to Implementation Planning's architecture
@@ -279,7 +291,7 @@ or degradation without that authenticated receipt, cannot advance.
 After approval, stamp the exact review with its returned provenance:
 
 ```bash
-bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/2.0.1/runtime/cli.js" project runtime write-review-stamp -- --author-agent "<author-agent>" --reviewer-agent "<actual-reviewer>" --independence "<independence>" --review-id "<review-id>" --phase plan-execution
+bun "$SAFEWORD_PLUGIN_RUNTIME" project runtime write-review-stamp -- --author-agent "<author-agent>" --reviewer-agent "<actual-reviewer>" --independence "<independence>" --review-id "<review-id>" --phase plan-execution
 ```
 
 Run `safeword ticket coding-authorization <ticket-id>` before updating the

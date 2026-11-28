@@ -250,6 +250,7 @@ shipped or verified behavior.
 
 ## References
 
+- [Host contracts](.project/architecture-decisions/shared-host-contracts.md)
 - Language Pack Spec: `packages/cli/src/packs/LANGUAGE_PACK_SPEC.md`
 - Ruff docs: https://docs.astral.sh/ruff/
 - golangci-lint docs: https://golangci-lint.run/

@@ -1,0 +1,16 @@
+{
+  "kind": "captured-output-envelope-shape-control-not-native-receipt",
+  "origin": "/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-P8J2QI/profile/sessions/2026/10/24/rollout-2026-10-24T21-23-38-01a1714c-c339-7d51-8242-3f226d182911.jsonl",
+  "call_id": "call_791fdb1a7e7b4fc0a9fc319c9a09725b",
+  "original_output_sha256": "756a27cae62443965dca771d62edcc4fac04ea1451994bc8b0a796c9b86bb7b5",
+  "output": [
+    {
+      "type": "input_text",
+      "text": "Script completed\nWall time 0.8 seconds\nOutput:\n"
+    },
+    {
+      "type": "input_text",
+      "text": "{\"chunk_id\":\"a7de05\",\"wall_time_seconds\":2.333e-06,\"exit_code\":0,\"original_token_count\":1180,\"output\":\"UNIT_BODY_PLACEHOLDER\"}"
+    }
+  ]
+}

@@ -5,11 +5,11 @@ import { describe, expect, it } from 'vitest';
 
 import { generateCodexPluginAssets } from '../../src/codex-plugin/catalogue.js';
 import {
-  CURSOR_COMMAND_WRAPPERS,
-  CURSOR_RULE_WRAPPERS,
+  readCursorRuleWrappers,
   renderCursorCommandWrapper,
   renderCursorRuleWrapper,
 } from '../../src/cursor-wrappers.js';
+import { readCanonicalCommandWrappers } from '../../src/host-contract/catalogue.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 import { VERSION } from '../../src/version.js';
 
@@ -122,35 +122,37 @@ describe('job-bound host review continuation contract', () => {
       VERSION,
     );
     const codex = generatedCodexAssets.find(
-      asset => asset.relativePath === 'skills/finish-review/SKILL.md',
+      asset => asset.relativePath === 'internal/finish-review/SKILL.md',
     );
     expect(codex?.content).toBe(
       readFileSync(
-        nodePath.resolve(import.meta.dirname, '../../codex-plugin/skills/finish-review/SKILL.md'),
+        nodePath.resolve(import.meta.dirname, '../../codex-plugin/internal/finish-review/SKILL.md'),
         'utf8',
       ),
     );
     const codexContract = generatedCodexAssets.find(
-      asset => asset.relativePath === 'skills/finish-review/references/REVIEWER.md',
+      asset => asset.relativePath === 'internal/finish-review/references/REVIEWER.md',
     );
     expect(codexContract?.content).toBe(
       readFileSync(
         nodePath.resolve(
           import.meta.dirname,
-          '../../codex-plugin/skills/finish-review/references/REVIEWER.md',
+          '../../codex-plugin/internal/finish-review/references/REVIEWER.md',
         ),
         'utf8',
       ),
     );
 
-    const cursor = CURSOR_RULE_WRAPPERS.find(rule => rule.name === 'safeword-finish-review');
+    const cursor = readCursorRuleWrappers(templates).find(
+      rule => rule.name === 'safeword-finish-review',
+    );
     expect(cursor).toBeDefined();
     if (cursor === undefined) throw new Error('missing safeword-finish-review Cursor rule');
     expect(
       readFileSync(nodePath.join(templates, 'cursor/rules/safeword-finish-review.mdc'), 'utf8'),
     ).toBe(renderCursorRuleWrapper({ wrapper: cursor }));
     const cursorCommand = required(
-      CURSOR_COMMAND_WRAPPERS.find(command => command.name === 'finish-review'),
+      readCanonicalCommandWrappers(templates).find(command => command.name === 'finish-review'),
       'missing finish-review Cursor command',
     );
     expect(cursorCommand).toBeDefined();

@@ -1,0 +1,34 @@
+{
+  "classification": "NONRECEIPT: actual captured command shapes with owned paths replaced for unit controls",
+  "read": {
+    "origin": "internal-workflows-BH5CBZ",
+    "call_id": "call_1a2f14dbf8884b0e83b8ad1c0de20cef",
+    "command": "base='/UNIT_INSTALLED_ROOT'; find \"$base\" -maxdepth 2 -type f -iname '*handbook*' -o -maxdepth 2 -type f -iname 'readme.md'; sed -n '1,260p' \"$base/internal/testing/SKILL.md\"; git status --short"
+  },
+  "configReview": {
+    "origin": "internal-workflows-F7zcrh; Wejq3q remains officially unavailable",
+    "call_id": "call_faf580f2d98745c5b4da4c006a80a30a",
+    "command": "sed -n '1,220p' .safeword/config.json; SAFEWORD_PLUGIN_RUNTIME=/UNIT_INSTALLED_ROOT/runtime/cli.js; PROJECT_DIR=/UNIT_PROJECT; bun \"$SAFEWORD_PLUGIN_RUNTIME\" review run quality-review --agent-handoff --json -- clamp.js clamp.test.js"
+  },
+  "review": {
+    "origin": "internal-workflows-6FSC8M",
+    "call_id": "call_1ef5cb33a306487786710f11790e247f",
+    "command": "SAFEWORD_PLUGIN_RUNTIME='/UNIT_INSTALLED_ROOT/runtime/cli.js';\nPROJECT_DIR='/UNIT_PROJECT';\ncd \"$PROJECT_DIR\" && SAFEWORD_REVIEW_PROGRESS=1 bun \"$SAFEWORD_PLUGIN_RUNTIME\" review run quality-review --agent-handoff --json -- clamp.js clamp.test.js"
+  },
+  "latestStatus": {
+    "origin": "internal-workflows-wEmCfl; pxMhYi remains officially unavailable",
+    "call_id": "call_288e9c9c74ea49b4b66f6cd5a64a5820",
+    "workdir": "/UNIT_PROJECT",
+    "command": "SAFEWORD_PLUGIN_RUNTIME='/UNIT_INSTALLED_ROOT/runtime/cli.js'; PROJECT_DIR=\"$PWD\"; SAFEWORD_REVIEW_PROGRESS=1 bun \"$SAFEWORD_PLUGIN_RUNTIME\" review status --json"
+  },
+  "labelledPreparationReview": {
+    "origin": "internal-workflows-Qk23rU; YnDza4 remains officially unavailable",
+    "call_id": "call_1f3ff542c300498ca291c737c8600254",
+    "command": "SAFEWORD_PLUGIN_RUNTIME='/UNIT_INSTALLED_ROOT/runtime/cli.js';\nPROJECT_DIR='/UNIT_PROJECT';\nprintf '%s\\n' '--- diff ---'; git diff -- clamp.js clamp.test.js; git diff --no-index /dev/null clamp.test.js || true; printf '%s\\n' '--- test execution ---'; npm test; printf '%s\\n' '--- runtime / node ---'; node --version; npm --version; printf '%s\\n' '--- review coordinator ---'; SAFEWORD_REVIEW_PROGRESS=1 bun \"$SAFEWORD_PLUGIN_RUNTIME\" review run quality-review --agent-handoff --json -- clamp.js clamp.test.js"
+  },
+  "preparationReview": {
+    "origin": "internal-workflows-46rtVK; UU4o1y remains officially unavailable",
+    "call_id": "call_23735dc6333f457abaa3995cea721f11",
+    "command": "SAFEWORD_PLUGIN_RUNTIME='/UNIT_INSTALLED_ROOT/runtime/cli.js'; PROJECT_DIR='/UNIT_PROJECT'; npm test; node --version; nl -ba clamp.js; nl -ba clamp.test.js; git show HEAD:clamp.js | nl -ba; SAFEWORD_REVIEW_PROGRESS=1 bun \"$SAFEWORD_PLUGIN_RUNTIME\" review run quality-review --agent-handoff --json -- clamp.js clamp.test.js"
+  }
+}

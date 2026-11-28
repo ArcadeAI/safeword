@@ -1,0 +1,13 @@
+{
+  "name": "@safeword/opencode-v2-plugin",
+  "description": "OpenCode V2 adapter for canonical Safeword workflows, worker tool restrictions, and shared hook dispatch",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@opencode/plugin": "2.0.32"
+  }
+}

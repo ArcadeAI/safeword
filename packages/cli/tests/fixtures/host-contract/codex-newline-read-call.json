@@ -1,0 +1,7 @@
+{
+  "kind": "captured-input-unit-control-not-native-receipt",
+  "origin": "/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-OBWPnC",
+  "call_id": "call_e11c818ff87741f194b390c3ebbb3c3f",
+  "input": "const r = await tools.exec_command({\"cmd\":\"sed -n '1,260p' /private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-OBWPnC/profile/plugins/cache/safeword-contract-test/safeword/1.2.0/resources/SAFEWORD.md\\nsed -n '1,300p' /private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-OBWPnC/profile/plugins/cache/safeword-contract-test/safeword/1.2.0/templates/guides/testing-guide.md\\nfind . -name AGENTS.md -o -name .project -prune\",\"workdir\":\"/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-OBWPnC/project\",\"yield_time_ms\":10000,\"max_output_tokens\":30000});\ntext(r.output);\n",
+  "target": "/private/tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/internal-workflows-OBWPnC/profile/plugins/cache/safeword-contract-test/safeword/1.2.0/templates/guides/testing-guide.md"
+}

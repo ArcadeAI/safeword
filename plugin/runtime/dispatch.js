@@ -9277,23 +9277,23 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/audit/SKILL.md':
         '379473dba1ec5a9322adcc4f46a827811b1caa90991cd7b6a14c32234515332c',
       '.claude/skills/bdd/DISCOVERY.md':
-        '27681dc600d4eec5f08f1b747edb6348709a0e661eb74f0ff8c6d01ce86395e5',
+        'a5c0eb1d8a2e532f6767fa13a60cc9fc90d2c948a9124cf585c3f1a7cf4d1051',
       '.claude/skills/bdd/DONE.md':
-        'e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60',
+        'bef2813c257d1584c3e2f9d5a9545a6d52ac04f3705faef889d33bc550fa7786',
       '.claude/skills/bdd/PLAN_EXECUTION.md':
-        'b32e1b0778773165d0a66bd49d0a57ffc7653c8707381d89090268b3dc56853d',
+        'd0bfc639940cf9f2d6bb3e64c75d7ad41f1b6f22b8a207f45a72d91d907ad8d3',
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
-        'da25a09d6caa34f1e1f7ff3e33c64c5c4a59797145a0c6346b5efec46193f62b',
+        'e94ec4445225ece6ba21096f37e6b5077ad4dd3fbc50915f838aabab300b02d7',
       '.claude/skills/bdd/SCENARIOS.md':
-        '1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb',
+        '9e5d02a833217e1d4f5c3e934917e03f46e0911e93c277d0805569484eaea502',
       '.claude/skills/bdd/SKILL.md':
         'bb7d3fd97a247fd83874f2caf0fcd10d27d72229829e9a194b0bad4005065097',
       '.claude/skills/bdd/SPLITTING.md':
-        'e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708',
+        'd8de1728e98aa503fdaaab8d66a4cba2b5df5893fb09d115c524f4fc5e45e772',
       '.claude/skills/bdd/TDD.md':
-        'cb4c44d1e197849eb5cc8ce6304e859cab16f1250974c7e31e112d369d4ac0c3',
+        '092e39773eb96cbc85c8bfac39cb16e77c58a84d73cc394b2f3bf5a9db46bb2e',
       '.claude/skills/bdd/VERIFY.md':
-        '85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31',
+        'b49bc5196cf91a0b3c89ebff49106230bb2bdd5a62a8b8f10a3479f35747119e',
       '.claude/skills/brainstorm/SKILL.md':
         'fe99638bd1621cbd5fe3780a8d39023d4b175e3be2aef2e60d0ebe7558848f2e',
       '.claude/skills/cleanup-zombies/SKILL.md':
@@ -9301,7 +9301,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/closeout/SKILL.md':
         '1fcbf06b7acf0e549cad4b964fbde3e4dc31feb601e75516041ec211c1bcb66a',
       '.claude/skills/debug/SKILL.md':
-        'fd948df163f18518ba9574a27f585bf187b238dea0cdaa1e6b1d2ea763fbed09',
+        'a1d6ad38838105cc6697c368ace321bfba62991c2da271141e0bcd72d54f17c4',
       '.claude/skills/demand-research/SKILL.md':
         '5912afe5c717c634455ec88b050df6af80ffb994ddd26c55811b2977522a72fc',
       '.claude/skills/elicit/SKILL.md':
@@ -9319,9 +9319,9 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/pr-readiness/SKILL.md':
         '42fc32b8bef9a50d85c5d9ac81dcb3edab91f9d92c3e6bfe842fbabba2eed749',
       '.claude/skills/quality-review/SKILL.md':
-        '18074e344da7036621dfae6c53d082957ef5c5f6b0d0032c04b7d06bbf59bc47',
+        'd13a1063287be5662aea2ba3883daab4af5a5887932a07852984f777efa29ba9',
       '.claude/skills/refactor/SKILL.md':
-        'a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e',
+        '5f72899fba5ecc93dcaf5acb739f24a0fec72f5a246aa8d98a4413b1bf691a6a',
       '.claude/skills/retro-filer/SKILL.md':
         'c437336466eedacbac427d85841e6137757a4d81864fefc9317569412c0ebc78',
       '.claude/skills/retro/SKILL.md':
@@ -9333,9 +9333,9 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/spike/SKILL.md':
         '905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37',
       '.claude/skills/tdd-review/SKILL.md':
-        'ae59212a4d368359c3144bde65bb18caaa02fb15590ca72398f15ad507679c70',
+        '23a479e777a6e475a411807f411190bddc0b414d0f11d6b2c562a32d81082cc6',
       '.claude/skills/testing/SKILL.md':
-        'fe43d03ffe4e39393def44e60a2b88a5f3c70faa878e5e3323f2a22f18470686',
+        'b4064665accd10a693f921215d5288023e0cf36ab4748f0aa425f969b8fed96c',
       '.claude/skills/ticket-system/SKILL.md':
         '5a8ce171c60dc7ab07d641dc66d43ae3730d1a2401df86a02250ce82cf53a800',
       '.claude/skills/verify/SKILL.md':
@@ -9365,7 +9365,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/pre-tool-git-bare-fix.sh':
         '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
       '.safeword/hooks/pre-tool-quality.ts':
-        'd726ab5d407c40191d495e6a49de2e98979d0ec04e717259200704686661dd24',
+        '6e83d6702ff2610af91ec46904e5fd6d2dc44a582aed5cb1a4e636fabf01ce25',
       '.safeword/hooks/pre-tool-stale-main.ts':
         '6a7c2d75a9955f661f620ee20f4210bec09fa206625d84363cd0376fc56fdf5d',
       '.safeword/hooks/prompt-questions.ts':
@@ -9397,7 +9397,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/session-version.ts':
         '7480f836ec466c06b9bc81384710fa32e33fce67070788b1766965282d778e72',
       '.safeword/hooks/stop-quality.ts':
-        'd3423c9619b9c116580457a1ad0b075334377cdddd50ca01bdb9c95d2a68dc08',
+        'a8f34603ae7498af8b5cb5fb18d32d2ebdd60ea208ebe508c277f1aa9442eeb7',
       '.safeword/hooks/stop-reentry.ts':
         'a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5',
       '.safeword/hooks/stop-retro-filing.ts':
@@ -13152,11 +13152,11 @@ function recordCacheSmoke(event, pluginRoot, identity, input) {
     recorded_at: /* @__PURE__ */ new Date().toISOString(),
   });
 }
-function runFunctionalCommand(arguments_, input, captureOutput = false) {
-  if (arguments_.length === 0) return { status: 0, stdout: '' };
+function runFunctionalCommand(arguments_, input, captureOutput = false, cwd) {
   const [executable, ...parameters] = arguments_;
   if (executable === void 0) return { status: 0, stdout: '' };
   const result = spawnSync2(executable, parameters, {
+    cwd,
     // Bun snapshots the parent environment for child_process unless it is
     // passed explicitly. The dispatcher sets SAFEWORD_PLUGIN_CLI at runtime,
     // so aggregate child hooks need the current environment rather than the
@@ -13568,38 +13568,50 @@ function emitDamagedPlugin(response) {
   return response.status;
 }
 function runEventHooks(event, hooks, standardInput, response) {
+  let incompleteStartup = false;
   for (const hook of hooks) {
     if (hook.type !== 'command' || typeof hook.command !== 'string') {
       throw new Error(`Safeword Claude plugin event group has an unsupported ${event} hook.`);
     }
     const result = runFunctionalCommand(['bash', '-c', hook.command], standardInput, true);
     if (result.status !== 0) {
-      return 2;
+      if (event !== 'SessionStart') return 2;
+      incompleteStartup = true;
+      process.stderr.write(
+        `Safeword SessionStart observer exited with status ${result.status}; continuing remaining startup hooks.
+`,
+      );
+      continue;
     }
     mergeHookOutput(event, response, result.stdout);
   }
-  return 0;
+  return incompleteStartup ? 1 : 0;
 }
 function runEventGroup(event, eventGroupsContent, hookInput, standardInput) {
   const entries = readEventEntries(event, eventGroupsContent);
   const response = {};
+  let incompleteStartup = false;
   for (const entry of entries) {
     if (!eventEntryMatches(event, entry, hookInput)) continue;
     const hooks = entry.hooks ?? [];
     const status = runEventHooks(event, hooks, standardInput, response);
-    if (status !== 0) {
-      if (event === 'UserPromptSubmit') {
-        const priorReason = typeof response.reason === 'string' ? ` ${response.reason}` : '';
-        process.stderr.write(
-          `Safeword blocked prompt submission because a sibling hook failed; later checks did not run.${priorReason}
-`,
-        );
-        return { postExecutionEligible: false, status: 2, stdout: '' };
-      }
-      return { status, stdout: '' };
+    if (status === 0) continue;
+    if (event === 'SessionStart') {
+      incompleteStartup = true;
+      continue;
     }
+    if (event === 'UserPromptSubmit') {
+      const priorReason = typeof response.reason === 'string' ? ` ${response.reason}` : '';
+      process.stderr.write(
+        `Safeword blocked prompt submission because a sibling hook failed; later checks did not run.${priorReason}
+`,
+      );
+      return { postExecutionEligible: false, status: 2, stdout: '' };
+    }
+    return { status, stdout: '' };
   }
   return {
+    ...(incompleteStartup && { postExecutionEligible: false }),
     status: 0,
     stdout:
       Object.keys(response).length === 0
@@ -13634,12 +13646,15 @@ function parseHookInput(standardInput) {
 function executeConfiguredHooks(input) {
   try {
     if (viableLegacyAuthority(input.event, input.projectRoot)) return { status: 0, stdout: '' };
+    const commandCwd =
+      input.command[0] === 'bash' ? (input.hookInput.cwd ?? input.projectRoot) : void 0;
     return input.mode === '--event-group'
       ? runEventGroup(input.event, input.eventGroupsContent, input.hookInput, input.standardInput)
       : runFunctionalCommand(
           input.command,
           input.standardInput,
           input.event === 'UserPromptSubmit',
+          commandCwd,
         );
   } catch (error) {
     return functionalExecutionFailure(input.event, error);

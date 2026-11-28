@@ -30,6 +30,7 @@ import {
   extractPackedCliPackage,
   packCliPackage,
 } from './helpers/codex-plugin-package.js';
+import { codexRuntimePath } from './helpers/codex-runtime-binding.js';
 
 const currentCliVersion = (
   JSON.parse(readFileSync(nodePath.resolve(import.meta.dirname, '../package.json'), 'utf8')) as {
@@ -264,7 +265,14 @@ describe('Codex plugin release contract', () => {
         const bundleContents = filesUnder(output)
           .map(path => readFileSync(nodePath.join(output, path), 'utf8'))
           .join('\n');
-        expect(bundleContents).toContain(`/safeword/${effectiveVersion}/runtime/cli.js`);
+        const workflowFiles = filesUnder(output).filter(path =>
+          /^(?:skills|internal)\/[^/]+\/SKILL\.md$/u.test(path),
+        );
+        expect(workflowFiles.length).toBeGreaterThan(0);
+        for (const file of workflowFiles)
+          expect(
+            codexRuntimePath(nodePath.join(output, file), nodePath.join(output, 'runtime/cli.js')),
+          ).toBe(nodePath.join(output, 'runtime/cli.js'));
         if (effectiveVersion !== packageVersion) {
           expect(bundleContents).not.toContain(`/safeword/${packageVersion}/runtime/cli.js`);
         }
@@ -850,16 +858,15 @@ describe('Codex plugin release contract', () => {
           nodePath.join(codexHome, 'plugins/cache/safeword/safeword', cachebustedVersion),
         ),
       );
-      const generatedWorkflow = readFileSync(
-        nodePath.join(cachebusted.installedPath, 'skills/self-review/SKILL.md'),
-        'utf8',
+      const workflowPath = nodePath.join(
+        cachebusted.installedPath,
+        'internal/self-review/SKILL.md',
       );
-      expect(generatedWorkflow).toContain(
-        `/plugins/cache/safeword/safeword/${cachebustedVersion}/runtime/cli.js`,
+      const resolvedRuntime = codexRuntimePath(
+        workflowPath,
+        nodePath.join(cachebusted.installedPath, 'runtime/cli.js'),
       );
-      expect(generatedWorkflow).not.toContain(
-        `/plugins/cache/safeword/safeword/${installed.version}/runtime/cli.js`,
-      );
+      expect(resolvedRuntime).not.toBe(nodePath.join(baseInstalledPath, 'runtime/cli.js'));
 
       const cachebustedRuntime = spawnSync(
         'bun',

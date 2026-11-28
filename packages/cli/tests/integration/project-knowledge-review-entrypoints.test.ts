@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { reconcile } from '../../src/reconcile.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
+import { codexRuntimeBinding } from '../helpers/codex-runtime-binding.js';
 import {
   CODEX_REVIEW_KNOWLEDGE_RESOLVER,
   GENERATED_CODEX_PLUGIN_ASSETS,
@@ -75,10 +76,14 @@ function readEntrypoint(root: string, path: string, resolver: string): string {
  * the versioned bundled CLI followed by `project review-knowledge`; this
  * materializes that exact cache layout and executes the generated command.
  */
-function followCodexResolverInstruction(projectDirectory: string, instructions: string) {
+function followCodexResolverInstruction(
+  projectDirectory: string,
+  instructions: string,
+  asset: string,
+) {
   const pluginName = CODEX_MARKETPLACE.plugins[0]?.name ?? '';
-  const command = `bun "\${CODEX_HOME:-$HOME/.codex}/plugins/cache/${CODEX_MARKETPLACE.name}/${pluginName}/${BUNDLED_VERSION}/runtime/cli.js" ${CODEX_REVIEW_KNOWLEDGE_RESOLVER} --json`;
-  expect(instructions, 'Codex procedure must use the shipped marketplace cache identity').toContain(
+  const command = `bun "$SAFEWORD_PLUGIN_RUNTIME" ${CODEX_REVIEW_KNOWLEDGE_RESOLVER} --json`;
+  expect(instructions, 'Codex procedure must invoke its declared bundled runtime').toContain(
     command,
   );
 
@@ -94,8 +99,11 @@ function followCodexResolverInstruction(projectDirectory: string, instructions: 
   mkdirSync(nodePath.dirname(runtime), { recursive: true });
   copyFileSync(BUNDLED_CLI, runtime);
   copyFileSync(BUNDLED_PACKAGE, nodePath.join(nodePath.dirname(runtime), '../package.json'));
+  const installedAsset = nodePath.join(nodePath.dirname(runtime), '..', asset);
+  mkdirSync(nodePath.dirname(installedAsset), { recursive: true });
+  writeFileSync(installedAsset, instructions);
 
-  return spawnSync(command, {
+  return spawnSync(`${codexRuntimeBinding(installedAsset, runtime)}${command}`, {
     cwd: projectDirectory,
     encoding: 'utf8',
     env: { ...process.env, CODEX_HOME: codexHome },
@@ -185,7 +193,7 @@ describe('installed review entry points resolve current project knowledge', () =
 
       const result =
         host === 'codex'
-          ? followCodexResolverInstruction(projectDirectory, instructions)
+          ? followCodexResolverInstruction(projectDirectory, instructions, path)
           : followResolverInstruction(projectDirectory, instructions);
       expect(result.status, result.stderr).toBe(0);
 

@@ -60,7 +60,9 @@ import { checkHealth, type HealthStatus } from '../health.js';
 import {
   applyFreshInstallDefaults,
   freshInstallDefaultsNeedUpdate,
+  installAgentsNeedUpdate,
   recordOwnedPackages,
+  rememberProjectInstallAgents,
 } from '../packs/config.js';
 import { installPack } from '../packs/install.js';
 import { hasImportLinterScaffoldTarget } from '../packs/python/files.js';
@@ -234,8 +236,9 @@ function plannedJavaScriptPackageFiles(cwd: string): Effect[] {
   ]);
 }
 
-function configNeedsCompatibilityUpdate(cwd: string): boolean {
+function configNeedsCompatibilityUpdate(cwd: string, installAgents?: string): boolean {
   try {
+    if (installAgentsNeedUpdate(cwd, installAgents)) return true;
     if (shouldApplyFreshInstallDefaults(cwd)) return true;
     if (publicRetroConfigNeedsUpdate(cwd)) return true;
     if (getMissingPacks(cwd).length > 0) return true;
@@ -328,6 +331,12 @@ function plannedLegacyCodexMigrationEffects(cwd: string): Effects {
     return effects;
   }
   return effects;
+}
+
+function plannedProjectCodexEffects(cwd: string, options: SetupPlanOptions): Effects {
+  if (options.codexSelected === false) return emptyEffects();
+  const migration = plannedLegacyCodexMigrationEffects(cwd);
+  return { ...migration, files: [...plannedCodexBootstrapEffect(cwd), ...migration.files] };
 }
 
 function plannedArchitectureEffects(cwd: string): Effect[] {
@@ -431,6 +440,8 @@ function pythonObservationTargets(cwd: string): string[] {
 }
 
 export interface SetupPlanOptions {
+  readonly installAgents?: string;
+  readonly codexSelected?: boolean;
   readonly migrateNamespace?: boolean;
   readonly noModify?: boolean;
   readonly repairVersionMarker?: boolean;
@@ -524,12 +535,13 @@ function setupPreconditionDigest(
     '.safeword',
     '.safeword-project',
     '.project',
-    '.codex/config.toml',
+    ...(options.codexSelected === false
+      ? []
+      : [CODEX_MIGRATION_SCHEMA.paths.config, ...CODEX_MIGRATION_SCHEMA.cleanupFiles]),
     '.dependency-cruiser.cjs',
     'Cargo.toml',
     ...JAVASCRIPT_PACKAGE_FILES,
     ...PYTHON_PACKAGE_FILES,
-    ...CODEX_MIGRATION_SCHEMA.cleanupFiles,
     ...effects.files.map(effect => effect.target),
     ...effects.destructive.map(effect => effect.target),
   ].filter(target => !target.includes(' → '));
@@ -582,7 +594,7 @@ export async function createSetupPlan(
   );
   const reconciliationPackages = reconciliationEffects.packages.length > 0;
   const compatibilityFiles = [
-    ...(!configured || configNeedsCompatibilityUpdate(cwd)
+    ...(!configured || configNeedsCompatibilityUpdate(cwd, options.installAgents)
       ? [plannedFileEffect(cwd, '.safeword/config.json')]
       : []),
     ...(publicRetroConfigNeedsUpdate(cwd)
@@ -604,7 +616,6 @@ export async function createSetupPlan(
         ...plannedNamespaceEffects(cwd, migrateNamespace),
         ...compatibilityFiles,
         ...plannedPackEffects(cwd),
-        ...plannedCodexBootstrapEffect(cwd),
         ...plannedArchitectureEffects(cwd),
         ...plannedWorkspaceEffects(cwd, context),
         ...plannedOptionalEslintEffects(cwd, context, options.noModify),
@@ -617,7 +628,7 @@ export async function createSetupPlan(
         : [],
     },
     python,
-    plannedLegacyCodexMigrationEffects(cwd),
+    plannedProjectCodexEffects(cwd, options),
   ]);
   const effects = mergeEffects(combined);
   return createPlan({
@@ -728,11 +739,8 @@ function publicRetroConfigRefusal(cwd: string): CliResult | undefined {
   return undefined;
 }
 
-interface ConvergeSetupOptions {
+interface ConvergeSetupOptions extends SetupPlanOptions {
   offline?: boolean;
-  noModify?: boolean;
-  migrateNamespace?: boolean;
-  repairVersionMarker?: boolean;
   progress?: {
     readonly start: (message: string) => void;
     readonly stop: () => void;
@@ -802,6 +810,8 @@ async function convergeSetupValidated(
       configured ? 'Reconciling the Safeword upgrade…' : 'Setting up Safeword…',
     );
     return await applySetup(cwd, {
+      installAgents: options.installAgents,
+      codexSelected: options.codexSelected !== false,
       configured,
       offline: options.offline === true,
       packageJsonCreated,
@@ -1205,6 +1215,7 @@ function setupGuidanceFindings(
 }
 
 interface SetupResultInput {
+  readonly codexSelected: boolean;
   readonly packageJsonCreated: boolean;
   readonly installation: DependencyInstallResult;
   readonly eslintPolicy: VendoredIgnoresPolicyResult;
@@ -1329,7 +1340,7 @@ function setupResult(input: SetupResultInput): CliResult {
     ...findings,
     // Suppressed while a handoff is deferred: claiming enrollment succeeded
     // would contradict the warning this run just emitted.
-    ...(actionRequired || handoffDeferred
+    ...(!input.codexSelected || actionRequired || handoffDeferred
       ? []
       : [
           {
@@ -1399,7 +1410,11 @@ function projectClaudePluginEnrolled(cwd: string): boolean {
   }
 }
 
-function applyCompatibilityMigrations(cwd: string, completedEffects: CompletedSetupEffects): void {
+function applyCompatibilityMigrations(
+  cwd: string,
+  completedEffects: CompletedSetupEffects,
+  installAgents?: string,
+): void {
   const missingPacks = getMissingPacks(cwd);
   for (const packId of missingPacks) {
     const targets = [
@@ -1411,9 +1426,10 @@ function applyCompatibilityMigrations(cwd: string, completedEffects: CompletedSe
   observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () =>
     stripDeadConfigVersion(nodePath.join(cwd, '.safeword')),
   );
-  observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () =>
-    ensurePublicRetroProjectConfig(cwd),
-  );
+  observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () => {
+    ensurePublicRetroProjectConfig(cwd);
+    rememberProjectInstallAgents(cwd, installAgents);
+  });
 }
 
 function recordInstalledPackages(
@@ -1468,6 +1484,8 @@ function applyPackageCompatibility(
 }
 
 interface ApplySetupInput {
+  readonly installAgents?: string;
+  readonly codexSelected: boolean;
   readonly configured: boolean;
   readonly offline: boolean;
   readonly packageJsonCreated: boolean;
@@ -1577,6 +1595,18 @@ function setupPackageChecksAreSkipped(offline: boolean): boolean {
   return offline || Boolean(process.env.SAFEWORD_SKIP_INSTALL);
 }
 
+function applyProjectCodexSetup(
+  cwd: string,
+  completedEffects: CompletedSetupEffects,
+  input: ApplySetupInput,
+): Finding[] {
+  if (!input.codexSelected) return [];
+  observeFileStage(cwd, [CODEX_MIGRATION_SCHEMA.paths.config], completedEffects, () =>
+    installCodexProjectBootstrap(cwd),
+  );
+  return migrateLegacyCodexDuringSetup(cwd, completedEffects, input.offline);
+}
+
 async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResult> {
   const {
     adapters,
@@ -1600,15 +1630,8 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
   };
 
   try {
-    applyCompatibilityMigrations(cwd, completedEffects);
-    observeFileStage(cwd, ['.codex/config.toml'], completedEffects, () =>
-      installCodexProjectBootstrap(cwd),
-    );
-    const codexHandoffFindings = migrateLegacyCodexDuringSetup(
-      cwd,
-      completedEffects,
-      input.offline,
-    );
+    applyCompatibilityMigrations(cwd, completedEffects, input.installAgents);
+    const codexHandoffFindings = applyProjectCodexSetup(cwd, completedEffects, input);
     const architectureEffects = observeFileStage(
       cwd,
       ['.safeword/depcruise-config.cjs', '.dependency-cruiser.cjs'],
@@ -1672,6 +1695,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
       applyPackageCompatibility(cwd, completedEffects, input.offline);
     });
     const applied = setupResult({
+      codexSelected: input.codexSelected,
       packageJsonCreated,
       installation,
       eslintPolicy,

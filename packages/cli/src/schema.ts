@@ -9,6 +9,7 @@
 
 import nodePath from 'node:path';
 
+export { PLANNING_DATA_GUIDE_PATH, TESTING_CORE_LAYOUT } from './schema-layouts.js';
 import { acceptedHistoricalHookEntries } from './claude-plugin/historical-ownership.js';
 import { CODEX_MIGRATION_SCHEMA } from './codex-plugin/inventory.js';
 import { golangManagedFiles, golangOwnedFiles } from './packs/golang/files.js';
@@ -21,6 +22,7 @@ import {
   typescriptOwnedFiles,
   typescriptPackages,
 } from './packs/typescript/files.js';
+import { PROJECT_GUIDE_FILES } from './schema-layouts.js';
 // Re-export shared types from packs/types.ts (breaks circular dependency)
 export type {
   FileDefinition,
@@ -28,7 +30,7 @@ export type {
   ManagedFileDefinition,
   ProjectContext,
 } from './packs/types.js';
-import { CURSOR_COMMAND_WRAPPERS, CURSOR_RULE_WRAPPERS } from './cursor-wrappers.js';
+import { CURSOR_RULE_WRAPPERS } from './cursor-wrappers.js';
 import {
   dirGlobExcludeMerge,
   durableNamespaceDirectories,
@@ -52,7 +54,54 @@ import { MCP_SERVERS } from './utils/install.js';
 import { assignOrPrune } from './utils/json-merge.js';
 import { VERSION } from './version.js';
 
-export const PLANNING_DATA_GUIDE_PATH = '.safeword/guides/data-architecture-guide.md';
+/** Shared native package layout; these are bundle paths, not project installs. */
+export const PORTABLE_PLUGIN_LAYOUT = {
+  manifest: 'plugin.json',
+  manifestSchema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
+  skills: 'skills',
+  catalogue: 'catalogue.json',
+  runtime: 'runtime/cli.js',
+  templates: 'templates',
+} as const;
+
+/** Codex-native discovery resources; portable hosts retain their own registrations. */
+export { CODEX_WORKFLOW_LAYOUT } from './schema-layouts.js';
+
+/** Native Cursor extension; workflow skills remain in the portable core. */
+export const CURSOR_PLUGIN_LAYOUT = {
+  directory: 'cursor-plugin',
+  manifest: '.cursor-plugin/plugin.json',
+  hooks: 'hooks/hooks.json',
+  dispatcher: 'runtime/dispatch.js',
+  runtime: 'runtime/cli.js',
+  templates: 'templates',
+} as const;
+
+/** Isolated native SDK carrier; content and policy remain in the portable core. */
+export const OPENCODE_V2_PLUGIN_LAYOUT = {
+  directory: 'opencode-v2-plugin',
+  manifest: 'package.json',
+  entry: 'index.js',
+  dispatcher: 'runtime/dispatch.js',
+  workers: 'workers.json',
+  commands: 'commands.json',
+  enrollments: 'safeword/enrollment-v2',
+  activation: 'safeword/activation-v2',
+  lock: 'safeword/profile-mutation.lock',
+  skills: PORTABLE_PLUGIN_LAYOUT.skills,
+  catalogue: PORTABLE_PLUGIN_LAYOUT.catalogue,
+  runtime: PORTABLE_PLUGIN_LAYOUT.runtime,
+  templates: PORTABLE_PLUGIN_LAYOUT.templates,
+} as const;
+
+export const CONFORMANCE_RUN_LAYOUT = {
+  directory: '.safeword/state/conformance-runs-v1',
+  activation: OPENCODE_V2_PLUGIN_LAYOUT.activation,
+  key: 'safeword/conformance-integrity.key',
+  heads: 'safeword/conformance-heads-v1',
+} as const;
+
+export const PROJECT_MUTATION_LOCK = '.safeword/project-mutation.lock';
 
 /** Closed planning-template classifier; registered templates stay literal for catalogue extraction. */
 export const PLANNING_CONTRACT_TEMPLATE_PATHS = {
@@ -218,10 +267,26 @@ const CURSOR_RULE_WRAPPER_OWNED_FILES: Record<string, FileDefinition> = Object.f
 );
 
 const CURSOR_COMMAND_WRAPPER_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntries(
-  CURSOR_COMMAND_WRAPPERS.map(wrapper => [
-    `.cursor/commands/${wrapper.name}.md`,
-    { template: `commands/${wrapper.name}.md` },
-  ]),
+  [
+    'pr-readiness',
+    'bdd',
+    'debug',
+    'demand-research',
+    'quality-review',
+    'finish-review',
+    'audit',
+    'closeout',
+    'refactor',
+    'retro',
+    'spike',
+    'testing',
+    'explain',
+    'verify',
+    'self-review',
+    'review-spec',
+    'cleanup-zombies',
+    'lint',
+  ].map(name => [`.cursor/commands/${name}.md`, { template: `commands/${name}.md` }]),
 );
 
 const CURSOR_SHARED_SKILL_FILES = [
@@ -360,6 +425,7 @@ export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   // dirty tree, and quarantined bytes are recovery material, not source.
   '.safeword/claude-plugin/',
   '.safeword/state/reviews/',
+  `${CONFORMANCE_RUN_LAYOUT.directory}/`,
   ...['.project', '.safeword-project'].flatMap(root =>
     NAMESPACE_TRANSIENT_BASENAMES.map(name => `${root}/${name}`),
   ),
@@ -888,6 +954,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/jsonl-spool.ts': { template: 'hooks/lib/jsonl-spool.ts' },
     '.safeword/hooks/lib/namespace-root.ts': { template: 'hooks/lib/namespace-root.ts' },
     '.safeword/hooks/lib/project-directory.ts': { template: 'hooks/lib/project-directory.ts' },
+    '.safeword/hooks/lib/behavior-contract.ts': { template: 'hooks/lib/behavior-contract.ts' },
     '.safeword/hooks/lib/drain-retro-spool.ts': { template: 'hooks/lib/drain-retro-spool.ts' },
     '.safeword/hooks/lib/retro-draft-spool.ts': { template: 'hooks/lib/retro-draft-spool.ts' },
     '.safeword/hooks/lib/retro-debug.ts': { template: 'hooks/lib/retro-debug.ts' },
@@ -908,6 +975,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/jtbd.ts': { template: 'hooks/lib/jtbd.ts' },
     '.safeword/hooks/lib/phase-provenance.ts': { template: 'hooks/lib/phase-provenance.ts' },
     '.safeword/hooks/lib/impl-plan.ts': { template: 'hooks/lib/impl-plan.ts' },
+    '.safeword/hooks/lib/architecture-review-gate.ts': {
+      template: 'hooks/lib/architecture-review-gate.ts',
+    },
     '.safeword/hooks/lib/project-knowledge.ts': { template: 'hooks/lib/project-knowledge.ts' },
     '.safeword/hooks/lib/principle-trace.ts': { template: 'hooks/lib/principle-trace.ts' },
     '.safeword/hooks/lib/plan-gate.ts': { template: 'hooks/lib/plan-gate.ts' },
@@ -1078,61 +1148,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/agents/safeword-reviewer.md': { template: 'agents/safeword-reviewer.md' },
     '.cursor/agents/safeword-reviewer.md': { template: 'agents/safeword-reviewer.md' },
 
-    // Guides
-    '.safeword/guides/architecture-guide.md': {
-      template: 'guides/architecture-guide.md',
-    },
-    '.safeword/guides/self-report-filing.md': {
-      template: 'guides/self-report-filing.md',
-    },
-    '.safeword/guides/retro.md': {
-      template: 'guides/retro.md',
-    },
-    '.safeword/guides/cold-start-check.md': {
-      template: 'guides/cold-start-check.md',
-    },
-    '.safeword/guides/context-files-guide.md': {
-      template: 'guides/context-files-guide.md',
-    },
-    [PLANNING_DATA_GUIDE_PATH]: {
-      template: 'guides/data-architecture-guide.md',
-    },
-    '.safeword/guides/interface-contract-guide.md': {
-      template: 'guides/interface-contract-guide.md',
-    },
-    '.safeword/guides/design-doc-guide.md': {
-      template: 'guides/design-doc-guide.md',
-    },
-    '.safeword/guides/learning-extraction.md': {
-      template: 'guides/learning-extraction.md',
-    },
-    '.safeword/guides/llm-writing-guide.md': {
-      template: 'guides/llm-writing-guide.md',
-    },
-    '.safeword/guides/llm-evals-guide.md': {
-      template: 'guides/llm-evals-guide.md',
-    },
-    '.safeword/guides/planning-guide.md': {
-      template: 'guides/planning-guide.md',
-    },
-    '.safeword/guides/release-recovery-guide.md': {
-      template: 'guides/release-recovery-guide.md',
-    },
-    '.safeword/guides/measurement-design-guide.md': {
-      template: 'guides/measurement-design-guide.md',
-    },
-    '.safeword/guides/skill-eval-optimization-guide.md': {
-      template: 'guides/skill-eval-optimization-guide.md',
-    },
-    '.safeword/guides/testing-guide.md': {
-      template: 'guides/testing-guide.md',
-    },
-    '.safeword/guides/verification-lanes-guide.md': {
-      template: 'guides/verification-lanes-guide.md',
-    },
-    '.safeword/guides/zombie-process-cleanup.md': {
-      template: 'guides/zombie-process-cleanup.md',
-    },
+    // Guides share their schema declarations with package resource rendering.
+    ...PROJECT_GUIDE_FILES,
 
     // Templates
     '.safeword/templates/architecture-template.md': {
@@ -1305,14 +1322,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
     // Cursor commands (Cursor needs explicit commands for all action capabilities)
     ...CURSOR_COMMAND_WRAPPER_OWNED_FILES,
-    '.cursor/commands/explain.md': { template: 'commands/explain.md' },
-    '.cursor/commands/verify.md': { template: 'commands/verify.md' },
-    '.cursor/commands/self-review.md': { template: 'commands/self-review.md' },
-    '.cursor/commands/review-spec.md': { template: 'commands/review-spec.md' },
-    '.cursor/commands/cleanup-zombies.md': {
-      template: 'commands/cleanup-zombies.md',
-    },
-    '.cursor/commands/lint.md': { template: 'commands/lint.md' },
 
     // Cursor hooks adapters - TypeScript with Bun runtime
     '.safeword/hooks/cursor/after-file-edit.ts': {

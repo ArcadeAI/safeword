@@ -4,10 +4,38 @@ description: Improve code structure without changing behavior. Use when
   refactoring, restructuring, simplifying, or extracting code. Also for reducing
   duplication, renaming for clarity, or addressing code smells. Enforces one
   change → test → commit when the commit can stay scoped. NOT for
-  style/formatting (use $safeword:lint), features, or bug fixes.
+  style/formatting (use /lint), features, or bug fixes.
 ---
 
+## Packaged runtime
+
+Resolve [the bundled Safeword runtime](../../runtime/cli.js) relative to this containing asset, not the project working directory.
+Before each shell block, assign SAFEWORD_PLUGIN_RUNTIME to that resolved absolute file path in a separate shell statement ending with a semicolon, then invoke the helper in that same shell call.
+Do not use `SAFEWORD_PLUGIN_RUNTIME=... bun "$SAFEWORD_PLUGIN_RUNTIME" ...`: the shell expands the argument before applying that environment assignment.
+Keep PROJECT_DIR bound to the actual project. Never substitute a project helper or another agent cache.
+
 # Refactoring
+
+<!-- SAFEWORD:TESTING_CORE_START -->
+<!-- source: src/testing/shared-core.ts; sha256: 3ef67a9e573e0f3a94f1348ef859a3a658b567c29785d90efdc436c392deef33 -->
+
+## Essential testing rules
+
+State the test-scope choice and why in one line, unless it's obvious from context.
+
+A suite that fakes _internal_ seams can be fully green while the real wiring is
+broken. Name the **process boundary** you mock — the network, filesystem, clock,
+or subprocess at the edge of your code — and mock _only_ that. Every entry point
+or command that wires modules together gets **≥1 test built from real
+collaborators**, faking nothing but that boundary.
+
+If the only way to exercise a code path is through an injected internal value
+(`provider: 'none'`, a hand-passed `repoVisibility`) and never through the real
+command, that path has **no wiring test** — add one.
+
+Before writing or reviewing tests, identify the distinct behavior partitions and choose a representative for each, including validation failures for individual inputs or input combinations. For bounded inputs, include a value strictly inside the valid range when one exists, boundary values, and out-of-range values, whether accepted or rejected. Check that the resulting tests cover those choices before reporting completion.
+
+<!-- SAFEWORD:TESTING_CORE_END -->
 
 Improve code structure without changing behavior. One small step at a time.
 

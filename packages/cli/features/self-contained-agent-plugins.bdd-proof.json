@@ -111,9 +111,9 @@
         "does not create state through a direct helper in an unenrolled repository"
       ]
     ],
-    "OpenCode installation delivers no project runtime": [
-      "packages/cli/tests/opencode/catalogue.test.ts",
-      "installs the complete native catalogue without project host files"
+    "Public installation reports when OpenCode V2 activation is unavailable": [
+      "packages/cli/tests/opencode/retirement.test.ts",
+      "normal public installation cannot generate V1 or silently activate unadmitted V2"
     ],
     "A native single-agent project schema excludes project delivery": [
       [
@@ -149,7 +149,7 @@
       "packages/cli/tests/lifecycle/selected-authority-reconciliation.test.ts",
       "reconciles Codex and Cursor without restoring native project runtime"
     ],
-    "Complete agent catalogues pass executable-reference validation": [
+    "Generated workflow skills pass executable-reference validation": [
       [
         "packages/cli/tests/codex-plugin/catalogue.test.ts",
         "accepts a pinned self-contained Codex catalogue"
@@ -159,8 +159,8 @@
         "runs the shared native runtime-authority gate during generation"
       ],
       [
-        "packages/cli/tests/opencode/catalogue.test.ts",
-        "contains no executable project-runtime references"
+        "packages/cli/tests/plugin-runtime-authority.test.ts",
+        "validates executable references across the generated OpenCode V2 catalogue"
       ],
       [
         "packages/cli/tests/cursor/runtime-authority.test.ts",
@@ -169,11 +169,7 @@
     ],
     "An unpinned Codex helper blocks release": [
       "packages/cli/tests/codex-plugin/catalogue.test.ts",
-      "rejects generated catalogue drift when a pinned runtime path changes"
-    ],
-    "OpenCode profile identity records the complete owned catalogue": [
-      "packages/cli/tests/opencode/profile.test.ts",
-      "TBU1.R1.S07 installs generated profile bytes and an executable identity binding"
+      "rejects a changed runtime path and an unpinned helper in a generated Codex skill"
     ],
     "A project-runtime reference blocks native plugin release": [
       "packages/cli/tests/plugin-runtime-authority.test.ts",
@@ -187,25 +183,17 @@
       "packages/cli/tests/lifecycle/selected-authority-reconciliation.test.ts",
       "honors explicit project removal without uninstalling profile plugins"
     ],
-    "OpenCode install preserves an unrecognized catalogue collision": [
-      "packages/cli/tests/opencode/profile.test.ts",
-      "preserves a colliding plugin through the packaged install path"
+    "OpenCode enrollment preserves a conflicting plugin declaration": [
+      "packages/cli/tests/opencode/retained-enrollment.test.ts",
+      "preserves a conflicting plugin declaration during enrollment"
     ],
-    "OpenCode upgrade removes only prior identity-owned catalogue bytes": [
-      "packages/cli/tests/opencode/profile.test.ts",
-      "removes an unchanged catalogue asset retired by the next profile identity"
+    "An enrolled project can refresh its selected OpenCode package": [
+      "packages/cli/tests/opencode/retained-enrollment.test.ts",
+      "refreshes only the exact prior enrollment and same selected tuple, preserving ordinary refusal"
     ],
-    "OpenCode upgrade preserves a drifted catalogue asset": [
-      "packages/cli/tests/opencode/profile.test.ts",
-      "reports managed drift when install encounters a modified identity-owned asset"
-    ],
-    "OpenCode uninstall removes its recognized catalogue": [
-      "packages/cli/tests/opencode/profile.test.ts",
-      "TBU1.R3 removes recognized profile assets through the public lifecycle"
-    ],
-    "OpenCode uninstall preserves drifted catalogue content": [
-      "packages/cli/tests/opencode/profile.test.ts",
-      "preserves a modified managed catalogue asset during uninstall"
+    "OpenCode removal preserves other projects sharing the plugin": [
+      "packages/cli/tests/opencode/profile-removal.test.ts",
+      "removes only the selected OpenCode enrollment and drops the shared entry after its last user"
     ]
   }
 }

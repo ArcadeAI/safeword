@@ -3,22 +3,36 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { generateOpenCodeCatalogueAssets } from '../../src/opencode/catalogue.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
 const readRepoFile = (relativePath: string): string =>
   readFileSync(nodePath.join(repoRoot, relativePath), 'utf8');
-const workflowBody = (content: string): string => {
+const workflowBody = (content: string, asset?: string): string => {
   const frontmatterEnd = content.indexOf('---', 3);
   return content
     .slice(frontmatterEnd + 3)
     .trim()
+    .replace(
+      /^## Packaged runtime\n\nResolve \[the bundled Safeword runtime\]\([^)]+\) relative to this containing asset, not the project working directory\.\nBefore each shell block,[^\n]+\nDo not use [^\n]+\nKeep PROJECT_DIR[^\n]+\n\n/u,
+      '',
+    )
+    .replaceAll(
+      /`((?:\.\.\/)+internal\/finish-review\/SKILL\.md)`/gu,
+      (_text, reference: string) => {
+        expect(asset).toBeDefined();
+        const target = nodePath.resolve(nodePath.dirname(asset ?? ''), reference);
+        expect(target).toBe(
+          nodePath.join(repoRoot, 'packages/cli/codex-plugin/internal/finish-review/SKILL.md'),
+        );
+        expect(existsSync(target)).toBe(true);
+        return '`/finish-review`';
+      },
+    )
     .replaceAll('$safeword:', '/');
 };
 
 const canonicalPath = 'packages/cli/templates/skills/pr-readiness/SKILL.md';
-const templatesRoot = nodePath.join(repoRoot, 'packages/cli/templates');
 
 describe('reviewer-as-customer PR readiness (#3579)', () => {
   it('routes Codex promotion through the checked worktree command', () => {
@@ -54,18 +68,17 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
     expect(readRepoFile('packages/cli/templates/cursor/rules/safeword-pr-readiness.mdc')).toContain(
       '@.safeword/skills/pr-readiness/SKILL.md',
     );
-    const openCodeCommand = generateOpenCodeCatalogueAssets(templatesRoot).find(
-      asset => asset.relativePath === 'commands/safeword-pr-readiness.md',
-    );
-    expect(openCodeCommand?.content).toContain(
-      'Load and follow the `safeword-pr-readiness` skill completely',
-    );
     const codexSkill = readRepoFile('packages/cli/codex-plugin/skills/pr-readiness/SKILL.md');
     expect(codexSkill).toContain('name: pr-readiness');
     expect(codexSkill.replaceAll(/\s+/g, ' ')).toContain(
       'description: Prepare a pull request for human review and decide whether it may leave Draft.',
     );
-    expect(workflowBody(codexSkill)).toBe(workflowBody(readRepoFile(canonicalPath)));
+    expect(
+      workflowBody(
+        codexSkill,
+        nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills/pr-readiness/SKILL.md'),
+      ),
+    ).toBe(workflowBody(readRepoFile(canonicalPath)));
   });
 
   it('keeps all seven non-negotiables as Ready-for-Review blockers', () => {

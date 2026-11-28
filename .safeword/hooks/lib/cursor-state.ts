@@ -51,6 +51,33 @@ export function cursorEditedMarkerPath(input: CursorStateInput): string {
   return `${CURSOR_EDITED_MARKER_PREFIX}${cursorStateKey(input)}`;
 }
 
+/** Preserve session edit presence while recording only an observed raw generation. */
+export function recordCursorEdit(input: CursorStateInput): void {
+  writeFileSync(
+    cursorEditedMarkerPath(input),
+    JSON.stringify({ generation_id: rawGeneration(input) }),
+  );
+}
+
+/** Unknown or earlier-turn metadata cannot supply handoff's current-edit evidence. */
+export function hasCurrentCursorEdit(input: CursorStateInput): boolean {
+  const generation = rawGeneration(input);
+  if (generation === undefined) return false;
+  try {
+    const marker = JSON.parse(readFileSync(cursorEditedMarkerPath(input), 'utf8')) as {
+      generation_id?: unknown;
+    } | null;
+    return marker?.generation_id === generation;
+  } catch {
+    return false;
+  }
+}
+
+function rawGeneration(input: CursorStateInput): string | undefined {
+  const generation = input.generation_id;
+  return typeof generation === 'string' && generation.trim().length > 0 ? generation : undefined;
+}
+
 /** Path of the transcript stash `/retro` reads to resolve the session transcript. */
 export function cursorTranscriptStashPath(input: CursorStateInput): string {
   return `${CURSOR_TRANSCRIPT_STASH_PREFIX}${cursorStateKey(input)}`;

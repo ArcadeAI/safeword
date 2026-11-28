@@ -3,12 +3,12 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { QUALITY_REVIEW_RUBRIC } from '../../src/review/quality-rubric.generated.js';
 import {
   extractQualityReviewRubric,
   QUALITY_RUBRIC_END,
   QUALITY_RUBRIC_START,
-} from '../../src/review/quality-rubric.js';
+} from '../../scripts/lib/quality-rubric.js';
+import { QUALITY_REVIEW_RUBRIC } from '../../src/review/quality-rubric.generated.js';
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '../..');
 const canonicalSkill = readFileSync(

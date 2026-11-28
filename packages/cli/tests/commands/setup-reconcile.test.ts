@@ -22,6 +22,7 @@ import {
   setupReconcileTest,
   SKIP_INSTALL_ENV,
 } from '../helpers';
+import { installFakeCodexRuntime } from '../helpers/fake-codex-runtime.js';
 
 describe('Setup Command - Reconcile Integration', () => {
   let temporaryDirectory: string;
@@ -205,12 +206,28 @@ describe('Setup Command - Reconcile Integration', () => {
         JSON.stringify({ name: 'test', version: '1.0.0' }, undefined, 2),
       );
 
-      const result = await runCli(['setup', '--yes', '--no-modify'], {
+      const runtime = installFakeCodexRuntime(temporaryDirectory, {
+        pluginEnabled: true,
+        pluginInitiallyInstalled: true,
+      });
+      const result = await runCli(['setup', '--agents=codex', '--yes', '--no-modify'], {
         cwd: temporaryDirectory,
-        env: { SAFEWORD_SKIP_INSTALL: '1' },
+        env: {
+          SAFEWORD_SKIP_INSTALL: '1',
+          CODEX_HOME: runtime.codexHome,
+          SAFEWORD_CODEX_LOG: runtime.logPath,
+          PATH: runtime.bin + nodePath.delimiter + (process.env.PATH ?? ''),
+        },
       });
 
-      expect(result.exitCode).toBe(0);
+      const codexConfig = readFileSync(
+        nodePath.join(temporaryDirectory, '.codex/config.toml'),
+        'utf8',
+      );
+      expect(codexConfig).toContain('[[hooks.SessionStart]]');
+      expect(codexConfig).not.toContain('[[hooks.PreToolUse]]');
+      expect(result.exitCode, result.stdout).toBe(2);
+      expect(result.stdout).toContain('/hooks');
       expect(`${result.stdout}\n${result.stderr}`).toContain(
         'each developer profile is checked automatically at task start',
       );
@@ -265,17 +282,11 @@ describe('Setup Command - Reconcile Integration', () => {
     it('should run setup successfully via CLI', async () => {
       createTypeScriptProjectReadyForSetup(temporaryDirectory);
 
-      const result = await runCli(['setup'], { cwd: temporaryDirectory });
+      const result = await runCli(['setup', '--agents=cursor'], { cwd: temporaryDirectory });
 
       expect(result.exitCode, result.stderr).toBe(0);
       expect(result.stdout).toContain('Complete');
       expect(existsSync(nodePath.join(temporaryDirectory, '.safeword'))).toBe(true);
-      const codexConfig = readFileSync(
-        nodePath.join(temporaryDirectory, '.codex/config.toml'),
-        'utf8',
-      );
-      expect(codexConfig).toContain('[[hooks.SessionStart]]');
-      expect(codexConfig).not.toContain('[[hooks.PreToolUse]]');
     });
 
     it('should converge an already configured project', async () => {

@@ -21,6 +21,7 @@ import type {
   TextPatchDefinition,
 } from './schema.js';
 import { PLANNING_CONTRACT_TEMPLATE_PATHS } from './schema.js';
+import { assertTestingCore } from './testing/shared-core.js';
 import {
   NAMESPACE_ROOT_LEGACY,
   readConfiguredPath,
@@ -1286,12 +1287,16 @@ function resolveFileContent(definition: FileDefinition, ctx: ProjectContext): st
     // Generator decides (undefined = skip file). Takes precedence over
     // `template` so an entry can declare its template provenance (for the
     // schema↔templates contract) while gating on project context (56JCFZ).
-    return definition.generator(ctx);
+    const content = definition.generator(ctx);
+    if (content !== undefined && definition.template)
+      assertTestingCore(content, definition.template);
+    return content;
   }
 
   if (definition.template) {
     const templatesDirectory = getTemplatesDirectory();
     const content = readFile(nodePath.join(templatesDirectory, definition.template));
+    assertTestingCore(content, definition.template);
     if (PLANNING_CONTRACT_TEMPLATES.has(definition.template)) {
       assertGeneratedSharedClauses(content, definition.template);
     }

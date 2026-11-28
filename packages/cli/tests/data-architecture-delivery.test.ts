@@ -10,7 +10,6 @@ import {
   verifyDataArchitectureDelivery,
 } from '../scripts/lib/data-architecture-delivery.js';
 import { generateClaudePluginAssets } from '../src/claude-plugin/catalogue.js';
-import { generateOpenCodeCatalogueAssets } from '../src/opencode/catalogue.js';
 import { SAFEWORD_SCHEMA } from '../src/schema.js';
 import { setupReconcileTest } from './helpers.js';
 
@@ -92,7 +91,6 @@ function deliveryFixture(): DataArchitectureDeliveryInput {
   // Inspect the complete checked-in payload produced by generate-codex-plugin.ts, including the
   // catalogue, handbook, hooks, runtime helpers, and bundled runtime—not only catalogue assets.
   const codexAssets = treeAssets(nodePath.join(packageRoot, 'codex-plugin'));
-  const openCodeAssets = assetsByPath(generateOpenCodeCatalogueAssets(templatesRoot));
 
   return {
     inventory: deliveryInventory,
@@ -117,7 +115,6 @@ function deliveryFixture(): DataArchitectureDeliveryInput {
       },
       planningSourcePath: '.safeword/SAFEWORD.md',
     },
-    openCode: { assets: openCodeAssets },
     projectAssets: {
       [deliveryInventory.installedGuidePath]: file(deliveryInventory.installedGuidePath),
     },
@@ -335,68 +332,11 @@ describe('data architecture guide delivery', () => {
         },
       }),
     },
-    {
-      diagnostic:
-        'OpenCode contains an unexpected guide copy at guides/data-architecture-guide.md.',
-      drift: 'an OpenCode guide copy or reference',
-      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
-        ...input,
-        openCode: {
-          assets: {
-            ...input.openCode.assets,
-            'guides/data-architecture-guide.md': input.canonicalGuide,
-          },
-        },
-      }),
-    },
-    {
-      diagnostic:
-        'OpenCode contains an unexpected delivery-specific guide reference at SAFEWORD.md.',
-      drift: 'an OpenCode delivery-specific guide reference',
-      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
-        ...input,
-        openCode: {
-          assets: {
-            ...input.openCode.assets,
-            'SAFEWORD.md': `Read @${input.inventory.claudePlanningTarget}.`,
-          },
-        },
-      }),
-    },
-    {
-      diagnostic: 'OpenCode contains an unexpected delivery-specific guide reference at AGENTS.md.',
-      drift: 'an OpenCode-specific guide path',
-      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
-        ...input,
-        openCode: {
-          assets: {
-            ...input.openCode.assets,
-            'AGENTS.md': 'Read @.opencode/guides/data-architecture-guide.md.',
-          },
-        },
-      }),
-    },
   ])('rejects $drift with its mismatched path or content identified', ({ diagnostic, mutate }) => {
     const result = verifyDataArchitectureDelivery(mutate(deliveryFixture()));
 
     expect(result.accepted).toBe(false);
     expect(result.diagnostics).toContain(diagnostic);
-  });
-
-  it('allows shared OpenCode workflow prose to name the project-owned guide', () => {
-    const input = deliveryFixture();
-
-    expect(
-      verifyDataArchitectureDelivery({
-        ...input,
-        openCode: {
-          assets: {
-            ...input.openCode.assets,
-            'SAFEWORD.md': 'Read @.safeword/guides/data-architecture-guide.md when applicable.',
-          },
-        },
-      }),
-    ).toEqual({ accepted: true, diagnostics: [] });
   });
 
   it('rejects planning references outside each surface planning source', () => {
@@ -448,21 +388,12 @@ describe('data architecture guide delivery', () => {
           'runtime/guides/data-architecture-guide.md': input.canonicalGuide,
         },
       },
-      openCode: {
-        assets: {
-          ...input.openCode.assets,
-          'AGENTS.md': 'Read @.opencode/guides/data-architecture-guide.md.',
-          'SAFEWORD.md': `Read @${input.inventory.claudePlanningTarget}.`,
-        },
-      },
     });
 
     expect(result.diagnostics).toEqual(
       expect.arrayContaining([
         'Codex contains an unexpected guide copy at guides/data-architecture-guide.md.',
         'Codex contains an unexpected guide copy at runtime/guides/data-architecture-guide.md.',
-        'OpenCode contains an unexpected delivery-specific guide reference at AGENTS.md.',
-        'OpenCode contains an unexpected delivery-specific guide reference at SAFEWORD.md.',
       ]),
     );
   });

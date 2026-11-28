@@ -5,6 +5,13 @@ description: Verify ticket completion criteria — use when finishing a ticket,
   lint, scenarios, and dependency drift checks.
 ---
 
+## Packaged runtime
+
+Resolve [the bundled Safeword runtime](../../runtime/cli.js) relative to this containing asset, not the project working directory.
+Before each shell block, assign SAFEWORD_PLUGIN_RUNTIME to that resolved absolute file path in a separate shell statement ending with a semicolon, then invoke the helper in that same shell call.
+Do not use `SAFEWORD_PLUGIN_RUNTIME=... bun "$SAFEWORD_PLUGIN_RUNTIME" ...`: the shell expands the argument before applying that environment assignment.
+Keep PROJECT_DIR bound to the actual project. Never substitute a project helper or another agent cache.
+
 # Verify
 
 Prove a ticket meets its criteria. Works with or without an active ticket.
@@ -24,7 +31,7 @@ ticket completion.
 
 This skill is required before marking a feature ticket done. The line below appends a current-run entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify $safeword:verify was actually invoked. Claude Code expands the `!` line automatically and passes `${CLAUDE_SESSION_ID}` when available. The helper also resolves Claude remote-container ids from the runtime environment, and on Cursor and Codex the pre-shell hook (beforeShellExecution / PreToolUse) bridges the session id to the helper — so on all three runtimes the fallback runs without hand-picking an id. Hand-writing verify.md cannot produce this feature-gate proof.
 
-!`PROJECT_DIR="$(top=$(git rev-parse --show-toplevel 2> /dev/null); if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi)" && bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/2.0.1/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" verify "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
+!`PROJECT_DIR="$(top=$(git rev-parse --show-toplevel 2> /dev/null); if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi)" && bun "$SAFEWORD_PLUGIN_RUNTIME" project record-skill-invocation --cwd "$PROJECT_DIR" verify "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
 
 If no `[skill-invocation-log] verify ✓` line appears above, run this fallback before continuing:
 
@@ -33,7 +40,7 @@ PROJECT_DIR="$(
   top=$(git rev-parse --show-toplevel 2> /dev/null)
   if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi
 )"
-bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/2.0.1/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" verify "${CLAUDE_SESSION_ID:-}"
+bun "$SAFEWORD_PLUGIN_RUNTIME" project record-skill-invocation --cwd "$PROJECT_DIR" verify "${CLAUDE_SESSION_ID:-}"
 ```
 
 **If the automatic line or fallback prints `[skill-invocation-log] FAILED`, prints `no run identity`, or still does not print `verify ✓`**: a feature ticket can't be marked done without this proof — don't hand-write verify.md as a substitute. Report the failure to the user (most likely cause: inline shell execution was denied, the runtime did not expose a usable run identity, or Bun could not run the installed helper) and ask them to resolve it before re-invoking $safeword:verify.
@@ -55,7 +62,7 @@ PROJECT_DIR="$(
   top=$(git rev-parse --show-toplevel 2> /dev/null)
   if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi
 )"
-bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/2.0.1/runtime/cli.js" project runtime resolve-verify-ticket --cwd "$PROJECT_DIR" --
+bun "$SAFEWORD_PLUGIN_RUNTIME" project runtime resolve-verify-ticket --cwd "$PROJECT_DIR" --
 ```
 
 If Safeword's injected context names a ticket but the host exposes no runtime

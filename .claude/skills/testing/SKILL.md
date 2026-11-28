@@ -10,6 +10,27 @@ allowed-tools: '*'
 
 # Writing Good Tests
 
+<!-- SAFEWORD:TESTING_CORE_START -->
+<!-- source: src/testing/shared-core.ts; sha256: 3ef67a9e573e0f3a94f1348ef859a3a658b567c29785d90efdc436c392deef33 -->
+
+## Essential testing rules
+
+State the test-scope choice and why in one line, unless it's obvious from context.
+
+A suite that fakes _internal_ seams can be fully green while the real wiring is
+broken. Name the **process boundary** you mock — the network, filesystem, clock,
+or subprocess at the edge of your code — and mock _only_ that. Every entry point
+or command that wires modules together gets **≥1 test built from real
+collaborators**, faking nothing but that boundary.
+
+If the only way to exercise a code path is through an injected internal value
+(`provider: 'none'`, a hand-passed `repoVisibility`) and never through the real
+command, that path has **no wiring test** — add one.
+
+Before writing or reviewing tests, identify the distinct behavior partitions and choose a representative for each, including validation failures for individual inputs or input combinations. For bounded inputs, include a value strictly inside the valid range when one exists, boundary values, and out-of-range values, whether accepted or rejected. Check that the resulting tests cover those choices before reporting completion.
+
+<!-- SAFEWORD:TESTING_CORE_END -->
+
 Tests prove the system behaves correctly. Every test — unit, integration, E2E, eval — must verify **observable behavior**, not implementation details.
 
 **Core Principle:** TEST BEHAVIOR, NOT IMPLEMENTATION
@@ -45,8 +66,6 @@ Fallback (lowest scope):
 - Multiple modules must cooperate → integration or E2E
 - "If this breaks, users notice immediately" → E2E
 
-State the test-scope choice and why in one line, unless it's obvious from context.
-
 Use the decision tree, bug detection matrix, and edge cases in this skill.
 
 ---
@@ -56,16 +75,6 @@ Use the decision tree, bug detection matrix, and edge cases in this skill.
 Non-negotiable at every test level. Violating these produces tests that pass but catch nothing.
 
 ### 1. Test Behavior, Not Implementation
-
-```typescript
-// WRONG — tests internal state
-expect(component.state.count).toBe(1);
-expect(mockFn).toHaveBeenCalledWith('internal-detail');
-
-// RIGHT — tests observable behavior
-expect(screen.getByText('Count: 1')).toBeVisible();
-expect(result).toEqual({ total: 42 });
-```
 
 This applies at EVERY level:
 
@@ -78,17 +87,6 @@ This applies at EVERY level:
 
 If your assertion would pass for ANY input, it asserts nothing.
 
-```typescript
-// WRONG — asserts nothing useful
-expect(() => processData(input)).not.toThrow();
-expect(result).toBeTruthy();
-expect(result).toBeDefined();
-
-// RIGHT — asserts specific behavior
-expect(processData(input)).toEqual({ status: 'ok', count: 3 });
-expect(result.errors).toHaveLength(0);
-```
-
 ### 3. Tests Must Fail First
 
 A new test that passes immediately is testing nothing — or testing something that already works (no value added). For new behavior: RED then GREEN. For existing code: if a characterization test fails, you found a bug.
@@ -96,15 +94,6 @@ A new test that passes immediately is testing nothing — or testing something t
 ### 4. One Test, One Behavior
 
 If a test name has "and" in it, split it. Each test verifies ONE observable outcome.
-
-```typescript
-// WRONG
-it('validates input and saves to database', ...);
-
-// RIGHT
-it('rejects input missing required field', ...);
-it('saves valid input to database', ...);
-```
 
 ### 5. Tests Must Be Independent
 
@@ -137,65 +126,17 @@ The most common ways AI-generated tests go wrong. Watch for all of them.
 
 Test the contract (inputs → outputs), not the internals.
 
-```typescript
-// Behavioral: asserts on output
-it('applies 20% discount for VIP users', () => {
-  expect(calculateDiscount(100, { tier: 'VIP' })).toBe(80);
-});
-
-// Non-behavioral: asserts on internal call
-it('calls applyRate with 0.2', () => {
-  calculateDiscount(100, { tier: 'VIP' });
-  expect(applyRate).toHaveBeenCalledWith(0.2);
-});
-```
-
 ### Integration Tests — Behavioral
 
 Test that components produce correct combined outcomes with real dependencies.
-
-```typescript
-// Behavioral: asserts on combined outcome
-it('returns user profile with computed permissions', async () => {
-  const response = await api.get('/users/1/profile');
-  expect(response.data.permissions).toContain('edit_posts');
-});
-
-// Non-behavioral: asserts on which services were called
-it('calls UserService then PermissionService', async () => { ... });
-```
 
 ### E2E Tests — Behavioral
 
 Test what the user can see and do. E2E tests are naturally behavioral — lean into this.
 
-```typescript
-// Behavioral: user-visible outcome
-test('user creates account and sees dashboard', async ({ page }) => {
-  await page.goto('/signup');
-  await page.fill('[name="email"]', 'test@example.com');
-  await page.fill('[name="password"]', 'secure123');
-  await page.click('button:has-text("Sign Up")');
-  await expect(page).toHaveURL('/dashboard');
-  await expect(page.getByText('Welcome')).toBeVisible();
-});
-```
-
 ### LLM Evals — Behavioral
 
 Grade what the output _achieves_, not the path the model took. Use deterministic assertions first, LLM-as-judge second.
-
-```yaml
-# Deterministic assertion (cheap, run every commit)
-- type: javascript
-  value: JSON.parse(output).intent === 'order_pizza'
-
-# LLM-as-judge (for subjective quality, run on PR/schedule)
-- type: llm-rubric
-  value: |
-    PASS: Correctly identifies pizza order, confirms size and type
-    FAIL: Wrong intent, ignores key details, or generic response
-```
 
 Eval-specific principles:
 
@@ -206,34 +147,7 @@ Eval-specific principles:
 
 ### Wiring Tests — Mock Only the Process Boundary
 
-A suite that fakes _internal_ seams can be fully green while the real wiring is
-broken. Name the **process boundary** you mock — the network, filesystem, clock,
-or subprocess at the edge of your code — and mock _only_ that. Every entry point
-or command that wires modules together gets **≥1 test built from real
-collaborators**, faking nothing but that boundary.
-
-```typescript
-// ✅ Wiring test: real config → real corpus walk → real orchestrator,
-//    mocking only the network boundary (the one external service).
-it('files an issue from a real ticket corpus', async () => {
-  writeTicket(tmp, 'T1', { status: 'done' });
-  const sent = [];
-  const result = await syncTracker(tmp, { http: stubHttp(sent) }); // boundary only
-  expect(sent).toHaveLength(1);
-  expect(result.projected).toBe(1);
-});
-
-// ❌ Internal-seam mock: hand-builds the corpus the orchestrator should compute,
-//    so a broken config→corpus wiring (e.g. passing cwd where a dir is expected)
-//    passes every assertion. This is how a real bug survived 21 scenarios + 61 tests.
-it('projects tickets', () => {
-  expect(orchestrate({ tickets: [fakeTicket], config: fakeConfig })).toEqual(...);
-});
-```
-
-If the only way to exercise a code path is through an injected internal value
-(`provider: 'none'`, a hand-passed `repoVisibility`) and never through the real
-command, that path has **no wiring test** — add one.
+Apply [Essential testing rules](SKILL.md#essential-testing-rules) above. For examples, open `.safeword/guides/testing-guide.md` and find its “Optional worked examples” → “Wiring Tests — Mock Only the Process Boundary” section.
 
 ---
 
@@ -265,40 +179,9 @@ Write one test → run it → verify it fails (or passes for characterization) �
 
 ### Test Data Builders
 
-```typescript
-function buildUser(overrides = {}) {
-  return { id: 'test-1', name: 'Test User', role: 'member', ...overrides };
-}
-
-it('applies VIP discount', () => {
-  const user = buildUser({ role: 'vip' });
-  expect(calculateDiscount(user)).toBe(0.2);
-});
-```
-
 ### Async Testing — Never Use Arbitrary Timeouts
 
-```typescript
-// WRONG
-await sleep(3000);
-await page.waitForTimeout(500);
-
-// RIGHT — wait for condition
-await expect.poll(() => getStatus()).toBe('ready');
-await waitFor(() => expect(element).toBeVisible());
-```
-
 ### Descriptive Test Names
-
-```typescript
-// WRONG
-it('works correctly');
-it('should handle edge case');
-
-// RIGHT — describes the behavior
-it('returns 401 when API key is missing');
-it('preserves user input after validation error');
-```
 
 ---
 
@@ -322,13 +205,4 @@ mode is silent. Apply the upstream-workaround tripwire rules in this skill.
 
 ## Quick Reference
 
-| Need                             | Action                                          |
-| -------------------------------- | ----------------------------------------------- |
-| Full test type selection guide   | This skill's test-selection sections            |
-| Upstream-workaround tripwire     | This skill's tripwire section                   |
-| Smoke/live/release lane guidance | The `$safeword:verify` workflow                 |
-| LLM eval design guide            | The repository's configured evaluation guidance |
-| Test definition template (BDD)   | The `$safeword:bdd` workflow                    |
-| Test quality review              | `/audit`                                        |
-| Feature-level TDD with scenarios | `/bdd`                                          |
-| Debugging failing tests          | `/debug`                                        |
+Optional worked examples: read the installed `.safeword/guides/testing-guide.md#optional-worked-examples`.

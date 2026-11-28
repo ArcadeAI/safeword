@@ -18,6 +18,24 @@ export type PlanGateVerdict = { ok: true } | { ok: false; reason: string; remedi
 
 const OK: PlanGateVerdict = { ok: true };
 
+/** Canonical option reader shared by approval and manual phase-entry routing. */
+export function designApprovalEnabled(cwd: string): boolean {
+  const path = nodePath.join(cwd, '.safeword', 'config.json');
+  if (!existsSync(path)) return false;
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      throw new Error('configuration root must be an object');
+    }
+    const config = parsed as { designApprovalGate?: unknown };
+    return config.designApprovalGate === true;
+  } catch {
+    throw new Error(
+      'Could not determine whether human design approval is required because .safeword/config.json is unreadable or invalid. Repair the configuration before approving the plan.',
+    );
+  }
+}
+
 /** Consume the public coding-authorization envelope without recomputing its prerequisites. */
 export function evaluateCodingAuthorization(
   projectDirectory: string,
@@ -192,6 +210,30 @@ export function evaluateExecutionPlanningEntry(
     remediation:
       'Decide each named choice in impl-plan.md, then run the Implementation Plan review again before entering Execution Planning.',
   };
+}
+
+/** Manual hook writes must not substitute for configured human approval. */
+export function evaluateManualExecutionPlanningEntry(
+  ticketDirectory: string,
+  options: { evaluationDate?: string; projectDirectory: string },
+): PlanGateVerdict {
+  const verdict = evaluateExecutionPlanningEntry(ticketDirectory, options);
+  if (!verdict.ok) return verdict;
+  try {
+    if (!designApprovalEnabled(options.projectDirectory)) return OK;
+    return {
+      ok: false,
+      reason:
+        'Human design approval is required before Execution Planning; a manual phase write cannot replace approve-plan.',
+      remediation: `Run safeword ticket approve-plan ${nodePath.basename(ticketDirectory).split('-')[0]} through the canonical approval boundary.`,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: error instanceof Error ? error.message : String(error),
+      remediation: 'Repair .safeword/config.json before retrying the planning transition.',
+    };
+  }
 }
 
 /**

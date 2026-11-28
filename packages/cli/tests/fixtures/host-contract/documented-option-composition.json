@@ -1,0 +1,38 @@
+[
+  {
+    "terminalHandoffCorrection": false,
+    "architectureReviewGate": false,
+    "crossModelReview": false,
+    "designApprovalGate": false
+  },
+  {
+    "terminalHandoffCorrection": true,
+    "architectureReviewGate": false,
+    "crossModelReview": true,
+    "designApprovalGate": true
+  },
+  {
+    "terminalHandoffCorrection": false,
+    "architectureReviewGate": true,
+    "crossModelReview": true,
+    "designApprovalGate": true
+  },
+  {
+    "terminalHandoffCorrection": true,
+    "architectureReviewGate": true,
+    "crossModelReview": false,
+    "designApprovalGate": false
+  },
+  {
+    "terminalHandoffCorrection": false,
+    "architectureReviewGate": false,
+    "crossModelReview": true,
+    "designApprovalGate": false
+  },
+  {
+    "terminalHandoffCorrection": false,
+    "architectureReviewGate": false,
+    "crossModelReview": false,
+    "designApprovalGate": true
+  }
+]

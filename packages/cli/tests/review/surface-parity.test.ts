@@ -18,13 +18,13 @@ import { Option } from 'commander';
 import { describe, expect, it } from 'vitest';
 
 import { GLOBAL_OPTION_DEFINITIONS } from '../../src/cli-protocol/execute.js';
-import { VERSION } from '../../src/version.js';
 import {
   reviewCandidates,
   reviewChildEnvironment,
   VALUED_GLOBAL_OPTIONS,
   VALUELESS_GLOBAL_OPTIONS,
 } from '../../templates/hooks/run-review';
+import { codexRuntimePath } from '../helpers/codex-runtime-binding.js';
 
 const templates = nodePath.resolve(import.meta.dirname, '../../templates');
 
@@ -61,7 +61,7 @@ function reviewLaunchesIn(content: string): ReviewLaunch[] {
   );
   return searchable
     .matchAll(
-      /(?:run-review\.ts|safeword(?:@\S+)?|runtime\/cli\.js)["']?\s+review\s+run\s+([\w-]+)/gu,
+      /(?:run-review\.ts|safeword(?:@\S+)?|runtime\/cli\.js|\$SAFEWORD_PLUGIN_RUNTIME)["']?\s+review\s+run\s+([\w-]+)/gu,
     )
     .map(match => {
       const index = content.slice(0, match.index).split('\n').length;
@@ -72,6 +72,12 @@ function reviewLaunchesIn(content: string): ReviewLaunch[] {
 
 function containsReviewLaunch(content: string): boolean {
   return reviewLaunchesIn(content).length > 0;
+}
+
+function expectNativeRuntime(root: string, file: string, directories: string[]): void {
+  if (!directories.includes('internal')) return;
+  const expected = nodePath.join(root, 'runtime/cli.js');
+  expect(codexRuntimePath(nodePath.join(root, file), expected)).toBe(expected);
 }
 
 function reviewStampCommands(content: string): string[] {
@@ -153,10 +159,26 @@ function expectDispatchAuthorization(content: string, context: string): void {
   expect(normalized, context).toContain('**A review you never dispatched is not coverage**');
 }
 
+function normalizedReviewProse(file: string, section: string): string {
+  return section
+    .replaceAll(/\s+/gu, ' ')
+    .replaceAll(
+      /`((?:\.\.\/)+internal\/finish-review\/SKILL\.md)`/gu,
+      (_text, reference: string) => {
+        const target = nodePath.resolve(nodePath.dirname(file), reference);
+        expect(target).toBe(
+          nodePath.resolve(templates, '../codex-plugin/internal/finish-review/SKILL.md'),
+        );
+        expect(existsSync(target)).toBe(true);
+        return '`finish-review`';
+      },
+    );
+}
+
 function expectTypedExhaustion(relativePath: string, call: ReviewCallSection): void {
   const { kind, section } = call;
   const context = `${relativePath}:${kind}`;
-  const normalized = section.replaceAll(/\s+/gu, ' ');
+  const normalized = normalizedReviewProse(relativePath, section);
   if (relativePath.endsWith('PLAN_EXECUTION.md')) {
     expect(normalized, context).toContain('--agent-handoff --json');
     expect(normalized, context).toContain('REVIEW_PENDING');
@@ -623,11 +645,16 @@ exit ${status}`,
     const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
     const generatedRoots = [
       nodePath.join(repoRoot, 'plugin/skills'),
-      nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills'),
+      nodePath.join(repoRoot, 'packages/cli/codex-plugin'),
     ];
 
     for (const root of generatedRoots) {
-      const files = markdownFiles(root).filter(relativePath =>
+      const inventory = root.endsWith('codex-plugin')
+        ? ['skills', 'internal'].flatMap(directory =>
+            markdownFiles(nodePath.join(root, directory), directory),
+          )
+        : markdownFiles(root);
+      const files = inventory.filter(relativePath =>
         containsReviewLaunch(readFileSync(nodePath.join(root, relativePath), 'utf8')),
       );
       expect(files, root).not.toHaveLength(0);
@@ -660,6 +687,7 @@ exit ${status}`,
       nodePath.join(templates, 'skills'),
       nodePath.join(repoRoot, 'plugin/skills'),
       nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills'),
+      nodePath.join(repoRoot, 'packages/cli/codex-plugin/internal'),
     ]) {
       for (const relativePath of markdownFiles(root)) {
         const content = readFileSync(nodePath.join(root, relativePath), 'utf8');
@@ -723,6 +751,7 @@ exit ${status}`,
         // Claude reaches the managed wrapper: its plugin ships run-review.ts
         // and `${CLAUDE_PLUGIN_ROOT}` resolves in a skill's own bash block.
         root: nodePath.join(repoRoot, 'plugin/skills'),
+        directories: [''],
         reviewEntrypoint: 'run-review.ts ',
         requiredReviewFiles: [
           'quality-review/SKILL.md',
@@ -733,33 +762,35 @@ exit ${status}`,
         ],
       },
       {
-        // Codex skills do not receive `PLUGIN_ROOT`, so they address the
-        // bundled CLI through Codex's stable versioned plugin-cache layout, carrying
-        // the managed-progress signal the wrapper would otherwise have set —
-        // without it a multi-minute review runs silent.
-        root: nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills'),
-        reviewEntrypoint: `SAFEWORD_REVIEW_PROGRESS=1 bun "\${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/${VERSION}/runtime/cli.js" `,
+        // Public and internal procedures use their own contained runtime and
+        // carry the same managed-progress signal as the wrapper.
+        root: nodePath.join(repoRoot, 'packages/cli/codex-plugin'),
+        directories: ['skills', 'internal'],
+        reviewEntrypoint: 'SAFEWORD_REVIEW_PROGRESS=1 bun "$SAFEWORD_PLUGIN_RUNTIME" ',
         requiredReviewFiles: [
-          'quality-review/SKILL.md',
-          'review-spec/SKILL.md',
-          'bdd/references/PLAN_EXECUTION.md',
-          'bdd/references/PLAN_IMPLEMENTATION.md',
-          'bdd/references/TDD.md',
+          'skills/quality-review/SKILL.md',
+          'skills/review-spec/SKILL.md',
+          'skills/bdd/references/PLAN_EXECUTION.md',
+          'skills/bdd/references/PLAN_IMPLEMENTATION.md',
+          'skills/bdd/references/TDD.md',
         ],
       },
     ];
 
-    for (const { root, reviewEntrypoint, requiredReviewFiles } of generatedSurfaces) {
+    for (const { root, directories, reviewEntrypoint, requiredReviewFiles } of generatedSurfaces) {
       expect(requiredReviewFiles, root).not.toHaveLength(0);
-      const discoveredReviewFiles = markdownFiles(root).filter(relativePath =>
-        containsReviewLaunch(readFileSync(nodePath.join(root, relativePath), 'utf8')),
-      );
+      const discoveredReviewFiles = directories
+        .flatMap(directory => markdownFiles(nodePath.join(root, directory), directory))
+        .filter(relativePath =>
+          containsReviewLaunch(readFileSync(nodePath.join(root, relativePath), 'utf8')),
+        );
       const lexical = (left: string, right: string): number => left.localeCompare(right);
       expect(discoveredReviewFiles.toSorted(lexical), root).toEqual(
         requiredReviewFiles.toSorted(lexical),
       );
       for (const relativePath of requiredReviewFiles) {
         const content = readFileSync(nodePath.join(root, relativePath), 'utf8');
+        expectNativeRuntime(root, relativePath, directories);
         expect(content, relativePath).toContain(`${reviewEntrypoint}review run`);
         expect(content, relativePath).toContain('--agent-handoff --json');
         for (const line of content.split('\n')) {

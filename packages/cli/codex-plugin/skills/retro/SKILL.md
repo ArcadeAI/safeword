@@ -3,10 +3,17 @@ name: retro
 description: Run a safeword retrospective on the current session on demand —
   pull friction (bugs / rough edges / gaps) out of the session transcript and
   file it upstream through the outbound safety check. Use when the user says
-  "run a retro", "$safeword:retro", "retrospective on this session", or wants to
-  capture friction before the session ends. The retro also auto-fires at Stop;
-  this is the manual, on-demand path.
+  "run a retro", "/retro", "retrospective on this session", or wants to capture
+  friction before the session ends. The retro also auto-fires at Stop; this is
+  the manual, on-demand path.
 ---
+
+## Packaged runtime
+
+Resolve [the bundled Safeword runtime](../../runtime/cli.js) relative to this containing asset, not the project working directory.
+Before each shell block, assign SAFEWORD_PLUGIN_RUNTIME to that resolved absolute file path in a separate shell statement ending with a semicolon, then invoke the helper in that same shell call.
+Do not use `SAFEWORD_PLUGIN_RUNTIME=... bun "$SAFEWORD_PLUGIN_RUNTIME" ...`: the shell expands the argument before applying that environment assignment.
+Keep PROJECT_DIR bound to the actual project. Never substitute a project helper or another agent cache.
 
 # Retro
 

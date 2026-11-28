@@ -8,14 +8,10 @@ import { generateOwnedPathsModule } from '../owned-paths.js';
 import { normalizePluginBundle } from '../plugin-bundle.js';
 import { assertNativePluginRuntimeAuthority } from '../plugin-runtime-authority.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
-import { SETTINGS_HOOKS } from '../templates/config.js';
+import { TESTING_CORE_LAYOUT } from '../schema-layouts.js';
+import { assertTestingCore } from '../testing/shared-core.js';
 import { claudeSkillSha256 } from './asset-integrity.js';
-import {
-  adaptHookValue,
-  pluginEventGroupEvents,
-  pluginHookManifest,
-  pluginSessionStartEntries,
-} from './hook-manifest.js';
+import { pluginEventGroups, pluginHookManifest } from './hook-manifest.js';
 
 export interface GeneratedClaudePluginAsset {
   readonly relativePath: string;
@@ -366,17 +362,6 @@ function claudeHookAssets(templatesRoot: string): GeneratedClaudePluginAsset[] {
     }));
 }
 
-function pluginEventGroups(): string {
-  const adapted = adaptHookValue(SETTINGS_HOOKS) as Record<string, unknown>;
-  const groups = Object.fromEntries(
-    pluginEventGroupEvents().map(event => [
-      event,
-      event === 'SessionStart' ? pluginSessionStartEntries(adapted) : (adapted[event] ?? []),
-    ]),
-  );
-  return `${JSON.stringify({ schema_version: 1, groups }, undefined, 2)}\n`;
-}
-
 function assertEventGroupManifestCoverage(hookManifest: string, eventGroups: string): void {
   const manifest = JSON.parse(hookManifest) as { hooks?: Record<string, unknown> };
   const groups = JSON.parse(eventGroups) as { groups?: Record<string, unknown> };
@@ -526,6 +511,14 @@ export function generateClaudePluginAssets(
   ];
 
   const contentAssets = transitiveClaudePluginAssets(candidateAssets);
+  for (const template of TESTING_CORE_LAYOUT.templates) {
+    const delivered = template.startsWith('guides/') ? `resources/${template}` : template;
+    for (const path of [delivered, `${CANONICAL_TEMPLATE_ROOT}/${template}`]) {
+      const asset = contentAssets.find(candidate => candidate.relativePath === path);
+      if (!asset) throw new Error(`Missing essential testing core consumer: ${path}`);
+      assertTestingCore(asset.content, template);
+    }
+  }
   assertClaudePluginAssetReferences(contentAssets);
   assertNativePluginRuntimeAuthority(
     contentAssets.filter(asset => /^(?:agents|skills)\//u.test(asset.relativePath)),

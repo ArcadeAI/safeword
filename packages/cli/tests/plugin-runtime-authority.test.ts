@@ -1,32 +1,34 @@
+import { spawnSync } from 'node:child_process';
+import { appendFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { generateClaudePluginAssets } from '../src/claude-plugin/catalogue.js';
-import { generateCodexPluginAssets } from '../src/codex-plugin/catalogue.js';
-import { generateOpenCodeCatalogueAssets } from '../src/opencode/catalogue.js';
 import { assertNativePluginRuntimeAuthority } from '../src/plugin-runtime-authority.js';
-import { VERSION } from '../src/version.js';
-
-const packageRoot = nodePath.resolve(import.meta.dirname, '..');
-const templatesRoot = nodePath.join(packageRoot, 'templates');
-
-function generatedCatalogue(host: string) {
-  if (host === 'Codex') {
-    return generateCodexPluginAssets(nodePath.join(templatesRoot, 'skills'), VERSION);
-  }
-  if (host === 'Claude Code') {
-    return generateClaudePluginAssets({
-      cliBundle: 'console.log("fixture bundle");',
-      sourceRoot: nodePath.join(packageRoot, 'src'),
-      templatesRoot,
-      version: VERSION,
-    }).filter(asset => /^(?:agents|commands|skills)\//u.test(asset.relativePath));
-  }
-  return generateOpenCodeCatalogueAssets(templatesRoot);
-}
+import { createContractRepoFixture } from './helpers/contract-repo-fixture.js';
 
 describe('native catalogue release authority', () => {
+  it('validates executable references across the generated OpenCode V2 catalogue', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'opencode-release-'));
+    try {
+      const output = nodePath.join(root, 'package');
+      const result = spawnSync(
+        'bun',
+        ['scripts/generate-opencode-v2-plugin.ts', '--output', output],
+        {
+          cwd: nodePath.resolve(import.meta.dirname, '..'),
+          encoding: 'utf8',
+          timeout: 60_000,
+        },
+      );
+      expect(result.status, result.stderr).toBe(0);
+      expect(existsSync(nodePath.join(output, 'skills/quality-review/SKILL.md'))).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it.each([
     'bunx tsx .safeword/hooks/run-review.ts',
     'npx tsx .safeword/hooks/run-review.ts',
@@ -40,31 +42,33 @@ describe('native catalogue release authority', () => {
     }).toThrow('skills/audit/SKILL.md');
   });
 
-  it.each(['Codex', 'Claude Code', 'OpenCode'])(
+  it.each([
+    ['Codex', 'generate-codex-plugin.ts'],
+    ['Claude Code', 'generate-claude-plugin.ts'],
+    ['OpenCode', 'generate-opencode-v2-plugin.ts'],
+  ] as const)(
     'rejects a project-runtime reference in the generated %s catalogue',
-    host => {
-      const assets = generatedCatalogue(host);
-      expect(() => {
-        assertNativePluginRuntimeAuthority(assets);
-      }).not.toThrow();
-      const audit = assets.find(asset =>
-        /(?:safeword-)?audit\/SKILL\.md$/u.test(asset.relativePath),
-      );
-      expect(audit).toBeDefined();
-      if (audit === undefined) throw new Error(`${host} audit skill is missing`);
-
-      const invalid = assets.map(asset =>
-        asset === audit
-          ? {
-              ...asset,
-              content: `${asset.content}\nRun \`bun .safeword/hooks/run-review.ts review run audit\`.\n`,
-            }
-          : asset,
-      );
-
-      expect(() => {
-        assertNativePluginRuntimeAuthority(invalid);
-      }).toThrow(audit.relativePath);
+    (host, script) => {
+      const repo = createContractRepoFixture({ generated: false });
+      const root = nodePath.dirname(repo);
+      try {
+        const cli = nodePath.join(repo, 'packages/cli');
+        appendFileSync(
+          nodePath.join(cli, 'templates/skills/audit/SKILL.md'),
+          '\nRun `bun .claude/skills/private-runtime/task.ts`.\n',
+        );
+        const args = [nodePath.join('scripts', script)];
+        if (host === 'OpenCode') args.push('--output', nodePath.join(root, 'package'));
+        const result = spawnSync('bun', args, { cwd: cli, encoding: 'utf8', timeout: 60_000 });
+        expect(result.error).toBeUndefined();
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain(
+          'Native plugin assets reference project-local executable runtime: skills/audit/SKILL.md',
+        );
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
     },
+    120_000,
   );
 });

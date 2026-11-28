@@ -9,6 +9,13 @@ description: Extract tacit knowledge through non-obvious microquestions — thin
   or searching the web.
 ---
 
+## Packaged runtime
+
+Resolve [the bundled Safeword runtime](../../runtime/cli.js) relative to this containing asset, not the project working directory.
+Before each shell block, assign SAFEWORD_PLUGIN_RUNTIME to that resolved absolute file path in a separate shell statement ending with a semicolon, then invoke the helper in that same shell call.
+Do not use `SAFEWORD_PLUGIN_RUNTIME=... bun "$SAFEWORD_PLUGIN_RUNTIME" ...`: the shell expands the argument before applying that environment assignment.
+Keep PROJECT_DIR bound to the actual project. Never substitute a project helper or another agent cache.
+
 # Elicit: Tacit Knowledge Extraction
 
 Draw out what the user knows and you can't research. Then check the latest evidence. Then explore options together.

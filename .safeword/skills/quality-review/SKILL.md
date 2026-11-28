@@ -6,6 +6,27 @@ allowed-tools: '*'
 
 # Quality Reviewing
 
+<!-- SAFEWORD:TESTING_CORE_START -->
+<!-- source: src/testing/shared-core.ts; sha256: 3ef67a9e573e0f3a94f1348ef859a3a658b567c29785d90efdc436c392deef33 -->
+
+## Essential testing rules
+
+State the test-scope choice and why in one line, unless it's obvious from context.
+
+A suite that fakes _internal_ seams can be fully green while the real wiring is
+broken. Name the **process boundary** you mock — the network, filesystem, clock,
+or subprocess at the edge of your code — and mock _only_ that. Every entry point
+or command that wires modules together gets **≥1 test built from real
+collaborators**, faking nothing but that boundary.
+
+If the only way to exercise a code path is through an injected internal value
+(`provider: 'none'`, a hand-passed `repoVisibility`) and never through the real
+command, that path has **no wiring test** — add one.
+
+Before writing or reviewing tests, identify the distinct behavior partitions and choose a representative for each, including validation failures for individual inputs or input combinations. For bounded inputs, include a value strictly inside the valid range when one exists, boundary values, and out-of-range values, whether accepted or rejected. Check that the resulting tests cover those choices before reporting completion.
+
+<!-- SAFEWORD:TESTING_CORE_END -->
+
 Deep review with research to verify a work-product — code, docs, specs, plans, decisions — against current, authoritative sources.
 
 **Stakes set depth.** Review as if your verdict is the last gate before this ships — no one re-checks behind you. That standard, not "the hook already looked," sets how hard you research. Before searching, write your review plan: which angles (§2–3) this work-product actually needs and the specific question each must answer, then work the list — don't stop at the first finding.
@@ -193,7 +214,7 @@ The `**Next:**` line is required. On APPROVE, name what to do now (proceed, comm
 
 ### Wiring gate (code changes, required)
 
-For each new entry point or command in a code change, confirm a test built from **real collaborators** that mocks only the process boundary (network / fs / clock / subprocess) — and **name it**, or justify its absence. A fully-mocked suite can be green while the real config→module wiring is broken (see `testing/SKILL.md` → Wiring Tests). Internal-seam mocks and `provider: none`-style short circuits do not count as wiring coverage.
+Name each new entry point or command's real-collaborator test, or justify its absence. Apply the essential testing rules above. Optional examples: see `testing/SKILL.md` → Wiring Tests.
 
 ### Provenance gate (required)
 

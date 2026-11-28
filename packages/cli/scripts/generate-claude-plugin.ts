@@ -15,6 +15,7 @@ import { generatePlanRubric } from './generate-plan-rubric.js';
 import { generateQualityRubric } from './generate-quality-rubric.js';
 import { generateRedRubric } from './generate-red-rubric.js';
 import { generateScenarioRubric } from './generate-scenario-rubric.js';
+import { generateTestingCore } from './generate-testing-core.js';
 import { generatedTreeDifferences, reconcileGeneratedTree } from './generated-tree-differences.js';
 import { buildPluginCliBundle } from './lib/build-plugin-cli-bundle.js';
 import { planningAuthorCopies } from './lib/planning-author-copies.js';
@@ -22,6 +23,7 @@ import { planningAuthorCopies } from './lib/planning-author-copies.js';
 const packageRoot = nodePath.resolve(import.meta.dirname, '..');
 const repoRoot = nodePath.resolve(packageRoot, '../..');
 const checkOnly = process.argv.includes('--check');
+generateTestingCore(checkOnly);
 const rubricResults = [
   generateScenarioRubric(checkOnly),
   generatePlanRubric(checkOnly),
@@ -89,13 +91,9 @@ try {
   // in the replacement runtime; the catalogue sealer reads those final bytes.
   writeFileSync(
     nodePath.join(pluginRoot, 'runtime/cli.js'),
-    await buildPluginCliBundle(
-      packageRoot,
-      rootPackageJson.packageManager,
-      'Claude',
-      undefined,
-      planningAuthorCopies(pluginRoot, 'claude'),
-    ),
+    await buildPluginCliBundle(packageRoot, rootPackageJson.packageManager, 'Claude', undefined, {
+      planningCopies: planningAuthorCopies(pluginRoot, 'claude'),
+    }),
   );
   sealClaudePluginCatalogue(pluginRoot, packageJson.version);
 

@@ -11,7 +11,10 @@ import nodePath from 'node:path';
 import process from 'node:process';
 import { createInterface } from 'node:readline/promises';
 
-import { evaluateExecutionPlanningEntry } from '../../templates/hooks/lib/plan-gate.js';
+import {
+  designApprovalEnabled,
+  evaluateExecutionPlanningEntry,
+} from '../../templates/hooks/lib/plan-gate.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import {
   assertActivePlanningAuthorCopy,
@@ -76,23 +79,6 @@ function readContext(cwd: string, ticketId: string): ApprovalContext {
     ledgerPath: nodePath.join(resolveNamespaceRoot(cwd), 'skill-invocations.log'),
     digest: planDigest(plan),
   };
-}
-
-function designApprovalEnabled(cwd: string): boolean {
-  const path = nodePath.join(cwd, '.safeword', 'config.json');
-  if (!existsSync(path)) return false;
-  try {
-    const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
-    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-      throw new Error('configuration root must be an object');
-    }
-    const config = parsed as { designApprovalGate?: unknown };
-    return config.designApprovalGate === true;
-  } catch {
-    throw new Error(
-      'Could not determine whether human design approval is required because .safeword/config.json is unreadable or invalid. Repair the configuration before approving the plan.',
-    );
-  }
 }
 
 type AchievedReviewIndependence = 'cross-agent' | 'reduced' | 'degraded';

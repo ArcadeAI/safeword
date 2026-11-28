@@ -1,4 +1,55 @@
+import {
+  adaptHookValue,
+  pluginEventGroupCommand,
+  pluginEventGroupEvents,
+  pluginEventGroups,
+  pluginHookCommand,
+  pluginHookManifest,
+  projectHookCommand,
+} from '../claude-plugin/hook-manifest.js';
 import { type CliResult, createResult, type Effects } from '../cli-protocol/result.js';
+import { codexPluginHookCommand } from '../codex-plugin/hooks.js';
+import {
+  cursorPluginBindings,
+  cursorPluginHookCommand,
+  cursorPluginHookManifest,
+} from '../cursor-plugin/bindings.js';
+import {
+  type BehaviorRoute,
+  type CallbackBoundaryRoute,
+  type CallbackResourceRoute,
+  configuredCommandHandlers,
+  type HandlerComposition,
+  type HandlerEnvelope,
+  type OuterCallDisposition,
+} from '../host-contract/handlers.js';
+import type { observeOpenCodeV2Removal } from '../opencode/v2-profile.js';
+import { CURSOR_HOOKS, EDIT_TOOLS, SETTINGS_HOOKS } from '../templates/config.js';
+import hostReleases from './host-releases.json' with { type: 'json' };
+import { claudeRetainsProject, codexRetainsProject } from './sibling-registration.js';
+
+/** Current supported host releases; SDK and development toolchain pins are separate. */
+export const CURRENT_HOST_RELEASES = hostReleases;
+
+export interface HostHandlerRegistration {
+  readonly host: string;
+  readonly event: string;
+  readonly command?: string;
+  readonly matcher?: string;
+  readonly condition?: string;
+  readonly handler_path: string;
+  readonly interpreter?: string;
+  readonly execution: 'synchronous' | 'async-rewake' | 'background' | 'native-callback';
+  readonly configuration: object;
+  readonly source_family?: string;
+}
+
+export interface NativeHandlerSource {
+  readonly family: string;
+  readonly source: string;
+  readonly format: 'command-manifest' | 'group-manifest' | 'callback-object' | 'sdk-source';
+  readonly generate?: () => string;
+}
 
 export const LIFECYCLE_EVENTS = [
   'session_start',
@@ -16,10 +67,31 @@ type EvidenceCapability =
   | { readonly availability: 'unavailable' };
 
 export interface LifecycleCapabilities {
-  readonly lifecycle: Readonly<Record<LifecycleEvent, LifecycleStrength>>;
+  readonly lifecycle: Readonly<
+    Record<LifecycleEvent, LifecycleStrength> & Partial<Record<'session_end', LifecycleStrength>>
+  >;
   readonly blockableHooks: readonly LifecycleEvent[];
+  /** Host can request another turn; bounds and native proof remain separate. */
+  readonly continuationHooks?: readonly LifecycleEvent[];
   readonly activation: EvidenceCapability;
   readonly conformance: EvidenceCapability;
+}
+
+/** Declared host requestability only; neither registration nor native delivery proof. */
+export function supportsBehaviorGuarantee(
+  capabilities: LifecycleCapabilities | undefined,
+  trigger: BehaviorRoute['trigger'],
+  guarantee: BehaviorRoute['guarantees'][number] | undefined,
+): boolean {
+  const strength = capabilities?.lifecycle[trigger];
+  if (strength === undefined || strength === 'unavailable') return false;
+  if (guarantee === 'observe') return true;
+  if (guarantee === 'reject_action')
+    return strength === 'block' && new Set<string>(capabilities?.blockableHooks).has(trigger);
+  return (
+    guarantee === 'bounded_continuation' &&
+    new Set<string>(capabilities?.continuationHooks).has(trigger)
+  );
 }
 
 export interface LifecycleContext {
@@ -48,6 +120,14 @@ export interface IntegrationAdapter {
   readonly id: string;
   readonly defaultSelected: boolean;
   readonly exposeStatusData?: boolean;
+  readonly behaviorRoutes?: readonly BehaviorRoute[];
+  readonly handlerEnvelopes?: readonly HandlerEnvelope[];
+  readonly handlerCompositions?: readonly HandlerComposition[];
+  readonly outerCallDispositions?: readonly OuterCallDisposition[];
+  readonly callbackResources?: readonly CallbackResourceRoute[];
+  readonly callbackBoundaries?: readonly CallbackBoundaryRoute[];
+  readonly configuredHandlers?: () => readonly HostHandlerRegistration[];
+  readonly nativeHandlerSources?: readonly NativeHandlerSource[];
   readonly project: {
     readonly owned: readonly string[];
     readonly shared: readonly string[];
@@ -66,6 +146,14 @@ const ADAPTER_KEYS = new Set([
   'id',
   'defaultSelected',
   'exposeStatusData',
+  'configuredHandlers',
+  'behaviorRoutes',
+  'handlerCompositions',
+  'handlerEnvelopes',
+  'outerCallDispositions',
+  'callbackResources',
+  'callbackBoundaries',
+  'nativeHandlerSources',
   'project',
   'profile',
   'capabilities',
@@ -124,6 +212,22 @@ function validateBlockableHooks(
   }
 }
 
+function validateContinuationHooks(adapter: IntegrationAdapter): void {
+  const continuation = adapter.capabilities.continuationHooks ?? [];
+  if (
+    !Array.isArray(continuation) ||
+    continuation.some(
+      (event: LifecycleEvent) =>
+        !LIFECYCLE_EVENTS.includes(event) ||
+        adapter.capabilities.lifecycle[event] === 'unavailable',
+    )
+  )
+    invalidAdapter(adapter.id, 'continuation hook must name an available lifecycle event');
+}
+function validateLifecycleStrength(id: string, event: string, strength: LifecycleStrength): void {
+  if (!LIFECYCLE_STRENGTHS.has(strength))
+    invalidAdapter(id, `lifecycle capability ${event} is invalid`);
+}
 function validateCapabilities(adapter: IntegrationAdapter): void {
   const lifecycle = adapter.capabilities?.lifecycle;
   const blockableHooks = adapter.capabilities?.blockableHooks;
@@ -132,14 +236,15 @@ function validateCapabilities(adapter: IntegrationAdapter): void {
   }
   for (const event of LIFECYCLE_EVENTS) {
     const strength = lifecycle[event];
-    if (!LIFECYCLE_STRENGTHS.has(strength)) {
-      invalidAdapter(adapter.id, `lifecycle capability ${event} is invalid`);
-    }
+    validateLifecycleStrength(adapter.id, event, strength);
     if (strength === 'block' && !blockableHooks.includes(event)) {
       invalidAdapter(adapter.id, `blocking capability ${event} has no blockable hook`);
     }
   }
+  if (lifecycle.session_end !== undefined)
+    validateLifecycleStrength(adapter.id, 'session_end', lifecycle.session_end);
   validateBlockableHooks(adapter.id, lifecycle, blockableHooks);
+  validateContinuationHooks(adapter);
   validateEvidenceCapability(adapter.id, 'activation', adapter.capabilities.activation);
   validateEvidenceCapability(adapter.id, 'conformance', adapter.capabilities.conformance);
 }
@@ -161,6 +266,8 @@ function validateAdapterShape(adapter: IntegrationAdapter): void {
   if (unexpectedKey !== undefined) {
     invalidAdapter(adapter.id, `unsupported operation or declaration ${unexpectedKey}`);
   }
+  if (adapter.configuredHandlers !== undefined && typeof adapter.configuredHandlers !== 'function')
+    invalidAdapter(adapter.id, 'configured handlers must be a discovery function');
 }
 
 function validateProfile(adapter: IntegrationAdapter): void {
@@ -292,17 +399,230 @@ const FULL_HOOK_CAPABILITIES: LifecycleCapabilities = {
     stop: 'block',
   },
   blockableHooks: ['pre_tool', 'stop'],
+  continuationHooks: ['stop'],
   activation: { availability: 'available', proof: 'observe' },
   conformance: { availability: 'unavailable' },
 };
 
+/** One mechanical command projection; policy owners and host selections stay separately validated. */
+function claudeCommandRoutes(
+  routes: readonly (Omit<BehaviorRoute, 'command' | 'sourceFamily'> & {
+    interpreter?: 'bun' | 'bash';
+    arguments?: string;
+    native?: boolean;
+  })[],
+): BehaviorRoute[] {
+  return routes.flatMap(
+    ({ interpreter = 'bun', arguments: suffix = '', native = true, ...route }) => {
+      const command = (owner: string) => projectHookCommand(owner, interpreter) + suffix;
+      const selected = { ...route, execution: route.execution ?? ('synchronous' as const) };
+      const project = { ...selected, command };
+      if (!native) return [project];
+      const grouped = pluginEventGroupEvents().includes(route.event);
+      return [
+        project,
+        {
+          ...selected,
+          sourceFamily: grouped ? 'claude-native-event-groups' : 'claude-native',
+          command: (owner: string) =>
+            grouped
+              ? (adaptHookValue(command(owner)) as string)
+              : pluginHookCommand(route.event, command(owner)),
+        },
+      ];
+    },
+  );
+}
+
 const claude = defineIntegrationAdapter({
   id: 'claude',
+  handlerEnvelopes: [
+    ...(['SessionStart', 'UserPromptSubmit'] as const).map(event => ({
+      id: event === 'SessionStart' ? 'claude.startup-envelope' : 'claude.prompt-envelope',
+      event,
+      sourceFamily: 'claude-native',
+      execution: 'synchronous' as const,
+      owner: 'packages/cli/src/claude-plugin/runtime/dispatch.ts',
+      childFamily: 'claude-native-event-groups',
+      command: () => pluginEventGroupCommand(event),
+      localPolicyScopes:
+        event === 'SessionStart'
+          ? ['viableLegacyAuthority']
+          : ['viableLegacyAuthority', 'automaticMigrationUnsafe'],
+      reason:
+        'Verified command-group transport and local legacy precedence; prompt-only migration delegates to cleanup. Children retain separate guarantees.',
+    })),
+    {
+      id: 'claude.setup-envelope',
+      event: 'Setup',
+      sourceFamily: 'claude-native',
+      execution: 'synchronous',
+      matcher: 'init',
+      owner: 'packages/cli/src/claude-plugin/runtime/dispatch.ts',
+      command: () => pluginHookCommand('Setup', 'true'),
+      localPolicyScopes: ['viableLegacyAuthority'],
+      reason: 'Verified bootstrap no-op; no workflow guarantee or shared policy child.',
+    },
+  ],
+  behaviorRoutes: [
+    {
+      behavior: 'session.quality-state-cleanup',
+      event: 'SessionEnd',
+      trigger: 'session_end',
+      guarantees: ['observe'],
+      command: projectHookCommand,
+    },
+    {
+      behavior: 'session.quality-state-cleanup',
+      event: 'SessionEnd',
+      trigger: 'session_end',
+      guarantees: ['observe'],
+      sourceFamily: 'claude-native',
+      command: owner => pluginHookCommand('SessionEnd', projectHookCommand(owner)),
+    },
+    {
+      behavior: 'git.repair-bare-state',
+      event: 'PreToolUse',
+      trigger: 'pre_tool',
+      guarantees: ['observe'],
+      command: owner => projectHookCommand(owner, 'bash'),
+    },
+    {
+      behavior: 'git.repair-bare-state',
+      event: 'PreToolUse',
+      trigger: 'pre_tool',
+      guarantees: ['observe'],
+      sourceFamily: 'claude-native',
+      command: owner => pluginHookCommand('PreToolUse', projectHookCommand(owner, 'bash')),
+    },
+    ...claudeCommandRoutes(
+      (
+        [
+          ['prompt.timestamp', 'UserPromptSubmit', 'prompt_submit', 'observe', 'synchronous'],
+          ['prompt.work-reminders', 'UserPromptSubmit', 'prompt_submit', 'observe', 'synchronous'],
+          [
+            'retrospective.filing-nudge',
+            'UserPromptSubmit',
+            'prompt_submit',
+            'observe',
+            'synchronous',
+          ],
+          ['quality.stop', 'Stop', 'stop', 'reject_action', 'synchronous'],
+          ['session.reentry-capture', 'Stop', 'stop', 'observe', 'synchronous'],
+          ['diagnostics.self-report', 'Stop', 'stop', 'observe', 'synchronous'],
+          ['retrospective.filing', 'Stop', 'stop', 'bounded_continuation', 'synchronous'],
+          ['retrospective.extract', 'Stop', 'stop', 'observe', 'background'],
+        ] as const
+      ).map(([behavior, event, trigger, guarantee, execution]) => ({
+        behavior,
+        event,
+        trigger,
+        execution,
+        guarantees: [guarantee],
+      })),
+    ),
+    ...claudeCommandRoutes([
+      {
+        behavior: 'session.auto-upgrade',
+        delegate: 'hooks/session-auto-upgrade.ts',
+        event: 'SessionStart',
+        trigger: 'session_start',
+        guarantees: ['observe'],
+        execution: 'async-rewake',
+        native: false,
+      },
+      ...(
+        [
+          ['session.runtime-readiness', 'bash', '', undefined],
+          ['session.dependencies', 'bun', '', undefined],
+          ['session.standing-context', 'bun', ' --agent=claude', undefined],
+          ['session.reply-format', 'bun', ' --agent=claude', undefined],
+          ['session.version-advice', 'bun', '', undefined],
+          ['session.lint-advice', 'bun', '', undefined],
+          ['session.architecture-heal', 'bun', '', undefined],
+          ['session.reentry-context', 'bun', '', undefined],
+          ['session.compact-context', 'bun', '', 'compact'],
+        ] as const
+      ).map(([behavior, interpreter, suffix, matcher]) => ({
+        behavior,
+        interpreter,
+        arguments: suffix,
+        matcher,
+        event: 'SessionStart',
+        trigger: 'session_start' as const,
+        guarantees: ['observe'] as const,
+      })),
+    ]),
+    ...claudeCommandRoutes(
+      [EDIT_TOOLS, 'Bash'].map(matcher => ({
+        behavior: 'quality.pre-tool',
+        event: 'PreToolUse',
+        trigger: 'pre_tool',
+        guarantees: ['reject_action'],
+        matcher,
+      })),
+    ),
+    ...claudeCommandRoutes(
+      (
+        [
+          ['dependencies.pre-tool', 'Bash', undefined, 'reject_action'],
+          ['config.approval-request', EDIT_TOOLS, undefined, 'observe'],
+          ['architecture.stage', 'Bash', 'Bash(git commit*)', 'observe'],
+          ['git.stale-branch-warning', 'Bash', 'Bash(git checkout*)', 'observe'],
+          ['git.stale-branch-warning', 'Bash', 'Bash(git switch*)', 'observe'],
+        ] as const
+      ).map(([behavior, matcher, condition, guarantee]) => ({
+        behavior,
+        matcher,
+        condition,
+        event: 'PreToolUse',
+        trigger: 'pre_tool',
+        guarantees: [guarantee],
+      })),
+    ),
+    ...claudeCommandRoutes(
+      (
+        [
+          ['feedback.lint', EDIT_TOOLS],
+          ['feedback.quality', `${EDIT_TOOLS}|Bash`],
+          ['feedback.language-skill', EDIT_TOOLS],
+          ['feedback.bypass-warning', EDIT_TOOLS],
+          ['learning.index-sync', EDIT_TOOLS],
+          ['ticket.phase-work-log', EDIT_TOOLS],
+          ['dependencies.install-stamp', 'Bash'],
+        ] as const
+      ).map(([behavior, matcher]) => ({
+        behavior,
+        ...(behavior === 'feedback.lint' && { delegate: 'hooks/post-tool-lint.ts' }),
+        matcher,
+        event: 'PostToolUse',
+        trigger: 'post_tool',
+        guarantees: ['observe'],
+      })),
+    ),
+  ],
+  configuredHandlers: () => configuredCommandHandlers('claude', SETTINGS_HOOKS),
+  nativeHandlerSources: [
+    {
+      family: 'claude-native',
+      source: 'packages/cli/src/claude-plugin/hook-manifest.ts',
+      format: 'command-manifest',
+      generate: pluginHookManifest,
+    },
+    {
+      family: 'claude-native-event-groups',
+      source: 'packages/cli/src/claude-plugin/hook-manifest.ts',
+      format: 'group-manifest',
+      generate: pluginEventGroups,
+    },
+  ],
   defaultSelected: true,
   project: { owned: ['claude'], shared: ['skills'] },
   profile: {
     available: true,
     async observePrecondition(context) {
+      if (context.operation === 'uninstall' && !context.agents.includes('claude'))
+        return claudeRetainsProject(context.cwd, context.environment);
       const { claudeInstallRequiresMutation, observeClaudeProfile } =
         await import('../claude-plugin/profile.js');
       return {
@@ -316,7 +636,10 @@ const claude = defineIntegrationAdapter({
       };
     },
   },
-  capabilities: FULL_HOOK_CAPABILITIES,
+  capabilities: {
+    ...FULL_HOOK_CAPABILITIES,
+    lifecycle: { ...FULL_HOOK_CAPABILITIES.lifecycle, session_end: 'observe' },
+  },
   async observe(context) {
     const { observeClaudeStatus } = await import('../claude-plugin/status.js');
     return observeClaudeStatus(context.cwd);
@@ -337,11 +660,179 @@ const claude = defineIntegrationAdapter({
 
 const codex = defineIntegrationAdapter({
   id: 'codex',
+  outerCallDispositions: (
+    [
+      ['readStdin', 'transport', undefined],
+      ['normalizeEvent', 'transport', undefined],
+      ['parseCodexHookInput', 'transport', undefined],
+      ['augmentSessionStart', 'transport', ['SessionStart']],
+      ['postToolLintInputs', 'transport', ['PostToolUse']],
+      ['packagedAdditionalContext', 'transport', ['PostToolUse', 'UserPromptSubmit']],
+      ['emitAdditionalContext', 'transport', ['PostToolUse', 'UserPromptSubmit']],
+      ['emitStopNoop', 'transport', ['Stop']],
+      ['emitStopContinuation', 'transport', ['Stop']],
+      ['resolveCodexProjectDirectory', 'host_policy', undefined],
+      ['requireNativeProject', 'host_policy', undefined],
+      ['legacyCodexEventIsViable', 'host_policy', undefined],
+      ['packagedWorkflowContext', 'host_policy', ['SessionStart']],
+      ['readPackagedSafewordInstructions', 'host_policy', ['SessionStart']],
+      ['usablePackagedHandbookPath', 'host_policy', ['SessionStart']],
+      ['packagedSafewordHandbookPath', 'host_policy', ['SessionStart']],
+      ['hasSafewordProjectMarker', 'host_policy', ['PostToolUse', 'UserPromptSubmit', 'Stop']],
+      ['readProjectTextFile', 'host_policy', ['PostToolUse', 'UserPromptSubmit', 'Stop']],
+      ['classifyPackagedStopOutput', 'host_policy', ['Stop']],
+      ['runPackagedHook', 'shared_delegate', undefined],
+      ['collectPostToolLintContexts', 'shared_delegate', ['PostToolUse']],
+      ['recordCodexHookProof', 'evidence', undefined],
+    ] as const
+  ).map(([callee, kind, events]) => ({
+    callee,
+    kind,
+    events,
+    reason: {
+      transport: 'Host input/output projection; no independent policy guarantee.',
+      host_policy:
+        'Local authority, fallback or precedence policy; transitive semantics unadjudicated.',
+      shared_delegate: 'Packaged child transport; shared facets remain separate obligations.',
+      evidence: 'Advisory hook observation; not conformance or admission authority.',
+    }[kind],
+  })),
+  handlerCompositions: [
+    ...(
+      [
+        [
+          'codex.session-context',
+          'SessionStart',
+          'session-start',
+          'session_start',
+          'hooks/session-codex-start.ts',
+          'session.standing-context.read',
+          '',
+        ],
+        [
+          'codex.post-context',
+          'PostToolUse',
+          'post-tool-use',
+          'post_tool',
+          'hooks/post-tool-lint.ts',
+          'feedback.lint',
+          '^(apply_patch|Bash|Edit|Write)$',
+        ],
+        [
+          'codex.prompt-context',
+          'UserPromptSubmit',
+          'user-prompt-submit',
+          'prompt_submit',
+          'hooks/prompt-retro-nudge.ts',
+          'retrospective.filing-nudge',
+          '',
+        ],
+      ] as const
+    ).map(([id, event, command, trigger, delegate, primaryBehavior, matcher]) => ({
+      id,
+      envelope: {
+        owner: 'packages/cli/src/commands/codex-hook.ts',
+        localPolicyScopes: [
+          'codexHook',
+          'requireNativeProject',
+          ...{
+            SessionStart: [
+              'runSessionStart',
+              'packagedWorkflowContext',
+              'readPackagedSafewordInstructions',
+              'usablePackagedHandbookPath',
+              'packagedSafewordHandbookPath',
+            ],
+            PostToolUse: ['runPostToolUse', 'readProjectTextFile'],
+            UserPromptSubmit: ['runUserPromptSubmit', 'readProjectTextFile'],
+          }[event],
+        ],
+        reason:
+          'Local native authority/legacy precedence, packaged context fallback/index validation or project guidance queue/output merge; canonical child policies remain separate facets.',
+      },
+      event,
+      trigger,
+      delegate,
+      matcher,
+      sourceFamily: 'codex-native',
+      execution: 'synchronous' as const,
+      command: () => codexPluginHookCommand(command),
+      facets: [
+        primaryBehavior,
+        ...(id === 'codex.post-context' ? ['feedback.quality', 'feedback.language-skill'] : []),
+        ...(id === 'codex.prompt-context' ? ['prompt.timestamp'] : []),
+      ].map(behavior => ({
+        behavior,
+        disposition: 'implementation' as const,
+        guarantee: 'observe' as const,
+      })),
+    })),
+    {
+      id: 'codex.stop',
+      envelope: {
+        owner: 'packages/cli/src/commands/codex-hook.ts',
+        localPolicyScopes: [
+          'codexHook',
+          'requireNativeProject',
+          'runStop',
+          'classifyPackagedStopOutput',
+          'readProjectTextFile',
+        ],
+        reason:
+          'Local native/legacy precedence and packaged-before-project continuation arbitration. Packaged codex/stop.ts orchestrates extraction through canonical retro trigger/child arguments; completion/presentation/architecture/filing facets retain their own guarantees.',
+      },
+      event: 'Stop',
+      trigger: 'stop',
+      sourceFamily: 'codex-native',
+      delegate: 'hooks/codex/stop.ts',
+      matcher: '',
+      execution: 'synchronous',
+      command: () => codexPluginHookCommand('stop'),
+      facets: [
+        ...['completion.session-evidence', 'presentation.terminal-handoff'].map(behavior => ({
+          behavior,
+          disposition: 'permitted_alternative' as const,
+          guarantee: 'bounded_continuation' as const,
+        })),
+        {
+          behavior: 'architecture.done-advice',
+          disposition: 'implementation',
+          guarantee: 'observe',
+        },
+        {
+          behavior: 'retrospective.filing-decision',
+          disposition: 'implementation',
+          guarantee: 'bounded_continuation',
+        },
+      ],
+    },
+  ],
+  behaviorRoutes: [
+    {
+      behavior: 'quality.pre-tool',
+      event: 'PreToolUse',
+      trigger: 'pre_tool',
+      guarantees: ['reject_action'],
+      sourceFamily: 'codex-native',
+      matcher: '^(apply_patch|Bash|Edit|Write)$',
+      delegate: 'hooks/codex/pre-tool-quality.ts',
+      command: () => codexPluginHookCommand('pre-tool-use'),
+    },
+  ],
+  nativeHandlerSources: [
+    {
+      family: 'codex-native',
+      source: 'packages/cli/codex-plugin/hooks.json',
+      format: 'command-manifest',
+    },
+  ],
   defaultSelected: true,
   project: { owned: ['codex'], shared: [] },
   profile: {
     available: true,
     async observePrecondition(context) {
+      if (context.operation === 'uninstall' && !context.agents.includes('codex'))
+        return codexRetainsProject(context.environment);
       const { codexInstallRequiresMutation, observeCodexMigrationResult } =
         await import('../codex-plugin/operations.js');
       const observation = observeCodexMigrationResult(context.cwd);
@@ -434,49 +925,146 @@ async function observeOpenCode(context: LifecycleContext): Promise<CliResult> {
   });
 }
 
-function openCodeProfileEffects(kind: 'add' | 'remove'): Effects {
-  const files = [
-    'OpenCode profile plugin',
-    'OpenCode Safeword identity',
-    'OpenCode Safeword dispatcher',
-  ].map(target => ({ kind, target }));
-  return {
-    ...EMPTY_EFFECTS,
-    files,
-    destructive:
-      kind === 'remove'
-        ? files.map(({ target }) => ({ kind: 'remove', target, operation: 'profile' }))
-        : [],
-  };
-}
-
-function openCodeEffects(context: LifecycleContext): Effects {
-  if (context.operation === 'check') return EMPTY_EFFECTS;
-  const data = (
-    context.observation as
-      | {
-          readonly data?: {
-            readonly installed?: boolean;
-            readonly profile_removable?: boolean;
-          };
-        }
-      | undefined
-  )?.data;
-  if (context.operation === 'install') {
-    return data?.installed === true ? EMPTY_EFFECTS : openCodeProfileEffects('add');
-  }
-  return data?.profile_removable === true ? openCodeProfileEffects('remove') : EMPTY_EFFECTS;
-}
-
 const opencode = defineIntegrationAdapter({
   id: 'opencode',
+  callbackBoundaries: [
+    {
+      id: 'v2.enrollment',
+      event: 'plugin.setup',
+      scope: 'setup',
+      disposition: 'enrollment' as const,
+      owner: 'packages/cli/src/opencode/v2-enrollment.ts',
+      entrypoint: 'readOpenCodeV2Enrollment',
+      requiredCalls: [
+        ['readOpenCodeV2Enrollment', 'profile', 'project', 'packageRoot', 'layout'],
+        ['registerWorkerRestrictions', 'context'],
+      ],
+      conditions: [
+        'profile !== activeProfile',
+        '!hasSafewordProjectMarker(project)',
+        "!context.app.version.startsWith('2.')",
+        '!readOpenCodeV2Enrollment(profile, project, packageRoot, layout)',
+      ],
+      reason:
+        'Lifecycle enrollment reader owns package/project/profile identity; setup locally gates all native registrations. Enrollment is not activation or proof.',
+    },
+    {
+      id: 'v2.ticket.observation',
+      event: 'tool.execute.after',
+      scope: 'setup',
+      disposition: 'host_policy' as const,
+      owner: 'packages/cli/src/opencode/observe-ticket.ts',
+      entrypoint: 'observeOpenCodeTicket',
+      producer: 'packages/cli/src/opencode/dispatcher.ts',
+      requiredCalls: [['normalizeOpenCodeTool', "'v2'", 'event.tool', 'event.input']],
+      conditions: ["event.status !== 'completed'", "!file.endsWith('.md')"],
+      reason:
+        'Completed Markdown edits notify the shared dispatcher so a saved feature ticket can bind its conversation.',
+    },
+    ...(['prompt', 'context'] as const).map(event => ({
+      id: `v2.worker.${event}`,
+      event: `session.${event}`,
+      scope: 'registerWorkerRestrictions',
+      disposition: 'host_policy' as const,
+      owner: 'packages/cli/src/host-contract/workers.ts',
+      entrypoint: 'readWorkerContracts',
+      projectionEntrypoint: 'workerInvocationHeader',
+      producer: 'packages/cli/scripts/generate-opencode-v2-plugin.ts',
+      readerArgument: 'layout.workers',
+      requiredCalls:
+        event === 'prompt'
+          ? [
+              ['workerInvocationHeader', 'worker.name'],
+              ['sessions.set', 'session.id', 'mask'],
+            ]
+          : [
+              ['sessions.get', 'event.sessionID'],
+              ['Reflect.deleteProperty', 'event.tools', 'tool'],
+            ],
+      conditions:
+        event === 'prompt'
+          ? ['header === undefined', 'session.parentID !== undefined && mask !== undefined']
+          : ['mask === undefined', '!mask.has(tool)'],
+      reason:
+        'Canonical worker declarations own tools; this SDK-local child-session map narrows model tools. Native child creation/fresh-context delivery remains host-owned.',
+    })),
+  ].map(route => ({
+    ...route,
+    ordinal: 0,
+    sourceFamily: 'opencode-v2',
+    callbackSource: 'packages/opencode-v2-plugin/src/index.ts',
+    callbackCallees:
+      (
+        {
+          'plugin.setup': ['readOpenCodeV2Enrollment', 'registerWorkerRestrictions'],
+          'tool.execute.after': ['normalizeOpenCodeTool', 'dispatch'],
+          'session.prompt': ['context.session.get', 'sessions.set'],
+          'session.context': ['sessions.get', 'Reflect.deleteProperty'],
+        } as Record<string, string[]>
+      )[route.event] ?? [],
+  })),
+  callbackResources: [
+    ['v2.skills.initial', 'skill.transform', 'registerSkills', 0],
+    ['v2.skills.refresh', 'skill.transform', 'registerSkills', 1],
+    ['v2.skills.prompt', 'session.prompt', 'registerSkills', 0],
+    ['v2.commands', 'command.transform', 'registerCommands', 0],
+  ].map(([id, event, scope, ordinal]) => ({
+    id: String(id),
+    event: String(event),
+    scope: String(scope),
+    ordinal: Number(ordinal),
+    sourceFamily: 'opencode-v2',
+    callbackSource: 'packages/opencode-v2-plugin/src/index.ts',
+    owner: 'packages/cli/src/host-contract/catalogue.ts',
+    producer:
+      scope === 'registerCommands'
+        ? 'packages/cli/scripts/generate-opencode-v2-plugin.ts'
+        : 'packages/cli/src/host-contract/portable-core.ts',
+    entrypoint:
+      scope === 'registerCommands' ? 'readCanonicalCommandWrappers' : 'readPackagedSkillContracts',
+    readerArgument: scope === 'registerCommands' ? 'layout.commands' : 'layout.catalogue',
+    requiredCallees:
+      scope === 'registerCommands'
+        ? ['context.session.prompt']
+        : ['registerSkill', 'initial.dispose'],
+    callbackTarget: event === 'skill.transform' ? 'apply' : undefined,
+    callbackCallees:
+      (
+        {
+          'session.prompt': ['initial.dispose', 'context.skill.transform'],
+          'command.transform': ['context.session.prompt'],
+        } as Record<string, string[]>
+      )[String(event)] ?? [],
+  })),
+  behaviorRoutes: [
+    {
+      behavior: 'quality.pre-tool',
+      event: 'tool.execute.before',
+      trigger: 'pre_tool',
+      guarantees: ['reject_action'],
+      sourceFamily: 'opencode-v2',
+      callbackSource: 'packages/opencode-v2-plugin/src/index.ts',
+      delegate: 'hooks/codex/pre-tool-quality.ts',
+    },
+  ],
+  nativeHandlerSources: [
+    {
+      family: 'opencode-v2',
+      source: 'packages/opencode-v2-plugin/src/index.ts',
+      format: 'sdk-source',
+    },
+  ],
   defaultSelected: false,
   exposeStatusData: true,
   project: { owned: [], shared: [] },
   profile: {
     available: true,
     async observePrecondition(context) {
-      return observeOpenCode(context);
+      if (context.operation !== 'uninstall') return observeOpenCode(context);
+      const root = await resolveOpenCodeRoot(context);
+      const { observeOpenCodeV2Removal } = await import('../opencode/v2-profile.js');
+      const removal = root ? observeOpenCodeV2Removal(root, context.cwd) : undefined;
+      return context.agents.includes('opencode') ? removal : removal?.enrollment !== undefined;
     },
     async preflight(context) {
       return (await resolveOpenCodeRoot(context)) === undefined
@@ -486,15 +1074,15 @@ const opencode = defineIntegrationAdapter({
   },
   capabilities: {
     lifecycle: {
-      session_start: 'observe',
-      prompt_submit: 'observe',
+      session_start: 'unavailable',
+      prompt_submit: 'unavailable',
       pre_tool: 'block',
-      post_tool: 'observe',
-      stop: 'observe',
+      post_tool: 'unavailable',
+      stop: 'unavailable',
     },
     blockableHooks: ['pre_tool'],
-    activation: { availability: 'available', proof: 'activation-v1' },
-    conformance: { availability: 'available', proof: 'conformance-v1' },
+    activation: { availability: 'available', proof: 'activation-v2' },
+    conformance: { availability: 'available', proof: 'conformance-v2' },
   },
   observe(context) {
     return observeOpenCode(context);
@@ -502,34 +1090,186 @@ const opencode = defineIntegrationAdapter({
   async install(context) {
     const root = await resolveOpenCodeRoot(context);
     if (root === undefined) return openCodeConfigRootRequired();
-    const { installOpenCodeProfile } = await import('../opencode/profile.js');
-    return installOpenCodeProfile(root);
+    const [{ installOpenCodeProfile }, { observeOpenCodeVersion }] = await Promise.all([
+      import('../opencode/profile.js'),
+      import('../opencode/conformance.js'),
+    ]);
+    return installOpenCodeProfile(root, {
+      projectDirectory: context.cwd,
+      opencodeVersion: observeOpenCodeVersion(context.environment ?? process.env),
+    });
   },
   async uninstall(context) {
     const root = await resolveOpenCodeRoot(context);
     if (root === undefined) return openCodeConfigRootRequired();
     const { uninstallOpenCodeProfile } = await import('../opencode/profile.js');
-    return uninstallOpenCodeProfile(root);
+    const removal = context.observation as ReturnType<typeof observeOpenCodeV2Removal>;
+    return uninstallOpenCodeProfile(root, context.cwd, { fingerprint: removal?.fingerprint });
   },
   effects(context) {
-    return openCodeEffects(context);
+    if (context.operation === 'uninstall') {
+      const removal = context.observation as ReturnType<typeof observeOpenCodeV2Removal>;
+      if (typeof removal?.enrollment !== 'string') return EMPTY_EFFECTS;
+      return {
+        ...EMPTY_EFFECTS,
+        destructive: [
+          { kind: 'remove', target: removal.enrollment },
+          ...(removal.declaration ? [{ kind: 'remove-entry', target: removal.declaration }] : []),
+        ],
+      };
+    }
+    if (context.operation !== 'install') return EMPTY_EFFECTS;
+    return {
+      ...EMPTY_EFFECTS,
+      configuration: [{ kind: 'install', target: 'Safeword OpenCode profile plugin' }],
+    };
   },
 });
 
+/** Cursor binding IDs are looked up by actual source and arguments, never a fixed index. */
+function cursorCommandRoutes<
+  T extends Omit<BehaviorRoute, 'behavior' | 'guarantees' | 'command' | 'sourceFamily'> & {
+    arguments?: readonly string[];
+  },
+>(routes: readonly T[]) {
+  return routes.flatMap(input => {
+    const { arguments: args = [], ...route } = input;
+    const suffix = args.length > 0 ? ` ${args.join(' ')}` : '';
+    return [
+      {
+        ...route,
+        execution: input.execution ?? ('synchronous' as const),
+        command: (adapter: string) => `bun ./.safeword/${adapter}${suffix}`,
+      },
+      {
+        ...route,
+        execution: input.execution ?? ('synchronous' as const),
+        sourceFamily: 'cursor-native',
+        command: (adapter: string) => {
+          const binding = cursorPluginBindings().find(
+            row =>
+              row.event === route.event &&
+              `hooks/${row.path}` === adapter &&
+              row.args.length === args.length &&
+              row.args.every((argument, index) => argument === args[index]),
+          );
+          return binding ? cursorPluginHookCommand(binding.id) : undefined;
+        },
+      },
+    ];
+  });
+}
+
 const cursor = defineIntegrationAdapter({
   id: 'cursor',
+  handlerCompositions: cursorCommandRoutes<HandlerComposition>([
+    {
+      id: 'cursor.stop',
+      envelope: {
+        owner: 'packages/cli/templates/hooks/cursor/stop.ts',
+        localPolicyScopes: [
+          '<module>',
+          'assistantText',
+          'readLastAssistantMessage',
+          'emitRetroOrEmpty',
+          'isAutomatedEvidenceRun',
+          'architectureNudgeForDonePhase',
+        ],
+        reason:
+          'Local workspace/status/loop/edit-marker/transcript and priority/output coordination. Six canonical decision facets retain separate guarantees; native transport forwards the selected schema-owned binding path and arguments.',
+      },
+      delegate: 'hooks/cursor/stop.ts',
+      event: 'stop',
+      trigger: 'stop',
+      loopLimit: 1,
+      facets: [
+        ...['completion.session-evidence', 'presentation.terminal-handoff'].map(behavior => ({
+          behavior,
+          disposition: 'permitted_alternative' as const,
+          guarantee: 'bounded_continuation' as const,
+        })),
+        ...(
+          [
+            ['review.stop-option', 'observe'],
+            ['architecture.done-advice', 'observe'],
+            ['retrospective.filing-decision', 'bounded_continuation'],
+            ['retrospective.availability', 'observe'],
+          ] as const
+        ).map(([behavior, guarantee]) => ({
+          behavior,
+          disposition: 'implementation' as const,
+          guarantee,
+        })),
+      ],
+    },
+  ]),
+  behaviorRoutes: cursorCommandRoutes<BehaviorRoute & { arguments?: readonly string[] }>([
+    {
+      behavior: 'session.auto-upgrade',
+      delegate: 'hooks/session-cursor-auto-upgrade.ts',
+      event: 'sessionStart',
+      trigger: 'session_start',
+      guarantees: ['observe'],
+    },
+    {
+      behavior: 'feedback.lint',
+      delegate: 'hooks/cursor/after-file-edit.ts',
+      event: 'afterFileEdit',
+      trigger: 'post_tool',
+      guarantees: ['observe'],
+    },
+    ...[
+      { event: 'preToolUse', delegate: 'hooks/cursor/pre-tool-quality.ts', matcher: 'Write' },
+      { event: 'beforeShellExecution', delegate: 'hooks/cursor/before-shell-execution.ts' },
+    ].map(route => ({
+      ...route,
+      behavior: 'quality.pre-tool',
+      trigger: 'pre_tool' as const,
+      guarantees: ['reject_action'] as const,
+    })),
+    {
+      behavior: 'session.standing-context',
+      event: 'sessionStart',
+      trigger: 'session_start',
+      guarantees: ['observe'],
+      arguments: ['--agent=cursor'],
+    },
+    ...(
+      [
+        ['feedback.quality', 'hooks/cursor/post-tool-quality.ts', 'Write|Shell'],
+        ['feedback.language-skill', 'hooks/cursor/post-tool-skill-nudge.ts', 'Write'],
+      ] as const
+    ).map(([behavior, delegate, matcher]) => ({
+      behavior,
+      delegate,
+      matcher,
+      event: 'postToolUse',
+      trigger: 'post_tool' as const,
+      guarantees: ['observe'] as const,
+    })),
+  ]),
+  configuredHandlers: () => configuredCommandHandlers('cursor', CURSOR_HOOKS),
+  nativeHandlerSources: [
+    {
+      family: 'cursor-native',
+      source: 'packages/cli/src/cursor-plugin/bindings.ts',
+      format: 'command-manifest',
+      generate: cursorPluginHookManifest,
+    },
+  ],
   defaultSelected: false,
   project: { owned: ['cursor'], shared: ['skills'] },
   profile: { available: false },
   capabilities: {
     lifecycle: {
-      session_start: 'unavailable',
+      session_start: 'observe',
       prompt_submit: 'unavailable',
       pre_tool: 'block',
       post_tool: 'observe',
       stop: 'observe',
     },
     blockableHooks: ['pre_tool'],
+    continuationHooks: ['stop'],
     activation: { availability: 'unavailable' },
     conformance: { availability: 'unavailable' },
   },

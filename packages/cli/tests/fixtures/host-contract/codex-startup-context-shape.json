@@ -1,0 +1,31 @@
+{
+  "kind": "captured-native-hook-context-shape-control-not-receipt",
+  "origin_rollout_sha256": "df89ed1516da4e31a5cb83ad9fa4583a7d3c375f31d79529b912caab555c7374",
+  "entry": {
+    "timestamp": "2026-10-25T07:33:27.384Z",
+    "ordinal": 28,
+    "type": "response_item",
+    "payload": {
+      "type": "message",
+      "id": "msg_01a171fa-8ad8-7240-9142-6ba20e2a9d93",
+      "role": "developer",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "UNIT_CONTEXT_PLACEHOLDER"
+        }
+      ],
+      "internal_chat_message_metadata_passthrough": {
+        "turn_id": "01a171fa-83f3-7522-a423-74e3a2ad6b55",
+        "create_time": 1792913607.38416,
+        "content_item_kinds": ["hooks.additional_context"]
+      }
+    },
+    "metadata": {
+      "client_authored": false,
+      "mcp_attribution": {
+        "status": "none"
+      }
+    }
+  }
+}

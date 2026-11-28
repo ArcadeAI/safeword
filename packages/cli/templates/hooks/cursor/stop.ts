@@ -10,7 +10,9 @@ import { unlink } from 'node:fs/promises';
 import nodePath from 'node:path';
 
 import { architectureDocumentNudgeForProject } from '../lib/architecture-document-nudge.ts';
-import { cursorEditedMarkerPath } from '../lib/cursor-state.ts';
+import { architectureReviewReason } from '../lib/architecture-review-gate.ts';
+import { cursorEditedMarkerPath, hasCurrentCursorEdit } from '../lib/cursor-state.ts';
+import { evaluateSessionDoneEvidence } from '../lib/done-gate.ts';
 import {
   evaluateDecisionBriefCompliance,
   QUALITY_REVIEW_MESSAGE,
@@ -164,8 +166,39 @@ if (input.status !== 'completed') {
   process.exit(0);
 }
 
+// Completion evidence outranks presentation repair and optional nudges. The
+// host enforces the loop_limit from the canonical hook declaration; emitting a
+// follow-up requests continuation and does not claim an unlimited Stop block.
+const runIdentity = resolveRunIdentity(input, { runtime: 'cursor' });
+const completion = evaluateSessionDoneEvidence(process.cwd(), runIdentity);
+if (completion && !completion.verdict.ok) {
+  const followup = [
+    completion.verdict.reason ?? 'Done evidence could not be verified.',
+    architectureNudgeForDonePhase(process.cwd(), runIdentity),
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+  console.log(
+    JSON.stringify({
+      followup_message: followup,
+    } satisfies StopOutput),
+  );
+  process.exit(0);
+}
+
+// Architecture spends the original Stop's single continuation before presentation
+// repair. Never adopt the fallback state file when conversation identity is absent.
+if ((input.loop_count ?? 0) === 0 && runIdentity.sessionKey !== null) {
+  const ticket = readSessionActiveTicket(process.cwd(), runIdentity);
+  const reason = ticket ? architectureReviewReason(process.cwd(), ticket) : undefined;
+  if (reason) {
+    console.log(JSON.stringify({ followup_message: reason } satisfies StopOutput));
+    process.exit(0);
+  }
+}
+
 const markerFile = cursorEditedMarkerPath(input);
-const hasCurrentTurnEdit = await Bun.file(markerFile).exists();
+const hasSessionEdit = await Bun.file(markerFile).exists();
 
 // Cursor exposes a bounded resubmission count rather than stop_hook_active.
 // Correct only the original completed response; the continuation may stop freely.
@@ -180,7 +213,7 @@ if ((input.loop_count ?? 0) === 0) {
     if (isTerminalHandoffCorrectionEnabled(rawConfig)) {
       const reply = await readLastAssistantMessage(input.transcript_path);
       const evaluation = evaluateDecisionBriefCompliance(reply, undefined, {
-        substantiveEvidence: hasCurrentTurnEdit ? 'current-turn-edit' : 'none',
+        substantiveEvidence: hasCurrentCursorEdit(input) ? 'current-turn-edit' : 'none',
       });
       if (!evaluation.compliant) {
         console.log(
@@ -202,9 +235,8 @@ if ((input.loop_count ?? 0) === 0) {
 // Cursor enforces max 5 auto-submissions, no additional limit needed
 
 // Check if any file edits occurred in this session by looking for marker file
-const runIdentity = resolveRunIdentity(input, { runtime: 'cursor' });
 
-if (hasCurrentTurnEdit) {
+if (hasSessionEdit) {
   // Clean up marker (best-effort; missing file or perm issue is non-fatal)
   await unlink(markerFile).catch(error => {
     if (process.env.DEBUG) console.error('[cursor/stop] marker cleanup failed:', error);
