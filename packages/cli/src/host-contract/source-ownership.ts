@@ -754,7 +754,7 @@ function openCodeV2Envelope(envelope: ts.Node | undefined, file: ts.SourceFile):
     ),
   );
   return (
-    fields.get('cwd') === 'project' &&
+    fields.get('cwd') === 'toolWorkingDirectory(project, event.tool, event.input)' &&
     fields.get('session_id') === 'event.sessionID' &&
     fields.get('hook_event_name') === "'PreToolUse'" &&
     envelope.properties.some(
@@ -807,7 +807,8 @@ export function hasOpenCodeV2QualityDelegation(
           if (
             ts.isCallExpression(call) &&
             call.expression.getText(file) === 'dispatch' &&
-            call.arguments[0]?.getText(file) === 'project'
+            call.arguments[0]?.getText(file) === 'project' &&
+            call.arguments.length === 2
           ) {
             delegates ||= openCodeV2Envelope(call.arguments[1], file);
           }
@@ -819,19 +820,22 @@ export function hasOpenCodeV2QualityDelegation(
     ts.forEachChild(node, visit);
   }
   visit(setup);
+  return delegates && hasOpenCodeV2DispatcherTransport(file);
+}
+
+function hasOpenCodeV2DispatcherTransport(file: ts.SourceFile): boolean {
   const transport = file.statements.find(
     node => ts.isFunctionDeclaration(node) && node.name?.text === 'dispatch',
   );
   return (
-    delegates &&
     !!transport &&
+    ts.isFunctionDeclaration(transport) &&
+    transport.parameters[2]?.name.getText(file) === 'args' &&
+    transport.parameters[2].initializer?.getText(file) ===
+      '[nodePath.join(packageRoot, layout.dispatcher)]' &&
     [...callSignatures(transport, file)].some(value => {
       const [name, binary, args] = JSON.parse(value) as string[];
-      return (
-        name === 'spawn' &&
-        binary === "'bun'" &&
-        args === '[nodePath.join(packageRoot, layout.dispatcher)]'
-      );
+      return name === 'spawn' && binary === "'bun'" && args === 'args';
     })
   );
 }

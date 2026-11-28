@@ -948,6 +948,19 @@ const opencode = defineIntegrationAdapter({
       reason:
         'Lifecycle enrollment reader owns package/project/profile identity; setup locally gates all native registrations. Enrollment is not activation or proof.',
     },
+    {
+      id: 'v2.ticket.observation',
+      event: 'tool.execute.after',
+      scope: 'setup',
+      disposition: 'host_policy' as const,
+      owner: 'packages/cli/src/opencode/observe-ticket.ts',
+      entrypoint: 'observeOpenCodeTicket',
+      producer: 'packages/cli/src/opencode/dispatcher.ts',
+      requiredCalls: [['normalizeOpenCodeTool', "'v2'", 'event.tool', 'event.input']],
+      conditions: ["event.status !== 'completed'", "!file.endsWith('.md')"],
+      reason:
+        'Completed Markdown edits notify the shared dispatcher so a saved feature ticket can bind its conversation.',
+    },
     ...(['prompt', 'context'] as const).map(event => ({
       id: `v2.worker.${event}`,
       event: `session.${event}`,
@@ -984,6 +997,7 @@ const opencode = defineIntegrationAdapter({
       (
         {
           'plugin.setup': ['readOpenCodeV2Enrollment', 'registerWorkerRestrictions'],
+          'tool.execute.after': ['normalizeOpenCodeTool', 'dispatch'],
           'session.prompt': ['context.session.get', 'sessions.set'],
           'session.context': ['sessions.get', 'Reflect.deleteProperty'],
         } as Record<string, string[]>

@@ -16,6 +16,10 @@ import {
   rememberCursorReviewStampIdentity,
   rememberCursorRunIdentity,
 } from '../lib/cursor-run-identity.ts';
+import { intakeShellWriteTargets } from '../lib/intake-write-targets.ts';
+import { resolveToolProjectDirectory } from '../lib/project-directory.ts';
+import { awaitsIntakeApproval, readSessionActiveTicket } from '../lib/quality-state.ts';
+import { resolveRunIdentity } from '../lib/run-identity.ts';
 import { closeoutBindingTarget, rememberCloseoutBinding } from '../lib/closeout-binding.ts';
 import { stashCursorShellCwd, stashCursorTranscript } from '../lib/cursor-state.ts';
 import { AUTO_UPGRADE_LOCK_MESSAGE, isAutoUpgradeLockActive } from '../lib/auto-upgrade-lock.ts';
@@ -29,6 +33,21 @@ import {
 } from './gate-adapter.ts';
 
 const SHELL_GATE_TIMEOUT_MS = 8_000;
+
+function boundShellWrite(input: CursorShellInput, command: string): boolean {
+  if (!input.conversation_id || intakeShellWriteTargets(command).length === 0) return false;
+  const project = resolveToolProjectDirectory(process.cwd(), {
+    tool: 'Bash',
+    editedFile: '',
+    cwd: input.cwd,
+  });
+  const identity = resolveRunIdentity(
+    { conversation_id: input.conversation_id },
+    { runtime: 'cursor' },
+  );
+  const ticket = readSessionActiveTicket(project, identity);
+  return awaitsIntakeApproval(project, ticket);
+}
 
 async function readInput(): Promise<CursorShellInput> {
   try {
@@ -108,7 +127,8 @@ function stashAllowedCommandIdentities(): void {
   stashCloseoutBinding();
 }
 
-const needsFailClosedGate = requiresFailClosedShellGate({ command });
+const needsFailClosedGate =
+  requiresFailClosedShellGate({ command }) || boundShellWrite(input, command);
 if (!needsFailClosedGate) {
   stashAllowedCommandIdentities();
   emitAllowAndExit();

@@ -84,6 +84,7 @@
     ["command.transform", "registerCommands", 0],
     ["session.prompt", "registerWorkerRestrictions", 0],
     ["session.context", "registerWorkerRestrictions", 0],
-    ["tool.execute.before", "setup", 0]
+    ["tool.execute.before", "setup", 0],
+    ["tool.execute.after", "setup", 0]
   ]
 }

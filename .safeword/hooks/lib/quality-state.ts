@@ -11,9 +11,41 @@ import {
   readTicketInfo,
   type TicketDetails,
 } from './active-ticket.js';
-import { canonicalPathForGate, resolveNamespaceRoot } from './namespace-root.js';
+import {
+  canonicalPathForGate,
+  hasSafewordProjectMarker,
+  resolveNamespaceRoot,
+} from './namespace-root.js';
+import { reviewGateAppliesToPhase } from './review-ledger.js';
 import { getRunStorageKey, resolveRunIdentity, type RunIdentity } from './run-identity.js';
 import { captureGateEscalation } from './self-report.js';
+
+// The OpenCode profile maps this status to a bounded, actionable message.
+export const FEATURE_EDIT_DENIED_EXIT_CODE = 4;
+
+export function awaitsIntakeApproval(project: string, ticket: TicketDetails | null): boolean {
+  if (
+    ticket?.type !== 'feature' ||
+    ticket.status !== 'in_progress' ||
+    ticket.phase !== 'intake' ||
+    !hasSafewordProjectMarker(project)
+  )
+    return false;
+  const config = nodePath.join(project, '.safeword', 'config.json');
+  return reviewGateAppliesToPhase(
+    existsSync(config) ? readFileSync(config, 'utf8') : undefined,
+    'intake',
+  );
+}
+
+export function safeSessionOperand(value: unknown): value is string {
+  return typeof value === 'string' && /^\w[\w.-]*$/u.test(value);
+}
+
+export function featureSwitchHint(ticket: string, session: string): string {
+  if (![ticket, session].every(safeSessionOperand)) return '';
+  return `If the user switches to unrelated work, run safeword ticket pause ${ticket} ${session} in this checkout. Before returning, run safeword ticket resume ${ticket} ${session}.`;
+}
 
 export const LOC_THRESHOLD = 400;
 /** Counter threshold for CLAUDE.md escalation suggestions. */
@@ -76,7 +108,7 @@ export function isMetaPath(filePath: string, projectDirectory: string): boolean 
   const relative = nodePath.isAbsolute(filePath)
     ? nodePath.relative(projectDirectory, filePath)
     : filePath;
-  if (relative.startsWith('..')) return true; // outside the project — not ours to gate
+  if (relative === '..' || relative.startsWith(`..${nodePath.sep}`)) return true;
   const normalized = relative.split(nodePath.sep).join('/');
   return projectMetaPaths(projectDirectory).some(
     meta => normalized.startsWith(meta) || normalized === meta.slice(0, -1),
@@ -185,17 +217,35 @@ export function getStateFilePath(
   projectDirectory: string,
   sessionId: string | RunIdentity | undefined,
 ): string {
+  return sessionStatePathForKey(projectDirectory, stateStorageKey(sessionId));
+}
+
+export function sessionStatePathForKey(projectDirectory: string, key: string): string {
+  return nodePath.join(resolveNamespaceRoot(projectDirectory), `quality-state-${key}.json`);
+}
+
+// A separate, ignored record lets observers update quality state without
+// overwriting an explicit pause. The ticket ID limits it to that binding.
+export function featurePausePath(stateFile: string): string {
   return nodePath.join(
-    resolveNamespaceRoot(projectDirectory),
-    `quality-state-${stateStorageKey(sessionId)}.json`,
+    nodePath.dirname(stateFile),
+    nodePath.basename(stateFile).replace(/^quality-state-/u, 'quality-state.pause-'),
   );
+}
+
+export function isFeatureSessionPaused(stateFile: string, ticket: string): boolean {
+  try {
+    return readFileSync(featurePausePath(stateFile), 'utf8') === JSON.stringify(ticket);
+  } catch {
+    return false;
+  }
 }
 
 function isRunIdentity(value: string | RunIdentity | undefined): value is RunIdentity {
   return typeof value === 'object' && value !== null && 'runtime' in value && 'sessionKey' in value;
 }
 
-function stateStorageKey(sessionId: string | RunIdentity | undefined): string {
+export function stateStorageKey(sessionId: string | RunIdentity | undefined): string {
   if (isRunIdentity(sessionId)) {
     return getRunStorageKey(sessionId) ?? 'undefined';
   }
@@ -203,7 +253,7 @@ function stateStorageKey(sessionId: string | RunIdentity | undefined): string {
   if (sessionId === undefined || sessionId.trim().length === 0) return 'undefined';
 
   const runtime = process.env.SAFEWORD_AGENT_RUNTIME;
-  if (runtime === 'codex' || runtime === 'cursor') {
+  if (runtime === 'codex' || runtime === 'cursor' || runtime === 'opencode') {
     const identityInput =
       runtime === 'cursor' ? { conversation_id: sessionId } : { session_id: sessionId };
     const identity = resolveRunIdentity(identityInput, { runtime });
@@ -248,7 +298,11 @@ export function readSessionState(
   if (!sessionId || (typeof sessionId === 'string' && sessionId.trim().length === 0)) return null;
   for (const filePath of readableStateFilePaths(projectDirectory, sessionId)) {
     try {
-      return JSON.parse(readFileSync(filePath, 'utf8')) as QualityState;
+      const state = JSON.parse(readFileSync(filePath, 'utf8')) as QualityState;
+      if (state.activeTicket && isFeatureSessionPaused(filePath, state.activeTicket)) {
+        return { ...state, activeTicket: null };
+      }
+      return state;
     } catch {
       // Try the next compatible path.
     }

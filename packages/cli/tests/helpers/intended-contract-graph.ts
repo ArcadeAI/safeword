@@ -38,6 +38,7 @@ export function intendedRegistrationOwner(row: Registration): string {
 
 function intendedSdkOwner(row: Registration): string {
   if (row.event === 'plugin.setup') return 'packages/cli/src/opencode/v2-enrollment.ts';
+  if (row.event === 'tool.execute.after') return 'packages/cli/src/opencode/observe-ticket.ts';
   if (row.event === 'tool.execute.before')
     return 'packages/cli/templates/hooks/pre-tool-quality.ts';
   return row.configuration?.callback_scope === 'registerWorkerRestrictions'

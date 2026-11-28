@@ -128,6 +128,8 @@ function extractPatchTargets(command: string): PatchTarget[] {
 
     const edit = operation === 'Update' ? extractUpdateStrings(lines.slice(index + 1)) : undefined;
     targets.push({ filePath, toolName: 'Edit', ...edit });
+    const move = operation === 'Update' && /^\*\*\* Move to: (.+)$/u.exec(lines[index + 1] ?? '');
+    if (move && move[1]?.trim()) targets.push({ filePath: move[1].trim(), toolName: 'Write' });
   }
 
   return targets;

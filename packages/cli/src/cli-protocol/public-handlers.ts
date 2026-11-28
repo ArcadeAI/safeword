@@ -367,6 +367,14 @@ async function namespaceRootHandler(invocation: CommandInvocation): Promise<CliR
   return observeNamespaceRoot(invocation.cwd, invocation.options);
 }
 
+async function ticketSessionHandler(
+  action: 'pause' | 'resume',
+  invocation: CommandInvocation,
+): Promise<CliResult> {
+  const { switchFeatureSession } = await import('../commands/ticket-session.js');
+  return switchFeatureSession(action, invocation);
+}
+
 async function ticketApprovePlanHandler(invocation: CommandInvocation): Promise<CliResult> {
   const ticket = invocation.operands[0];
   if (typeof ticket !== 'string' || ticket === '') {
@@ -621,6 +629,8 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'codex clean-guidance': codexCleanGuidanceHandler,
   'codex recover': invocation => codexMutationHandler('codex recover', invocation),
   'ticket list': ticketListHandler,
+  'ticket pause': invocation => ticketSessionHandler('pause', invocation),
+  'ticket resume': invocation => ticketSessionHandler('resume', invocation),
   'ticket new': ticketNewHandler,
   'ticket reconcile-parent': ticketReconcileParentHandler,
   'ticket approve-plan': ticketApprovePlanHandler,

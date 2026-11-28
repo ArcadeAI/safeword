@@ -16,6 +16,7 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
+import { FEATURE_EDIT_DENIED_EXIT_CODE } from '../../templates/hooks/lib/quality-state.js';
 import { legacyCodexEventIsViable } from '../codex-plugin/legacy-authority.js';
 import {
   CODEX_PLUGIN_HOOK_EVENTS,
@@ -605,10 +606,15 @@ function denyForPackagedHookFailure(result: HookProcessResult): never {
   const detail = hookFailureDetail(result);
   if (
     process.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE &&
-    result.status === INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE
+    (result.status === INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE ||
+      result.status === FEATURE_EDIT_DENIED_EXIT_CODE)
   ) {
-    process.stderr.write(`${detail}\n`);
-    process.exit(INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE);
+    process.stderr.write(
+      result.status === FEATURE_EDIT_DENIED_EXIT_CODE
+        ? 'Finish the Product Plan, obtain independent intake approval and run the returned review advance-intake command.\n'
+        : `${detail}\n`,
+    );
+    process.exit(result.status);
   }
   process.stderr.write(`Safeword packaged PreToolUse hook failed: ${detail}\n`);
   process.exit(2);

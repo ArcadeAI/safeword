@@ -134,11 +134,14 @@ async function registerWorkerRestrictions(context: Plugin.Context): Promise<void
 }
 
 /** Transport only: the bundled shared dispatcher owns every permission decision. */
-function dispatch(project: string, envelope: object): Promise<void> {
+function dispatch(
+  project: string,
+  envelope: object,
+  args = [nodePath.join(packageRoot, layout.dispatcher)],
+): Promise<string> {
   return new Promise((resolve, reject) => {
-    // Resolve Bun through the host's configured toolchain, as the other native carriers do.
     // eslint-disable-next-line sonarjs/no-os-command-from-path -- use the host-selected Bun toolchain
-    const child = spawn('bun', [nodePath.join(packageRoot, layout.dispatcher)], {
+    const child = spawn('bun', args, {
       cwd: project,
       env: { ...process.env, SAFEWORD_PLUGIN_CLI: nodePath.join(packageRoot, layout.runtime) },
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -154,7 +157,7 @@ function dispatch(project: string, envelope: object): Promise<void> {
       reject(new Tool.Error({ message: `Safeword guard unavailable: ${error.message}`, error }));
     });
     child.once('close', status => {
-      if (status === 0) resolve();
+      if (status === 0) resolve(output.trim());
       else
         reject(
           new Tool.Error({
@@ -195,17 +198,58 @@ export default Plugin.define({
         event.sessionID,
       );
       await dispatch(project, {
-        cwd: project,
+        cwd: toolWorkingDirectory(project, event.tool, event.input),
         session_id: event.sessionID,
         hook_event_name: 'PreToolUse',
         ...canonicalTool(event.tool, event.input),
       });
+    });
+    await context.tool.hook('execute.after', async event => {
+      if (event.status !== 'completed' || !['edit', 'write'].includes(event.tool)) return;
+      try {
+        const edit = normalizeOpenCodeTool('v2', event.tool, event.input);
+        const file = edit?.tool_input.file_path;
+        if (typeof file !== 'string' || !file.endsWith('.md')) return;
+        const hint = await dispatch(
+          project,
+          {
+            ...edit,
+            cwd: project,
+            session_id: event.sessionID,
+            hook_event_name: 'PostToolUse',
+          },
+          [nodePath.join(packageRoot, layout.dispatcher), '--observe-ticket'],
+        );
+        if (!hint) return;
+        const content = event.result.content;
+        event.result = {
+          ...event.result,
+          content:
+            typeof content === 'string'
+              ? [content, hint].filter(Boolean).join('\n\n')
+              : [...(content ?? []), { type: 'text', text: hint }],
+        };
+      } catch {
+        // An observation cannot reject an edit that already completed.
+      }
     });
     await registerWorkerRestrictions(context);
     await registerSkills(context);
     await registerCommands(context);
   },
 });
+
+function toolWorkingDirectory(project: string, tool: string, input: unknown): string {
+  if (
+    tool === 'shell' &&
+    input !== null &&
+    typeof input === 'object' &&
+    'workdir' in input &&
+    typeof input.workdir === 'string'
+  )
+    return nodePath.resolve(project, input.workdir);
+  return project;
+}
 
 function canonicalTool(tool: string, input: unknown) {
   try {

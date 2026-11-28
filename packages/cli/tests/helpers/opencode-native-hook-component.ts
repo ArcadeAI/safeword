@@ -50,8 +50,8 @@ export async function nativeToolEvent(
     location: { directory: project },
     app: { version: hostReleases.opencode.version },
     tool: {
-      hook: (_: string, fn: typeof callback) => {
-        callback = fn;
+      hook: (event: string, fn: typeof callback) => {
+        if (event === 'execute.before') callback = fn;
         return Promise.resolve();
       },
     },

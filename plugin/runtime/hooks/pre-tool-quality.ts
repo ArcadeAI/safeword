@@ -15,6 +15,7 @@ import {
   parseTddStep,
 } from './lib/active-ticket.ts';
 import { detectInspirationArtifactWrite, detectLedgerWrite } from './lib/bash-ledger-writes.ts';
+import { intakeShellWriteTargets } from './lib/intake-write-targets.ts';
 import { retrospectiveGateDenial } from './lib/retrospective-gate.ts';
 import {
   askTrustedSafeword,
@@ -57,6 +58,11 @@ import {
   isMetaPath,
   LOC_THRESHOLD,
   readSessionState,
+  FEATURE_EDIT_DENIED_EXIT_CODE,
+  awaitsIntakeApproval,
+  featureSwitchHint,
+  resolveQualityStateIdentity,
+  stateStorageKey,
   recordFailure,
 } from './lib/quality-state.ts';
 import {
@@ -566,8 +572,40 @@ const canonicalProjectDirectory = realpathSync(projectDirectory);
 //    why the RED/GREEN file-path rules were dropped.
 // ---------------------------------------------------------------------------
 
+function enforceIntakeReview(ticket: string, ticketInfo: ReturnType<typeof getTicketInfo>): void {
+  if (awaitsIntakeApproval(projectDirectory, ticketInfo)) {
+    if (
+      process.env.SAFEWORD_AGENT_RUNTIME === 'opencode' &&
+      process.env.SAFEWORD_CODEX_DENY_MODE === 'exit-code'
+    )
+      process.exit(FEATURE_EDIT_DENIED_EXIT_CODE);
+    const key = stateStorageKey(resolveQualityStateIdentity(input));
+    deny(
+      `Feature work is bound to ${ticket} at ${ticketInfo.phase}. Production edits must wait for implementation.`,
+      'Finish the Product Plan, obtain independent intake approval and run the returned review advance-intake command.' +
+        ` ${featureSwitchHint(ticket, key)}`,
+      true,
+    );
+  }
+}
+
 if (tool === 'Bash') {
   const command = input.tool_input?.command ?? '';
+  const namesProductionFile = intakeShellWriteTargets(command).some(
+    target =>
+      (nodePath.isAbsolute(target) || Boolean(input.cwd)) &&
+      !isMetaPath(
+        canonicalEditTarget(launchProjectDirectory, target, input.cwd),
+        canonicalProjectDirectory,
+      ),
+  );
+  if (namesProductionFile) {
+    const ticket = readSessionState(
+      projectDirectory,
+      resolveQualityStateIdentity(input),
+    )?.activeTicket;
+    if (ticket) enforceIntakeReview(ticket, getTicketInfo(projectDirectory, ticket));
+  }
   if (
     hasSafewordProjectMarker(projectDirectory) &&
     classifyPrReadinessCommand(command) === 'ready'
@@ -1370,7 +1408,8 @@ if (isMetaPath(editedFile, canonicalProjectDirectory)) {
 // Shared state read — used by both implement phase gate and LOC gate below.
 // ---------------------------------------------------------------------------
 
-const state = readSessionState(projectDirectory, input.session_id);
+const sessionIdentity = resolveQualityStateIdentity(input);
+const state = readSessionState(projectDirectory, sessionIdentity);
 
 if (!state) {
   process.exit(0);
@@ -1391,6 +1430,8 @@ if (state.activeTicket) {
   const isBehaviorDefinitionEdit =
     (ticketInfo.phase === 'define-behavior' || ticketInfo.phase === 'scenario-gate') &&
     nodePath.extname(editedFile) === '.feature';
+
+  if (editedFile) enforceIntakeReview(state.activeTicket, ticketInfo);
 
   // Planning code freeze (TXRHMD, #480): while a feature plans, application
   // code stays untouched — the plan is the phase's only deliverable. Meta
