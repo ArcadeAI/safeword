@@ -127,6 +127,8 @@ class SelectedProject {
 interface SelectionWorld extends SafewordWorld {
   selection?: SelectedProject;
   selectedResult?: string;
+  installed?: { config: Buffer; enrollment: Buffer; record: string };
+  repeat?: { changed: boolean; state: string };
   originalAssets?: Record<string, string>;
 }
 
@@ -134,17 +136,22 @@ After({ tags: '@consistent-host-contract.TBU2.R2' }, function (this: SelectionWo
   if (this.selection) rmSync(this.selection.root, { recursive: true, force: true });
 });
 
+function prepareSelection(world: SelectionWorld) {
+  const descriptor =
+    world.parameters.opencodeFixtureFile ?? process.env.SAFEWORD_OPENCODE_TEST_CONFIG;
+  assert.ok(typeof descriptor === 'string', 'An OpenCode native fixture is required');
+  const { v2CandidatePackage, v2Binary } = JSON.parse(readFileSync(descriptor, 'utf8'));
+  assert.ok(typeof v2CandidatePackage === 'string' && path.isAbsolute(v2CandidatePackage));
+  assert.ok(typeof v2Binary === 'string' && path.isAbsolute(v2Binary));
+  world.selection = new SelectedProject(path.join(path.dirname(v2CandidatePackage), 'cli.js'));
+  world.selection.prepare(v2Binary);
+}
+
 Given(
   'one host is selected and another host has existing user-owned assets and an executable probe sentinel',
   function (this: SelectionWorld) {
-    const descriptor =
-      this.parameters.opencodeFixtureFile ?? process.env.SAFEWORD_OPENCODE_TEST_CONFIG;
-    assert.ok(typeof descriptor === 'string', 'An OpenCode native fixture is required');
-    const { v2CandidatePackage, v2Binary } = JSON.parse(readFileSync(descriptor, 'utf8'));
-    assert.ok(typeof v2CandidatePackage === 'string' && path.isAbsolute(v2CandidatePackage));
-    assert.ok(typeof v2Binary === 'string' && path.isAbsolute(v2Binary));
-    this.selection = new SelectedProject(path.join(path.dirname(v2CandidatePackage), 'cli.js'));
-    this.selection.prepare(v2Binary);
+    prepareSelection(this);
+    assert.ok(this.selection);
     this.originalAssets = this.selection.unselectedAssets();
   },
 );
@@ -225,5 +232,51 @@ Then(
     assert.equal(this.selectedResult, expected);
     assert.deepEqual(this.selection.unselectedAssets(), this.originalAssets);
     assert.equal(existsSync(this.selection.probe), false);
+  },
+);
+
+Given(
+  'selected native delivery is installed and verified',
+  { timeout: 180_000 },
+  function (this: SelectionWorld) {
+    prepareSelection(this);
+    const project = this.selection!;
+    assert.equal(project.run('install').state, 'changed');
+    project.verifyActive();
+    const directory = path.join(project.profile, OPENCODE_V2_PLUGIN_LAYOUT.enrollments);
+    const records = readdirSync(directory);
+    assert.equal(records.length, 1);
+    this.installed = {
+      config: readFileSync(project.config),
+      record: records[0]!,
+      enrollment: readFileSync(path.join(directory, records[0]!)),
+    };
+  },
+);
+When(
+  'the same install operation is repeated',
+  { timeout: 120_000 },
+  function (this: SelectionWorld) {
+    assert.ok(this.selection);
+    this.repeat = this.selection.run('install');
+  },
+);
+Then(
+  'it reports no required delivery mutation and retains one active framework authority',
+  { timeout: 120_000 },
+  function (this: SelectionWorld) {
+    assert.ok(this.selection && this.installed);
+    assert.equal(this.repeat?.changed, false);
+    assert.equal(this.repeat.state, 'healthy');
+    const directory = path.join(this.selection.profile, OPENCODE_V2_PLUGIN_LAYOUT.enrollments);
+    assert.deepEqual(readdirSync(directory), [this.installed.record]);
+    assert.deepEqual(
+      readFileSync(path.join(directory, this.installed.record)),
+      this.installed.enrollment,
+    );
+    assert.deepEqual(readFileSync(this.selection.config), this.installed.config);
+    const { plugins } = JSON.parse(this.installed.config.toString());
+    assert.equal(plugins.filter((entry: unknown) => entry !== 'unrelated').length, 1);
+    this.selection.verifyActive();
   },
 );
