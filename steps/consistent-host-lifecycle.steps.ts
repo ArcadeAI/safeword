@@ -8,6 +8,8 @@ import {
   readFileSync,
   readdirSync,
   readlinkSync,
+  realpathSync,
+  unlinkSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -17,6 +19,7 @@ import path from 'node:path';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
+import { discoverCodexResources } from '../packages/cli/scripts/check-codex-internal-reference.js';
 import { shellQuote } from '../packages/cli/src/cli-protocol/replay-command.js';
 import { OPENCODE_V2_PLUGIN_LAYOUT } from '../packages/cli/src/schema.js';
 import type { SafewordWorld } from './world.js';
@@ -84,26 +87,34 @@ class SelectedProject {
     return assets;
   }
 
-  run(command: string, flags: string[] = [], expectedExit = 0) {
+  environment() {
+    return {
+      PATH: path.join(this.root, 'bin') + path.delimiter + process.env.PATH,
+      HOME: this.root,
+      PWD: this.project,
+      OPENCODE_CONFIG_DIR: this.profile,
+      CODEX_HOME: path.dirname(this.unselectedConfig),
+      CLAUDE_CONFIG_DIR: path.join(this.root, '.claude'),
+      XDG_CONFIG_HOME: path.join(this.root, 'config'),
+      XDG_DATA_HOME: path.join(this.root, 'data'),
+      XDG_STATE_HOME: path.join(this.root, 'state'),
+      XDG_CACHE_HOME: path.join(this.root, 'cache'),
+    };
+  }
+
+  run(command: string, flags: string[] = [], expectedExit = 0, agent = 'opencode') {
+    const networkFlags = agent === 'codex' && command === 'install' ? [] : ['--offline'];
     const result = spawnSync(
       process.execPath,
-      [this.cli, command, '--agents=opencode', '--offline', '--no-input', '--json', ...flags],
+      [this.cli, command, '--agents=' + agent, ...networkFlags, '--no-input', '--json', ...flags],
       {
         cwd: this.project,
         encoding: 'utf8',
         timeout: 120_000,
-        env: {
-          PATH: path.join(this.root, 'bin') + path.delimiter + process.env.PATH,
-          HOME: this.root,
-          PWD: this.project,
-          OPENCODE_CONFIG_DIR: this.profile,
-          CODEX_HOME: path.dirname(this.unselectedConfig),
-          CLAUDE_CONFIG_DIR: path.join(this.root, '.claude'),
-          XDG_CONFIG_HOME: path.join(this.root, 'config'),
-          XDG_DATA_HOME: path.join(this.root, 'data'),
-          XDG_STATE_HOME: path.join(this.root, 'state'),
-          XDG_CACHE_HOME: path.join(this.root, 'cache'),
-        },
+        env:
+          agent === 'codex'
+            ? { ...this.environment(), SAFEWORD_SKIP_INSTALL: '1' }
+            : this.environment(),
       },
     );
     assert.equal(
@@ -130,6 +141,7 @@ interface SelectionWorld extends SafewordWorld {
   installed?: { config: Buffer; enrollment: Buffer; record: string };
   repeat?: { changed: boolean; state: string };
   originalAssets?: Record<string, string>;
+  sibling?: { installation: string; config: Buffer };
 }
 
 After({ tags: '@consistent-host-contract.TBU2.R2' }, function (this: SelectionWorld) {
@@ -278,5 +290,104 @@ Then(
     const { plugins } = JSON.parse(this.installed.config.toString());
     assert.equal(plugins.filter((entry: unknown) => entry !== 'unrelated').length, 1);
     this.selection.verifyActive();
+  },
+);
+
+const note = '.project/customer-note.md';
+const noteContents = 'Customer knowledge shared by both hosts.\n';
+
+Given(
+  'two selected hosts use shared framework resources and project-owned knowledge',
+  { timeout: 180_000 },
+  async function (this: SelectionWorld) {
+    prepareSelection(this);
+    const fixture = this.selection;
+    assert.ok(fixture);
+    mkdirSync(path.join(fixture.project, '.project'), { recursive: true });
+    writeFileSync(path.join(fixture.project, note), noteContents);
+    assert.equal(fixture.run('install').state, 'changed');
+    fixture.verifyActive();
+    const descriptor = process.env.SAFEWORD_CODEX_TEST_CONFIG;
+    assert.ok(descriptor, 'A prepared Codex binary is required');
+    const { binary } = JSON.parse(readFileSync(descriptor, 'utf8'));
+    assert.ok(typeof binary === 'string' && path.isAbsolute(binary));
+    const executable = path.join(fixture.root, 'bin', 'codex');
+    unlinkSync(executable);
+    symlinkSync(binary, executable);
+    const options = {
+      cwd: fixture.project,
+      env: fixture.environment(),
+      encoding: 'utf8' as const,
+      timeout: 60_000,
+    };
+    execFileSync(
+      binary,
+      ['plugin', 'marketplace', 'add', path.resolve(import.meta.dirname, '..'), '--json'],
+      options,
+    );
+    const installation = JSON.parse(
+      execFileSync(binary, ['plugin', 'add', 'safeword@safeword', '--json'], options),
+    ).installedPath;
+    const enrolled = fixture.run('install', [], 2, 'codex');
+    assert.equal(enrolled.state, 'action_required');
+    assert.deepEqual(enrolled.data.selected_agents, ['codex']);
+    assert.ok(
+      enrolled.findings.some((row: { code: string }) => row.code === 'SETUP_CODEX_PLUGIN_HANDOFF'),
+    );
+    assert.ok(
+      enrolled.findings.some(
+        (row: { code: string }) => row.code === 'CODEX_PLUGIN_ENABLED_HOOK_UNPROVEN',
+      ),
+    );
+    const home = path.dirname(fixture.unselectedConfig);
+    const response = await discoverCodexResources(
+      binary,
+      home,
+      fixture.project,
+      'skills/list',
+      options.env,
+    );
+    const skillPath = realpathSync(path.join(installation, 'skills/explain/SKILL.md'));
+    assert.ok(
+      response.result.data.some(row =>
+        row.skills?.some(skill => skill.enabled && realpathSync(skill.path) === skillPath),
+      ),
+    );
+    this.sibling = { installation, config: readFileSync(fixture.config) };
+  },
+);
+
+When(
+  'Safeword uninstalls one host integration',
+  { timeout: 180_000 },
+  function (this: SelectionWorld) {
+    const fixture = this.selection;
+    assert.ok(fixture && this.sibling);
+    const plan = fixture.run('uninstall', [], 2, 'codex');
+    assert.equal(plan.state, 'action_required');
+    assert.ok(plan.data.plan?.id, JSON.stringify(plan));
+    const removed = fixture.run('uninstall', ['--yes', '--plan', plan.data.plan.id], 0, 'codex');
+    assert.equal(removed.state, 'changed');
+    assert.equal(existsSync(this.sibling.installation), false);
+  },
+);
+
+Then(
+  'the remaining host still loads its contracted resources and the project knowledge is preserved',
+  { timeout: 120_000 },
+  function (this: SelectionWorld) {
+    const fixture = this.selection;
+    assert.ok(fixture && this.sibling);
+    assert.deepEqual(readFileSync(fixture.config), this.sibling.config);
+    assert.equal(readFileSync(path.join(fixture.project, note), 'utf8'), noteContents);
+    const { data } = fixture.run('conformance');
+    assert.equal(data.conformant, true);
+    assert.equal(data.capture.native_activation.event, 'pre_tool');
+    assert.ok(
+      data.capture.registrations.some(
+        (row: { id: string; state: string }) =>
+          row.id === 'safeword-explain' && row.state === 'active',
+      ),
+    );
   },
 );

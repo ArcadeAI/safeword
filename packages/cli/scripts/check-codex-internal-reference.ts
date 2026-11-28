@@ -40,7 +40,14 @@ interface NativeHook {
 interface DiscoveryResponse {
   id?: number;
   error?: unknown;
-  result: { data: { hooks: NativeHook[]; errors: unknown[]; warnings: unknown[] }[] };
+  result: {
+    data: {
+      hooks: NativeHook[];
+      skills?: { name: string; path: string; enabled: boolean }[];
+      errors: unknown[];
+      warnings: unknown[];
+    }[];
+  };
 }
 
 const digest = (file: string): string =>
@@ -572,18 +579,19 @@ function replay(artifacts: string): number {
   }
 }
 
-async function discovery(
+export async function discoverCodexResources(
   binary: string,
   profile: string,
   project: string,
-  method: string,
+  method: 'skills/list' | 'hooks/list',
+  environment: NodeJS.ProcessEnv = process.env,
 ): Promise<DiscoveryResponse> {
   const child = spawn(
     binary,
     ['--enable', 'hooks', '--enable', 'plugins', 'app-server', '--stdio'],
     {
       cwd: project,
-      env: { ...process.env, CODEX_HOME: profile },
+      env: { ...environment, CODEX_HOME: profile },
       stdio: ['pipe', 'pipe', 'pipe'],
     },
   );
@@ -803,7 +811,7 @@ if(result.signal) process.kill(process.pid,result.signal); else process.exit(res
     assertMatchingTree(candidate, installed);
     assert.equal(digest(path.join(installed, 'hooks.json')), originalManifest);
     async function hooks(label: string): Promise<NativeHook[]> {
-      const response = await discovery(fixture.binary, profile, project, 'hooks/list');
+      const response = await discoverCodexResources(fixture.binary, profile, project, 'hooks/list');
       json(path.join(artifacts, `${label}.json`), response);
       const data = response.result.data[0];
       assert.ok(data);
@@ -856,7 +864,7 @@ if(result.signal) process.kill(process.pid,result.signal); else process.exit(res
     });
     json(
       path.join(artifacts, 'skills-list.json'),
-      await discovery(fixture.binary, profile, project, 'skills/list'),
+      await discoverCodexResources(fixture.binary, profile, project, 'skills/list'),
     );
     writeFileSync(
       path.join(project, 'package.json'),
