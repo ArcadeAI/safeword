@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "05248470296a89ffd3e0b0b4a5067df404e829c02d4bddff1b90f3d16cf186aa"
+      "sha256": "73e3ea8016469dacc64a8599dbe209bd6e8105dd728de86b0eed616a5c80d893"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "40855fdbd7ac3ca711dfa25ec1e0ac7422ed947bb7ef12ce313eda45db1dadca"
+      "sha256": "468963b065abec6f8485efa6f93d4089d3111a82ceb3cedb8877c43dadbc975a"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "255ee3c90853eca66bb4edd397ae4d346cd6bcb58947544a5c763b6f75a7eb8a"
+      "sha256": "2b838ad9ac31593250828ed2b328bdcdb649b6b578b63194c214b9f44f17687f"
     },
     {
       "path": "runtime/event-groups.json",
@@ -268,6 +268,10 @@
     {
       "path": "runtime/hooks/lib/inspiration.ts",
       "sha256": "7f343390b08c4aa042ca8cbd5fc04eae087e41c41d193e3267974d2b2d26df24"
+    },
+    {
+      "path": "runtime/hooks/lib/intake-write-targets.ts",
+      "sha256": "10b4f7591690e0f13799d42a326709aacfe7dfa14eff8824ebaff62fde20896e"
     },
     {
       "path": "runtime/hooks/lib/jsonl-spool.ts",
@@ -527,7 +531,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "d4215522b0d55810aad27951b817e2137d14db53a81f585b5826861159fde0fa"
+      "sha256": "4882479d5f3cc25642effc2403bbd4912b2f0898343e3b49a2628cb85ccc84b0"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -1147,7 +1151,7 @@
     },
     {
       "path": "templates/hooks/cursor/before-shell-execution.ts",
-      "sha256": "90c954cdbb784cb3420eaa79934fd42b9af2c2f1f4465bc69ad2b09606883407"
+      "sha256": "18fc1565b53c6466beca5e318b8d558b67a2713fbf15be3dc95a31e45f27cfbe"
     },
     {
       "path": "templates/hooks/cursor/gate-adapter.ts",
@@ -1268,6 +1272,10 @@
     {
       "path": "templates/hooks/lib/inspiration.ts",
       "sha256": "d727836bcaf58fe3652c1c399637376e6e9c5ff1af9862b0afd97cc8a03211ea"
+    },
+    {
+      "path": "templates/hooks/lib/intake-write-targets.ts",
+      "sha256": "10b4f7591690e0f13799d42a326709aacfe7dfa14eff8824ebaff62fde20896e"
     },
     {
       "path": "templates/hooks/lib/jsonl-spool.ts",
@@ -1523,7 +1531,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "b313865aaec589cb011abc00988c3143a369e09d5e499fa89f2c4cc51e722383"
+      "sha256": "d726ab5d407c40191d495e6a49de2e98979d0ec04e717259200704686661dd24"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",
@@ -1651,7 +1659,7 @@
     },
     {
       "path": "templates/SAFEWORD.md",
-      "sha256": "16c2938ff55402105f3ee4f7ca68904e0253b91e1370e06c8f2c49e5f5cfcb5a"
+      "sha256": "f4ff43592e3b3a74c03ebcc684eaf99b9c04489c74610fa1bd5f1b5b107d9318"
     },
     {
       "path": "templates/scripts/bisect-test-pollution.sh",

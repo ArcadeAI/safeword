@@ -3607,7 +3607,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6cf974642f71ee8091f19a8d8c68246f4a2dcdba86c7f5966ea22f992c43636a",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "83d1369a1db26474ce498565e1f67711834137276234ca697de3be0f1abbafff",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "b313865aaec589cb011abc00988c3143a369e09d5e499fa89f2c4cc51e722383",
+        ".safeword/hooks/pre-tool-quality.ts": "d726ab5d407c40191d495e6a49de2e98979d0ec04e717259200704686661dd24",
         ".safeword/hooks/pre-tool-stale-main.ts": "6a7c2d75a9955f661f620ee20f4210bec09fa206625d84363cd0376fc56fdf5d",
         ".safeword/hooks/prompt-questions.ts": "ac2f53a7c2e87cb4517b7a4c9d965bacdd262828aa28474d0441dc2edafc215d",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -16579,6 +16579,9 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       ".safeword/hooks/lib/typecheck-gate.ts": { template: "hooks/lib/typecheck-gate.ts" },
       ".safeword/hooks/lib/checkbox-transitions.ts": {
         template: "hooks/lib/checkbox-transitions.ts"
+      },
+      ".safeword/hooks/lib/intake-write-targets.ts": {
+        template: "hooks/lib/intake-write-targets.ts"
       },
       ".safeword/hooks/lib/shell-segments.ts": { template: "hooks/lib/shell-segments.ts" },
       ".safeword/hooks/lib/bash-ledger-writes.ts": {
@@ -81690,7 +81693,10 @@ export const Safeword = async input => {
       }
       let result;
       try {
-        const scoped = input.directory === classification.directory ? envelope : { ...envelope, cwd: input.directory };
+        const directory = envelope.tool_name === 'Bash' && typeof output.args.workdir === 'string'
+          ? path.resolve(input.directory, output.args.workdir)
+          : input.directory;
+        const scoped = directory === classification.directory ? envelope : { ...envelope, cwd: directory };
         result = await dispatch(await readBoundIdentity(), scoped, classification.directory);
       } catch (error) {
         if (error instanceof UnavailableDispatcher) throw new Error(REPAIR);

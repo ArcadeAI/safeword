@@ -183,6 +183,16 @@ it('binds a saved intake ticket through the installed OpenCode profile before en
     before('write', { filePath: 'deployment.toml' }, 'unbound'),
   ).resolves.toBeUndefined();
   await expect(before('bash', { command: 'cat delivery.py' })).resolves.toBeUndefined();
+  const namedDestination = { command: 'cp /tmp/input delivery.py' };
+  await expect(before('bash', namedDestination)).rejects.toThrow('advance-intake');
+  await expect(before('bash', namedDestination, 'unbound')).resolves.toBeUndefined();
+  await expect(before('bash', { ...namedDestination, workdir: dir })).resolves.toBeUndefined();
+  const app = nodePath.join(project, 'app');
+  mkdirSync(app);
+  const redirect = { command: 'cat < input > report 2>&1', workdir: 'app' };
+  await expect(before('bash', redirect)).rejects.toThrow('advance-intake');
+  await expect(before('bash', { ...redirect, workdir: dir })).resolves.toBeUndefined();
+  await expect(before('bash', { command: 'cp delivery.py /tmp/output' })).resolves.toBeUndefined();
   await expect(
     before('apply_patch', {
       patchText:

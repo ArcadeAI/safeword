@@ -255,7 +255,10 @@ export const Safeword = async input => {
       }
       let result;
       try {
-        const scoped = input.directory === classification.directory ? envelope : { ...envelope, cwd: input.directory };
+        const directory = envelope.tool_name === 'Bash' && typeof output.args.workdir === 'string'
+          ? path.resolve(input.directory, output.args.workdir)
+          : input.directory;
+        const scoped = directory === classification.directory ? envelope : { ...envelope, cwd: directory };
         result = await dispatch(await readBoundIdentity(), scoped, classification.directory);
       } catch (error) {
         if (error instanceof UnavailableDispatcher) throw new Error(REPAIR);
