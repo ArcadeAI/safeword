@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { installOpenCodeProfile, openCodeProfilePaths } from '../../src/opencode/profile.js';
 import { getTemplatesDirectory } from '../../src/utils/fs.js';
-import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
+import { createTemporaryDirectory, removeTemporaryDirectory, runCli } from '../helpers.js';
 
 const temporaryDirectories: string[] = [];
 const dispatcherPath = nodePath.resolve(import.meta.dirname, '../../dist/opencode/dispatcher.js');
@@ -154,7 +154,8 @@ it('binds a saved intake ticket through the installed OpenCode profile before en
     }>;
   };
   const hooks = await installed.Safeword({ directory: project });
-  function before(tool: string, args: Record<string, string>, sessionID = 'author') {
+  const authorSession = 'author/feature';
+  function before(tool: string, args: Record<string, string>, sessionID = authorSession) {
     return hooks['tool.execute.before']({ tool, sessionID, callID: 'check' }, { args });
   }
   const dir = nodePath.join(project, '.project/tickets/OPEN12-dispatch');
@@ -164,10 +165,18 @@ it('binds a saved intake ticket through the installed OpenCode profile before en
   writeFileSync(filePath, content);
   const output = { output: 'Saved' };
   await hooks['tool.execute.after'](
-    { tool: 'write', sessionID: 'author', callID: 'save', args: { filePath, content } },
+    { tool: 'write', sessionID: authorSession, callID: 'save', args: { filePath, content } },
     output,
   );
-  expect(output.output).toContain('opencode-author');
+  async function switchWork(action: 'pause' | 'resume') {
+    const commands = output.output.matchAll(
+      /safeword ticket (pause|resume) <ticket-id> ([\w.-]+)/gu,
+    );
+    const session = commands.find(match => match[1] === action)?.[2];
+    if (!session) throw new Error(`Missing ${action} command in ${output.output}`);
+    const result = await runCli(['ticket', action, 'OPEN12', session, '--json'], { cwd: project });
+    expect(result.exitCode, result.stdout || result.stderr).toBe(0);
+  }
   await expect(before('edit', { filePath: 'delivery.py' })).rejects.toThrow('advance-intake');
   await expect(before('write', { filePath: 'deployment.toml' })).rejects.toThrow('advance-intake');
   await expect(
@@ -185,4 +194,12 @@ it('binds a saved intake ticket through the installed OpenCode profile before en
         '*** Begin Patch\n*** Update File: .project/notes\n*** Move to: delivery.py\n@@\n-a\n+b\n*** End Patch',
     }),
   ).rejects.toThrow('advance-intake');
+  await switchWork('pause');
+  await expect(before('write', { filePath: 'help.txt' })).resolves.toBeUndefined();
+  await hooks['tool.execute.after'](
+    { tool: 'write', sessionID: authorSession, callID: 'patch', args: { filePath: 'help.txt' } },
+    { output: 'Saved' },
+  );
+  await switchWork('resume');
+  await expect(before('write', { filePath: 'delivery.py' })).rejects.toThrow('advance-intake');
 });
