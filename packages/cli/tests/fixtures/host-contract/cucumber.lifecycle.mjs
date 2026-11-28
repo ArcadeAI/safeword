@@ -10,5 +10,6 @@ export default {
   import: [
     nodePath.join(repoRoot, 'steps/world.ts'),
     nodePath.join(repoRoot, 'steps/consistent-host-lifecycle.steps.ts'),
+    nodePath.join(repoRoot, 'steps/consistent-host-cleanup.steps.ts'),
   ],
 };
