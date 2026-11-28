@@ -11,5 +11,9 @@ export default {
     nodePath.join(repoRoot, 'steps/consistent-host-contract.steps.ts'),
     nodePath.join(repoRoot, 'steps/consistent-host-portable.steps.ts'),
   ],
-  worldParameters: { cursorCli: process.env.SAFEWORD_CURSOR_CLI, portableRuntime: 'CLI' },
+  worldParameters: {
+    cursorCli: process.env.SAFEWORD_CURSOR_CLI,
+    cursorFixtureFile: process.env.SAFEWORD_CURSOR_TEST_CONFIG,
+    portableRuntime: 'CLI',
+  },
 };

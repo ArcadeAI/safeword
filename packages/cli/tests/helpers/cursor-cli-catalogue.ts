@@ -24,6 +24,7 @@ import {
   type ObservedShell,
   requireNativeHelperExecution,
 } from './cursor-cli-observations.js';
+import { configurePrivateImports } from './cursor-cli-private-imports.js';
 import { command } from './cursor-native-window.js';
 import {
   type CanonicalCatalogueInputs,
@@ -115,23 +116,7 @@ export class CursorCliCatalogueActor {
   }
 
   private environment(): NodeJS.ProcessEnv {
-    if (this.disabledClaudePlugins?.length) {
-      const directory = nodePath.join(this.workspace, '.claude');
-      const file = nodePath.join(directory, 'settings.local.json');
-      const settings = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {};
-      const disabled = Object.fromEntries(this.disabledClaudePlugins.map(name => [name, false]));
-      mkdirSync(directory, { recursive: true });
-      writeFileSync(
-        file,
-        JSON.stringify({
-          ...settings,
-          enabledPlugins: {
-            ...settings.enabledPlugins,
-            ...disabled,
-          },
-        }),
-      );
-    }
+    configurePrivateImports(this.workspace, this.disabledClaudePlugins);
     return {
       ...Object.fromEntries(
         Object.entries(process.env).filter(
