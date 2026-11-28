@@ -30,9 +30,9 @@ it('removes only the child credential when securing its copied file fails', () =
       expect(path.basename(copy)).toBe('auth.json');
       expect(copy).not.toBe(original);
       expect(readFileSync(copy, 'utf8')).toBe(contents);
-      throw new Error('controlled chmod failure');
+      throw new Error('controlled mode-change error');
     });
-    expect(() => provisionIsolatedGrade(root, source)).toThrow('controlled chmod failure');
+    expect(() => provisionIsolatedGrade(root, source)).toThrow('controlled mode-change error');
     expect(existsSync(copy)).toBe(false);
     expect(readFileSync(original, 'utf8')).toBe(contents);
   } finally {

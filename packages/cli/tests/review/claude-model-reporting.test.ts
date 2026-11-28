@@ -6,7 +6,7 @@ import path from 'node:path';
 import { afterEach, expect, it } from 'vitest';
 
 import { initializeWorkflowGit } from '../helpers/codex-workflow-git.js';
-import { REVIEWER_CAPABILITIES } from '../review-fixtures.js';
+import { createTrustedReviewerDirectory, REVIEWER_CAPABILITIES } from '../review-fixtures.js';
 
 const repo = path.resolve(import.meta.dirname, '../../../..');
 const roots: string[] = [];
@@ -20,7 +20,7 @@ it.each(['current', 'auxiliary', 'mixed', 'usage-only'])(
   'reports the original Claude model through normal signed status: %s',
   mode => {
     const root = mkdtempSync(path.join(tmpdir(), 'claude-reporting-'));
-    const bin = mkdtempSync(path.join(repo, 'node_modules/.cache/claude-reporting-'));
+    const bin = createTrustedReviewerDirectory('claude-reporting-');
     roots.push(root, bin);
     const project = path.join(root, 'project');
     mkdirSync(project);
